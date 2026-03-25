@@ -33,7 +33,7 @@ const DeferredPayments = React.lazy(() => import('./components/DeferredPayments'
 const LateReturns = React.lazy(() => import('./components/LateReturns'));
 const PaymentApprovals = React.lazy(() => import('./components/PaymentApprovals'));
 const ManageExtrasView = React.lazy(() => import('./components/ManageExtrasView'));
-const ProfileView = React.lazy(() => import('./components/profileview'));
+const ProfileView = React.lazy(() => import('./components/ProfileView'));
 const AggregatorSetupView = React.lazy(() => import('./components/AggregatorSetupView'));
 const UserActivityLogView = React.lazy(() => import('./components/UserActivityLogView'));
 const ExcelUpload = React.lazy(() => import('./components/ExcelUpload'));
