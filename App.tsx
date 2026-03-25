@@ -24,7 +24,7 @@ const ExtendRentalModal = React.lazy(() => import('./components/ExtendRentalModa
 const ManageCompanyDetailsView = React.lazy(() => import('./components/ManageCompanyDetailsView'));
 const ManageYearsView = React.lazy(() => import('./components/ManageYearsView'));
 const UserManagement = React.lazy(() => import('./components/UserManagement'));
-const AccountingDashboard = React.lazy(() => import('./components/accountingdashboard'));
+const AccountingDashboard = React.lazy(() => import('./components/AccountingDashboard'));
 const InternalMessages = React.lazy(() => import('./components/InternalMessages'));
 const TodaysReservations = React.lazy(() => import('./components/TodaysReservations'));
 const HomePage = React.lazy(() => import('./components/HomePage'));
