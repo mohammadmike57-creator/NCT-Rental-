@@ -19,7 +19,7 @@ const Receipt = React.lazy(() => import('./components/Receipt'));
 const SourcePerformanceReport = React.lazy(() => import('./components/SourcePerformanceReport'));
 const TrafficTickets = React.lazy(() => import('./components/TrafficTickets'));
 const VehicleDamages = React.lazy(() => import('./components/VehicleDamages'));
-const LoginScreen = React.lazy(() => import('./components/loginScreen'));
+const LoginScreen = React.lazy(() => import('./components/LoginScreen'));
 const ExtendRentalModal = React.lazy(() => import('./components/ExtendRentalModal'));
 const ManageCompanyDetailsView = React.lazy(() => import('./components/ManageCompanyDetailsView'));
 const ManageYearsView = React.lazy(() => import('./components/ManageYearsView'));
