@@ -1,0 +1,196 @@
+.
+├── App.tsx
+├── NCT-Rental-
+│   ├── App.tsx
+│   ├── README.md
+│   ├── RentalVoucher.tsx
+│   ├── ReservationTable.tsx
+│   ├── UserManagement.tsx
+│   ├── Voucher.tsx
+│   ├── components
+│   │   ├── AggregatorSetupView.tsx
+│   │   ├── BarChart.tsx
+│   │   ├── CarCheckIcons.tsx
+│   │   ├── ConfirmationDialog.tsx
+│   │   ├── DailyAvailabilityModal.tsx
+│   │   ├── DeferredPayments.tsx
+│   │   ├── ExpiryAlertModal.tsx
+│   │   ├── ExtendRentalModal.tsx
+│   │   ├── FleetAvailability.tsx
+│   │   ├── FleetCalendarView.tsx
+│   │   ├── FleetStatusTracker.tsx
+│   │   ├── FleetTimelineView.tsx
+│   │   ├── HomePage.tsx
+│   │   ├── InternalMessages.tsx
+│   │   ├── Invoice.tsx
+│   │   ├── LateReturns.tsx
+│   │   ├── LoadingSpinner.tsx
+│   │   ├── ManageAggregatorExtrasView.tsx
+│   │   ├── ManageAvailabilityView.tsx
+│   │   ├── ManageCarModelsModal.tsx
+│   │   ├── ManageCompanyDetailsView.tsx
+│   │   ├── ManageConnectionView.tsx
+│   │   ├── ManageExpensesModal.tsx
+│   │   ├── ManageExtrasView.tsx
+│   │   ├── ManageFleetView.tsx
+│   │   ├── ManageLocationsView.tsx
+│   │   ├── ManagePeriodModal.tsx
+│   │   ├── ManageRatePlansView.tsx
+│   │   ├── ManageSourcesModal.tsx
+│   │   ├── ManageStopSaleView.tsx
+│   │   ├── ManageTermsView.tsx
+│   │   ├── ManageUpgradeModal.tsx
+│   │   ├── ManageYearsView.tsx
+│   │   ├── Notifications.tsx
+│   │   ├── PaymentApprovals.tsx
+│   │   ├── PieChart.tsx
+│   │   ├── RateHistoryView.tsx
+│   │   ├── Receipt.tsx
+│   │   ├── RentalVoucher.tsx
+│   │   ├── RepresentativeView.tsx
+│   │   ├── ReservationTable.tsx
+│   │   ├── SecurityKeyModal.tsx
+│   │   ├── SignaturePad.tsx
+│   │   ├── SourcePerformanceReport.tsx
+│   │   ├── SummaryTable.tsx
+│   │   ├── Tabs.tsx
+│   │   ├── TodaysReservations.tsx
+│   │   ├── TrafficTickets.tsx
+│   │   ├── UserActivityLogView.tsx
+│   │   ├── UserManagement.tsx
+│   │   ├── VehicleDamages.tsx
+│   │   ├── Voucher.tsx
+│   │   ├── XMLPreviewView.tsx
+│   │   ├── accountingdashboard.tsx
+│   │   ├── icons.tsx
+│   │   ├── loginScreen.tsx
+│   │   ├── nct-rental-app
+│   │   └── profileview.tsx
+│   ├── constants.ts
+│   ├── firebase
+│   │   ├── api.ts
+│   │   ├── config.ts
+│   │   ├── index.ts
+│   │   └── mock.ts
+│   ├── importedData.ts
+│   ├── index.html
+│   ├── index.tsx
+│   ├── manifest.json
+│   ├── metadata.json
+│   ├── nct-rental-app
+│   │   ├── index.html
+│   │   ├── package.json
+│   │   ├── postcss.config.js
+│   │   ├── public
+│   │   ├── src
+│   │   ├── tailwind.config.js
+│   │   ├── tsconfig.json
+│   │   ├── tsconfig.node.json
+│   │   └── vite.config.ts
+│   ├── package.json
+│   ├── sw.js
+│   ├── tsconfig.json
+│   ├── types.ts
+│   └── vite.config.ts
+├── README.md
+├── RentalVoucher.tsx
+├── ReservationTable.tsx
+├── UserManagement.tsx
+├── Voucher.tsx
+├── components
+│   ├── AccountingDashboard.tsx
+│   ├── AggregatorSetupView.tsx
+│   ├── BarChart.tsx
+│   ├── CarCheckIcons.tsx
+│   ├── ConfirmationDialog.tsx
+│   ├── DailyAvailabilityModal.tsx
+│   ├── DeferredPayments.tsx
+│   ├── ExpiryAlertModal.tsx
+│   ├── ExtendRentalModal.tsx
+│   ├── FleetAvailability.tsx
+│   ├── FleetCalendarView.tsx
+│   ├── FleetStatusTracker.tsx
+│   ├── FleetTimelineView.tsx
+│   ├── HomePage.tsx
+│   ├── InternalMessages.tsx
+│   ├── Invoice.tsx
+│   ├── LateReturns.tsx
+│   ├── LoadingSpinner.tsx
+│   ├── LoginScreen.tsx
+│   ├── ManageAggregatorExtrasView.tsx
+│   ├── ManageAvailabilityView.tsx
+│   ├── ManageCarModelsModal.tsx
+│   ├── ManageCompanyDetailsView.tsx
+│   ├── ManageConnectionView.tsx
+│   ├── ManageExpensesModal.tsx
+│   ├── ManageExtrasView.tsx
+│   ├── ManageFleetView.tsx
+│   ├── ManageLocationsView.tsx
+│   ├── ManagePeriodModal.tsx
+│   ├── ManageRatePlansView.tsx
+│   ├── ManageSourcesModal.tsx
+│   ├── ManageStopSaleView.tsx
+│   ├── ManageTermsView.tsx
+│   ├── ManageUpgradeModal.tsx
+│   ├── ManageYearsView.tsx
+│   ├── Notifications.tsx
+│   ├── PaymentApprovals.tsx
+│   ├── PieChart.tsx
+│   ├── ProfileView.tsx
+│   ├── RateHistoryView.tsx
+│   ├── Receipt.tsx
+│   ├── RentalVoucher.tsx
+│   ├── RepresentativeView.tsx
+│   ├── ReservationTable.tsx
+│   ├── SecurityKeyModal.tsx
+│   ├── SignaturePad.tsx
+│   ├── SourcePerformanceReport.tsx
+│   ├── SummaryTable.tsx
+│   ├── Tabs.tsx
+│   ├── TodaysReservations.tsx
+│   ├── TrafficTickets.tsx
+│   ├── UserActivityLogView.tsx
+│   ├── UserManagement.tsx
+│   ├── VehicleDamages.tsx
+│   ├── Voucher.tsx
+│   ├── XMLPreviewView.tsx
+│   ├── icons.tsx
+│   └── nct-rental-app
+│       └── src
+├── constants.ts
+├── firebase
+│   ├── api.ts
+│   ├── config.ts
+│   ├── index.ts
+│   └── mock.ts
+├── importedData.ts
+├── index.html
+├── index.tsx
+├── manifest.json
+├── metadata.json
+├── nct-rental-app
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── public
+│   │   └── sw.js
+│   ├── src
+│   │   ├── App.tsx
+│   │   ├── components
+│   │   ├── constants.ts
+│   │   ├── firebase
+│   │   ├── index.css
+│   │   ├── index.tsx
+│   │   └── types.ts
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
+├── package.json
+├── project_tree.txt
+├── sw.js
+├── tsconfig.json
+├── types.ts
+└── vite.config.ts
+
+17 directories, 177 files

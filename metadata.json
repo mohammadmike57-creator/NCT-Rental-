@@ -1,0 +1,5 @@
+{
+  "name": "NCT Rental",
+  "description": "A web application that functions like an Excel sheet to manage UR-Drive Jordan reservations for 2025 and 2026, including monthly breakdowns and yearly commission summaries.",
+  "requestFramePermissions": []
+}

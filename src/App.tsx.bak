@@ -1,0 +1,296 @@
+import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
+import { AppData, Reservation, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale } from './types';
+import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
+import Tabs from './components/Tabs';
+import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon } from './components/icons';
+import LoadingSpinner from './components/LoadingSpinner';
+import Notifications from './components/Notifications';
+import { signOutUser, onAuthStateChangedListener } from './firebase/api';
+import { userService } from './services/userService';
+import { reservationService } from './services/reservationService';
+// Import TestReservations temporarily
+import TestReservations from './components/TestReservations';
+
+// Lazy load other components (keep as is)
+const ReservationTable = React.lazy(() => import('./components/ReservationTable'));
+const SummaryTable = React.lazy(() => import('./components/SummaryTable'));
+const ManageSourcesView = React.lazy(() => import('./components/ManageSourcesModal'));
+const Invoice = React.lazy(() => import('./components/Invoice'));
+const ManageFleetView = React.lazy(() => import('./components/ManageFleetView'));
+const FleetAvailability = React.lazy(() => import('./components/FleetAvailability'));
+const Voucher = React.lazy(() => import('./components/Voucher'));
+const Receipt = React.lazy(() => import('./components/Receipt'));
+const SourcePerformanceReport = React.lazy(() => import('./components/SourcePerformanceReport'));
+const TrafficTickets = React.lazy(() => import('./components/TrafficTickets'));
+const VehicleDamages = React.lazy(() => import('./components/VehicleDamages'));
+const LoginScreen = React.lazy(() => import('./components/loginScreen'));
+const ExtendRentalModal = React.lazy(() => import('./components/ExtendRentalModal'));
+const ManageCompanyDetailsView = React.lazy(() => import('./components/ManageCompanyDetailsView'));
+const ManageYearsView = React.lazy(() => import('./components/ManageYearsView'));
+const UserManagement = React.lazy(() => import('./components/UserManagement'));
+const AccountingDashboard = React.lazy(() => import('./components/accountingdashboard'));
+const InternalMessages = React.lazy(() => import('./components/InternalMessages'));
+const TodaysReservations = React.lazy(() => import('./components/TodaysReservations'));
+const HomePage = React.lazy(() => import('./components/HomePage'));
+const ManageLocationsView = React.lazy(() => import('./components/ManageLocationsView'));
+const DeferredPayments = React.lazy(() => import('./components/DeferredPayments'));
+const RentalVoucher = React.lazy(() => import('./components/RentalVoucher'));
+const LateReturns = React.lazy(() => import('./components/LateReturns'));
+const PaymentApprovals = React.lazy(() => import('./components/PaymentApprovals'));
+const ManageExtrasView = React.lazy(() => import('./components/ManageExtrasView'));
+const ProfileView = React.lazy(() => import('./components/profileview'));
+const AggregatorSetupView = React.lazy(() => import('./components/AggregatorSetupView'));
+const UserActivityLogView = React.lazy(() => import('./components/UserActivityLogView'));
+
+const USERS_CACHE_KEY = 'NCT_USERS_CACHE';
+
+// Helper to check permissions
+const hasPermission = (user: User | null, permission: UserPermission): boolean => {
+  if (!user) return false;
+  return user.permissions?.includes(permission) ?? false;
+};
+
+const SidebarSection: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => {
+  const [isOpen, setIsOpen] = useState(true);
+  return (
+    <div>
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-700/50 rounded-md">
+        {title}
+        <ChevronDownIcon className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && <div className="pl-3 pt-1 space-y-1">{children}</div>}
+    </div>
+  );
+};
+
+export const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(userService.getCurrentUser());
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // We're not loading global data anymore
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  
+  // We'll keep some state for backward compatibility, but they will be unused or replaced gradually
+  const [reservations, setReservations] = useState<AppData>({});
+  const [sources, setSources] = useState<RentalSource[]>([]);
+  const [fleet, setFleet] = useState<Fleet>([]);
+  const [companyDetails, setCompanyDetails] = useState<CompanyDetails>({ name: 'UR-Drive Jordan', subName: '', address: '', phone: '', email: '', taxNumber: '', requirePaymentApproval: false });
+  const [trafficTickets, setTrafficTickets] = useState<TrafficTicket[]>([]);
+  const [vehicleDamages, setVehicleDamages] = useState<VehicleDamage[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [rentalLocations, setRentalLocations] = useState<RentalLocation[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceData[]>([]);
+  const [availableExtras, setAvailableExtras] = useState<AvailableExtra[]>([]);
+  const [franchisePayments, setFranchisePayments] = useState<FranchisePayment[]>([]);
+  const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
+  const [aggregators, setAggregators] = useState<Aggregator[]>([]);
+  const [stopSales, setStopSales] = useState<StopSale[]>([]);
+  
+  const [years, setYears] = useState<number[]>(INITIAL_YEARS);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
+  const [mainView, setMainView] = useState('Home');
+  const [newReservations, setNewReservations] = useState<Reservation[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktopView, setIsDesktopView] = useState(window.innerWidth >= 1024);
+
+  const [filters, setFilters] = useState<ReservationFilters>({
+    sourceFilter: '',
+    carModelFilter: '',
+    statusFilter: '',
+    durationFilter: '',
+    bookingIdSearch: '',
+    dateFilter: '',
+  });
+  
+  const [modals, setModals] = useState({
+      viewVoucher: null as { reservation: Reservation; year: number; month: string } | null,
+      viewReceipt: null as Reservation | null,
+      viewRentalVoucher: null as Reservation | null,
+  });
+  
+  const [reservationToExtend, setReservationToExtend] = useState<Reservation | null>(null);
+  const [confirmation, setConfirmation] = useState('');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [messageToCompose, setMessageToCompose] = useState<{ subject: string; body: string } | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false);
+
+  const addNotification = useCallback((message: string, type: 'warning' | 'error' | 'info', title?: string) => {
+    const id = `notif-${Date.now()}-${Math.random()}`;
+    setNotifications(prev => [...prev, { id, message, type, title }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }, []);
+
+  // Listen to auth state changes (localStorage)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChangedListener((newUser) => {
+      setUser(newUser);
+      setAuthChecked(true);
+      if (!newUser) {
+        // Reset local state if logged out
+        setReservations({});
+        setSources([]);
+        setFleet([]);
+        setUsers([]);
+        // etc.
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const isAuthenticated = !!user;
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktopView(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleLogout = async () => {
+    await signOutUser();
+    setUser(null);
+  };
+
+  // We'll keep existing handlers but they need to be updated to use services later
+  // For now, we just need the sidebar to work, so we'll focus on that
+
+  // Sidebar links (same as before, using hasPermission)
+  const sidebarLinks: Record<string, SidebarLink[]> = {
+    "Core Operations": [
+        { name: 'Home', icon: HomeIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
+        { name: 'Reservations', icon: CalendarIcon, permission: UserPermission.VIEW_RESERVATIONS },
+        { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
+        { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: 0 },
+        { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
+    ],
+    "Reports": [
+        { name: 'Yearly Summary', icon: ChartBarIcon, permission: UserPermission.VIEW_REPORTS_YEARLY_SUMMARY },
+        { name: 'Source Performance', icon: ChartPieIcon, permission: UserPermission.VIEW_REPORTS_SOURCE_PERFORMANCE },
+        { name: 'Invoice Generation', icon: DocumentReportIcon, permission: UserPermission.VIEW_REPORTS_INVOICE_GENERATION },
+    ],
+    "Financials & Incidents": [
+        { name: 'Accounting', icon: AccountingIcon, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },
+        { name: 'Payment Approvals', icon: CurrencyDollarIcon, permission: UserPermission.VIEW_FINANCIALS_PAYMENT_APPROVALS, badge: 0 },
+        { name: 'Deferred Payments', icon: CurrencyDollarIcon, permission: UserPermission.VIEW_FINANCIALS_DEFERRED_PAYMENTS },
+        { name: 'Late Returns', icon: ClockIcon, permission: UserPermission.VIEW_FINANCIALS_LATE_RETURNS },
+        { name: 'Traffic Tickets', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_TRAFFIC_TICKETS },
+        { name: 'Vehicle Damages', icon: WrenchScrewdriverIcon, permission: UserPermission.VIEW_VEHICLE_DAMAGES },
+    ],
+    "OTA XML": [
+        { name: 'OTA XML', icon: GlobeAltIcon, permission: UserPermission.VIEW_AGGREGATOR_SETUP },
+    ],
+    "Administration": [
+        { name: 'User & Staff Management', icon: UsersIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_USERS },
+        { name: 'Fleet Management', icon: CarIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_FLEET },
+        { name: 'Website Sources', icon: CogIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_SOURCES },
+        { name: 'Manage Extras', icon: PlusCircleIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EXTRAS },
+        { name: 'Manage Locations', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_LOCATIONS },
+        { name: 'Company Details', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+        { name: 'Manage Years', icon: CogIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
+        { name: 'Activity Log', icon: DocumentReportIcon, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
+    ]
+  };
+
+  // Temporary: add a Test view
+  const mainViews: { [key: string]: { component: React.ReactNode, permission: UserPermission } } = {
+    'Home': { component: <div>Home (placeholder)</div>, permission: UserPermission.VIEW_HOME_DASHBOARD },
+    'Test': { component: <TestReservations />, permission: UserPermission.VIEW_HOME_DASHBOARD },
+  };
+
+  const handleNavigation = (view: string) => {
+    setMainView(view);
+    setIsSidebarOpen(false);
+  };
+
+  if (!authChecked) return <LoadingSpinner />;
+  if (!isAuthenticated) return <Suspense fallback={<LoadingSpinner />}><LoginScreen users={[]} /></Suspense>;
+
+  return (
+    <div className="flex h-screen bg-slate-100">
+      {isSidebarOpen && <div className="fixed inset-0 z-30 bg-black bg-opacity-50 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
+      
+      <aside className={`absolute md:relative z-40 md:z-auto w-64 bg-slate-800 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full`}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-700 h-16 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-8 w-8" />
+            <h1 className="text-xl font-bold text-white font-serif-professional">NCT Rental</h1>
+          </div>
+          <button className="text-slate-300 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)}><CloseIcon /></button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          <nav className="px-2 py-4 space-y-4 flex-1">
+            {Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
+              const visibleLinks = links.filter(link => hasPermission(user, link.permission));
+              if (visibleLinks.length === 0) return null;
+              return (
+                <SidebarSection key={sectionTitle} title={sectionTitle}>
+                  {visibleLinks.map(({ name, icon: Icon, badge }) => (
+                    <a
+                      key={name}
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); handleNavigation(name); }}
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${mainView === name ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon />
+                        <span>{name}</span>
+                      </div>
+                      {typeof badge === 'number' && badge > 0 && (
+                        <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">{badge}</span>
+                      )}
+                    </a>
+                  ))}
+                </SidebarSection>
+              );
+            })}
+            {/* Add a Test link manually for now */}
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); handleNavigation('Test'); }}
+              className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${mainView === 'Test' ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+            >
+              <div className="flex items-center gap-3">
+                <span>Test API</span>
+              </div>
+            </a>
+          </nav>
+
+          <div className="p-4 border-t border-slate-700 flex-shrink-0">
+            <div className="px-3 py-2 rounded-md bg-slate-900/50">
+              <p className="text-xs text-slate-400">Logged in as</p>
+              <p className="text-sm font-semibold text-white">{user?.fullName}</p>
+            </div>
+            <button onClick={handleLogout} className="flex items-center w-full gap-3 px-3 py-2.5 mt-3 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white rounded-md">
+              <LogoutIcon />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+      
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <header className="flex items-center justify-between p-4 bg-white shadow-sm no-print h-16 flex-shrink-0">
+          <div className="flex items-center flex-1 gap-4 min-w-0">
+            <button className="text-slate-600 md:hidden" onClick={() => setIsSidebarOpen(true)}><MenuIcon /></button>
+            <div className="min-w-0">
+              <h2 className="text-xl md:text-lg font-bold text-slate-800 truncate" title={mainView}>{mainView}</h2>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 overflow-y-auto sm:p-6 bg-slate-100 min-w-0">
+          <div className="max-w-7xl mx-auto">
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><LoadingSpinner /></div>}>
+              {mainViews[mainView]?.component}
+            </Suspense>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,154 @@
+
+// nct-rental-app/src/firebase/api.ts
+import { doc, getDoc, onSnapshot, setDoc, Unsubscribe as FirestoreUnsubscribe, DocumentSnapshot } from 'firebase/firestore';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, User as FirebaseUser, Unsubscribe, getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { initializeApp, getApps, deleteApp } from "firebase/app";
+
+import { db, auth } from './index'; // Import the initialized services
+import { firebaseConfig } from './config'; // Import config for secondary app
+import { AllData, AppData, YearData, UserPermission } from '../types';
+import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from '../constants';
+
+
+const getInitialState = (): AllData => {
+  const data: AppData = {};
+  for (const year of INITIAL_YEARS) {
+    const yearData: YearData = {};
+    for (const month of MONTHS) {
+      yearData[month] = [];
+    }
+    data[year] = yearData;
+  }
+  
+  const masterWithProfile = { ...MASTER_USER, permissions: [...MASTER_USER.permissions, UserPermission.VIEW_MY_PROFILE]};
+
+  return {
+    reservations: data,
+    sources: RENTAL_SOURCES,
+    fleet: INITIAL_FLEET,
+    companyDetails: {
+        name: 'UR-Drive Jordan',
+        subName: 'NCT Car Rental LLC',
+        address: 'Amman, Jordan',
+        phone: '+962 7 9999 9999',
+        email: 'contact@urdrive.com',
+        taxNumber: '123456789',
+        requirePaymentApproval: false,
+    },
+    trafficTickets: [],
+    vehicleDamages: [],
+    users: [masterWithProfile],
+    expenses: [],
+    rentalLocations: RENTAL_LOCATIONS,
+    messages: [],
+    invoices: [],
+    availableExtras: INITIAL_AVAILABLE_EXTRAS,
+    franchisePayments: [],
+    activityLog: [],
+    aggregators: INITIAL_AGGREGATORS,
+    stopSales: INITIAL_STOP_SALES,
+    years: INITIAL_YEARS,
+  };
+};
+
+// --- AUTH FUNCTIONS ---
+
+export const signInUser = (email: string, password: string): Promise<{ user: FirebaseUser }> => {
+    return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const signOutUser = (): Promise<void> => {
+    return signOut(auth);
+};
+
+export const onAuthStateChangedListener = (callback: (user: FirebaseUser | null) => void): Unsubscribe => {
+    return onAuthStateChanged(auth, callback);
+};
+
+export const registerUser = async (email: string, password: string): Promise<string> => {
+    console.log("FIREBASE: Attempting to register new user...");
+    const secondaryAppName = `SecondaryAppForUserCreation-${Date.now()}`;
+    let secondaryApp;
+    try {
+        const existingApps = getApps();
+        const foundApp = existingApps.find(app => app.name === secondaryAppName);
+        secondaryApp = foundApp ? foundApp : initializeApp(firebaseConfig, secondaryAppName);
+        const secondaryAuth = getAuth(secondaryApp);
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        console.log("FIREBASE: User created successfully in Auth. UID:", userCredential.user.uid);
+        await signOut(secondaryAuth);
+        return userCredential.user.uid;
+    } catch (error: any) {
+        console.error("FIREBASE: Error creating user:", error);
+        throw error; 
+    } finally {
+        if (secondaryApp) {
+            try {
+                 await deleteApp(secondaryApp);
+            } catch (e) {
+                console.warn("Error deleting secondary app", e);
+            }
+        }
+    }
+};
+
+export const sendPasswordReset = (email: string): Promise<void> => {
+    return sendPasswordResetEmail(auth, email);
+};
+
+
+// --- FIRESTORE FUNCTIONS ---
+
+export const onAllDataSnapshot = (callback: (docSnap: DocumentSnapshot) => void): FirestoreUnsubscribe => {
+    const docRef = doc(db, 'app_data', 'main_data');
+    console.log("FIREBASE: Subscribing to real-time data updates...");
+    
+    return onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            console.log("FIREBASE: Received data snapshot.");
+            callback(docSnap);
+        } else {
+            console.warn("FIREBASE: Data document does not exist. Saving initial state to create it.");
+            const initialState = getInitialState();
+            saveAllData(initialState).then(() => fetchInitialDataDoc().then(snap => snap && callback(snap)));
+        }
+    }, (error) => {
+        console.error("FIREBASE: Real-time listener error:", error);
+    });
+};
+
+const fetchInitialDataDoc = async (): Promise<DocumentSnapshot | null> => {
+     try {
+        const docRef = doc(db, 'app_data', 'main_data');
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists() ? docSnap : null;
+    } catch (error) {
+        console.error("FIREBASE: Error fetching initial data doc:", error);
+        return null;
+    }
+}
+
+
+export const saveAllData = (data: Partial<AllData>): Promise<void> => {
+    console.log("FIREBASE: Saving data to Firestore...");
+    const docRef = doc(db, 'app_data', 'main_data');
+    return setDoc(docRef, data, { merge: true });
+};
+
+export const fetchInitialData = async (): Promise<AllData | null> => {
+    try {
+        console.log("FIREBASE: Fetching initial data...");
+        const docRef = doc(db, 'app_data', 'main_data');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            console.log("FIREBASE: Initial data found.");
+            return docSnap.data() as AllData;
+        } else {
+            console.log("FIREBASE: No initial data on backend, returning default state.");
+            return getInitialState();
+        }
+    } catch (error) {
+        console.error("FIREBASE: Error fetching initial data:", error);
+        return null;
+    }
+};

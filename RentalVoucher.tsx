@@ -1,0 +1,213 @@
+import React from 'react';
+import { Reservation, CompanyDetails, RentalSource, PaymentType } from '../types';
+import { URDRIVE_LOGO_B64 } from '../constants';
+import { PrinterIcon, PdfIcon } from './icons';
+
+// Forward declaration for html2canvas from CDN
+declare const html2canvas: any;
+
+// Re-usable components for info display
+const InfoBlock: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
+    <div className="border border-gray-200 p-3 rounded-md h-full voucher-info-box">
+        <h3 className="text-sm font-bold text-primary border-b border-gray-200 pb-2 mb-3 uppercase tracking-wider">{title}</h3>
+        <div className="space-y-2 text-sm">{children}</div>
+    </div>
+);
+
+const InfoPair: React.FC<{ label: string, value?: string | React.ReactNode }> = ({ label, value }) => (
+    <div>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="font-medium text-gray-800">{value || 'N/A'}</p>
+    </div>
+);
+
+interface RentalVoucherProps {
+    reservation: Reservation;
+    sources: RentalSource[];
+    companyDetails: CompanyDetails;
+    onClose: () => void;
+}
+
+const RentalVoucher: React.FC<RentalVoucherProps> = ({ reservation, sources, companyDetails, onClose }) => {
+
+    const calculateDays = (start: string, end: string): number => {
+        if (!start || !end) return 1;
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+    
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate) {
+            return 1;
+        }
+    
+        const diffInMs = endDate.getTime() - startDate.getTime();
+    
+        // Any rental period less than or equal to 24 hours is considered one day.
+        const oneDayInMs = 24 * 60 * 60 * 1000;
+        if (diffInMs <= oneDayInMs) {
+            return 1;
+        }
+    
+        // Grace period of 2 hours
+        const gracePeriodInMs = 2 * 60 * 60 * 1000;
+    
+        const fullDays = Math.floor(diffInMs / oneDayInMs);
+        const remainingMs = diffInMs % oneDayInMs;
+    
+        if (remainingMs === 0) {
+            return fullDays;
+        }
+        
+        // If the remainder is 2 hours or more, count as an extra day
+        if (remainingMs >= gracePeriodInMs) {
+            return fullDays + 1;
+        }
+        
+        // Otherwise, it's within the grace period
+        return fullDays;
+    };
+
+    const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    
+    const sourceInfo = sources.find(s => s.name === reservation.source);
+
+    const rentalDays = calculateDays(reservation.startDate, reservation.endDate);
+    const extrasTotal = reservation.extras?.reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0) ?? 0;
+    const baseRentalFee = reservation.baseAmount ?? ((reservation.amount || 0) - extrasTotal);
+    
+    const handleDownloadPDF = () => {
+        const element = document.getElementById('voucher-print-area');
+        if (!element || typeof html2canvas === 'undefined') {
+            alert('Could not generate PDF. A required library might be missing.');
+            return;
+        }
+        // @ts-ignore
+        const { jsPDF } = window.jspdf;
+
+        html2canvas(element, { scale: 2 }).then((canvas: any) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+            const imgX = (pdfWidth - imgWidth * ratio) / 2;
+            const imgY = 10;
+            
+            pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+            pdf.save(`rental-voucher-${reservation.bookingId}.pdf`);
+        });
+    };
+    
+    return (
+        <div className="bg-white rounded-lg shadow-lg font-sans-ui voucher-container w-full max-w-3xl max-h-[95vh] flex flex-col">
+            <header className="flex-shrink-0 p-4 border-b bg-gray-50/80 backdrop-blur-sm rounded-t-lg z-10 no-print flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Rental Voucher</h2>
+                <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                    Close
+                </button>
+            </header>
+
+            <div className="flex-grow overflow-y-auto voucher-scroll-content">
+                <div id="voucher-print-area" className="p-6 sm:p-8 bg-white text-gray-800 font-serif-professional w-full">
+                    <header className="flex justify-between items-start pb-4 border-b-2 border-gray-800 mb-6">
+                        <div>
+                            <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-6" />
+                            <div className="mt-2 text-xs text-gray-600 font-sans-ui">
+                                <p className="font-bold text-sm text-gray-800">{companyDetails.name}</p>
+                                <p>{companyDetails.address}</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <h1 className="text-lg font-bold uppercase text-gray-800">Reservation Details</h1>
+                             {sourceInfo && (
+                                <div className="mt-2">
+                                    {sourceInfo.paymentType === PaymentType.PREPAID || reservation.pickupPaymentCollected ? (
+                                        <div className="inline-block px-3 py-1 bg-green-100 text-green-800 border border-green-300 rounded-full">
+                                            <p className="font-bold text-sm tracking-wide" style={{ color: '#166534' }}>PAID VOUCHER / INVOICE</p>
+                                        </div>
+                                    ) : (
+                                        <div className="inline-block px-3 py-1 bg-red-100 border border-red-300 rounded-full">
+                                            <p className="font-bold text-sm tracking-wide" style={{ color: '#991b1b' }}>PAY ON ARRIVAL</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <p className="text-sm text-gray-600 mt-2 font-sans-ui">
+                                <strong>Booking ID:</strong> {reservation.bookingId || 'N/A'}
+                            </p>
+                             <p className="text-sm text-gray-600 mt-1 font-sans-ui">
+                                <strong>Status:</strong> {reservation.status}
+                            </p>
+                        </div>
+                    </header>
+
+                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">
+                        <InfoBlock title="Renter Details">
+                            <InfoPair label="Name" value={reservation.personName} />
+                            <InfoPair label="Contact Number" value={reservation.contactNumber} />
+                            <InfoPair label="Email" value={reservation.customerEmail} />
+                            <InfoPair label="Booking Source" value={reservation.source} />
+                            <InfoPair label="Booking Date" value={reservation.bookingDate} />
+                        </InfoBlock>
+                        <InfoBlock title="Vehicle Details">
+                            <InfoPair label="Vehicle Model" value={reservation.carModel} />
+                            <InfoPair label="License Plate" value={reservation.licensePlate} />
+                            <InfoPair label="Pickup KM" value={reservation.pickupKmOut?.toLocaleString()} />
+                            <InfoPair label="Return KM" value={reservation.dropOffKmIn?.toLocaleString()} />
+                        </InfoBlock>
+                        <InfoBlock title="Rental Period & Location">
+                            <InfoPair label="Pickup" value={reservation.startDate?.replace('T', ' ')} />
+                            <InfoPair label="Return" value={reservation.endDate?.replace('T', ' ')} />
+                            <InfoPair label="Duration" value={`${rentalDays} day(s)`} />
+                            <InfoPair label="Location" value={reservation.locationName} />
+                        </InfoBlock>
+                    </section>
+                    
+                    <section className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+                        <InfoBlock title="Financials">
+                            <InfoPair label="Base Rental Fee" value={formatCurrency(baseRentalFee)} />
+                            <InfoPair label="Extras Total" value={formatCurrency(extrasTotal)} />
+                            <InfoPair label="Total Amount" value={<span className="font-bold">{formatCurrency(reservation.amount || 0)}</span>} />
+                            <InfoPair label="Security Deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
+                            <InfoPair label="Excess Amount" value={formatCurrency(reservation.excess || 0)} />
+                        </InfoBlock>
+                         <InfoBlock title="Extras & Notes">
+                             {reservation.extras && reservation.extras.length > 0 ? (
+                                <div>
+                                    <p className="text-xs text-gray-500">Included Extras</p>
+                                    <ul className="list-disc list-inside text-sm font-medium">
+                                        {reservation.extras.map(e => <li key={e.name}>{e.name} {e.isComplementary ? '(Free)' : ''}</li>)}
+                                    </ul>
+                                </div>
+                             ) : <InfoPair label="Included Extras" value="None" />}
+                             <InfoPair label="Notes" value={<p className="whitespace-pre-wrap">{reservation.notes || 'None'}</p>} />
+                        </InfoBlock>
+                    </section>
+                     {reservation.extensionHistory && reservation.extensionHistory.length > 0 && (
+                        <section className="my-4">
+                            <InfoBlock title="Rental Extension History">
+                                {reservation.extensionHistory.map((ext, index) => (
+                                    <div key={index} className="p-2 border-b last:border-b-0">
+                                        <p><strong>Extension #{index + 1}:</strong> Extended by <strong>{ext.days} days</strong> on {ext.extensionDate}.</p>
+                                        <p className="text-xs">New End Date: {ext.newEndDate}, Cost: {formatCurrency(ext.cost)} ({ext.paymentMethod === 'payLater' ? 'Deferred' : 'Paid'})</p>
+                                    </div>
+                                ))}
+                            </InfoBlock>
+                        </section>
+                     )}
+                </div>
+            </div>
+            <footer className="flex-shrink-0 p-4 border-t bg-gray-50 flex justify-end items-center gap-2 no-print">
+                <button onClick={handleDownloadPDF} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary flex items-center gap-2">
+                    <PdfIcon /> Download PDF
+                </button>
+                 <button onClick={() => window.print()} className="px-4 py-2 bg-secondary text-white rounded-md hover:bg-primary flex items-center gap-2">
+                    <PrinterIcon /> Print Voucher
+                </button>
+            </footer>
+        </div>
+    );
+};
+
+export default RentalVoucher;
