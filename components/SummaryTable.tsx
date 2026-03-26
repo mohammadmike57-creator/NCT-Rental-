@@ -7,6 +7,8 @@ import { PdfIcon, CheckCircleIcon, ClockIcon, CurrencyDollarIcon, CloseIcon } fr
 import Tabs from './Tabs';
 import SecurityKeyModal from './SecurityKeyModal';
 
+const FIXED_ADDON = 250; // Fixed extra amount per month
+
 interface SummaryTableProps {
   allData: AppData;
   yearData: YearData;
@@ -89,8 +91,35 @@ const FranchisePaymentTracker: React.FC<{
     const [paymentModalData, setPaymentModalData] = useState<{month: string, amount: number} | null>(null);
     const [pendingPayment, setPendingPayment] = useState<{month: string, amount: number, currency: 'USD' | 'JOD'} | null>(null);
     const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+    const [loadingLink, setLoadingLink] = useState<string | null>(null);
 
-    const handlePayClick = (month: string, amount: number) => {
+    const handleCardClick = async (totalFee: number, month: string) => {
+        setLoadingLink(month);
+        try {
+            const response = await fetch('https://www.nctrental.com/stripe/create-payment-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: totalFee,
+                    description: `Franchise fee for ${month} ${year}`
+                })
+            });
+            const data = await response.json();
+            if (data.url) {
+                window.open(data.url, '_blank');
+            } else {
+                throw new Error('No URL returned');
+            }
+        } catch (error) {
+            console.error('Failed to create payment link', error);
+            alert('Could not create payment link. Please try again later.');
+        } finally {
+            setLoadingLink(null);
+        }
+    };
+
+    const handlePayClick = (month: string, amount: number, e: React.MouseEvent) => {
+        e.stopPropagation();
         setPaymentModalData({ month, amount });
     };
 
@@ -129,7 +158,6 @@ const FranchisePaymentTracker: React.FC<{
         PAID: { text: 'Paid', icon: <CheckCircleIcon className="w-4 h-4" />, badgeClasses: 'bg-green-100 text-green-800', cardClasses: 'border-green-300 bg-white' },
         OVERDUE: { text: 'Overdue', icon: <ClockIcon className="w-4 h-4" />, badgeClasses: 'bg-red-100 text-red-800', cardClasses: 'border-red-300 bg-white' },
         DUE: { text: 'Due', icon: <ClockIcon className="w-4 h-4" />, badgeClasses: 'bg-orange-100 text-orange-800', cardClasses: 'border-orange-300 bg-white' },
-        COMPLETE: { text: 'Complete', icon: null, badgeClasses: 'bg-slate-100 text-slate-600', cardClasses: 'border-slate-200 bg-slate-50' },
         UPCOMING: { text: 'Upcoming', icon: null, badgeClasses: 'bg-gray-100 text-gray-500', cardClasses: 'border-gray-200 bg-white' },
     };
 
@@ -149,7 +177,6 @@ const FranchisePaymentTracker: React.FC<{
 
                     const getStatus = () => {
                         if (isPaid) return 'PAID';
-                        if (row.commission <= 0 && isPastMonthEnd) return 'COMPLETE';
                         if (isPastMonthEnd && today > deadline) return 'OVERDUE';
                         if (isPastMonthEnd && today <= deadline) return 'DUE';
                         return 'UPCOMING';
@@ -160,12 +187,15 @@ const FranchisePaymentTracker: React.FC<{
                     const deadlineDate = getDeadlineDate(row.month, year);
 
                     return (
-                        <div key={row.month} className={`rounded-xl shadow-sm border ${currentStatusInfo.cardClasses} flex flex-col transition-all hover:shadow-lg hover:-translate-y-1`}>
-                            {/* Card Header */}
+                        <div 
+                            key={row.month} 
+                            className={`rounded-xl shadow-sm border ${currentStatusInfo.cardClasses} flex flex-col transition-all hover:shadow-lg hover:-translate-y-1 cursor-pointer ${loadingLink === row.month ? 'opacity-50 pointer-events-none' : ''}`}
+                            onClick={() => handleCardClick(row.totalFee, row.month)}
+                        >
                             <div className="p-4 flex justify-between items-center border-b">
                                 <div>
                                     <h4 className="font-bold text-lg text-slate-800">{row.month}</h4>
-                                    {status !== 'PAID' && status !== 'UPCOMING' && status !== 'COMPLETE' && (
+                                    {status !== 'PAID' && status !== 'UPCOMING' && (
                                         <p className="text-xs text-slate-500 font-medium mt-1">
                                             Deadline: {deadlineDate.toLocaleDateString()}
                                         </p>
@@ -176,19 +206,21 @@ const FranchisePaymentTracker: React.FC<{
                                 </span>
                             </div>
                             
-                            {/* Card Body */}
                             <div className="p-4 space-y-3 flex-grow">
                                 <div className="flex justify-between items-baseline">
                                     <span className="text-sm text-slate-500">Total Revenue</span>
                                     <span className="font-medium text-slate-700">${row.totalRevenue.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-slate-500">Franchise Fee (7.5%)</span>
-                                    <span className="font-bold text-xl text-primary">${row.commission.toFixed(2)}</span>
+                                    <span className="text-sm text-slate-500">7.5% Commission</span>
+                                    <span className="font-medium text-slate-700">${row.commission.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline border-t pt-2 mt-1">
+                                    <span className="text-sm font-semibold text-slate-800">Total Franchise Fee</span>
+                                    <span className="font-bold text-xl text-primary">${row.totalFee.toFixed(2)}</span>
                                 </div>
                             </div>
 
-                            {/* Card Footer */}
                             <div className="p-4 bg-slate-50 rounded-b-xl mt-auto">
                                 {isPaid && payment ? (
                                     <div className="text-xs text-green-800 space-y-1">
@@ -198,14 +230,14 @@ const FranchisePaymentTracker: React.FC<{
                                     </div>
                                 ) : canManage && (status === 'DUE' || status === 'OVERDUE') ? (
                                     <button 
-                                        onClick={() => handlePayClick(row.month, row.commission)}
+                                        onClick={(e) => handlePayClick(row.month, row.totalFee, e)}
                                         className="w-full py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-secondary transition-colors shadow-sm flex items-center justify-center gap-2"
                                     >
                                        <CurrencyDollarIcon className="w-4 h-4"/> Record Payment
                                     </button>
                                 ) : (
                                     <div className="text-center text-xs text-slate-500 font-medium h-9 flex items-center justify-center">
-                                        {status === 'COMPLETE' ? 'No fee due' : 'Payment pending'}
+                                        {status === 'UPCOMING' ? 'Payment pending' : 'No payment recorded'}
                                     </div>
                                 )}
                             </div>
@@ -300,16 +332,18 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
           currency,
           datePaid: new Date().toISOString(),
           paidBy: currentUser?.fullName || 'Unknown',
-          referenceNote: `7.5% Commission for ${month} ${year}`
+          referenceNote: `Franchise Fee for ${month} ${year}`
       };
       
       onUpdateFranchisePayment([...franchisePayments, newPayment]);
   };
 
+  // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
   const franchiseSummary = summary.map(s => ({
       month: s.month,
       totalRevenue: s.totalRevenueUSD,
-      commission: s.commissionUSD
+      commission: s.commissionUSD,
+      totalFee: s.commissionUSD + FIXED_ADDON
   }));
 
   const handleExportPDF = () => {
@@ -418,13 +452,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
               <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
-                    <tr>
+                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Reservations</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Confirmed Reservations</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Revenue ({currency})</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Commission ({currency})</th>
-                    </tr>
+                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {summary.map((row, index) => (
@@ -438,13 +472,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                     ))}
                   </tbody>
                   <tfoot className="bg-gray-100">
-                      <tr>
+                        <tr>
                           <th scope="row" className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase">Grand Total</th>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.totalReservations}</td>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.confirmedReservations}</td>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.totalRevenue)}</td>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.commission)}</td>
-                      </tr>
+                        </tr>
                   </tfoot>
                 </table>
               </div>
@@ -473,8 +507,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
                   <h4 className="text-blue-800 font-bold">Franchise Fee Management</h4>
                   <p className="text-blue-700 text-sm mt-1">
-                      Track and settle the 7.5% franchise commission for each month. 
-                      Payment is due by the 5th of the following month.
+                      Total franchise fee monthly and system maintenance.
                   </p>
               </div>
               <FranchisePaymentTracker 
