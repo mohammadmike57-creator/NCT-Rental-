@@ -373,12 +373,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           padding-bottom: 5px;
           margin-bottom: 10px;
         }
-        .header img {
-          max-height: 50px;
+        .header svg {
+          max-height: 60px;
+          width: auto;
+          display: inline-block;
         }
-        .header h1 {
-          font-size: 16pt;
-          margin: 5px 0;
+        .header .company-details {
+          margin-top: 5px;
+          font-size: 9pt;
+          color: #555;
         }
         .title {
           text-align: center;
@@ -388,20 +391,24 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           font-size: 14pt;
           margin: 0;
         }
+        .section {
+          border: 1px solid #e0e0e0;
+          border-radius: 6px;
+          padding: 8px;
+          margin-bottom: 12px;
+          background: #fefefe;
+          break-inside: avoid;
+        }
         .two-col {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 10px;
+          gap: 12px;
           margin-bottom: 10px;
-        }
-        .section {
-          margin-bottom: 10px;
-          break-inside: avoid;
         }
         .section h3 {
           font-size: 11pt;
           border-bottom: 1px solid #ccc;
-          margin-bottom: 4px;
+          margin-bottom: 6px;
           padding-bottom: 2px;
         }
         .row {
@@ -415,7 +422,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         .grid-2 {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 4px;
+          gap: 6px;
         }
         .checklist-row {
           display: flex;
@@ -459,11 +466,21 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     </head>
     <body>
       <div class="header">
-        <img src="${URDRIVE_LOGO_B64}" alt="Logo" style="max-height: 50px;" />
-        <h1>${companyDetails.name}</h1>
-        <div>${companyDetails.address}</div>
-        <div>Tel: ${companyDetails.phone} | Email: ${companyDetails.email}</div>
-        <div>Tax No: ${companyDetails.taxNumber}</div>
+        <!-- SVG Logo -->
+        <svg width="600" height="120" viewBox="0 0 600 120" xmlns="http://www.w3.org/2000/svg">
+          <style>
+            .dark { fill: #1f2933; font-family: Arial, Helvetica, sans-serif; font-weight: 700; }
+            .orange { fill: #ff6a00; font-family: Arial, Helvetica, sans-serif; font-weight: 700; }
+          </style>
+          <text x="20" y="80" font-size="64" class="dark">
+            URDRI<tspan class="orange">V</tspan>E.JO
+          </text>
+        </svg>
+        <div class="company-details">
+          <div>${companyDetails.address}</div>
+          <div>Tel: ${companyDetails.phone} | Email: ${companyDetails.email}</div>
+          <div>Tax No: ${companyDetails.taxNumber}</div>
+        </div>
       </div>
       <div class="title">
         <h2>RENTAL AGREEMENT / VOUCHER</h2>
