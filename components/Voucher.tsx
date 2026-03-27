@@ -301,28 +301,256 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     }
   };
 
-  const handleDownloadVoucherPDF = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`https://www.nctrental.com/api/voucher/pdf/${localReservation.id}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to generate PDF");
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `voucher_${localReservation.id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("PDF generation failed:", error);
-      alert("Could not generate PDF. Please try again later.");
+  // ====================== PRINT-OPTIMIZED PDF GENERATION ======================
+  const handleDownloadVoucherPDF = () => {
+    const formatCurrencyPrint = (value: number) => `$${value.toFixed(2)}`;
+    const formatDatePrint = (dateStr: string) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+    const formatDateOnlyPrint = (dateStr: string) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+    const getDurationDaysPrint = () => {
+      if (!localReservation.startDate || !localReservation.endDate) return 0;
+      const start = new Date(localReservation.startDate);
+      const end = new Date(localReservation.endDate);
+      const diff = end.getTime() - start.getTime();
+      return Math.max(1, Math.ceil(diff / (1000 * 3600 * 24)));
+    };
+    const rentalDaysPrint = getDurationDaysPrint();
+    const extrasTotalPrint = (localReservation.extras || []).reduce((sum, extra) => sum + extra.price, 0);
+    const baseRentalFeePrint = (localReservation.baseAmount || localReservation.amount || 0) - extrasTotalPrint;
+    const totalCostPrint = baseRentalFeePrint + extrasTotalPrint;
+
+    const sourceNamePrint = sources.find(s => s.id === localReservation.source)?.name || localReservation.source || '—';
+    const locationNamePrint = rentalLocations.find(l => l.id === localReservation.locationName)?.name || localReservation.locationName || '—';
+
+    // Build checklist rows for print (as simple text)
+    const pickupChecklist = localReservation.pickupChecklist || {};
+    const dropoffChecklist = localReservation.dropOffChecklist || {};
+    const checklistRows = checklistItems.map(item => ({
+      item,
+      pickup: pickupChecklist[item] ? '✓' : '□',
+      dropoff: dropoffChecklist[item] ? '✓' : '□',
+    }));
+
+    // Damage markers summary (simple list)
+    const pickupDamageMarkers = localReservation.pickupDamageMarkers || [];
+    const dropoffDamageMarkers = localReservation.dropOffDamageMarkers || [];
+    const damageSummary = [];
+    if (pickupDamageMarkers.length) damageSummary.push(`Pickup damage: ${pickupDamageMarkers.length} marks`);
+    if (dropoffDamageMarkers.length) damageSummary.push(`New damage at drop-off: ${dropoffDamageMarkers.length} marks`);
+
+    // Build HTML for new window
+    const html = `<!DOCTYPE html>
+    <html>
+    <head>
+      <title>Rental Voucher - ${localReservation.bookingId}</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: 'Segoe UI', Arial, sans-serif;
+          background: white;
+          padding: 0.3in;
+          font-size: 10pt;
+          line-height: 1.3;
+        }
+        @page {
+          size: A4;
+          margin: 0.3in;
+        }
+        .header {
+          text-align: center;
+          border-bottom: 1px solid #aaa;
+          padding-bottom: 5px;
+          margin-bottom: 10px;
+        }
+        .header img {
+          max-height: 50px;
+        }
+        .header h1 {
+          font-size: 16pt;
+          margin: 5px 0;
+        }
+        .title {
+          text-align: center;
+          margin-bottom: 10px;
+        }
+        .title h2 {
+          font-size: 14pt;
+          margin: 0;
+        }
+        .two-col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+        .section {
+          margin-bottom: 10px;
+          break-inside: avoid;
+        }
+        .section h3 {
+          font-size: 11pt;
+          border-bottom: 1px solid #ccc;
+          margin-bottom: 4px;
+          padding-bottom: 2px;
+        }
+        .row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 2px;
+        }
+        .label {
+          font-weight: bold;
+        }
+        .grid-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4px;
+        }
+        .checklist-row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 9pt;
+          padding: 2px 0;
+          border-bottom: 1px dotted #eee;
+        }
+        .signatures {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-top: 10px;
+        }
+        .signature-box {
+          text-align: center;
+        }
+        .signature-line {
+          border-top: 1px solid #000;
+          margin-top: 5px;
+          padding-top: 2px;
+          font-size: 8pt;
+        }
+        .footer {
+          text-align: center;
+          font-size: 8pt;
+          margin-top: 10px;
+          border-top: 1px solid #ccc;
+          padding-top: 5px;
+        }
+        .small-text {
+          font-size: 8pt;
+        }
+        @media print {
+          body {
+            margin: 0;
+            padding: 0;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <img src="${URDRIVE_LOGO_B64}" alt="Logo" style="max-height: 50px;" />
+        <h1>${companyDetails.name}</h1>
+        <div>${companyDetails.address}</div>
+        <div>Tel: ${companyDetails.phone} | Email: ${companyDetails.email}</div>
+        <div>Tax No: ${companyDetails.taxNumber}</div>
+      </div>
+      <div class="title">
+        <h2>RENTAL AGREEMENT / VOUCHER</h2>
+        <div>Booking ID: ${localReservation.bookingId}</div>
+      </div>
+
+      <div class="two-col">
+        <div class="section">
+          <h3>Renter Information</h3>
+          <div><span class="label">Name:</span> ${localReservation.personName}</div>
+          <div><span class="label">Contact:</span> ${localReservation.contactNumber || '—'}</div>
+          <div><span class="label">Email:</span> ${localReservation.customerEmail || '—'}</div>
+          <div><span class="label">Source:</span> ${sourceNamePrint}</div>
+          <div><span class="label">Booking Date:</span> ${formatDateOnlyPrint(localReservation.bookingDate)}</div>
+        </div>
+        <div class="section">
+          <h3>Vehicle Details</h3>
+          <div><span class="label">Model:</span> ${localReservation.carModel}</div>
+          <div><span class="label">License Plate:</span> ${localReservation.licensePlate || '—'}</div>
+          <div><span class="label">Pickup Date/Time:</span> ${formatDatePrint(localReservation.startDate)}</div>
+          <div><span class="label">Return Date/Time:</span> ${formatDatePrint(localReservation.endDate)}</div>
+          <div><span class="label">Location:</span> ${locationNamePrint}</div>
+          <div><span class="label">Duration:</span> ${rentalDaysPrint} days</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Financial Summary</h3>
+        <div class="grid-2">
+          <div><span class="label">Base Rental Fee:</span> ${formatCurrencyPrint(baseRentalFeePrint)}</div>
+          <div><span class="label">Extras Total:</span> ${formatCurrencyPrint(extrasTotalPrint)}</div>
+          <div><span class="label">Total Amount:</span> <strong>${formatCurrencyPrint(totalCostPrint)}</strong></div>
+          <div><span class="label">Security Deposit:</span> ${formatCurrencyPrint(localReservation.securityDeposit || 0)}</div>
+          <div><span class="label">Excess:</span> ${formatCurrencyPrint(localReservation.excess || 0)}</div>
+          <div><span class="label">Payment Status:</span> ${localReservation.authNumber && localReservation.finalAmountCharged ? 'PAID' : 'NOT AUTHORIZED'}</div>
+        </div>
+        ${localReservation.authNumber ? `<div><span class="label">Auth Number:</span> ${localReservation.authNumber}</div>` : ''}
+        ${localReservation.finalAmountCharged ? `<div><span class="label">Final Amount Charged:</span> ${formatCurrencyPrint(localReservation.finalAmountCharged)}</div>` : ''}
+      </div>
+
+      <div class="two-col">
+        <div class="section">
+          <h3>Checklist (Pickup → Drop‑off)</h3>
+          ${checklistRows.map(r => `<div class="checklist-row"><span>${r.item}</span><span>${r.pickup} → ${r.dropoff}</span></div>`).join('')}
+          <div class="row" style="margin-top:5px;"><span class="label">Fuel Level:</span> <span>${localReservation.pickupFuelLevel || '?'}/8 → ${localReservation.dropOffFuelLevel || '?'}/8</span></div>
+          <div class="row"><span class="label">Kilometers:</span> <span>${localReservation.pickupKmOut || '?'} km → ${localReservation.dropOffKmIn || '?'} km</span></div>
+        </div>
+        <div class="section">
+          <h3>Vehicle Condition</h3>
+          <div class="small-text">${damageSummary.length ? damageSummary.join('; ') : 'No damage marks recorded.'}</div>
+          <div class="small-text" style="margin-top:5px;">(Detailed marks are available in the system)</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Notes</h3>
+        <div class="small-text">${localReservation.pickupNotes || '—'}</div>
+        ${viewMode === 'dropoff' && localReservation.dropOffNotes ? `<div class="small-text" style="margin-top:4px;"><strong>Drop‑off notes:</strong> ${localReservation.dropOffNotes}</div>` : ''}
+      </div>
+
+      <div class="signatures">
+        <div class="signature-box">
+          ${localReservation.pickupRenterSignature ? '<img src="' + localReservation.pickupRenterSignature + '" style="max-height: 50px;" /><br/>' : ''}
+          <div class="signature-line">Renter Signature</div>
+          <div class="small-text">${localReservation.pickupDateTime || ''}</div>
+        </div>
+        <div class="signature-box">
+          ${localReservation.pickupAgentSignature ? '<img src="' + localReservation.pickupAgentSignature + '" style="max-height: 50px;" /><br/>' : ''}
+          <div class="signature-line">Agent Signature</div>
+          <div class="small-text">${localReservation.pickupAgentName || ''}</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div>Thank you for choosing ${companyDetails.name}!</div>
+        <div>${companyDetails.address} | ${companyDetails.phone}</div>
+        <div>Generated on ${new Date().toLocaleString()}</div>
+      </div>
+    </body>
+    </html>`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
     }
   };
 
@@ -498,7 +726,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             </div>
           </div>
 
-          {/* VEHICLE CONDITION REPORT */}
           <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
             <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
               Vehicle Condition Report
@@ -608,7 +835,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           )}
         </section>
 
-        {/* SIGNATURE SECTION */}
         <section className="my-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
           <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
             Terms & Signatures ({mode})
@@ -878,7 +1104,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[95vh] flex flex-col overflow-hidden">
-        {/* Header with tabs */}
         <div className="flex-shrink-0 px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-800">Rental Agreement</h2>
           <div className="flex items-center space-x-2">
@@ -898,10 +1123,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         </div>
 
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div id="voucher-print-area" className="space-y-6">
-            {/* Company header */}
             <div className="flex justify-between items-start pb-4 border-b-2 border-gray-300">
               <div>
                 <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-10 mb-2" />
@@ -919,7 +1142,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </div>
             </div>
 
-            {/* Renter details */}
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <h3 className="text-sm font-semibold text-primary border-b border-gray-200 pb-2 mb-3 uppercase tracking-wider">
                 Renter Details
@@ -937,7 +1159,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </div>
             </div>
 
-            {/* Rental & Vehicle info in two columns */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <InfoBlock title="Rental Period & Location">
                 <InfoPair label="Pickup Date" value={reservation.startDate} />
@@ -990,52 +1211,50 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </InfoBlock>
             </div>
 
-            {/* Financial summary with Auth Number and Final Amount */}
-            <InfoBlock title="Financial Summary">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-semibold text-primary border-b border-gray-200 pb-2 mb-3 uppercase tracking-wider">
+                Financial Summary
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <InfoPair label="Base Rental Fee" value={formatCurrency(baseRentalFee)} />
                   <InfoPair label="Extras Total" value={formatCurrency(extrasTotal)} />
                   <hr className="my-2" />
-                  <InfoPair label="Total Amount" value={<span className="font-bold text-lg">{formatCurrency(totalCost)}</span>} />
+                  <InfoPair label="Total Amount" value={<span className="font-bold">{formatCurrency(totalCost)}</span>} />
                 </div>
-                <div className="space-y-2">
-                  <InfoPair label="Rental Security Deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
-                  <InfoPair label="Vehicle Excess Amount" value={formatCurrency(reservation.excess || 0)} />
-                  <div className="mt-3 pt-2 border-t border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-600">Payment Status:</span>
-                      {localReservation.authNumber && localReservation.finalAmountCharged ? (
-                        <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">PAID</span>
-                      ) : (
-                        <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded-full">NOT AUTHORIZED</span>
-                      )}
-                    </div>
-                    {isPickupEditable ? (
+                <div>
+                  <InfoPair label="Security Deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
+                  <InfoPair label="Excess" value={formatCurrency(reservation.excess || 0)} />
+                  <div className="mt-2">
+                    <InfoPair label="Payment Status" value={
+                      localReservation.authNumber && localReservation.finalAmountCharged ? "PAID" : "NOT AUTHORIZED"
+                    } />
+                    {isPickupEditable && (
                       <>
-                        <div className="mb-2">
-                          <p className="text-xs text-gray-500 font-medium">Authorization Number</p>
+                        <div className="mt-2">
+                          <label className="text-xs text-gray-500">Authorization Number</label>
                           <input
                             type="text"
                             value={localReservation.authNumber || ''}
                             onChange={e => handleFieldChange('authNumber', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                            className="w-full p-1 border rounded text-sm"
                             placeholder="Enter auth number"
                           />
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 font-medium">Final Amount Charged ($)</p>
+                          <label className="text-xs text-gray-500">Final Amount Charged ($)</label>
                           <input
                             type="number"
                             value={localReservation.finalAmountCharged || ''}
                             onChange={e => handleFieldChange('finalAmountCharged', parseFloat(e.target.value) || undefined)}
-                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                            className="w-full p-1 border rounded text-sm"
                             placeholder="Enter final amount"
                             step="0.01"
                           />
                         </div>
                       </>
-                    ) : (
+                    )}
+                    {!isPickupEditable && localReservation.authNumber && (
                       <>
                         <InfoPair label="Authorization Number" value={localReservation.authNumber} />
                         <InfoPair label="Final Amount Charged" value={localReservation.finalAmountCharged ? formatCurrency(localReservation.finalAmountCharged) : 'N/A'} />
@@ -1044,61 +1263,41 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   </div>
                 </div>
               </div>
-            </InfoBlock>
+            </div>
 
-            {/* Main content based on mode */}
             {viewMode === 'pickup' && renderChecks('pickup')}
             {viewMode === 'dropoff' && (
               <>
                 {hasDueExtension && (
-                  <div className="p-4 bg-orange-100 border-l-4 border-orange-500 text-orange-800 rounded-md" role="alert">
-                    <h3 className="font-bold text-lg flex items-center gap-2">
-                      <ShieldExclamationIcon /> Unpaid Extension Balance
-                    </h3>
-                    <p className="mt-2">
-                      This rental has an outstanding balance of <strong>{formatCurrency(dueForExtension)}</strong> from a previous extension.
-                    </p>
-                    <p className="mt-1 text-sm">
-                      Please collect the payment and clear the balance in the 'Deferred Payments' section to proceed.
-                    </p>
+                  <div className="p-3 bg-orange-100 border-l-4 border-orange-500 text-orange-800 rounded-md text-sm" role="alert">
+                    <strong>Unpaid Extension Balance:</strong> {formatCurrency(dueForExtension)}
                   </div>
                 )}
                 {hasOutstandingTickets && (
-                  <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-md" role="alert">
-                    <h3 className="font-bold text-lg flex items-center gap-2">
-                      <ShieldExclamationIcon /> Return Process Blocked
-                    </h3>
-                    <p className="mt-2">
-                      This rental cannot be finalized due to an outstanding balance for traffic tickets. <strong>Total Amount Due: {totalTicketAmountDue.toFixed(2)} JOD</strong>
-                    </p>
-                    <p className="mt-2 text-sm">
-                      Please collect the payment from the customer and update the ticket status in the 'Traffic Tickets' section to proceed.
-                    </p>
+                  <div className="p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-md text-sm" role="alert">
+                    <strong>Outstanding Tickets:</strong> {totalTicketAmountDue.toFixed(2)} JOD
                   </div>
                 )}
                 {localReservation.lateReturnFee && localReservation.lateReturnFee.status === 'PENDING' && (
-                  <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-md">
-                    <h3 className="font-bold text-lg">Action Required: Late Return Detected</h3>
-                    <p className="mt-2">
-                      This return cannot be finalized until the late fee is resolved by a manager in the 'Late Returns' section.
-                    </p>
+                  <div className="p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-md text-sm">
+                    <strong>Late Return Detected:</strong> Resolve in Late Returns section.
                   </div>
                 )}
 
                 <fieldset disabled={hasOutstandingTickets || hasDueExtension || isDropoffBlockedByPendingFee}>
                   {processType === 'selection' && !localReservation.dropOffCompleted ? (
-                    <div className="p-10 text-center border-y my-4">
-                      <h2 className="text-xl font-bold mb-6">What are you processing today?</h2>
-                      <div className="flex justify-center gap-6">
+                    <div className="p-6 text-center border-y my-4">
+                      <h2 className="text-lg font-bold mb-4">What are you processing today?</h2>
+                      <div className="flex justify-center gap-4">
                         <button
                           onClick={() => setProcessType('return')}
-                          className="px-8 py-4 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors text-lg font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                         >
                           Final Vehicle Return
                         </button>
                         <button
                           onClick={() => setProcessType('exchange')}
-                          className="px-8 py-4 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors text-lg font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                          className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                         >
                           Vehicle Exchange
                         </button>
@@ -1115,8 +1314,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </>
             )}
 
-            {/* Footer */}
-            <div className="text-center pt-4 mt-4 border-t border-gray-300">
+            <div className="text-center pt-3 mt-3 border-t border-gray-300">
               <p className="text-sm font-semibold">Thank you for choosing {companyDetails.name}!</p>
               <p className="text-xs text-gray-500 mt-1">
                 {companyDetails.address} | {companyDetails.phone} | {companyDetails.email}
@@ -1125,9 +1323,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         </div>
 
-        {/* Footer buttons */}
         {!showSuccessOverlay && (
-          <div className="flex-shrink-0 px-6 py-4 border-t bg-gray-50 flex justify-between items-center">
+          <div className="flex-shrink-0 px-6 py-3 border-t bg-gray-50 flex justify-between items-center">
             <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
               Close
             </button>
@@ -1143,7 +1340,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                     <button
                       onClick={() => setExchangeStep('checkout')}
                       disabled={!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature || !currentExchange.reason || hasOutstandingTickets || hasDueExtension}
-                      className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-gray-400"
+                      className="px-5 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-gray-400"
                     >
                       Next: Check-out New Car
                     </button>
@@ -1157,7 +1354,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <button
                   onClick={handleSubmit}
                   disabled={hasOutstandingTickets || hasDueExtension || isDropoffBlockedByPendingFee}
-                  className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-gray-400"
+                  className="px-5 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-gray-400"
                 >
                   {`Submit & Finalize ${processType === 'exchange' ? 'Exchange' : viewMode === 'pickup' ? 'Pickup' : 'Return'}`}
                 </button>
@@ -1175,165 +1372,30 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         )}
 
-        {/* Success overlay */}
         {showSuccessOverlay && (
-          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-8 no-print space-y-4">
-            <svg className="w-16 h-16 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 no-print space-y-3">
+            <svg className="w-12 h-12 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-xl font-bold text-gray-800">
               {localReservation.dropOffCompleted ? 'Return Process Completed!' : 'Pickup Process Completed!'}
             </h2>
-            <p className="text-gray-600 text-center max-w-md">
-              {localReservation.dropOffCompleted
-                ? 'The rental agreement has been closed. You can now provide the customer with their final documents.'
-                : 'The rental agreement has been finalized. You can now provide the customer with their documents.'}
-            </p>
-
-            <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
-              <div className="bg-gray-100 p-4 rounded-lg text-center">
+            <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+              <div className="bg-gray-100 p-3 rounded-lg text-center">
                 <h4 className="font-semibold text-gray-700">Rental Agreement</h4>
-                <div className="flex justify-center gap-3 mt-3">
-                  <button
-                    onClick={handleDownloadVoucherPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-primary border border-primary rounded-md text-sm hover:bg-blue-50"
-                  >
-                    <ExportIcon /> Download PDF
-                  </button>
-                </div>
+                <button onClick={handleDownloadVoucherPDF} className="mt-2 px-3 py-1 bg-white text-primary border border-primary rounded-md text-sm">Download PDF</button>
               </div>
-              <div className="bg-gray-100 p-4 rounded-lg text-center">
+              <div className="bg-gray-100 p-3 rounded-lg text-center">
                 <h4 className="font-semibold text-gray-700">Payment Receipt</h4>
-                <div className="flex justify-center gap-3 mt-3">
-                  <button
-                    onClick={handleDownloadReceiptPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-primary border border-primary rounded-md text-sm hover:bg-blue-50"
-                  >
-                    <ExportIcon /> Download PDF
-                  </button>
-                </div>
+                <button onClick={handleDownloadReceiptPDF} className="mt-2 px-3 py-1 bg-white text-primary border border-primary rounded-md text-sm">Download PDF</button>
               </div>
             </div>
-
-            <div className="pt-4 border-t w-full max-w-lg text-center">
-              <p className="text-sm text-gray-500 mb-3">
-                Or, prepare an email for the customer (requires manual attachment of downloaded files).
-              </p>
-              <button
-                onClick={handleSendEmail}
-                className="px-6 py-2 bg-secondary text-white rounded-md hover:bg-primary flex items-center gap-2 mx-auto"
-              >
-                <MailIcon /> Send Confirmation Email
-              </button>
-            </div>
-
-            <button onClick={onClose} className="mt-6 px-8 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
+            <button onClick={onClose} className="mt-2 px-6 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
               Done
             </button>
           </div>
         )}
       </div>
-
-      {/* Print styles – optimize for one A4 page without breaking layout */}
-      <style>{`
-        @media print {
-          /* Reset modal container to static */
-          .fixed {
-            position: static !important;
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            max-height: none !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
-          .bg-black\\/50 {
-            background: none !important;
-          }
-          .backdrop-blur-sm {
-            backdrop-filter: none !important;
-          }
-          .max-h-\\[95vh\\] {
-            max-height: none !important;
-          }
-          .overflow-hidden {
-            overflow: visible !important;
-          }
-          .overflow-y-auto {
-            overflow: visible !important;
-          }
-          /* Reduce padding and margins */
-          .p-6 {
-            padding: 0.1in !important;
-          }
-          .space-y-6 > * + * {
-            margin-top: 0.1in !important;
-          }
-          .my-8, .my-6 {
-            margin-top: 0.1in !important;
-            margin-bottom: 0.1in !important;
-          }
-          .mb-3, .mb-4 {
-            margin-bottom: 0.05in !important;
-          }
-          .pt-4, .pb-4 {
-            padding-top: 0.05in !important;
-            padding-bottom: 0.05in !important;
-          }
-          .grid {
-            gap: 0.1in !important;
-          }
-          /* Reduce font sizes */
-          .text-xs {
-            font-size: 8pt !important;
-          }
-          .text-sm {
-            font-size: 9pt !important;
-          }
-          .text-base {
-            font-size: 10pt !important;
-          }
-          .text-lg {
-            font-size: 11pt !important;
-          }
-          .text-xl {
-            font-size: 12pt !important;
-          }
-          .text-2xl {
-            font-size: 14pt !important;
-          }
-          /* Make car condition squares smaller */
-          .w-full.aspect-square {
-            max-width: 0.9in !important;
-            max-height: 0.9in !important;
-          }
-          .grid-cols-2.gap-4 {
-            gap: 0.05in !important;
-          }
-          /* Hide non-essential UI elements */
-          .sticky, .flex-shrink-0:has(button) {
-            display: none !important;
-          }
-          /* Ensure the logo is visible and not cut */
-          img {
-            max-height: 0.5in !important;
-          }
-          /* Avoid page breaks inside sections */
-          section, .grid, .bg-gray-50, .signatures {
-            page-break-inside: avoid;
-          }
-          @page {
-            size: A4;
-            margin: 0.3in;
-          }
-          /* Damage markers smaller */
-          .absolute.w-5.h-5 {
-            width: 0.2in !important;
-            height: 0.2in !important;
-            font-size: 8pt !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
