@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee } from '../types';
 import SignaturePad from './SignaturePad';
 import { FrontCarIcon, BackCarIcon, LeftSideCarIcon, RightSideCarIcon } from './CarCheckIcons';
 import { ShieldExclamationIcon, PrinterIcon, ExportIcon, MailIcon, PdfIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
-import jsPDF from 'jspdf';
-
-declare const html2canvas: any;
 
 interface VoucherProps {
   reservation: Reservation;
@@ -115,7 +112,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   };
 
   const [localReservation, setLocalReservation] = useState<Reservation>(getInitialReservationState(reservation));
-  // Update local state when reservation prop changes (e.g., late fee resolved)
   useEffect(() => {
     setLocalReservation(getInitialReservationState(reservation));
   }, [reservation]);
@@ -305,33 +301,33 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     }
   };
 
-  const handleDownloadVoucherPDF = () => {
-    const element = document.getElementById('voucher-print-area');
-    if (!element || typeof html2canvas === 'undefined') {
-      alert('Could not generate PDF. A required library might be missing.');
-      return;
-    }
-
-    html2canvas(element, { scale: 3, useCORS: true, windowWidth: element.scrollWidth, windowHeight: element.scrollHeight })
-      .then((canvas: HTMLCanvasElement) => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgProps = pdf.getImageProperties(imgData);
-        const contentWidth = imgProps.width;
-        const contentHeight = imgProps.height;
-        const ratio = Math.min(pdfWidth / contentWidth, pdfHeight / contentHeight);
-        const finalWidth = contentWidth * ratio;
-        const finalHeight = contentHeight * ratio;
-        const x = (pdfWidth - finalWidth) / 2;
-        pdf.addImage(imgData, 'PNG', x, 0, finalWidth, finalHeight);
-        pdf.save(`rental-agreement-${localReservation.bookingId}.pdf`);
+  const handleDownloadVoucherPDF = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`https://www.nctrental.com/api/voucher/pdf/${localReservation.id}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       });
+      if (!response.ok) throw new Error("Failed to generate PDF");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `voucher_${localReservation.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      alert("Could not generate PDF. Please try again later.");
+    }
   };
 
   const handleDownloadReceiptPDF = () => {
-    const doc = new jsPDF();
+    const doc = new (window as any).jsPDF();
     const rentalDays = calculateDaysWithGrace(reservation.startDate, reservation.endDate);
     const extrasTotal = reservation.extras?.reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0) ?? 0;
     const baseRentalFee = (reservation.baseAmount ?? (reservation.amount || 0)) - extrasTotal;
@@ -502,7 +498,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             </div>
           </div>
 
-          {/* PROFESSIONAL VEHICLE CONDITION REPORT - FIXED SQUARES */}
+          {/* VEHICLE CONDITION REPORT */}
           <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
             <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
               Vehicle Condition Report
@@ -612,7 +608,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           )}
         </section>
 
-        {/* PROFESSIONAL SIGNATURE SECTION */}
+        {/* SIGNATURE SECTION */}
         <section className="my-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
           <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
             Terms & Signatures ({mode})
@@ -780,7 +776,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             )}
           </div>
 
-          {/* Exchange Vehicle Condition Report - same fixed squares */}
           <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
             <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
               Vehicle Condition Report
@@ -843,7 +838,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         </section>
 
-        {/* Exchange Signatures */}
         <section className="my-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
           <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
             Signatures ({step})
@@ -1008,7 +1002,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <div className="space-y-2">
                   <InfoPair label="Rental Security Deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
                   <InfoPair label="Vehicle Excess Amount" value={formatCurrency(reservation.excess || 0)} />
-                  {/* Auth Number and Final Amount Charged */}
                   <div className="mt-3 pt-2 border-t border-gray-200">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-medium text-gray-600">Payment Status:</span>
@@ -1240,6 +1233,107 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         )}
       </div>
+
+      {/* Print styles – optimize for one A4 page without breaking layout */}
+      <style>{`
+        @media print {
+          /* Reset modal container to static */
+          .fixed {
+            position: static !important;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          .bg-black\\/50 {
+            background: none !important;
+          }
+          .backdrop-blur-sm {
+            backdrop-filter: none !important;
+          }
+          .max-h-\\[95vh\\] {
+            max-height: none !important;
+          }
+          .overflow-hidden {
+            overflow: visible !important;
+          }
+          .overflow-y-auto {
+            overflow: visible !important;
+          }
+          /* Reduce padding and margins */
+          .p-6 {
+            padding: 0.1in !important;
+          }
+          .space-y-6 > * + * {
+            margin-top: 0.1in !important;
+          }
+          .my-8, .my-6 {
+            margin-top: 0.1in !important;
+            margin-bottom: 0.1in !important;
+          }
+          .mb-3, .mb-4 {
+            margin-bottom: 0.05in !important;
+          }
+          .pt-4, .pb-4 {
+            padding-top: 0.05in !important;
+            padding-bottom: 0.05in !important;
+          }
+          .grid {
+            gap: 0.1in !important;
+          }
+          /* Reduce font sizes */
+          .text-xs {
+            font-size: 8pt !important;
+          }
+          .text-sm {
+            font-size: 9pt !important;
+          }
+          .text-base {
+            font-size: 10pt !important;
+          }
+          .text-lg {
+            font-size: 11pt !important;
+          }
+          .text-xl {
+            font-size: 12pt !important;
+          }
+          .text-2xl {
+            font-size: 14pt !important;
+          }
+          /* Make car condition squares smaller */
+          .w-full.aspect-square {
+            max-width: 0.9in !important;
+            max-height: 0.9in !important;
+          }
+          .grid-cols-2.gap-4 {
+            gap: 0.05in !important;
+          }
+          /* Hide non-essential UI elements */
+          .sticky, .flex-shrink-0:has(button) {
+            display: none !important;
+          }
+          /* Ensure the logo is visible and not cut */
+          img {
+            max-height: 0.5in !important;
+          }
+          /* Avoid page breaks inside sections */
+          section, .grid, .bg-gray-50, .signatures {
+            page-break-inside: avoid;
+          }
+          @page {
+            size: A4;
+            margin: 0.3in;
+          }
+          /* Damage markers smaller */
+          .absolute.w-5.h-5 {
+            width: 0.2in !important;
+            height: 0.2in !important;
+            font-size: 8pt !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
