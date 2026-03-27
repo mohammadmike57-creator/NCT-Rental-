@@ -392,7 +392,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           margin: 0;
         }
         .section {
-          border: 1px solid #e0e0e0;
+          border: 1px solid #333;
           border-radius: 6px;
           padding: 8px;
           margin-bottom: 12px;
