@@ -248,12 +248,12 @@ const FranchisePaymentTracker: React.FC<{
                                     </div>
                                 </>
                             ) : (
-                                // Special paid card: just show a simple "Paid" message
+                                // Special paid card: just show a simple "Paid" message with correct date
                                 <div className="p-4 flex flex-col items-center justify-center flex-grow">
                                     <CheckCircleIcon className="w-12 h-12 text-green-600 mb-2" />
                                     <p className="text-green-800 font-semibold">Payment Completed</p>
                                     <p className="text-xs text-gray-500 mt-1">
-                                        Paid on {new Date(payment!.datePaid).toLocaleDateString()}
+                                        Paid on {payment ? new Date(payment.datePaid).toLocaleDateString() : ''}
                                     </p>
                                 </div>
                             )}
@@ -355,7 +355,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
-  // For January and February 2026, set totalFee = 0 (will not be shown) but they will be auto-paid.
+  // For January and February 2026, set totalFee = 0 (not shown) but they will be auto-paid.
   const franchiseSummary = summary.map(s => {
       let totalFee = s.commissionUSD + FIXED_ADDON;
       if (year === 2026 && (s.month === 'January' || s.month === 'February')) {
@@ -369,37 +369,60 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       };
   });
 
-  // Auto-mark January and February 2026 as paid with amount 250 and specific dates
+  // Auto-mark January and February 2026 as paid with amount 250 and specific dates.
+  // Also update existing payments if the date is incorrect.
   useEffect(() => {
       if (year === 2026 && onUpdateFranchisePayment) {
-          const existingJan = franchisePayments.some(p => p.month === 'January' && p.year === 2026);
-          const existingFeb = franchisePayments.some(p => p.month === 'February' && p.year === 2026);
+          const janPayment = franchisePayments.find(p => p.month === 'January' && p.year === 2026);
+          const febPayment = franchisePayments.find(p => p.month === 'February' && p.year === 2026);
           const newPayments = [...franchisePayments];
-          if (!existingJan) {
+          let updated = false;
+
+          const correctJanDate = new Date(2026, 0, 1).toISOString();
+          const correctFebDate = new Date(2026, 1, 1).toISOString();
+
+          if (!janPayment) {
               newPayments.push({
                   id: `fp-2026-January-auto`,
                   year: 2026,
                   month: 'January',
                   amount: 250,
                   currency: 'USD',
-                  datePaid: new Date(2026, 0, 1).toISOString(),
+                  datePaid: correctJanDate,
                   paidBy: 'System',
                   referenceNote: 'Auto-paid (fixed amount)'
               });
+              updated = true;
+          } else if (janPayment.datePaid !== correctJanDate) {
+              // Update the date
+              const index = newPayments.findIndex(p => p.month === 'January' && p.year === 2026);
+              if (index !== -1) {
+                  newPayments[index] = { ...newPayments[index], datePaid: correctJanDate };
+                  updated = true;
+              }
           }
-          if (!existingFeb) {
+
+          if (!febPayment) {
               newPayments.push({
                   id: `fp-2026-February-auto`,
                   year: 2026,
                   month: 'February',
                   amount: 250,
                   currency: 'USD',
-                  datePaid: new Date(2026, 1, 1).toISOString(),
+                  datePaid: correctFebDate,
                   paidBy: 'System',
                   referenceNote: 'Auto-paid (fixed amount)'
               });
+              updated = true;
+          } else if (febPayment.datePaid !== correctFebDate) {
+              const index = newPayments.findIndex(p => p.month === 'February' && p.year === 2026);
+              if (index !== -1) {
+                  newPayments[index] = { ...newPayments[index], datePaid: correctFebDate };
+                  updated = true;
+              }
           }
-          if (newPayments.length !== franchisePayments.length) {
+
+          if (updated) {
               onUpdateFranchisePayment(newPayments);
           }
       }
@@ -539,7 +562,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.commission)}</td>
                         </tr>
                   </tfoot>
-                </table>
+                <td>
               </div>
           ) : (
             <div className="space-y-4">
