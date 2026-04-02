@@ -186,11 +186,14 @@ const FranchisePaymentTracker: React.FC<{
                     const currentStatusInfo = statusInfo[status];
                     const deadlineDate = getDeadlineDate(row.month, year);
 
+                    // Special handling for January and February 2026: show only "Paid" without any amount
+                    const isSpecialPaid = year === 2026 && (row.month === 'January' || row.month === 'February') && isPaid;
+
                     return (
                         <div 
                             key={row.month} 
-                            className={`rounded-xl shadow-sm border ${currentStatusInfo.cardClasses} flex flex-col transition-all hover:shadow-lg hover:-translate-y-1 cursor-pointer ${loadingLink === row.month ? 'opacity-50 pointer-events-none' : ''}`}
-                            onClick={() => handleCardClick(row.totalFee, row.month)}
+                            className={`rounded-xl shadow-sm border ${currentStatusInfo.cardClasses} flex flex-col transition-all hover:shadow-lg hover:-translate-y-1 ${!isSpecialPaid ? 'cursor-pointer' : ''} ${loadingLink === row.month ? 'opacity-50 pointer-events-none' : ''}`}
+                            onClick={() => !isSpecialPaid && handleCardClick(row.totalFee, row.month)}
                         >
                             <div className="p-4 flex justify-between items-center border-b">
                                 <div>
@@ -206,41 +209,54 @@ const FranchisePaymentTracker: React.FC<{
                                 </span>
                             </div>
                             
-                            <div className="p-4 space-y-3 flex-grow">
-                                <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-slate-500">Total Revenue</span>
-                                    <span className="font-medium text-slate-700">${row.totalRevenue.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-slate-500">7.5% Commission</span>
-                                    <span className="font-medium text-slate-700">${row.commission.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-baseline border-t pt-2 mt-1">
-                                    <span className="text-sm font-semibold text-slate-800">Total Franchise Fee</span>
-                                    <span className="font-bold text-xl text-primary">${row.totalFee.toFixed(2)}</span>
-                                </div>
-                            </div>
+                            {!isSpecialPaid ? (
+                                <>
+                                    <div className="p-4 space-y-3 flex-grow">
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-sm text-slate-500">Total Revenue</span>
+                                            <span className="font-medium text-slate-700">${row.totalRevenue.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-sm text-slate-500">7.5% Commission</span>
+                                            <span className="font-medium text-slate-700">${row.commission.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-baseline border-t pt-2 mt-1">
+                                            <span className="text-sm font-semibold text-slate-800">Total Franchise Fee</span>
+                                            <span className="font-bold text-xl text-primary">${row.totalFee.toFixed(2)}</span>
+                                        </div>
+                                    </div>
 
-                            <div className="p-4 bg-slate-50 rounded-b-xl mt-auto">
-                                {isPaid && payment ? (
-                                    <div className="text-xs text-green-800 space-y-1">
-                                        <p><strong>Paid Amount:</strong> {payment.currency} {payment.amount.toFixed(2)}</p>
-                                        <p><strong>On:</strong> {new Date(payment.datePaid).toLocaleDateString()}</p>
-                                        <p><strong>By:</strong> {payment.paidBy}</p>
+                                    <div className="p-4 bg-slate-50 rounded-b-xl mt-auto">
+                                        {isPaid && payment ? (
+                                            <div className="text-xs text-green-800 space-y-1">
+                                                <p><strong>Paid Amount:</strong> {payment.currency} {payment.amount.toFixed(2)}</p>
+                                                <p><strong>On:</strong> {new Date(payment.datePaid).toLocaleDateString()}</p>
+                                                <p><strong>By:</strong> {payment.paidBy}</p>
+                                            </div>
+                                        ) : canManage && (status === 'DUE' || status === 'OVERDUE') ? (
+                                            <button 
+                                                onClick={(e) => handlePayClick(row.month, row.totalFee, e)}
+                                                className="w-full py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-secondary transition-colors shadow-sm flex items-center justify-center gap-2"
+                                            >
+                                               <CurrencyDollarIcon className="w-4 h-4"/> Record Payment
+                                            </button>
+                                        ) : (
+                                            <div className="text-center text-xs text-slate-500 font-medium h-9 flex items-center justify-center">
+                                                {status === 'UPCOMING' ? 'Payment pending' : 'No payment recorded'}
+                                            </div>
+                                        )}
                                     </div>
-                                ) : canManage && (status === 'DUE' || status === 'OVERDUE') ? (
-                                    <button 
-                                        onClick={(e) => handlePayClick(row.month, row.totalFee, e)}
-                                        className="w-full py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-secondary transition-colors shadow-sm flex items-center justify-center gap-2"
-                                    >
-                                       <CurrencyDollarIcon className="w-4 h-4"/> Record Payment
-                                    </button>
-                                ) : (
-                                    <div className="text-center text-xs text-slate-500 font-medium h-9 flex items-center justify-center">
-                                        {status === 'UPCOMING' ? 'Payment pending' : 'No payment recorded'}
-                                    </div>
-                                )}
-                            </div>
+                                </>
+                            ) : (
+                                // Special paid card: just show a simple "Paid" message
+                                <div className="p-4 flex flex-col items-center justify-center flex-grow">
+                                    <CheckCircleIcon className="w-12 h-12 text-green-600 mb-2" />
+                                    <p className="text-green-800 font-semibold">Payment Completed</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Paid on {new Date(payment!.datePaid).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -339,11 +355,11 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
-  // For January and February 2026, set totalFee = 250 (fixed) instead of calculated.
+  // For January and February 2026, set totalFee = 0 (will not be shown) but they will be auto-paid.
   const franchiseSummary = summary.map(s => {
       let totalFee = s.commissionUSD + FIXED_ADDON;
       if (year === 2026 && (s.month === 'January' || s.month === 'February')) {
-          totalFee = 250; // fixed amount
+          totalFee = 0; // Not shown
       }
       return {
           month: s.month,
@@ -366,7 +382,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                   month: 'January',
                   amount: 250,
                   currency: 'USD',
-                  datePaid: new Date(2026, 0, 1).toISOString(), // Jan 1, 2026
+                  datePaid: new Date(2026, 0, 1).toISOString(),
                   paidBy: 'System',
                   referenceNote: 'Auto-paid (fixed amount)'
               });
@@ -378,7 +394,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                   month: 'February',
                   amount: 250,
                   currency: 'USD',
-                  datePaid: new Date(2026, 1, 1).toISOString(), // Feb 1, 2026
+                  datePaid: new Date(2026, 1, 1).toISOString(),
                   paidBy: 'System',
                   referenceNote: 'Auto-paid (fixed amount)'
               });
