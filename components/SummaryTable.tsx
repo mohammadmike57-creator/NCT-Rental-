@@ -534,7 +534,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
               <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
-                     <tr>
+                    <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Reservations</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Confirmed Reservations</th>
@@ -554,15 +554,15 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                     ))}
                   </tbody>
                   <tfoot className="bg-gray-100">
-                        <tr>
+                      <tr>
                           <th scope="row" className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase">Grand Total</th>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.totalReservations}</td>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.confirmedReservations}</td>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.totalRevenue)}</td>
                           <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.commission)}</td>
-                        </tr>
+                      </tr>
                   </tfoot>
-                <td>
+                </table>
               </div>
           ) : (
             <div className="space-y-4">
