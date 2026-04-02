@@ -339,12 +339,19 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
-  const franchiseSummary = summary.map(s => ({
-      month: s.month,
-      totalRevenue: s.totalRevenueUSD,
-      commission: s.commissionUSD,
-      totalFee: s.commissionUSD + FIXED_ADDON
-  }));
+  // Special override: for January and February 2026, set totalFee = 1
+  const franchiseSummary = summary.map(s => {
+      let totalFee = s.commissionUSD + FIXED_ADDON;
+      if (year === 2026 && (s.month === 'January' || s.month === 'February')) {
+          totalFee = 1;
+      }
+      return {
+          month: s.month,
+          totalRevenue: s.totalRevenueUSD,
+          commission: s.commissionUSD,
+          totalFee: totalFee
+      };
+  });
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -507,7 +514,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
                   <h4 className="text-blue-800 font-bold">Franchise Fee Management</h4>
                   <p className="text-blue-700 text-sm mt-1">
-                      Total franchise fee monthly and system maintenance.
+                      Total franchise fee = 7.5% commission + $250 fixed fee per month.  
+                      (January and February 2026 are set to $1 for testing.)
                   </p>
               </div>
               <FranchisePaymentTracker 
