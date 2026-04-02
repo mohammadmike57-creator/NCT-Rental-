@@ -339,11 +339,11 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
-  // Special override: for January and February 2026, set totalFee = 1
+  // For January and February 2026, set totalFee = 0 and automatically mark as paid
   const franchiseSummary = summary.map(s => {
       let totalFee = s.commissionUSD + FIXED_ADDON;
       if (year === 2026 && (s.month === 'January' || s.month === 'February')) {
-          totalFee = 1;
+          totalFee = 0;
       }
       return {
           month: s.month,
@@ -352,6 +352,42 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
           totalFee: totalFee
       };
   });
+
+  // Auto-mark January and February 2026 as paid with amount 0
+  useEffect(() => {
+      if (year === 2026 && onUpdateFranchisePayment) {
+          const existingJan = franchisePayments.some(p => p.month === 'January' && p.year === 2026);
+          const existingFeb = franchisePayments.some(p => p.month === 'February' && p.year === 2026);
+          const newPayments = [...franchisePayments];
+          if (!existingJan) {
+              newPayments.push({
+                  id: `fp-2026-January-auto`,
+                  year: 2026,
+                  month: 'January',
+                  amount: 0,
+                  currency: 'USD',
+                  datePaid: new Date().toISOString(),
+                  paidBy: 'System',
+                  referenceNote: 'Auto-paid (promotional)'
+              });
+          }
+          if (!existingFeb) {
+              newPayments.push({
+                  id: `fp-2026-February-auto`,
+                  year: 2026,
+                  month: 'February',
+                  amount: 0,
+                  currency: 'USD',
+                  datePaid: new Date().toISOString(),
+                  paidBy: 'System',
+                  referenceNote: 'Auto-paid (promotional)'
+              });
+          }
+          if (newPayments.length !== franchisePayments.length) {
+              onUpdateFranchisePayment(newPayments);
+          }
+      }
+  }, [year, franchisePayments, onUpdateFranchisePayment]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -465,7 +501,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Confirmed Reservations</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Revenue ({currency})</th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Commission ({currency})</th>
-                     </tr>
+                    </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {summary.map((row, index) => (
@@ -515,7 +551,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                   <h4 className="text-blue-800 font-bold">Franchise Fee Management</h4>
                   <p className="text-blue-700 text-sm mt-1">
                       Total franchise fee = 7.5% commission + $250 fixed fee per month.  
-                      (January and February 2026 are set to $1 for testing.)
+                      (January and February 2026 are set to $0 and automatically marked as paid.)
                   </p>
               </div>
               <FranchisePaymentTracker 
