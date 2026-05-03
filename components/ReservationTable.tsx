@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission } from '../types';
+import { MONTHS } from '../constants';
 import { 
   DocumentReportIcon, 
   ShareIcon, 
@@ -56,7 +57,7 @@ interface ReservationTableProps {
   fleet: Fleet;
   rentalLocations: RentalLocation[];
   onShowVoucher: (reservation: Reservation, year: number, month: string) => void;
-  onShowRentalVoucher: (reservation: Reservation) => void;
+  onShowRentalVoucher: (reservation: Reservation, year: number, month: string) => void;
   onShowReceipt: (reservation: Reservation) => void;
   onExtend: (reservation: Reservation) => void;
   onShare: (reservation: Reservation) => void;
@@ -71,6 +72,7 @@ interface ReservationTableProps {
   isDesktopView: boolean;
   companyDetails: CompanyDetails;
   availableExtras: AvailableExtra[];
+  isAgreementView?: boolean;
 }
 
 const ReservationTable: React.FC<ReservationTableProps> = (props) => {
@@ -101,6 +103,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     fleet,
     availableExtras,
     onSaveNew,
+    isAgreementView = false,
   } = props;
 
   // Helper to check permissions
@@ -144,6 +147,37 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     const value = e.target.value;
     setLocalBookingIdSearch(value);
     setFilters((prev: any) => ({ ...prev, bookingIdSearch: value }));
+  };
+
+  const getAgreementStatusFilter = (): 'all' | 'pending' | 'open' | 'closed' | 'submitted' => {
+    if (filters.dropOffCompleted === true) return 'closed';
+    if (filters.voucherSubmitted === true && filters.dropOffCompleted === false) return 'open';
+    if (filters.voucherSubmitted === true && filters.dropOffCompleted === undefined) return 'submitted';
+    if (filters.voucherSubmitted === false && filters.dropOffCompleted === false) return 'pending';
+    return 'all';
+  };
+
+  const handleAgreementStatusFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+
+    if (value === 'pending') {
+      setFilters((prev: any) => ({ ...prev, voucherSubmitted: false, dropOffCompleted: false }));
+      return;
+    }
+    if (value === 'open') {
+      setFilters((prev: any) => ({ ...prev, voucherSubmitted: true, dropOffCompleted: false }));
+      return;
+    }
+    if (value === 'closed') {
+      setFilters((prev: any) => ({ ...prev, voucherSubmitted: undefined, dropOffCompleted: true }));
+      return;
+    }
+    if (value === 'submitted') {
+      setFilters((prev: any) => ({ ...prev, voucherSubmitted: true, dropOffCompleted: undefined }));
+      return;
+    }
+
+    setFilters((prev: any) => ({ ...prev, voucherSubmitted: undefined, dropOffCompleted: undefined }));
   };
 
   // Reset form when modal closes
@@ -263,11 +297,27 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const monthReservations = allData[selectedYear]?.[selectedMonth] || [];
   const allDisplayReservations = useMemo(() => [...monthReservations, ...newReservations], [monthReservations, newReservations]);
 
+  const getReservationPeriod = (reservation: Reservation) => {
+    if (reservation.startDate) {
+      const parsedDate = new Date(reservation.startDate);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        return {
+          year: parsedDate.getFullYear(),
+          month: MONTHS[parsedDate.getMonth()],
+        };
+      }
+    }
+
+    return { year: selectedYear, month: selectedMonth };
+  };
+
   const filteredReservations = useMemo(() => {
     let result = allDisplayReservations;
     if (filters.sourceFilter) result = result.filter(r => r.source === filters.sourceFilter);
     if (filters.carModelFilter) result = result.filter(r => r.carModel === filters.carModelFilter);
     if (filters.statusFilter) result = result.filter(r => r.status === filters.statusFilter);
+    if (typeof filters.voucherSubmitted === 'boolean') result = result.filter(r => Boolean(r.voucherSubmitted) === filters.voucherSubmitted);
+    if (typeof filters.dropOffCompleted === 'boolean') result = result.filter(r => Boolean(r.dropOffCompleted) === filters.dropOffCompleted);
     if (filters.bookingIdSearch) {
       const search = filters.bookingIdSearch.toLowerCase();
       result = result.filter(r => 
@@ -306,6 +356,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   // DEBUG: Log upgrade permission for each reservation
   const upgradePermission = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE);
+  const canViewVoucherActions = isAgreementView || hasPermission(UserPermission.ACTION_RESERVATIONS_VIEW_VOUCHER);
   console.log('Upgrade permission for user:', upgradePermission, currentUser?.email);
 
   return (
@@ -313,7 +364,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h2 className="text-lg font-semibold text-gray-800">
-            {selectedMonth} {selectedYear}
+            {isAgreementView ? `Agreement • ${selectedMonth} ${selectedYear}` : `${selectedMonth} ${selectedYear}`}
           </h2>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:min-w-[250px]">
@@ -328,6 +379,20 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            {isAgreementView && (
+              <select
+                value={getAgreementStatusFilter()}
+                onChange={handleAgreementStatusFilterChange}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                aria-label="Filter agreement status"
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+                <option value="submitted">Submitted</option>
+              </select>
+            )}
             <button
               onClick={openAddModal}
               className="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 justify-center"
@@ -347,6 +412,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             const isNew = res.isNew;
             const voucherSubmitted = res.voucherSubmitted;
             const dropOffCompleted = res.dropOffCompleted;
+            const { year: reservationYear, month: reservationMonth } = getReservationPeriod(res);
             const idStyle = duplicateBookingIds.has(res.bookingId?.trim()) ? 'border-2 border-red-400' : '';
             const statusColor = getStatusColor(res.status);
 
@@ -448,12 +514,12 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     {canUpgrade && (
                       <button onClick={() => openUpgradeModal(res)} className="text-xs px-2 py-1 border border-orange-300 text-orange-700 rounded hover:bg-orange-50" title="Upgrade">Upgrade</button>
                     )}
-                    {hasPermission(UserPermission.ACTION_RESERVATIONS_VIEW_VOUCHER) && (
-                      <button onClick={() => onShowRentalVoucher(res)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Rental Agreement">
+                    {canViewVoucherActions && (
+                      <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Rental Agreement">
                         <DocumentReportIcon className="w-4 h-4" />
                       </button>
                     )}
-                    {hasPermission(UserPermission.ACTION_RESERVATIONS_VIEW_VOUCHER) && (
+                    {canViewVoucherActions && (
                       <button onClick={() => onShowReceipt(res)} className="p-1 text-purple-600 hover:bg-purple-50 rounded" title="Receipt">
                         <CurrencyDollarIcon className="w-4 h-4" />
                       </button>
@@ -469,7 +535,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                       </button>
                     )}
                     {!voucherSubmitted && !dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
-                      <button onClick={() => onDelete(res.id, isNew, selectedYear, selectedMonth)} className="text-xs px-2 py-1 border border-red-300 text-red-700 rounded hover:bg-red-50">Delete</button>
+                      <button onClick={() => onDelete(res.id, isNew, reservationYear, reservationMonth)} className="text-xs px-2 py-1 border border-red-300 text-red-700 rounded hover:bg-red-50">Delete</button>
                     )}
                   </div>
                 </div>

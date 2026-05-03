@@ -502,4 +502,6 @@ export interface ReservationFilters {
   durationFilter: string;
   bookingIdSearch: string;
   dateFilter: DateFilter;
+  voucherSubmitted?: boolean;
+  dropOffCompleted?: boolean;
 }

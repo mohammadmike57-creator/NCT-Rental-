@@ -186,8 +186,8 @@ const FranchisePaymentTracker: React.FC<{
                     const currentStatusInfo = statusInfo[status];
                     const deadlineDate = getDeadlineDate(row.month, year);
 
-                    // Special handling for January and February 2026: show only "Paid" without any amount
-                    const isSpecialPaid = year === 2026 && (row.month === 'January' || row.month === 'February') && isPaid;
+                    // Special handling for January, February, and March 2026: show only "Paid" without any amount
+                    const isSpecialPaid = year === 2026 && (row.month === 'January' || row.month === 'February' || row.month === 'March') && isPaid;
 
                     return (
                         <div 
@@ -355,10 +355,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
-  // For January and February 2026, set totalFee = 0 (not shown) but they will be auto-paid.
+  // For January, February, and March 2026, set totalFee = 0 (not shown) but they will be auto-paid.
   const franchiseSummary = summary.map(s => {
       let totalFee = s.commissionUSD + FIXED_ADDON;
-      if (year === 2026 && (s.month === 'January' || s.month === 'February')) {
+      if (year === 2026 && (s.month === 'January' || s.month === 'February' || s.month === 'March')) {
           totalFee = 0; // Not shown
       }
       return {
@@ -369,58 +369,49 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       };
   });
 
-  // Auto-mark January and February 2026 as paid with amount 250 and specific dates.
-  // Also update existing payments if the date is incorrect.
+  // Auto-mark January, February, and March 2026 as paid with specific dates.
+  // March amount is set to 0, and existing records are corrected if needed.
   useEffect(() => {
       if (year === 2026 && onUpdateFranchisePayment) {
-          const janPayment = franchisePayments.find(p => p.month === 'January' && p.year === 2026);
-          const febPayment = franchisePayments.find(p => p.month === 'February' && p.year === 2026);
           const newPayments = [...franchisePayments];
           let updated = false;
 
-          const correctJanDate = new Date(2026, 0, 1).toISOString();
-          const correctFebDate = new Date(2026, 1, 1).toISOString();
+          const autoPayments = [
+              { month: 'January', amount: 250, datePaid: new Date(2026, 0, 1).toISOString(), note: 'Auto-paid (fixed amount)' },
+              { month: 'February', amount: 250, datePaid: new Date(2026, 1, 1).toISOString(), note: 'Auto-paid (fixed amount)' },
+              { month: 'March', amount: 0, datePaid: new Date(2026, 2, 1).toISOString(), note: 'Auto-paid (zero amount)' },
+          ] as const;
 
-          if (!janPayment) {
-              newPayments.push({
-                  id: `fp-2026-January-auto`,
-                  year: 2026,
-                  month: 'January',
-                  amount: 250,
-                  currency: 'USD',
-                  datePaid: correctJanDate,
-                  paidBy: 'System',
-                  referenceNote: 'Auto-paid (fixed amount)'
-              });
-              updated = true;
-          } else if (janPayment.datePaid !== correctJanDate) {
-              // Update the date
-              const index = newPayments.findIndex(p => p.month === 'January' && p.year === 2026);
-              if (index !== -1) {
-                  newPayments[index] = { ...newPayments[index], datePaid: correctJanDate };
-                  updated = true;
-              }
-          }
+          autoPayments.forEach(({ month, amount, datePaid, note }) => {
+              const existingPayment = newPayments.find(p => p.month === month && p.year === 2026);
 
-          if (!febPayment) {
-              newPayments.push({
-                  id: `fp-2026-February-auto`,
-                  year: 2026,
-                  month: 'February',
-                  amount: 250,
-                  currency: 'USD',
-                  datePaid: correctFebDate,
-                  paidBy: 'System',
-                  referenceNote: 'Auto-paid (fixed amount)'
-              });
-              updated = true;
-          } else if (febPayment.datePaid !== correctFebDate) {
-              const index = newPayments.findIndex(p => p.month === 'February' && p.year === 2026);
-              if (index !== -1) {
-                  newPayments[index] = { ...newPayments[index], datePaid: correctFebDate };
+              if (!existingPayment) {
+                  newPayments.push({
+                      id: `fp-2026-${month}-auto`,
+                      year: 2026,
+                      month,
+                      amount,
+                      currency: 'USD',
+                      datePaid,
+                      paidBy: 'System',
+                      referenceNote: note,
+                  });
                   updated = true;
+                  return;
               }
-          }
+
+              if (existingPayment.datePaid !== datePaid || existingPayment.amount !== amount) {
+                  const index = newPayments.findIndex(p => p.month === month && p.year === 2026);
+                  if (index !== -1) {
+                      newPayments[index] = {
+                          ...newPayments[index],
+                          datePaid,
+                          amount,
+                      };
+                      updated = true;
+                  }
+              }
+          });
 
           if (updated) {
               onUpdateFranchisePayment(newPayments);
@@ -590,7 +581,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                   <h4 className="text-blue-800 font-bold">Franchise Fee Management</h4>
                   <p className="text-blue-700 text-sm mt-1">
                       Total franchise fee = 7.5% commission + $250 fixed fee per month.  
-                      (January and February 2026 are set to $250 and automatically marked as paid on Jan 1 and Feb 1 respectively.)
+                      (January and February 2026 are auto-paid at $250, and March 2026 is auto-paid at $0 on March 1.)
                   </p>
               </div>
               <FranchisePaymentTracker 

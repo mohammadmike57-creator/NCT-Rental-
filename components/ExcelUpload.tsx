@@ -11,6 +11,45 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const normalizeHeader = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const getRowValueByHeaders = (row: Record<string, any>, candidateHeaders: string[]): any => {
+    for (const header of candidateHeaders) {
+      const value = row[header];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return value;
+      }
+    }
+
+    const normalizedCandidates = new Set(candidateHeaders.map(normalizeHeader));
+    for (const key of Object.keys(row)) {
+      if (normalizedCandidates.has(normalizeHeader(key))) {
+        const value = row[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          return value;
+        }
+      }
+    }
+
+    return undefined;
+  };
+
+  const parseAmount = (value: any): number => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9.,-]/g, '').trim();
+      if (!cleaned) return 0;
+
+      const parsed = Number.parseFloat(cleaned.replace(/,/g, ''));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    return 0;
+  };
+
   // Parse US date format: MM/DD/YYYY or MM/DD/YYYY HH:MM
   const parseUSDate = (dateValue: any): string | null => {
     if (!dateValue) return null;
@@ -119,8 +158,14 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
           const bookingDate = bookingDateRaw ? parseUSDate(bookingDateRaw)?.split('T')[0] : new Date().toISOString().split('T')[0];
           const locationName = row['Branch']?.toString().trim() || '';
           const carModel = row['Car Type']?.toString().trim() || '';
-          let amount = parseFloat(row['Total Amount $']);
-          if (isNaN(amount)) amount = 0;
+          const amount = parseAmount(getRowValueByHeaders(row, [
+            'Total Amount $',
+            'Total Amount',
+            'Amount',
+            'Reservation Amount',
+            'Grand Total',
+            'Total',
+          ]));
           const status = mapStatus(row['Reservation Status']);
           const contactNumber = row['Contact']?.toString().trim() || '';
           const notes = row['Note']?.toString().trim() || '';

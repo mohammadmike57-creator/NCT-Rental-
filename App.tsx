@@ -220,7 +220,7 @@ export const App: React.FC = () => {
   const [modals, setModals] = useState({
       viewVoucher: null as { reservation: Reservation; year: number; month: string } | null,
       viewReceipt: null as Reservation | null,
-      viewRentalVoucher: null as Reservation | null,
+      viewRentalVoucher: null as { reservation: Reservation; year: number; month: string } | null,
   });
   
   const [reservationToExtend, setReservationToExtend] = useState<Reservation | null>(null);
@@ -1353,7 +1353,9 @@ ${currentUser?.fullName}
   }, [allReservationsFlat, newReservations]);
   
   const handleNavigation = (view: string, newFilters?: Partial<ReservationFilters>) => {
-    if (view !== 'Reservations') {
+    const isReservationView = view === 'Reservations' || view === 'Agreement';
+
+    if (!isReservationView) {
       setFilters({
         sourceFilter: '', carModelFilter: '', statusFilter: '',
         durationFilter: '', bookingIdSearch: '', dateFilter: '',
@@ -1364,6 +1366,14 @@ ${currentUser?.fullName}
     } else if (newFilters) {
       setPresetFilters(newFilters as ReservationFilters);
       setFilters(prev => ({ ...prev, ...newFilters }));
+    } else if (view === 'Agreement') {
+      setFilters({
+        sourceFilter: '', carModelFilter: '', statusFilter: '',
+        durationFilter: '', bookingIdSearch: '', dateFilter: '',
+        voucherSubmitted: undefined,
+        dropOffCompleted: undefined,
+      });
+      setPresetFilters(null);
     }
     setMainView(view);
     setIsSidebarOpen(false);
@@ -1394,6 +1404,70 @@ ${currentUser?.fullName}
   if (!authChecked || isLoading) return <LoadingSpinner />;
   if (!isAuthenticated && authChecked) return <Suspense fallback={<LoadingSpinner />}><LoginScreen users={users} /></Suspense>;
   
+  const renderReservationView = (isAgreementView = false) => (
+    <ReservationTable
+      allData={reservations}
+      newReservations={newReservations}
+      onUpdate={handleUpdateReservations}
+      onAdd={handleAddNewReservation}
+      onDelete={handleDeleteReservation}
+      onSaveNew={handleSaveNewReservation}
+      selectedYear={selectedYear}
+      selectedMonth={selectedMonth}
+      rentalSources={sources}
+      carModels={carModels}
+      duplicateBookingIds={duplicateBookingIds}
+      fleet={fleet}
+      rentalLocations={rentalLocations}
+      onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewVoucher: { reservation, year, month } }))}
+      onShowRentalVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
+      onShowReceipt={(reservation) => setModals(m => ({ ...m, viewReceipt: reservation }))}
+      onExtend={(res) => setReservationToExtend(res)}
+      onShare={handleShareReservation}
+      onRequirePaymentConfirmation={handleRequirePaymentConfirmation}
+      onEditReservation={handleUpdateSingleReservation}
+      onUpgrade={(reservation, newCarId, customRate) => {
+        const newCar = fleet.find(c => c.id === newCarId);
+        if (!newCar) return;
+
+        const upgradeFee = customRate !== undefined && customRate !== null ? customRate : 30;
+        const newTotal = (reservation.amount || 0) + upgradeFee;
+
+        const updatedReservation = {
+          ...reservation,
+          carModel: newCar.modelName,
+          amount: newTotal,
+          lastEditedBy: currentUser?.fullName,
+          upgradeHistory: [
+            ...(reservation.upgradeHistory || []),
+            {
+              date: new Date().toISOString(),
+              fromCar: reservation.carModel,
+              toCar: newCar.modelName,
+              fee: upgradeFee,
+            }
+          ],
+        };
+
+        handleUpdateSingleReservation(updatedReservation);
+        showConfirmation(`Upgraded to ${newCar.modelName} – additional fee $${upgradeFee.toFixed(2)}. New total: $${newTotal.toFixed(2)}`);
+      }}
+      onAssignCar={(reservation) => {
+        console.log('Assign car for', reservation.id);
+      }}
+      onAddExtras={(reservation) => setReservationToAddExtras(reservation)}
+      currentUser={currentUser}
+      filters={filters}
+      setFilters={setFilters}
+      onClearFilters={clearReservationFilters}
+      isDesktopView={isDesktopView}
+      companyDetails={companyDetails}
+      availableExtras={availableExtras}
+      presetFilters={presetFilters}
+      isAgreementView={isAgreementView}
+    />
+  );
+
   const mainViews: { [key: string]: { component: React.ReactNode, permission: UserPermission } } = {
     'Home': { component: (
         <HomePage 
@@ -1402,61 +1476,8 @@ ${currentUser?.fullName}
             onNavigate={handleNavigation}
         />
     ), permission: UserPermission.VIEW_HOME_DASHBOARD },
-    'Reservations': { component: (
-      <ReservationTable
-        
-        allData={reservations} newReservations={newReservations}
-        onUpdate={handleUpdateReservations} onAdd={handleAddNewReservation} onDelete={handleDeleteReservation}
-        onSaveNew={handleSaveNewReservation} selectedYear={selectedYear} selectedMonth={selectedMonth}
-        rentalSources={sources} carModels={carModels} duplicateBookingIds={duplicateBookingIds} fleet={fleet}
-        rentalLocations={rentalLocations}
-        onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewVoucher: { reservation, year, month }}))}
-        onShowRentalVoucher={(reservation) => setModals(m => ({...m, viewRentalVoucher: reservation}))}
-        onShowReceipt={(reservation) => setModals(m => ({ ...m, viewReceipt: reservation }))}
-        onExtend={(res) => setReservationToExtend(res)}
-        onShare={handleShareReservation}
-        onRequirePaymentConfirmation={handleRequirePaymentConfirmation}
-        onEditReservation={handleUpdateSingleReservation}
-        onUpgrade={(reservation, newCarId, customRate) => {
-          const newCar = fleet.find(c => c.id === newCarId);
-          if (!newCar) return;
-
-          const upgradeFee = customRate !== undefined && customRate !== null ? customRate : 30;
-          const newTotal = (reservation.amount || 0) + upgradeFee;
-
-          const updatedReservation = {
-            ...reservation,
-            carModel: newCar.modelName,
-            amount: newTotal,
-            lastEditedBy: currentUser?.fullName,
-            upgradeHistory: [
-              ...(reservation.upgradeHistory || []),
-              {
-                date: new Date().toISOString(),
-                fromCar: reservation.carModel,
-                toCar: newCar.modelName,
-                fee: upgradeFee,
-              }
-            ],
-          };
-
-          handleUpdateSingleReservation(updatedReservation);
-          showConfirmation(`Upgraded to ${newCar.modelName} – additional fee $${upgradeFee.toFixed(2)}. New total: $${newTotal.toFixed(2)}`);
-        }}
-        onAssignCar={(reservation) => {
-          console.log('Assign car for', reservation.id);
-        }}
-        onAddExtras={(reservation) => setReservationToAddExtras(reservation)}
-        currentUser={currentUser}
-        filters={filters}
-        setFilters={setFilters}
-        onClearFilters={clearReservationFilters}
-        isDesktopView={isDesktopView}
-        companyDetails={companyDetails}
-        availableExtras={availableExtras}
-        presetFilters={presetFilters}
-      />
-    ), permission: UserPermission.VIEW_RESERVATIONS },
+    'Reservations': { component: renderReservationView(false), permission: UserPermission.VIEW_RESERVATIONS },
+    'Agreement': { component: renderReservationView(true), permission: UserPermission.VIEW_HOME_DASHBOARD },
     'Today\'s Reservations': { component: (
       <TodaysReservations
         allData={reservations}
@@ -1717,6 +1738,7 @@ ${currentUser?.fullName}
     "Core Operations": [
         { name: 'Home', icon: HomeIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
         { name: 'Reservations', icon: CalendarIcon, permission: UserPermission.VIEW_RESERVATIONS },
+        { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
@@ -1752,8 +1774,8 @@ ${currentUser?.fullName}
     ]
   };
 
-  const currentViewHasAccess = hasPermission(currentUser, mainViews[mainView]?.permission);
-  const showDateSelectors = ['Reservations', 'Invoice Generation', 'Fleet Availability', 'Yearly Summary'].includes(mainView);
+  const currentViewHasAccess = mainView === 'Agreement' ? true : hasPermission(currentUser, mainViews[mainView]?.permission);
+  const showDateSelectors = ['Reservations', 'Agreement', 'Invoice Generation', 'Fleet Availability', 'Yearly Summary'].includes(mainView);
 
   return (
     <div className="flex h-screen bg-slate-100">
@@ -1772,6 +1794,9 @@ ${currentUser?.fullName}
             <nav className="px-2 py-4 space-y-4 flex-1">
                 {Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
                     const visibleLinks = links.filter(link => {
+                        if (link.name === 'Agreement') {
+                            return true;
+                        }
                         if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) {
                             return false;
                         }
@@ -1982,7 +2007,7 @@ ${currentUser?.fullName}
 
       <Suspense fallback={<LoadingSpinner />}>
       {modals.viewVoucher && <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50"><Voucher reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} /></div>}
-      {modals.viewRentalVoucher && <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50"><Voucher reservation={modals.viewRentalVoucher} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, selectedYear, selectedMonth); }} /></div>}
+      {modals.viewRentalVoucher && <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50"><Voucher reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} /></div>}
       {modals.viewReceipt && <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50"><Receipt reservation={modals.viewReceipt} companyDetails={companyDetails} sources={sources} onClose={() => setModals(m=>({...m, viewReceipt: null}))} /></div>}
       {reservationToExtend && <ExtendRentalModal reservation={reservationToExtend} trafficTickets={trafficTickets} companyDetails={companyDetails} onClose={() => setReservationToExtend(null)} onConfirm={handleConfirmExtension} />}
       {reservationToAddExtras && (
