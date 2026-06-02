@@ -50,8 +50,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
     return 0;
   };
 
-  // Parse US date format: MM/DD/YYYY or MM/DD/YYYY HH:MM
-  const parseUSDate = (dateValue: any): string | null => {
+  // Parse date from various formats
+  const parseFlexibleDate = (dateValue: any): string | null => {
     if (!dateValue) return null;
     let year: number, month: number, day: number, hour = 12, minute = 0;
 
@@ -64,27 +64,57 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
       hour = date.H || 12;
       minute = date.M || 0;
     } else if (typeof dateValue === 'string') {
-      // Clean the string
       const cleaned = dateValue.trim();
-      // Match MM/DD/YYYY or MM/DD/YYYY HH:MM
-      const match = cleaned.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
-      if (match) {
-        month = parseInt(match[1]) - 1;
-        day = parseInt(match[2]);
-        year = parseInt(match[3]);
-        hour = match[4] ? parseInt(match[4]) : 12;
-        minute = match[5] ? parseInt(match[5]) : 0;
-      } else {
-        // Try standard JS parsing as fallback
-        const d = new Date(cleaned);
-        if (!isNaN(d.getTime())) {
-          year = d.getFullYear();
-          month = d.getMonth();
-          day = d.getDate();
-          hour = d.getHours();
-          minute = d.getMinutes();
+      if (!cleaned) return null;
+
+      // Try DD/MM/YYYY or MM/DD/YYYY with various separators
+      const dmyMatch = cleaned.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
+      if (dmyMatch) {
+        const v1 = parseInt(dmyMatch[1]);
+        const v2 = parseInt(dmyMatch[2]);
+        let y = parseInt(dmyMatch[3]);
+        if (y < 100) y += 2000;
+        const h = dmyMatch[4] ? parseInt(dmyMatch[4]) : 12;
+        const min = dmyMatch[5] ? parseInt(dmyMatch[5]) : 0;
+
+        if (v1 > 12) {
+          // Definitely DD/MM/YYYY
+          day = v1;
+          month = v2 - 1;
+        } else if (v2 > 12) {
+          // Definitely MM/DD/YYYY
+          month = v1 - 1;
+          day = v2;
         } else {
-          return null;
+          // Ambiguous: default to MM/DD/YYYY to preserve common US-based broker formats
+          // but if we were strictly international we might prefer DD/MM
+          month = v1 - 1;
+          day = v2;
+        }
+        year = y;
+        hour = h;
+        minute = min;
+      } else {
+        // Try YYYY-MM-DD
+        const isoMatch = cleaned.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})(?:[T\s](\d{1,2}):(\d{2}))?/);
+        if (isoMatch) {
+          year = parseInt(isoMatch[1]);
+          month = parseInt(isoMatch[2]) - 1;
+          day = parseInt(isoMatch[3]);
+          hour = isoMatch[4] ? parseInt(isoMatch[4]) : 12;
+          minute = isoMatch[5] ? parseInt(isoMatch[5]) : 0;
+        } else {
+          // Try standard JS parsing as fallback
+          const d = new Date(cleaned);
+          if (!isNaN(d.getTime())) {
+            year = d.getFullYear();
+            month = d.getMonth();
+            day = d.getDate();
+            hour = d.getHours();
+            minute = d.getMinutes();
+          } else {
+            return null;
+          }
         }
       }
     } else if (dateValue instanceof Date) {
@@ -136,28 +166,28 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
       rows.forEach((row, idx) => {
         const rowNum = idx + 2;
         try {
-          const personName = row['Client Name']?.toString().trim();
+          const personName = getRowValueByHeaders(row, ['Client Name', 'Renter Name', 'Customer Name', 'Name', 'Driver Name', 'Renter'])?.toString().trim();
           if (!personName) throw new Error('Client Name missing');
 
-          const startDateRaw = row['Pick-up Date'];
-          const endDateRaw = row['Drop-off Date'];
+          const startDateRaw = getRowValueByHeaders(row, ['Pick-up Date', 'Pickup Date', 'Start Date', 'Date From', 'Collection Date', 'Pickup']);
+          const endDateRaw = getRowValueByHeaders(row, ['Drop-off Date', 'Dropoff Date', 'End Date', 'Date To', 'Return Date', 'Dropoff']);
           if (!startDateRaw) throw new Error('Pick-up Date missing');
           if (!endDateRaw) throw new Error('Drop-off Date missing');
 
-          const startDate = parseUSDate(startDateRaw);
-          const endDate = parseUSDate(endDateRaw);
+          const startDate = parseFlexibleDate(startDateRaw);
+          const endDate = parseFlexibleDate(endDateRaw);
           if (!startDate || !endDate) throw new Error('Invalid date format');
 
           if (new Date(endDate) <= new Date(startDate)) {
             throw new Error('Drop-off date must be after pick-up date');
           }
 
-          const bookingId = row['Reference Number']?.toString().trim() || `import-${Date.now()}-${idx}`;
-          const sourceName = row['Broker Name']?.toString().trim() || 'Website';
-          const bookingDateRaw = row['Booked on Date'];
-          const bookingDate = bookingDateRaw ? parseUSDate(bookingDateRaw)?.split('T')[0] : new Date().toISOString().split('T')[0];
-          const locationName = row['Branch']?.toString().trim() || '';
-          const carModel = row['Car Type']?.toString().trim() || '';
+          const bookingId = getRowValueByHeaders(row, ['Reference Number', 'Booking ID', 'Reservation Number', 'Order Number', 'Ref', 'ID'])?.toString().trim() || `import-${Date.now()}-${idx}`;
+          const sourceName = getRowValueByHeaders(row, ['Broker Name', 'Source', 'Vendor', 'Agency', 'Company', 'Broker'])?.toString().trim() || 'Website';
+          const bookingDateRaw = getRowValueByHeaders(row, ['Booked on Date', 'Booking Date', 'Reservation Date', 'Date Booked', 'Booked']);
+          const bookingDate = bookingDateRaw ? parseFlexibleDate(bookingDateRaw)?.split('T')[0] : new Date().toISOString().split('T')[0];
+          const locationName = getRowValueByHeaders(row, ['Branch', 'Location', 'Pickup Location', 'Pick-up Location', 'Office'])?.toString().trim() || '';
+          const carModel = getRowValueByHeaders(row, ['Car Type', 'Car Model', 'Vehicle Type', 'Vehicle', 'Group', 'Category'])?.toString().trim() || '';
           const amount = parseAmount(getRowValueByHeaders(row, [
             'Total Amount $',
             'Total Amount',
@@ -165,10 +195,16 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
             'Reservation Amount',
             'Grand Total',
             'Total',
+            'Net Amount',
+            'Net Price',
+            'Price',
+            'Voucher Value',
+            'Cost',
+            'Selling Price'
           ]));
-          const status = mapStatus(row['Reservation Status']);
-          const contactNumber = row['Contact']?.toString().trim() || '';
-          const notes = row['Note']?.toString().trim() || '';
+          const status = mapStatus(getRowValueByHeaders(row, ['Reservation Status', 'Status', 'Booking Status']));
+          const contactNumber = getRowValueByHeaders(row, ['Contact', 'Phone', 'Mobile', 'Telephone', 'Contact Number'])?.toString().trim() || '';
+          const notes = getRowValueByHeaders(row, ['Note', 'Notes', 'Comments', 'Remarks'])?.toString().trim() || '';
 
           reservations.push({
             id: `import-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
@@ -230,7 +266,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
         </label>
         <p className="mt-2 text-sm text-gray-500">
           Required columns: <strong>Client Name, Pick-up Date, Drop-off Date</strong><br />
-          Dates must be in <strong>month/day/year</strong> format (e.g., 02/01/2026 for February 1, 2026).
+          Supports various date formats and flexible column names.
         </p>
       </div>
       {error && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md whitespace-pre-wrap">{error}</div>}
