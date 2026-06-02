@@ -191,8 +191,10 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
           const amount = parseAmount(getRowValueByHeaders(row, [
             'Total Amount $',
             'Total Amount',
+            'Base Amount',
             'Amount',
             'Reservation Amount',
+            'Grand Total $',
             'Grand Total',
             'Total',
             'Net Amount',
