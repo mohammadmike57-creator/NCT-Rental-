@@ -211,8 +211,27 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   const openEditModal = (res: Reservation) => {
     setModalMode('edit');
+    
+    // Calculate current extras total to get the "Amount" for the form
+    let extrasTotal = 0;
+    if (res.selectedExtras && res.selectedExtras.length > 0 && res.startDate && res.endDate) {
+      const start = new Date(res.startDate);
+      const end = new Date(res.endDate);
+      const diff = end.getTime() - start.getTime();
+      const days = Math.max(0, diff / (1000 * 3600 * 24));
+      
+      extrasTotal = res.selectedExtras.reduce((sum, extraId) => {
+        const extra = availableExtras.find(e => e.id === extraId);
+        if (extra && extra.pricePerDay) {
+          return sum + (extra.pricePerDay * days);
+        }
+        return sum;
+      }, 0);
+    }
+
     setFormData({
       ...res,
+      amount: (res.amount || 0) - extrasTotal,
       selectedExtras: res.selectedExtras || [],
     });
     setIsModalOpen(true);
@@ -609,7 +628,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             <div><label className="block text-xs font-medium text-gray-700">Return *</label><input type="datetime-local" value={formData.endDate || ''} onChange={(e) => handleChange('endDate', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-medium text-gray-700">Base Amount ($)</label><input type="number" value={formData.amount || 0} onChange={(e) => handleChange('amount', parseFloat(e.target.value) || 0)} className="mt-1 w-full px-2 py-1 border rounded" min="0" step="0.01" /></div>
+            <div><label className="block text-xs font-medium text-gray-700">Amount ($)</label><input type="number" value={formData.amount || 0} onChange={(e) => handleChange('amount', parseFloat(e.target.value) || 0)} className="mt-1 w-full px-2 py-1 border rounded" min="0" step="0.01" /></div>
             <div><label className="block text-xs font-medium text-gray-700">Location</label><select value={formData.locationName || ''} onChange={(e) => handleChange('locationName', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded"><option value="">Select</option>{rentalLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
           </div>
           <div><label className="block text-xs font-medium text-gray-700">Status</label><select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded"><option value={ReservationStatus.CONFIRMED}>Confirmed</option><option value={ReservationStatus.COMPLETED}>Completed</option><option value={ReservationStatus.CANCELLED}>Cancelled</option><option value="NO_SHOW">No Show</option></select></div>

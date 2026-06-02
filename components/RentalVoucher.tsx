@@ -186,8 +186,8 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
             <h3 className="text-lg font-semibold border-b border-gray-300 pb-2 mb-3">Financial Summary</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span>Base Rental Amount:</span>
-                <span>${reservation.baseAmount?.toFixed(2) || reservation.amount?.toFixed(2) || '0.00'}</span>
+                <span>Rental Amount:</span>
+                <span>${reservation.amount?.toFixed(2) || '0.00'}</span>
               </div>
               {reservation.selectedExtras && reservation.selectedExtras.length > 0 && (
                 <>

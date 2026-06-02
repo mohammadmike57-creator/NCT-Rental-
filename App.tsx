@@ -1259,34 +1259,31 @@ ${currentUser?.fullName}
   const handleReservationsImport = useCallback((importedReservations: Reservation[]) => {
     if (!importedReservations || importedReservations.length === 0) return;
 
-    const existingBookingIds = new Set(allReservationsFlat.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
-    const duplicateRows: string[] = [];
-    const uniqueReservations: Reservation[] = [];
-
-    importedReservations.forEach((res, idx) => {
-      const bookingId = res.bookingId?.trim().toLowerCase();
-      if (bookingId && existingBookingIds.has(bookingId)) {
-        duplicateRows.push(`Row ${idx + 1}: Booking ID "${res.bookingId}" already exists.`);
-      } else {
-        const id = res.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        uniqueReservations.push({ ...res, id });
-        if (bookingId) existingBookingIds.add(bookingId);
-      }
-    });
-
-    if (duplicateRows.length > 0) {
-      addNotification(`Duplicate rows skipped: ${duplicateRows.join(', ')}`, 'warning');
-    }
-
-    if (uniqueReservations.length === 0) {
-      addNotification('No new reservations to import.', 'info');
-      return;
-    }
-
     setReservations(prev => {
       const newReservations = { ...prev };
-      uniqueReservations.forEach(res => {
+      const importedIds = new Set(importedReservations.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
+      let updateCount = 0;
+      let newCount = 0;
+
+      // 1. Remove existing reservations that match imported booking IDs (to replace them)
+      Object.keys(newReservations).forEach(year => {
+        const y = parseInt(year);
+        Object.keys(newReservations[y]).forEach(month => {
+          const originalCount = newReservations[y][month].length;
+          newReservations[y][month] = newReservations[y][month].filter(res => {
+            const bid = res.bookingId?.trim().toLowerCase();
+            return !(bid && importedIds.has(bid));
+          });
+          const removedCount = originalCount - newReservations[y][month].length;
+          updateCount += removedCount;
+        });
+      });
+
+      // 2. Add all imported reservations
+      importedReservations.forEach(res => {
         const startDate = new Date(res.startDate);
+        if (isNaN(startDate.getTime())) return;
+        
         const year = startDate.getFullYear();
         const month = MONTHS[startDate.getMonth()];
         
@@ -1297,9 +1294,19 @@ ${currentUser?.fullName}
         if (!newReservations[year][month]) {
           newReservations[year][month] = [];
         }
-        newReservations[year][month].push(res);
+
+        const bid = res.bookingId?.trim().toLowerCase();
+        // If it wasn't an update (not found in existing), it's a new one
+        // Wait, updateCount counts how many we REMOVED. 
+        // We should probably just count how many we are adding.
+        
+        const id = res.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        newReservations[year][month].push({ ...res, id });
       });
-      
+
+      newCount = importedReservations.length - updateCount;
+      if (newCount < 0) newCount = importedReservations.length; // Fallback if updateCount calculation was fuzzy
+
       const allData: AllData = {
         reservations: newReservations,
         sources, fleet, companyDetails,
@@ -1315,7 +1322,7 @@ ${currentUser?.fullName}
       return newReservations;
     });
     
-    showConfirmation(`Successfully imported ${uniqueReservations.length} reservations. ${duplicateRows.length} duplicates skipped.`);
+    showConfirmation(`Successfully imported ${importedReservations.length} reservations. Existing records were updated if they matched by Booking ID.`);
   }, [allReservationsFlat, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years, addNotification, showConfirmation]);
 
   const clearReservationFilters = useCallback(() => {

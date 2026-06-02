@@ -188,7 +188,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
           const bookingDate = bookingDateRaw ? parseFlexibleDate(bookingDateRaw)?.split('T')[0] : new Date().toISOString().split('T')[0];
           const locationName = getRowValueByHeaders(row, ['Branch', 'Location', 'Pickup Location', 'Pick-up Location', 'Office'])?.toString().trim() || '';
           const carModel = getRowValueByHeaders(row, ['Car Type', 'Car Model', 'Vehicle Type', 'Vehicle', 'Group', 'Category'])?.toString().trim() || '';
-          const amount = parseAmount(getRowValueByHeaders(row, [
+          const amountCandidates = [
             'Total Amount $',
             'Total Amount',
             'Base Amount',
@@ -197,13 +197,36 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
             'Grand Total $',
             'Grand Total',
             'Total',
+            'Total Paid',
+            'Amount Paid',
             'Net Amount',
             'Net Price',
             'Price',
             'Voucher Value',
             'Cost',
-            'Selling Price'
-          ]));
+            'Selling Price',
+            'Total (USD)',
+            'Amount (USD)',
+            'Price (USD)'
+          ];
+          
+          let amount = 0;
+          // Try to find a non-zero amount from candidates first
+          for (const candidate of amountCandidates) {
+            const rawVal = getRowValueByHeaders(row, [candidate]);
+            if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+              const parsed = parseAmount(rawVal);
+              if (parsed > 0) {
+                amount = parsed;
+                break;
+              }
+            }
+          }
+          
+          // If still zero, just take whatever the first candidate provides
+          if (amount === 0) {
+            amount = parseAmount(getRowValueByHeaders(row, amountCandidates));
+          }
           const status = mapStatus(getRowValueByHeaders(row, ['Reservation Status', 'Status', 'Booking Status']));
           const contactNumber = getRowValueByHeaders(row, ['Contact', 'Phone', 'Mobile', 'Telephone', 'Contact Number'])?.toString().trim() || '';
           const notes = getRowValueByHeaders(row, ['Note', 'Notes', 'Comments', 'Remarks'])?.toString().trim() || '';

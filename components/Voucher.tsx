@@ -510,7 +510,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       <div class="section">
         <h3>Financial Summary</h3>
         <div class="grid-2">
-          <div><span class="label">Base Rental Fee:</span> ${formatCurrencyPrint(baseRentalFeePrint)}</div>
+          <div><span class="label">Rental Fee:</span> ${formatCurrencyPrint(baseRentalFeePrint)}</div>
           <div><span class="label">Extras Total:</span> ${formatCurrencyPrint(extrasTotalPrint)}</div>
           <div><span class="label">Total Amount:</span> <strong>${formatCurrencyPrint(totalCostPrint)}</strong></div>
           <div><span class="label">Security Deposit:</span> ${formatCurrencyPrint(localReservation.securityDeposit || 0)}</div>
@@ -593,7 +593,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     doc.text(reservation.customerEmail || 'No email', 14, 62);
 
     const tableBody = [
-      ['Base Rental Fee', formatCurrency(baseRentalFee)],
+      ['Rental Fee', formatCurrency(baseRentalFee)],
       ...(reservation.extras || []).map(extra => [
         `Extra: ${extra.name}`,
         extra.isComplementary ? 'Free' : formatCurrency(extra.dailyPrice * rentalDays)
@@ -1234,7 +1234,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <InfoPair label="Base Rental Fee" value={formatCurrency(baseRentalFee)} />
+                  <InfoPair label="Rental Fee" value={formatCurrency(baseRentalFee)} />
                   <InfoPair label="Extras Total" value={formatCurrency(extrasTotal)} />
                   <hr className="my-2" />
                   <InfoPair label="Total Amount" value={<span className="font-bold">{formatCurrency(totalCost)}</span>} />
