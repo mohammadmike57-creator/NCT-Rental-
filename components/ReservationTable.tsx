@@ -495,7 +495,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               </button>
             </div>
             <div className="flex gap-2">
-              {hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
+              {(currentUser?.email === 'nadeenalnahas@gmail.com' || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin') && (
                 <button
                   onClick={() => onDeleteMonth(selectedYear, selectedMonth)}
                   disabled={allDisplayReservations.length === 0}
