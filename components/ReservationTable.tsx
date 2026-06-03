@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission } from '../types';
 import { MONTHS } from '../constants';
 import { 
@@ -363,6 +364,64 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     const diff = new Date(end).getTime() - new Date(start).getTime();
     return (diff / (1000 * 3600 * 24)).toFixed(1);
   };
+
+  const handleExportExcel = () => {
+    if (filteredReservations.length === 0) return;
+
+    const data = filteredReservations.map(res => ({
+      'Person Name': res.personName,
+      'Booking ID': res.bookingId,
+      'Source': getSourceName(res.source || ''),
+      'Car Model': res.carModel,
+      'Booking Date': res.bookingDate || res.startDate?.split('T')[0],
+      'Pickup Date': res.startDate,
+      'Return Date': res.endDate,
+      'Days': getDuration(res.startDate, res.endDate),
+      'Amount': res.amount,
+      'Status': res.status,
+      'Location': res.locationName,
+      'Contact': res.contactNumber,
+      'Notes': res.notes
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reservations");
+    
+    XLSX.writeFile(workbook, `Reservations_${selectedMonth}_${selectedYear}.xlsx`);
+  };
+
+  const handleExportCSV = () => {
+    if (filteredReservations.length === 0) return;
+
+    const data = filteredReservations.map(res => ({
+      'Person Name': res.personName,
+      'Booking ID': res.bookingId,
+      'Source': getSourceName(res.source || ''),
+      'Car Model': res.carModel,
+      'Booking Date': res.bookingDate || res.startDate?.split('T')[0],
+      'Pickup Date': res.startDate,
+      'Return Date': res.endDate,
+      'Days': getDuration(res.startDate, res.endDate),
+      'Amount': res.amount,
+      'Status': res.status,
+      'Location': res.locationName,
+      'Contact': res.contactNumber,
+      'Notes': res.notes
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const csv = XLSX.utils.sheet_to_csv(worksheet);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Reservations_${selectedMonth}_${selectedYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
   const getStatusColor = (status: ReservationStatus) => {
     switch(status) {
       case ReservationStatus.CONFIRMED: return 'bg-green-100 text-green-800';
@@ -412,6 +471,26 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <option value="submitted">Submitted</option>
               </select>
             )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportCSV}
+                disabled={filteredReservations.length === 0}
+                className="px-3 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 flex items-center gap-1 justify-center disabled:opacity-50"
+                title="Export current view to CSV"
+              >
+                <ExportIcon className="w-4 h-4" />
+                <span className="hidden lg:inline">CSV</span>
+              </button>
+              <button
+                onClick={handleExportExcel}
+                disabled={filteredReservations.length === 0}
+                className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center gap-1 justify-center disabled:opacity-50"
+                title="Export current view to Excel"
+              >
+                <ExportIcon className="w-4 h-4" />
+                <span className="hidden lg:inline">Excel</span>
+              </button>
+            </div>
             <button
               onClick={openAddModal}
               className="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 justify-center"
