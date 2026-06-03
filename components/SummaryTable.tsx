@@ -187,7 +187,7 @@ const FranchisePaymentTracker: React.FC<{
                     const deadlineDate = getDeadlineDate(row.month, year);
 
                     // Special handling for January, February, and March 2026: show only "Paid" without any amount
-                    const isSpecialPaid = year === 2026 && (row.month === 'January' || row.month === 'February' || row.month === 'March') && isPaid;
+                    const isSpecialPaid = year === 2026 && (row.month === 'January' || row.month === 'February' || row.month === 'March' || row.month === 'April') && isPaid;
 
                     return (
                         <div 
@@ -358,7 +358,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   // For January, February, and March 2026, set totalFee = 0 (not shown) but they will be auto-paid.
   const franchiseSummary = summary.map(s => {
       let totalFee = s.commissionUSD + FIXED_ADDON;
-      if (year === 2026 && (s.month === 'January' || s.month === 'February' || s.month === 'March')) {
+      if (year === 2026 && (s.month === 'January' || s.month === 'February' || s.month === 'March' || s.month === 'April')) {
           totalFee = 0; // Not shown
       }
       return {
@@ -377,12 +377,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
           let updated = false;
 
           const autoPayments = [
-              { month: 'January', amount: 250, datePaid: new Date(2026, 0, 1).toISOString(), note: 'Auto-paid (fixed amount)' },
-              { month: 'February', amount: 250, datePaid: new Date(2026, 1, 1).toISOString(), note: 'Auto-paid (fixed amount)' },
-              { month: 'March', amount: 0, datePaid: new Date(2026, 2, 1).toISOString(), note: 'Auto-paid (zero amount)' },
+              { month: 'January', amount: 250, datePaid: new Date(2026, 0, 1).toISOString(), note: 'Auto-paid (fixed amount)', paidBy: 'System' },
+              { month: 'February', amount: 250, datePaid: new Date(2026, 1, 1).toISOString(), note: 'Auto-paid (fixed amount)', paidBy: 'System' },
+              { month: 'March', amount: 0, datePaid: new Date(2026, 2, 1).toISOString(), note: 'Auto-paid (zero amount)', paidBy: 'System' },
+              { month: 'April', amount: 0, datePaid: new Date(2026, 3, 1).toISOString(), note: 'Paid by card', paidBy: 'Card Payment' },
           ] as const;
 
-          autoPayments.forEach(({ month, amount, datePaid, note }) => {
+          autoPayments.forEach(({ month, amount, datePaid, note, paidBy }) => {
               const existingPayment = newPayments.find(p => p.month === month && p.year === 2026);
 
               if (!existingPayment) {
@@ -393,20 +394,21 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                       amount,
                       currency: 'USD',
                       datePaid,
-                      paidBy: 'System',
+                      paidBy,
                       referenceNote: note,
                   });
                   updated = true;
                   return;
               }
 
-              if (existingPayment.datePaid !== datePaid || existingPayment.amount !== amount) {
+              if (existingPayment.datePaid !== datePaid || existingPayment.amount !== amount || existingPayment.paidBy !== paidBy) {
                   const index = newPayments.findIndex(p => p.month === month && p.year === 2026);
                   if (index !== -1) {
                       newPayments[index] = {
                           ...newPayments[index],
                           datePaid,
                           amount,
+                          paidBy,
                       };
                       updated = true;
                   }

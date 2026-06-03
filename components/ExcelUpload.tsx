@@ -169,6 +169,12 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
           const personName = getRowValueByHeaders(row, ['Client Name', 'Renter Name', 'Customer Name', 'Name', 'Driver Name', 'Renter'])?.toString().trim();
           if (!personName) throw new Error('Client Name missing');
 
+          // Skip summary rows
+          const lowerName = personName.toLowerCase();
+          if (lowerName === 'total' || lowerName === 'grand total' || lowerName === 'subtotal' || lowerName.includes('total:')) {
+            throw new Error('Skipping summary row');
+          }
+
           const startDateRaw = getRowValueByHeaders(row, ['Pick-up Date', 'Pickup Date', 'Start Date', 'Date From', 'Collection Date', 'Pickup']);
           const endDateRaw = getRowValueByHeaders(row, ['Drop-off Date', 'Dropoff Date', 'End Date', 'Date To', 'Return Date', 'Dropoff']);
           if (!startDateRaw) throw new Error('Pick-up Date missing');
@@ -189,10 +195,10 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
           const locationName = getRowValueByHeaders(row, ['Branch', 'Location', 'Pickup Location', 'Pick-up Location', 'Office'])?.toString().trim() || '';
           const carModel = getRowValueByHeaders(row, ['Car Type', 'Car Model', 'Vehicle Type', 'Vehicle', 'Group', 'Category'])?.toString().trim() || '';
           const amountCandidates = [
-            'Total Amount $',
-            'Total Amount',
             'Base Amount',
             'Amount',
+            'Total Amount $',
+            'Total Amount',
             'Reservation Amount',
             'Grand Total $',
             'Grand Total',
