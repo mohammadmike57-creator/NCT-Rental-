@@ -12,7 +12,8 @@ import {
   CalendarIcon,
   SearchIcon,
   PdfIcon,
-  ExportIcon
+  ExportIcon,
+  CloseIcon
 } from './icons';
 
 // Modal component (unchanged)
@@ -49,6 +50,7 @@ interface ReservationTableProps {
   onUpdate: (reservation: Reservation, oldYear: number, oldMonth: string) => void;
   onAdd: (status?: ReservationStatus) => void;
   onDelete: (id: string, isNew?: boolean, year?: number, month?: string) => void;
+  onDeleteMonth: (year: number, month: string) => void;
   onSaveNew: (reservation: Reservation) => void;
   selectedYear: number;
   selectedMonth: string;
@@ -82,6 +84,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     newReservations,
     onAdd,
     onDelete,
+    onDeleteMonth,
     selectedYear,
     selectedMonth,
     rentalSources,
@@ -491,13 +494,26 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <span className="hidden lg:inline">Excel</span>
               </button>
             </div>
-            <button
-              onClick={openAddModal}
-              className="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 justify-center"
-            >
-              <PlusCircleIcon className="w-4 h-4" />
-              <span>Add Reservation</span>
-            </button>
+            <div className="flex gap-2">
+              {hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
+                <button
+                  onClick={() => onDeleteMonth(selectedYear, selectedMonth)}
+                  disabled={allDisplayReservations.length === 0}
+                  className="px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 flex items-center gap-1 justify-center disabled:opacity-50"
+                  title={`Delete all reservations for ${selectedMonth} ${selectedYear}`}
+                >
+                  <CloseIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Delete Month</span>
+                </button>
+              )}
+              <button
+                onClick={openAddModal}
+                className="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 justify-center"
+              >
+                <PlusCircleIcon className="w-4 h-4" />
+                <span>Add Reservation</span>
+              </button>
+            </div>
           </div>
         </div>
 

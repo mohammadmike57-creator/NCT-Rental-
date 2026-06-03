@@ -921,6 +921,36 @@ export const App: React.FC = () => {
       });
     }
   };
+
+  const handleDeleteMonthReservations = (year: number, month: string) => {
+    if (!window.confirm(`Are you sure you want to delete ALL reservations for ${month} ${year}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setReservations(prev => {
+      const newReservationsData = JSON.parse(JSON.stringify(prev)) as AppData;
+      if (newReservationsData[year] && newReservationsData[year][month]) {
+        newReservationsData[year][month] = [];
+      }
+      
+      saveAllData({ reservations: newReservationsData }).catch(err => {
+           console.error("Failed to save bulk deletion immediately:", err);
+           addNotification("Failed to delete from cloud. Check connection.", 'error');
+      });
+
+      return newReservationsData;
+    });
+
+    // Also clear transient newReservations that might match this month
+    setNewReservations(prev => prev.filter(res => {
+      const date = new Date(res.startDate);
+      const resMonth = MONTHS[date.getMonth()];
+      const resYear = date.getFullYear();
+      return !(resYear === year && resMonth === month);
+    }));
+    
+    showConfirmation(`All reservations for ${month} ${year} have been deleted.`);
+  };
   
   const handleConfirmExtension = (
     originalReservation: Reservation,
@@ -1418,6 +1448,7 @@ ${currentUser?.fullName}
       onUpdate={handleUpdateReservations}
       onAdd={handleAddNewReservation}
       onDelete={handleDeleteReservation}
+      onDeleteMonth={handleDeleteMonthReservations}
       onSaveNew={handleSaveNewReservation}
       selectedYear={selectedYear}
       selectedMonth={selectedMonth}
