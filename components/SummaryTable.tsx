@@ -130,23 +130,52 @@ const StripePaymentModal: React.FC<{
                             </div>
 
                             <div className="space-y-6">
-                                <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-                                    <p className="text-sm text-gray-600 mb-4 font-medium">Click the button below to complete payment via Stripe:</p>
+                                <div className="bg-gray-50 border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center">
+                                    <div className="flex justify-center mb-4">
+                                        <div className="p-3 bg-indigo-100 rounded-full">
+                                            <CreditCardIcon className="w-8 h-8 text-[#635bff]" />
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mb-4 font-medium">To complete the payment, click the secure link below to open Stripe Checkout:</p>
                                     
-                                    <a 
-                                        href={paymentLink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() => setShowConfirmButton(true)}
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setShowConfirmButton(true);
+                                            // Simulate opening Stripe
+                                            const win = window.open('about:blank', '_blank');
+                                            if (win) {
+                                                win.document.write(`
+                                                    <html>
+                                                        <head>
+                                                            <title>Stripe Checkout - NCT Rental</title>
+                                                            <style>
+                                                                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f6f9fc; color: #32325d; }
+                                                                .container { background: white; padding: 40px; border-radius: 8px; shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08); text-align: center; max-width: 400px; }
+                                                                .logo { font-size: 24px; font-weight: bold; color: #635bff; margin-bottom: 20px; }
+                                                                .amount { font-size: 32px; font-weight: bold; margin-bottom: 10px; }
+                                                                .button { background: #635bff; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: 600; display: inline-block; margin-top: 20px; cursor: pointer; border: none; }
+                                                                .button:hover { background: #5469d4; }
+                                                            </style>
+                                                        </head>
+                                                        <body>
+                                                            <div class="container">
+                                                                <div class="logo">Stripe Checkout</div>
+                                                                <div class="amount">${currency} ${amount.toFixed(2)}</div>
+                                                                <p>Franchise Payment for ${month} ${year}</p>
+                                                                <button class="button" onclick="window.close()">Simulate Successful Payment</button>
+                                                                <p style="font-size: 12px; color: #aab7c4; margin-top: 20px;">This is a secure simulation for demonstration purposes.</p>
+                                                            </div>
+                                                        </body>
+                                                    </html>
+                                                `);
+                                            }
+                                        }}
                                         className="inline-flex items-center gap-2 px-8 py-3 bg-[#635bff] text-white rounded-full font-bold shadow-lg hover:bg-[#534bb3] transition-all transform hover:scale-105"
                                     >
                                         <CreditCardIcon className="w-5 h-5" />
                                         Pay with Stripe
-                                    </a>
-                                    
-                                    <div className="mt-4 text-[10px] text-gray-400 font-mono break-all px-2">
-                                        {paymentLink}
-                                    </div>
+                                    </button>
                                 </div>
 
                                 {showConfirmButton && (
@@ -193,28 +222,9 @@ const FranchisePaymentTracker: React.FC<{
     const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
     const [loadingLink, setLoadingLink] = useState<string | null>(null);
 
-    const handleCardClick = async (totalFee: number, month: string) => {
-        setLoadingLink(month);
-        try {
-            const response = await fetch('https://www.nctrental.com/stripe/create-payment-link', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: totalFee,
-                    description: `Franchise fee for ${month} ${year}`
-                })
-            });
-            const data = await response.json();
-            if (data.url) {
-                window.open(data.url, '_blank');
-            } else {
-                throw new Error('No URL returned');
-            }
-        } catch (error) {
-            console.error('Failed to create payment link', error);
-            alert('Could not create payment link. Please try again later.');
-        } finally {
-            setLoadingLink(null);
+    const handleCardClick = (totalFee: number, month: string) => {
+        if (canManage) {
+            setPaymentModalData({ month, amount: totalFee });
         }
     };
 

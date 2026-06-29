@@ -23,7 +23,8 @@ import {
   HashtagIcon,
   GlobeAltIcon,
   CarIcon,
-  IdentificationIcon
+  IdentificationIcon,
+  CheckCircleIcon
 } from './icons';
 
 // Modal component (unchanged)
@@ -547,117 +548,120 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             return (
               <div
                 key={res.id}
-                className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 ${
-                  res.status === ReservationStatus.CONFIRMED ? 'border-l-green-500' :
-                  res.status === ReservationStatus.COMPLETED ? 'border-l-blue-500' :
-                  res.status === ReservationStatus.CANCELLED ? 'border-l-red-500' :
-                  'border-l-yellow-500'
+                className={`bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group ${
+                  res.status === ReservationStatus.CONFIRMED ? 'hover:border-green-200' :
+                  res.status === ReservationStatus.COMPLETED ? 'hover:border-blue-200' :
+                  res.status === ReservationStatus.CANCELLED ? 'hover:border-red-200' :
+                  'hover:border-yellow-200'
                 } ${idStyle}`}
               >
-                <div className="p-4 relative overflow-hidden">
+                <div className="p-5 relative">
+                  {/* Decorative Background Icon for Airport */}
                   {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                    <div className="absolute top-0 right-0 w-16 h-16 -mr-8 -mt-8 bg-blue-500/10 rounded-full flex items-end justify-start pl-4 pb-4">
-                      <AirplaneIcon className="w-4 h-4 text-blue-500/40 transform rotate-45" />
+                    <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-500/5 rounded-full flex items-end justify-start pl-8 pb-8 transition-transform group-hover:scale-110 duration-500">
+                      <AirplaneIcon className="w-8 h-8 text-blue-500/10 transform rotate-45" />
                     </div>
                   )}
-                  <div className="flex justify-between items-start mb-2 relative z-10">
-                    <h3 
-                      className="text-base font-bold text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" 
-                      title={res.personName}
-                      onClick={() => setDetailsModalReservation(res)}
-                    >
-                      {res.personName}
-                    </h3>
-                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight rounded-full shadow-sm ${statusColor}`}>
+
+                  <div className="flex justify-between items-start mb-4 relative z-10">
+                    <div className="flex-1 min-w-0">
+                      <h3 
+                        className="text-lg font-black text-gray-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight" 
+                        title={res.personName}
+                        onClick={() => setDetailsModalReservation(res)}
+                      >
+                        {res.personName}
+                      </h3>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5 flex items-center">
+                         <HashtagIcon className="w-2.5 h-2.5 mr-1" />
+                         {res.bookingId || 'UNIDENTIFIED'}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-sm border ${statusColor}`}>
                       {res.status}
                     </span>
                   </div>
 
-                  <div className="flex gap-2 mb-2 flex-wrap">
+                  <div className="flex gap-2 mb-4 flex-wrap relative z-10">
                     {voucherSubmitted && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                        Voucher Submitted
+                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter rounded bg-green-50 text-green-700 border border-green-100">
+                        ✓ Voucher Secured
                       </span>
                     )}
                     {dropOffCompleted && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                        Closed
+                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter rounded bg-gray-50 text-gray-700 border border-gray-200">
+                        Closed Case
                       </span>
                     )}
                     {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                        Voucher Pending
+                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter rounded bg-amber-50 text-amber-700 border border-amber-100">
+                        ! Pending Action
                       </span>
                     )}
                   </div>
 
-                  <div className="space-y-1 mb-3">
-                    <div className="flex items-center text-xs text-gray-600">
-                      <CalendarIcon className="w-3 h-3 mr-1 flex-shrink-0" />
-                      <span className={duplicateBookingIds.has(res.bookingId?.trim()) ? 'text-red-600 font-bold' : ''}>
-                        {res.bookingId || 'No ID'}
-                      </span>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-5 relative z-10">
+                    <div className="flex items-center gap-2 group/item">
+                       <div className="p-1.5 bg-gray-50 rounded-lg border border-gray-100 group-hover/item:bg-white transition-colors">
+                          <PhoneIcon className="w-3 h-3 text-gray-400 group-hover/item:text-indigo-500" />
+                       </div>
+                       <span className="text-xs font-bold text-gray-600 truncate">{res.contactNumber || 'No contact'}</span>
                     </div>
-                    <div className="flex items-center text-xs text-gray-600">
-                      <PhoneIcon className="w-3 h-3 mr-1 flex-shrink-0" />
-                      <span>{res.contactNumber || 'No contact'}</span>
-                    </div>
+
                     {res.locationName && (
-                      <div className="flex items-center text-[10px] font-bold uppercase tracking-wider mt-1">
+                      <div className="flex items-center gap-2 group/item">
                         {res.locationName.includes('Airport') || res.locationName.includes('AMM') ? (
-                          <div className="bg-blue-600 p-1 rounded-md mr-1.5 flex-shrink-0 shadow-md ring-1 ring-blue-400">
-                            <AirplaneIcon className="w-2.5 h-2.5 text-white" />
+                          <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100 group-hover/item:bg-white transition-colors">
+                            <AirplaneIcon className="w-3 h-3 text-blue-600" />
                           </div>
                         ) : res.locationName.includes('Downtown') ? (
-                          <div className="bg-amber-500 p-1 rounded-md mr-1.5 flex-shrink-0 shadow-md ring-1 ring-amber-400">
-                            <DowntownIcon className="w-2.5 h-2.5 text-white" />
+                          <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-100 group-hover/item:bg-white transition-colors">
+                            <DowntownIcon className="w-3 h-3 text-amber-600" />
                           </div>
                         ) : (
-                          <div className="bg-gray-400 p-1 rounded-md mr-1.5 flex-shrink-0 shadow-sm">
-                            <MapPinIcon className="w-2.5 h-2.5 text-white" />
+                          <div className="p-1.5 bg-gray-50 rounded-lg border border-gray-100 group-hover/item:bg-white transition-colors">
+                            <MapPinIcon className="w-3 h-3 text-gray-400 group-hover/item:text-indigo-500" />
                           </div>
                         )}
-                        <span className={`${(res.locationName.includes('Airport') || res.locationName.includes('AMM')) ? 'text-blue-700' : 'text-gray-500'} truncate`}>
+                        <span className={`text-[10px] font-black uppercase tracking-tight truncate ${
+                          (res.locationName.includes('Airport') || res.locationName.includes('AMM')) ? 'text-blue-700' : 
+                          res.locationName.includes('Downtown') ? 'text-amber-700' : 'text-gray-500'
+                        }`}>
                           {res.locationName}
                         </span>
                       </div>
                     )}
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                    <div>
-                      <span className="text-gray-500 block">Booking</span>
-                      <span className="font-medium">{formatDateOnly(res.bookingDate || res.startDate)}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block">Pickup</span>
-                      <div className="flex items-center">
-                        {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                          <AirplaneLandingIcon className="w-3 h-3 mr-1 text-blue-500" />
-                        )}
-                        <span className="font-medium">{formatDate(res.startDate)}</span>
+                    <div className="col-span-2 border-t border-gray-50 pt-3 mt-1 grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1 flex items-center">
+                           <AirplaneLandingIcon className="w-2.5 h-2.5 mr-1 text-indigo-400" /> Pickup
+                        </p>
+                        <p className="text-[11px] font-black text-gray-900">{formatDate(res.startDate)}</p>
                       </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block">Return</span>
-                      <div className="flex items-center">
-                        {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                          <AirplaneTakeoffIcon className="w-3 h-3 mr-1 text-indigo-500" />
-                        )}
-                        <span className="font-medium">{formatDate(res.endDate)}</span>
+                      <div>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1 flex items-center">
+                           <AirplaneTakeoffIcon className="w-2.5 h-2.5 mr-1 text-indigo-400" /> Return
+                        </p>
+                        <p className="text-[11px] font-black text-gray-900">{formatDate(res.endDate)}</p>
                       </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 block">Duration</span>
-                      <span className="font-medium">{getDuration(res.startDate, res.endDate)} days</span>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="text-sm font-medium text-gray-700 truncate max-w-[60%]" title={res.carModel}>
-                      {res.carModel}
+                  <div className="flex justify-between items-end border-t border-gray-50 pt-4 relative z-10">
+                    <div className="flex items-center gap-2">
+                       <div className="p-2 bg-indigo-50 rounded-xl">
+                          <CarIcon className="w-4 h-4 text-indigo-600" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Vehicle</p>
+                          <p className="text-sm font-black text-gray-900 truncate max-w-[120px]">{res.carModel}</p>
+                       </div>
                     </div>
-                    <div className="text-base font-bold text-gray-900">${res.amount?.toFixed(2)}</div>
+                    <div className="text-right">
+                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Total</p>
+                       <p className="text-xl font-black text-gray-900 tracking-tighter">${res.amount?.toFixed(2)}</p>
+                    </div>
                   </div>
 
                   {res.notes && (
@@ -707,159 +711,164 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       <Modal isOpen={!!detailsModalReservation} onClose={() => setDetailsModalReservation(null)} title="Reservation Preview">
         {detailsModalReservation && (
           <div className="space-y-6 text-sm">
-            {/* Header Section */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 -mt-5 px-6 py-6 border-b border-blue-100 mb-2">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-600 p-2.5 rounded-xl shadow-md">
-                    <UserIcon className="w-6 h-6 text-white" />
+            {/* Professional High-End Header */}
+            <div className="bg-gradient-to-br from-[#1a237e] to-[#3949ab] -mx-6 -mt-5 px-8 py-10 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 -mr-20 -mt-20 bg-white/10 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 -ml-20 -mb-20 bg-indigo-400/20 rounded-full blur-2xl"></div>
+              
+              <div className="relative flex justify-between items-start">
+                <div className="flex items-center gap-5">
+                  <div className="bg-white/20 backdrop-blur-md p-4 rounded-2xl border border-white/30 shadow-xl">
+                    <UserIcon className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">{detailsModalReservation.personName}</h2>
-                    <div className="flex items-center text-gray-500 mt-0.5">
-                      <PhoneIcon className="w-3.5 h-3.5 mr-1.5" />
-                      <span className="text-xs font-medium">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
+                    <h2 className="text-3xl font-black tracking-tight">{detailsModalReservation.personName}</h2>
+                    <div className="flex items-center text-indigo-100 mt-2">
+                      <PhoneIcon className="w-4 h-4 mr-2" />
+                      <span className="text-sm font-semibold">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full shadow-sm ${
-                    detailsModalReservation.status === ReservationStatus.CONFIRMED ? 'bg-green-100 text-green-700 border border-green-200' :
-                    detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                    detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-red-100 text-red-700 border border-red-200' :
-                    'bg-amber-100 text-amber-700 border border-amber-200'
+                <div className="flex flex-col items-end gap-3">
+                  <span className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-full backdrop-blur-md border shadow-lg ${
+                    detailsModalReservation.status === ReservationStatus.CONFIRMED ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                    detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
+                    detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                    'bg-amber-500/20 text-amber-300 border-amber-500/30'
                   }`}>
                     {detailsModalReservation.status}
                   </span>
+                  {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/20">
+                      <AirplaneIcon className="w-4 h-4 text-white" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Airport VIP</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column: Booking & Car */}
-              <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center">
-                    <HashtagIcon className="w-3 h-3 mr-1.5" />
-                    Booking Details
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-2">
+              {/* Customer & Vehicle Information */}
+              <div className="space-y-6">
+                <section>
+                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                    <IdentificationIcon className="w-4 h-4 mr-2" />
+                    Reservation Identity
                   </h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Booking ID</span>
-                      <span className="font-bold text-gray-900">{detailsModalReservation.bookingId}</span>
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-4 flex justify-between items-center border-b border-gray-50">
+                      <span className="text-gray-400 font-medium">Booking ID</span>
+                      <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-1 rounded-md">{detailsModalReservation.bookingId}</span>
                     </div>
-                    <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-                      <span className="text-gray-500">Source</span>
-                      <div className="flex items-center font-semibold text-blue-700">
-                        <GlobeAltIcon className="w-3.5 h-3.5 mr-1.5" />
+                    <div className="p-4 flex justify-between items-center border-b border-gray-50">
+                      <span className="text-gray-400 font-medium">Platform</span>
+                      <div className="flex items-center font-bold text-indigo-700">
+                        <GlobeAltIcon className="w-4 h-4 mr-2" />
                         {getSourceName(detailsModalReservation.source || '')}
                       </div>
                     </div>
-                    <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-                      <span className="text-gray-500">Booking Date</span>
-                      <span className="font-medium">{formatDateOnly(detailsModalReservation.bookingDate || detailsModalReservation.startDate)}</span>
+                    <div className="p-4 flex justify-between items-center">
+                      <span className="text-gray-400 font-medium">Created On</span>
+                      <span className="font-semibold text-gray-700">{formatDateOnly(detailsModalReservation.bookingDate || detailsModalReservation.startDate)}</span>
                     </div>
                   </div>
-                </div>
+                </section>
 
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center">
-                    <CarIcon className="w-3 h-3 mr-1.5" />
-                    Vehicle Information
+                <section>
+                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                    <CarIcon className="w-4 h-4 mr-2" />
+                    Vehicle Selection
                   </h4>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-sm">
-                      <CarIcon className="w-5 h-5 text-indigo-600" />
+                  <div className="bg-indigo-50/30 rounded-2xl border border-indigo-100 p-5 flex items-center gap-5">
+                    <div className="bg-white p-3 rounded-xl shadow-md border border-indigo-50">
+                      <CarIcon className="w-8 h-8 text-indigo-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 font-medium">Model</p>
-                      <p className="text-base font-bold text-gray-900">{detailsModalReservation.carModel}</p>
+                      <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Assigned Model</p>
+                      <p className="text-lg font-black text-gray-900 leading-tight mt-0.5">{detailsModalReservation.carModel}</p>
                     </div>
                   </div>
-                </div>
+                </section>
               </div>
 
-              {/* Right Column: Location & Schedule */}
-              <div className="space-y-4">
-                <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                  <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-3 flex items-center">
-                    <MapPinIcon className="w-3 h-3 mr-1.5" />
-                    Location & Schedule
+              {/* Schedule & Location */}
+              <div className="space-y-6">
+                <section>
+                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                    <ClockIcon className="w-4 h-4 mr-2" />
+                    Itinerary Details
                   </h4>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-1 p-1.5 bg-white rounded-md shadow-sm">
-                        {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) ? (
-                          <AirplaneIcon className="w-4 h-4 text-blue-600" />
-                        ) : (
-                          <MapPinIcon className="w-4 h-4 text-indigo-600" />
-                        )}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+                    <div className="flex items-start gap-4">
+                      <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+                        {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) ? <AirplaneIcon className="w-5 h-5" /> : <MapPinIcon className="w-5 h-5" />}
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 font-medium">Pickup & Return Location</p>
-                        <p className="text-sm font-bold text-gray-900 leading-tight">
-                          {detailsModalReservation.locationName || 'Main Office'}
-                        </p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Service Location</p>
+                        <p className="text-sm font-bold text-gray-900">{detailsModalReservation.locationName || 'Main Office'}</p>
                         {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 mt-1 uppercase tracking-tighter">
-                            Airport Service
-                          </span>
+                          <span className="mt-1 inline-flex text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-blue-100">Premium Airport Hub</span>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 border-t border-indigo-100 pt-4">
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
                       <div>
-                        <p className="text-[10px] text-indigo-500 font-bold uppercase mb-1 flex items-center">
-                          <AirplaneLandingIcon className="w-3 h-3 mr-1" /> Pickup
-                        </p>
+                        <div className="flex items-center gap-1.5 mb-1.5 text-indigo-500">
+                          <AirplaneLandingIcon className="w-4 h-4" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">Pickup</span>
+                        </div>
                         <p className="text-xs font-bold text-gray-900">{formatDate(detailsModalReservation.startDate)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-indigo-500 font-bold uppercase mb-1 flex items-center">
-                          <AirplaneTakeoffIcon className="w-3 h-3 mr-1" /> Return
-                        </p>
+                        <div className="flex items-center gap-1.5 mb-1.5 text-indigo-500">
+                          <AirplaneTakeoffIcon className="w-4 h-4" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">Drop-off</span>
+                        </div>
                         <p className="text-xs font-bold text-gray-900">{formatDate(detailsModalReservation.endDate)}</p>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center bg-white/60 p-2 rounded-lg border border-indigo-100/50">
-                      <span className="text-xs text-gray-500 font-medium">Rental Duration</span>
-                      <span className="text-sm font-bold text-indigo-700">{getDuration(detailsModalReservation.startDate, detailsModalReservation.endDate)} Days</span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                  <h4 className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-2 flex items-center">
-                    <CurrencyDollarIcon className="w-3 h-3 mr-1.5" />
-                    Financial Summary
-                  </h4>
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-xs text-green-700 font-medium">Total Amount</p>
-                      <p className="text-2xl font-black text-green-800 tracking-tight">${detailsModalReservation.amount?.toFixed(2)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-green-600 font-bold uppercase">Rate Coverage</p>
-                      <p className="text-xs font-bold text-green-700">Full Payment</p>
+                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Duration</span>
+                      <span className="text-sm font-black text-indigo-600">{getDuration(detailsModalReservation.startDate, detailsModalReservation.endDate)} DAYS</span>
                     </div>
                   </div>
-                </div>
+                </section>
+
+                <section>
+                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                    <CurrencyDollarIcon className="w-4 h-4 mr-2" />
+                    Financial Overview
+                  </h4>
+                  <div className="bg-gradient-to-br from-green-500 to-emerald-700 rounded-2xl p-6 text-white shadow-lg shadow-emerald-200/50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest mb-1">Estimated Total</p>
+                        <p className="text-3xl font-black tracking-tighter">${detailsModalReservation.amount?.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm border border-white/20">
+                        <CheckCircleIcon className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                </section>
               </div>
             </div>
 
             {/* Extras Section */}
             {detailsModalReservation.selectedExtras && detailsModalReservation.selectedExtras.length > 0 && (
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center">
-                  <PlusCircleIcon className="w-3 h-3 mr-1.5" />
-                  Additional Extras
+              <div className="px-2">
+                <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                  <PlusCircleIcon className="w-4 h-4 mr-2" />
+                  Additional Services
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {detailsModalReservation.selectedExtras.map((extraId, idx) => {
                     const extra = availableExtras.find(e => e.id === extraId);
                     return (
-                      <span key={idx} className="bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 shadow-sm">
+                      <span key={idx} className="bg-white px-4 py-2 rounded-xl border border-gray-100 text-xs font-bold text-gray-700 shadow-sm hover:shadow-md transition-shadow">
                         {extra ? extra.name : extraId}
                       </span>
                     );
@@ -870,15 +879,19 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
             {/* Notes Section */}
             {detailsModalReservation.notes && (
-              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 -mr-8 -mt-8 bg-amber-200/30 rounded-full"></div>
-                <h4 className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-2 flex items-center">
-                  <DocumentReportIcon className="w-3 h-3 mr-1.5" />
-                  Important Notes
-                </h4>
-                <p className="text-sm text-amber-900 font-medium leading-relaxed italic">
-                  "{detailsModalReservation.notes}"
-                </p>
+              <div className="px-2">
+                <div className="bg-amber-50/50 rounded-2xl border border-amber-100 p-5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 text-amber-100 rotate-12">
+                    <DocumentReportIcon className="w-12 h-12" />
+                  </div>
+                  <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-[0.15em] mb-3 flex items-center">
+                    <DocumentReportIcon className="w-4 h-4 mr-2" />
+                    Reservation Notes
+                  </h4>
+                  <p className="text-sm text-amber-900 font-medium leading-relaxed italic relative z-10">
+                    "{detailsModalReservation.notes}"
+                  </p>
+                </div>
               </div>
             )}
           </div>
