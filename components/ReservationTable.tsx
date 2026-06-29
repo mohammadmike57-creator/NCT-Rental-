@@ -24,11 +24,12 @@ import {
   GlobeAltIcon,
   CarIcon,
   IdentificationIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ChevronDownIcon
 } from './icons';
 
 // Modal component (with animation)
-const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
+const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode; footer?: React.ReactNode }> = ({ isOpen, onClose, title, children, footer }) => {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [animationClass, setAnimationClass] = useState("");
 
@@ -49,31 +50,36 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div 
           className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`} 
           onClick={onClose} 
           aria-hidden="true"
         ></div>
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div className={`inline-block align-bottom bg-white rounded-[2rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full ${animationClass}`}>
+        <div className={`inline-block align-bottom bg-white rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full ${animationClass}`}>
           <div className="bg-white">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight" id="modal-title">{title}</h3>
-              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                <CloseIcon className="w-5 h-5 text-slate-400" />
+            <div className="flex justify-between items-center px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight" id="modal-title">{title}</h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">Please fill in the details below</p>
+              </div>
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors group">
+                <CloseIcon className="w-6 h-6 text-slate-400 group-hover:text-slate-600 transition-colors" />
               </button>
             </div>
-            <div className="max-h-[80vh] overflow-y-auto px-6 py-6">{children}</div>
+            <div className="max-h-[75vh] overflow-y-auto px-8 py-8 custom-scrollbar">{children}</div>
           </div>
-          <div className="bg-slate-50 px-6 py-4 flex flex-row-reverse">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto inline-flex justify-center rounded-xl border border-slate-200 shadow-sm px-6 py-2 bg-white text-base font-bold text-slate-700 hover:bg-slate-50 focus:outline-none sm:text-sm transition-colors"
-            >
-              Done
-            </button>
+          <div className="bg-slate-50/80 backdrop-blur-md px-8 py-6 border-t border-slate-100 flex flex-row-reverse gap-3">
+            {footer || (
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto inline-flex justify-center rounded-2xl border border-slate-200 shadow-sm px-8 py-3 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 focus:outline-none transition-all hover:shadow-md"
+              >
+                Done
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -479,76 +485,94 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-lg font-semibold text-gray-800">
-            {isAgreementView ? `Agreement • ${selectedMonth} ${selectedYear}` : `${selectedMonth} ${selectedYear}`}
-          </h2>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:min-w-[250px]">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <SearchIcon className="h-4 w-4 text-gray-400" />
+      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-8">
+        <div className="p-8 bg-white border-b border-slate-50">
+          <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+              {isAgreementView ? (
+                <span className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-50 rounded-2xl shadow-sm border border-indigo-100">
+                    <DocumentReportIcon className="w-7 h-7 text-indigo-600" />
+                  </div>
+                  Agreement • {selectedMonth} {selectedYear}
+                </span>
+              ) : (
+                <span className="flex items-center gap-4">
+                   <div className="p-3 bg-emerald-50 rounded-2xl shadow-sm border border-emerald-100">
+                    <CalendarIcon className="w-7 h-7 text-emerald-600" />
+                  </div>
+                  {selectedMonth} {selectedYear}
+                </span>
+              )}
+            </h2>
+            
+            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-4 w-full lg:w-auto">
+              <div className="relative flex-1 sm:flex-none sm:min-w-[320px]">
+                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by ID or name..."
+                  value={localBookingIdSearch}
+                  onChange={handleSearchChange}
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm font-medium text-slate-700"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Search by booking ID or name..."
-                value={localBookingIdSearch}
-                onChange={handleSearchChange}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            {isAgreementView && (
-              <select
-                value={getAgreementStatusFilter()}
-                onChange={handleAgreementStatusFilterChange}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                aria-label="Filter agreement status"
-              >
-                <option value="all">All statuses</option>
-                <option value="pending">Pending</option>
-                <option value="open">Open</option>
-                <option value="closed">Closed</option>
-                <option value="submitted">Submitted</option>
-              </select>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={handleExportCSV}
-                disabled={filteredReservations.length === 0}
-                className="px-3 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 flex items-center gap-1 justify-center disabled:opacity-50"
-                title="Export current view to CSV"
-              >
-                <ExportIcon className="w-4 h-4" />
-                <span className="hidden lg:inline">CSV</span>
-              </button>
-              <button
-                onClick={handleExportExcel}
-                disabled={filteredReservations.length === 0}
-                className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center gap-1 justify-center disabled:opacity-50"
-                title="Export current view to Excel"
-              >
-                <ExportIcon className="w-4 h-4" />
-                <span className="hidden lg:inline">Excel</span>
-              </button>
-            </div>
-            <div className="flex gap-2">
+
+              {isAgreementView && (
+                <div className="relative">
+                  <select
+                    value={getAgreementStatusFilter()}
+                    onChange={handleAgreementStatusFilterChange}
+                    className="pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm font-bold text-slate-700 appearance-none cursor-pointer"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="open">Open</option>
+                    <option value="closed">Closed</option>
+                    <option value="submitted">Submitted</option>
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDownIcon className="w-4 h-4" />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportCSV}
+                  disabled={filteredReservations.length === 0}
+                  className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 group hover:border-indigo-200"
+                  title="Export to CSV"
+                >
+                  <ExportIcon className="w-5 h-5 group-hover:text-indigo-600 transition-colors" />
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  disabled={filteredReservations.length === 0}
+                  className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 group hover:border-emerald-200"
+                  title="Export to Excel"
+                >
+                  <PdfIcon className="w-5 h-5 group-hover:text-emerald-600 transition-colors" />
+                </button>
+              </div>
+
               {(currentUser?.email === 'nadeenalnahas@gmail.com' || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin') && (
                 <button
                   onClick={() => onDeleteMonth(selectedYear, selectedMonth)}
                   disabled={allDisplayReservations.length === 0}
-                  className="px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 flex items-center gap-1 justify-center disabled:opacity-50"
+                  className="p-3.5 bg-white border border-rose-100 text-rose-500 rounded-2xl hover:bg-rose-50 transition-all shadow-sm disabled:opacity-50 group"
                   title={`Delete all reservations for ${selectedMonth} ${selectedYear}`}
                 >
-                  <CloseIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Delete Month</span>
+                  <CloseIcon className="w-5 h-5" />
                 </button>
               )}
+
               <button
                 onClick={openAddModal}
-                className="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1 justify-center"
+                className="px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:shadow-xl hover:shadow-indigo-200 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-3 shadow-lg shadow-indigo-100"
               >
-                <PlusCircleIcon className="w-4 h-4" />
-                <span>Add Reservation</span>
+                <PlusCircleIcon className="w-5 h-5" />
+                <span>New Reservation</span>
               </button>
             </div>
           </div>
@@ -946,60 +970,394 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         )}
       </Modal>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalMode === 'add' ? 'Add Reservation' : 'Edit Reservation'}>
-        <div className="space-y-3 text-sm">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-medium text-gray-700">Renter *</label><input type="text" value={formData.personName || ''} onChange={(e) => handleChange('personName', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" /></div>
-            <div><label className="block text-xs font-medium text-gray-700">Contact</label><input type="text" value={formData.contactNumber || ''} onChange={(e) => handleChange('contactNumber', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" /></div>
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title={modalMode === 'add' ? 'Add Reservation' : 'Edit Reservation'}
+        footer={
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button 
+              onClick={() => setIsModalOpen(false)} 
+              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all active:scale-95"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSave} 
+              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all hover:-translate-y-0.5 active:scale-95"
+            >
+              {modalMode === 'add' ? 'Create Reservation' : 'Save Changes'}
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-medium text-gray-700">Booking ID *</label><input type="text" value={formData.bookingId || ''} onChange={(e) => handleChange('bookingId', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" /></div>
-            <div><label className="block text-xs font-medium text-gray-700">Booking Date</label><input type="date" value={formData.bookingDate ? formData.bookingDate.split('T')[0] : ''} onChange={(e) => handleChange('bookingDate', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-medium text-gray-700">Source</label><select value={formData.source || ''} onChange={(e) => handleChange('source', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded"><option value="">Select</option>{rentalSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-gray-700">Car Model *</label><input type="text" value={formData.carModel || ''} onChange={(e) => handleChange('carModel', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" placeholder="e.g. Toyota Corolla" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-medium text-gray-700">Pickup *</label><input type="datetime-local" value={formData.startDate || ''} onChange={(e) => handleChange('startDate', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" /></div>
-            <div><label className="block text-xs font-medium text-gray-700">Return *</label><input type="datetime-local" value={formData.endDate || ''} onChange={(e) => handleChange('endDate', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs font-medium text-gray-700">Amount ($)</label><input type="number" value={formData.amount || 0} onChange={(e) => handleChange('amount', parseFloat(e.target.value) || 0)} className="mt-1 w-full px-2 py-1 border rounded" min="0" step="0.01" /></div>
-            <div><label className="block text-xs font-medium text-gray-700">Location</label><select value={formData.locationName || ''} onChange={(e) => handleChange('locationName', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded"><option value="">Select</option>{rentalLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
-          </div>
-          <div><label className="block text-xs font-medium text-gray-700">Status</label><select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className="mt-1 w-full px-2 py-1 border rounded"><option value={ReservationStatus.CONFIRMED}>Confirmed</option><option value={ReservationStatus.COMPLETED}>Completed</option><option value={ReservationStatus.CANCELLED}>Cancelled</option><option value="NO_SHOW">No Show</option></select></div>
-          <div><label className="block text-xs font-medium text-gray-700">Notes</label><textarea value={formData.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} rows={2} className="mt-1 w-full px-2 py-1 border rounded" /></div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Extras</label>
-            <div className="border rounded p-2 max-h-32 overflow-y-auto">
-              {availableExtras.map(extra => (
-                <label key={extra.id} className="flex items-center space-x-2 py-1">
-                  <input type="checkbox" checked={(formData.selectedExtras || []).includes(extra.id)} onChange={() => handleExtraToggle(extra.id)} className="rounded" />
-                  <span className="text-xs">{extra.name} (${extra.pricePerDay}/day)</span>
-                </label>
-              ))}
+        }
+      >
+        <div className="space-y-8">
+          {/* Section: Customer Information */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-indigo-50 rounded-lg">
+                <UserIcon className="w-4 h-4 text-indigo-600" />
+              </div>
+              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Customer Information</h4>
             </div>
-          </div>
-          <div className="flex justify-between items-center pt-2 border-t">
-            <span className="text-xs text-gray-600">Duration: {durationDays.toFixed(1)} days</span>
-            <span className="text-sm font-semibold">Total: ${calculatedTotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setIsModalOpen(false)} className="px-3 py-1 border rounded text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button onClick={handleSave} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Save</button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Renter Name <span className="text-rose-500">*</span></label>
+                <div className="relative group">
+                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <input 
+                    type="text" 
+                    value={formData.personName || ''} 
+                    onChange={(e) => handleChange('personName', e.target.value)} 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-medium text-slate-700"
+                    placeholder="John Doe"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Contact Number</label>
+                <div className="relative group">
+                  <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <input 
+                    type="text" 
+                    value={formData.contactNumber || ''} 
+                    onChange={(e) => handleChange('contactNumber', e.target.value)} 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-medium text-slate-700"
+                    placeholder="+1 234 567 890"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Booking Details */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <HashtagIcon className="w-4 h-4 text-amber-600" />
+              </div>
+              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Booking Details</h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Booking ID <span className="text-rose-500">*</span></label>
+                <div className="relative group">
+                  <HashtagIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                  <input 
+                    type="text" 
+                    value={formData.bookingId || ''} 
+                    onChange={(e) => handleChange('bookingId', e.target.value)} 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-medium text-slate-700"
+                    placeholder="BK-1001"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Booking Date</label>
+                <div className="relative group">
+                  <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                  <input 
+                    type="date" 
+                    value={formData.bookingDate ? formData.bookingDate.split('T')[0] : ''} 
+                    onChange={(e) => handleChange('bookingDate', e.target.value)} 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-medium text-slate-700"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Source</label>
+                <div className="relative group">
+                  <GlobeAltIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                  <select 
+                    value={formData.source || ''} 
+                    onChange={(e) => handleChange('source', e.target.value)} 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-medium text-slate-700 appearance-none"
+                  >
+                    <option value="">Select Source</option>
+                    {rentalSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Vehicle & Logistics */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <CarIcon className="w-4 h-4 text-emerald-600" />
+              </div>
+              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Vehicle & Logistics</h4>
+            </div>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Car Model <span className="text-rose-500">*</span></label>
+                  <div className="relative group">
+                    <CarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    <input 
+                      type="text" 
+                      value={formData.carModel || ''} 
+                      onChange={(e) => handleChange('carModel', e.target.value)} 
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
+                      placeholder="e.g. Toyota Corolla"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Location</label>
+                  <div className="relative group">
+                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    <select 
+                      value={formData.locationName || ''} 
+                      onChange={(e) => handleChange('locationName', e.target.value)} 
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700 appearance-none"
+                    >
+                      <option value="">Select Location</option>
+                      {rentalLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Pickup Date & Time <span className="text-rose-500">*</span></label>
+                  <div className="relative group">
+                    <AirplaneLandingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    <input 
+                      type="datetime-local" 
+                      value={formData.startDate || ''} 
+                      onChange={(e) => handleChange('startDate', e.target.value)} 
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Return Date & Time <span className="text-rose-500">*</span></label>
+                  <div className="relative group">
+                    <AirplaneTakeoffIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    <input 
+                      type="datetime-local" 
+                      value={formData.endDate || ''} 
+                      onChange={(e) => handleChange('endDate', e.target.value)} 
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Financials & Extras */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 bg-rose-50 rounded-lg">
+                  <CurrencyDollarIcon className="w-4 h-4 text-rose-600" />
+                </div>
+                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Financials & Status</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Amount ($)</label>
+                  <input 
+                    type="number" 
+                    value={formData.amount || 0} 
+                    onChange={(e) => handleChange('amount', parseFloat(e.target.value) || 0)} 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all outline-none font-bold text-slate-700"
+                    min="0" 
+                    step="0.01" 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Status</label>
+                  <select 
+                    value={formData.status} 
+                    onChange={(e) => handleChange('status', e.target.value)} 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all outline-none font-medium text-slate-700 appearance-none"
+                  >
+                    <option value={ReservationStatus.CONFIRMED}>Confirmed</option>
+                    <option value={ReservationStatus.COMPLETED}>Completed</option>
+                    <option value={ReservationStatus.CANCELLED}>Cancelled</option>
+                    <option value="NO_SHOW">No Show</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Reservation Notes</label>
+                <textarea 
+                  value={formData.notes || ''} 
+                  onChange={(e) => handleChange('notes', e.target.value)} 
+                  rows={3} 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 transition-all outline-none font-medium text-slate-700 resize-none"
+                  placeholder="Any special requests or notes..."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 bg-indigo-50 rounded-lg">
+                  <PlusCircleIcon className="w-4 h-4 text-indigo-600" />
+                </div>
+                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Additional Services</h4>
+              </div>
+              <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar">
+                {availableExtras.map(extra => (
+                  <label 
+                    key={extra.id} 
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                      (formData.selectedExtras || []).includes(extra.id) 
+                        ? 'bg-white border-indigo-200 shadow-sm' 
+                        : 'bg-transparent border-transparent hover:bg-white/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                        (formData.selectedExtras || []).includes(extra.id) 
+                          ? 'bg-indigo-600 border-indigo-600' 
+                          : 'bg-white border-slate-200'
+                      }`}>
+                        {(formData.selectedExtras || []).includes(extra.id) && <CheckCircleIcon className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                      <span className={`text-xs font-bold transition-colors ${
+                        (formData.selectedExtras || []).includes(extra.id) ? 'text-slate-900' : 'text-slate-500'
+                      }`}>
+                        {extra.name}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-lg">
+                      ${extra.pricePerDay}/day
+                    </span>
+                    <input 
+                      type="checkbox" 
+                      className="hidden"
+                      checked={(formData.selectedExtras || []).includes(extra.id)} 
+                      onChange={() => handleExtraToggle(extra.id)} 
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Price Summary Card */}
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
+              <CurrencyDollarIcon className="w-24 h-24" />
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-6 relative z-10">
+              <div className="flex items-center gap-6">
+                <div className="text-center sm:text-left">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Duration</p>
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <ClockIcon className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xl font-bold">{durationDays.toFixed(1)} <span className="text-sm font-medium text-slate-400">Days</span></span>
+                  </div>
+                </div>
+                <div className="w-px h-10 bg-slate-700 hidden sm:block"></div>
+                <div className="text-center sm:text-left">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Base Amount</p>
+                  <p className="text-xl font-bold">${formData.amount?.toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="text-center sm:text-right">
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Estimated Total</p>
+                <p className="text-5xl font-black tracking-tighter">${calculatedTotal.toFixed(2)}</p>
+              </div>
+            </div>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} title="Upgrade Vehicle">
+      <Modal 
+        isOpen={isUpgradeModalOpen} 
+        onClose={() => setIsUpgradeModalOpen(false)} 
+        title="Upgrade Vehicle"
+        footer={
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button 
+              onClick={() => setIsUpgradeModalOpen(false)} 
+              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleUpgradeSave} 
+              disabled={!selectedCarId}
+              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm shadow-lg shadow-orange-200 hover:shadow-orange-300 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
+            >
+              Confirm Upgrade
+            </button>
+          </div>
+        }
+      >
         {upgradeReservation && (
-          <div className="space-y-3 text-sm">
-            <p className="text-xs text-gray-600">Reservation: {upgradeReservation.personName} – {upgradeReservation.carModel}</p>
-            <div><label className="block text-xs font-medium text-gray-700">Select New Car</label><select value={selectedCarId} onChange={(e) => setSelectedCarId(e.target.value)} className="mt-1 w-full px-2 py-1 border rounded"><option value="">Choose a car</option>{fleet.map(car => (<option key={car.id} value={car.id}>{car.modelName} ({car.licensePlate})</option>))}</select></div>
-            <div className="flex items-center gap-2"><input type="checkbox" id="customRate" checked={useCustomRate} onChange={(e) => setUseCustomRate(e.target.checked)} className="rounded" /><label htmlFor="customRate" className="text-xs">Use custom daily rate</label></div>
-            {useCustomRate && (<div><label className="block text-xs font-medium text-gray-700">Custom Rate ($/day)</label><input type="number" value={customRate || ''} onChange={(e) => setCustomRate(parseFloat(e.target.value) || 0)} className="mt-1 w-full px-2 py-1 border rounded" min="0" step="0.01" /></div>)}
-            <div className="flex justify-end gap-2 pt-2"><button onClick={() => setIsUpgradeModalOpen(false)} className="px-3 py-1 border rounded text-gray-700 hover:bg-gray-50">Cancel</button><button onClick={handleUpgradeSave} disabled={!selectedCarId} className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50">Confirm Upgrade</button></div>
+          <div className="space-y-6">
+            <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100 flex items-start gap-4">
+              <div className="p-2 bg-white rounded-xl shadow-sm">
+                <CarIcon className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">Current Vehicle</p>
+                <p className="text-sm font-bold text-orange-900">{upgradeReservation.carModel}</p>
+                <p className="text-xs text-orange-700 font-medium">Renter: {upgradeReservation.personName}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Select New Vehicle</label>
+                <div className="relative group">
+                  <CarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                  <select 
+                    value={selectedCarId} 
+                    onChange={(e) => setSelectedCarId(e.target.value)} 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all outline-none font-medium text-slate-700 appearance-none"
+                  >
+                    <option value="">Choose a car from fleet</option>
+                    {fleet.map(car => (
+                      <option key={car.id} value={car.id}>{car.modelName} ({car.licensePlate})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                    useCustomRate ? 'bg-orange-600 border-orange-600' : 'bg-white border-slate-200'
+                  }`}>
+                    {useCustomRate && <CheckCircleIcon className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Apply custom daily rate for this upgrade</span>
+                  <input 
+                    type="checkbox" 
+                    className="hidden"
+                    checked={useCustomRate} 
+                    onChange={(e) => setUseCustomRate(e.target.checked)} 
+                  />
+                </label>
+
+                {useCustomRate && (
+                  <div className="space-y-1.5 animate-modal-enter">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Custom Daily Rate ($)</label>
+                    <div className="relative">
+                      <CurrencyDollarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500" />
+                      <input 
+                        type="number" 
+                        value={customRate || ''} 
+                        onChange={(e) => setCustomRate(parseFloat(e.target.value) || 0)} 
+                        className="w-full pl-11 pr-4 py-3 bg-white border border-orange-100 rounded-xl focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all outline-none font-bold text-slate-700"
+                        placeholder="0.00"
+                        min="0" 
+                        step="0.01" 
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </Modal>
