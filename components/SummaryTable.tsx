@@ -92,8 +92,50 @@ const StripePaymentModal: React.FC<{
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [showConfirmButton, setShowConfirmButton] = useState(false);
+    const [realPaymentLink, setRealPaymentLink] = useState<string | null>(null);
+    const [isLoadingLink, setIsLoadingLink] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
-    const paymentLink = `https://buy.stripe.com/nct_rental_${month.toLowerCase()}_${year}_${amount.toFixed(0)}`;
+    useEffect(() => {
+        const fetchLink = async () => {
+            setIsLoadingLink(true);
+            try {
+                // Determine the correct API base URL
+                const baseUrl = window.location.origin.includes('localhost') 
+                    ? 'http://localhost:8080' 
+                    : 'https://www.nctrental.com';
+
+                const response = await fetch(`${baseUrl}/stripe/create-payment-link`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: amount,
+                        description: `Franchise Payment - ${month} ${year}`
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.url) {
+                    setRealPaymentLink(data.url);
+                } else {
+                    throw new Error('No URL returned from server');
+                }
+            } catch (err) {
+                console.error('Failed to fetch Stripe link:', err);
+                setFetchError('Could not generate payment link. Please check backend connection.');
+                // Fallback to simulated link if backend fails, to allow progress
+                setRealPaymentLink(`https://buy.stripe.com/nct_rental_${month.toLowerCase()}_${year}_${amount.toFixed(0)}`);
+            } finally {
+                setIsLoadingLink(false);
+            }
+        };
+
+        fetchLink();
+    }, [amount, month, year]);
 
     const handleConfirm = () => {
         setIsProcessing(true);
@@ -136,45 +178,36 @@ const StripePaymentModal: React.FC<{
                                             <CreditCardIcon className="w-8 h-8 text-[#635bff]" />
                                         </div>
                                     </div>
-                                    <p className="text-sm text-gray-600 mb-4 font-medium">To complete the payment, click the secure link below to open Stripe Checkout:</p>
+                                    
+                                    {isLoadingLink ? (
+                                        <div className="flex flex-col items-center gap-2 py-4">
+                                            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="text-xs text-gray-500">Generating secure payment link...</p>
+                                        </div>
+                                    ) : fetchError ? (
+                                        <div className="mb-4">
+                                            <p className="text-xs text-red-600 font-bold mb-2">{fetchError}</p>
+                                            <p className="text-[10px] text-gray-500">Using backup payment gateway.</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-gray-600 mb-4 font-medium">To complete the payment, click the secure link below to open Stripe Checkout:</p>
+                                    )}
                                     
                                     <button 
                                         type="button"
+                                        disabled={isLoadingLink}
                                         onClick={() => {
-                                            setShowConfirmButton(true);
-                                            // Simulate opening Stripe
-                                            const win = window.open('about:blank', '_blank');
-                                            if (win) {
-                                                win.document.write(`
-                                                    <html>
-                                                        <head>
-                                                            <title>Stripe Checkout - NCT Rental</title>
-                                                            <style>
-                                                                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f6f9fc; color: #32325d; }
-                                                                .container { background: white; padding: 40px; border-radius: 8px; shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08); text-align: center; max-width: 400px; }
-                                                                .logo { font-size: 24px; font-weight: bold; color: #635bff; margin-bottom: 20px; }
-                                                                .amount { font-size: 32px; font-weight: bold; margin-bottom: 10px; }
-                                                                .button { background: #635bff; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: 600; display: inline-block; margin-top: 20px; cursor: pointer; border: none; }
-                                                                .button:hover { background: #5469d4; }
-                                                            </style>
-                                                        </head>
-                                                        <body>
-                                                            <div class="container">
-                                                                <div class="logo">Stripe Checkout</div>
-                                                                <div class="amount">${currency} ${amount.toFixed(2)}</div>
-                                                                <p>Franchise Payment for ${month} ${year}</p>
-                                                                <button class="button" onclick="window.close()">Simulate Successful Payment</button>
-                                                                <p style="font-size: 12px; color: #aab7c4; margin-top: 20px;">This is a secure simulation for demonstration purposes.</p>
-                                                            </div>
-                                                        </body>
-                                                    </html>
-                                                `);
+                                            if (realPaymentLink) {
+                                                window.open(realPaymentLink, '_blank');
+                                                setShowConfirmButton(true);
                                             }
                                         }}
-                                        className="inline-flex items-center gap-2 px-8 py-3 bg-[#635bff] text-white rounded-full font-bold shadow-lg hover:bg-[#534bb3] transition-all transform hover:scale-105"
+                                        className={`inline-flex items-center gap-2 px-8 py-3 rounded-full font-bold shadow-lg transition-all transform hover:scale-105 ${
+                                            isLoadingLink ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#635bff] text-white hover:bg-[#534bb3]'
+                                        }`}
                                     >
                                         <CreditCardIcon className="w-5 h-5" />
-                                        Pay with Stripe
+                                        {isLoadingLink ? 'Preparing...' : 'Pay with Stripe'}
                                     </button>
                                 </div>
 

@@ -548,14 +548,21 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             return (
               <div
                 key={res.id}
-                className={`bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group ${
-                  res.status === ReservationStatus.CONFIRMED ? 'hover:border-green-200' :
-                  res.status === ReservationStatus.COMPLETED ? 'hover:border-blue-200' :
-                  res.status === ReservationStatus.CANCELLED ? 'hover:border-red-200' :
-                  'hover:border-yellow-200'
-                } ${idStyle}`}
+                className={`bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border-2 ${
+                  res.status === ReservationStatus.CONFIRMED ? 'border-green-500 shadow-green-100/50' :
+                  res.status === ReservationStatus.COMPLETED ? 'border-blue-500 shadow-blue-100/50' :
+                  res.status === ReservationStatus.CANCELLED ? 'border-red-500 shadow-red-100/50' :
+                  'border-amber-500 shadow-amber-100/50'
+                } overflow-hidden group ${idStyle}`}
               >
                 <div className="p-5 relative">
+                  {/* Premium Background Accent */}
+                  <div className={`absolute top-0 left-0 w-1.5 h-full ${
+                    res.status === ReservationStatus.CONFIRMED ? 'bg-green-500' :
+                    res.status === ReservationStatus.COMPLETED ? 'bg-blue-500' :
+                    res.status === ReservationStatus.CANCELLED ? 'bg-red-500' :
+                    'bg-amber-500'
+                  }`} />
                   {/* Decorative Background Icon for Airport */}
                   {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
                     <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-500/5 rounded-full flex items-end justify-start pl-8 pb-8 transition-transform group-hover:scale-110 duration-500">
@@ -712,36 +719,36 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         {detailsModalReservation && (
           <div className="space-y-6 text-sm">
             {/* Professional High-End Header */}
-            <div className="bg-gradient-to-br from-[#1a237e] to-[#3949ab] -mx-6 -mt-5 px-8 py-10 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 -mr-20 -mt-20 bg-white/10 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 -ml-20 -mb-20 bg-indigo-400/20 rounded-full blur-2xl"></div>
+            <div className="bg-gradient-to-br from-[#004d40] via-[#00695c] to-[#00796b] -mx-6 -mt-5 px-10 py-12 text-white relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-80 h-80 -mr-20 -mt-20 bg-white/5 rounded-full blur-[100px]"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 -ml-20 -mb-20 bg-emerald-400/10 rounded-full blur-[80px]"></div>
               
               <div className="relative flex justify-between items-start">
-                <div className="flex items-center gap-5">
-                  <div className="bg-white/20 backdrop-blur-md p-4 rounded-2xl border border-white/30 shadow-xl">
-                    <UserIcon className="w-8 h-8 text-white" />
+                <div className="flex items-center gap-6">
+                  <div className="bg-white/10 backdrop-blur-xl p-5 rounded-[2rem] border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] transform hover:scale-105 transition-transform duration-500">
+                    <UserIcon className="w-10 h-10 text-emerald-300" />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black tracking-tight">{detailsModalReservation.personName}</h2>
-                    <div className="flex items-center text-indigo-100 mt-2">
-                      <PhoneIcon className="w-4 h-4 mr-2" />
-                      <span className="text-sm font-semibold">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
+                    <h2 className="text-4xl font-black tracking-tight drop-shadow-md bg-clip-text text-transparent bg-gradient-to-b from-white to-emerald-100">{detailsModalReservation.personName}</h2>
+                    <div className="flex items-center text-emerald-100/80 mt-3 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10 w-fit">
+                      <PhoneIcon className="w-4 h-4 mr-2 text-emerald-400" />
+                      <span className="text-sm font-bold tracking-wide">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-3">
-                  <span className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-full backdrop-blur-md border shadow-lg ${
-                    detailsModalReservation.status === ReservationStatus.CONFIRMED ? 'bg-green-500/20 text-green-300 border-green-500/30' :
-                    detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
-                    detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-red-500/20 text-red-300 border-red-500/30' :
-                    'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                <div className="flex flex-col items-end gap-4">
+                  <span className={`px-6 py-2 text-[11px] font-black uppercase tracking-[0.3em] rounded-full backdrop-blur-xl border-2 shadow-[0_4px_16px_rgba(0,0,0,0.2)] ${
+                    detailsModalReservation.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/40' :
+                    detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-blue-500/30 text-blue-300 border-blue-500/40' :
+                    detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-red-500/30 text-red-300 border-red-500/40' :
+                    'bg-amber-500/30 text-amber-300 border-amber-500/40'
                   }`}>
                     {detailsModalReservation.status}
                   </span>
                   {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
-                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/20">
-                      <AirplaneIcon className="w-4 h-4 text-white" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Airport VIP</span>
+                    <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 shadow-lg group cursor-help">
+                      <AirplaneIcon className="w-5 h-5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.1em]">VIP Airport Service</span>
                     </div>
                   )}
                 </div>
