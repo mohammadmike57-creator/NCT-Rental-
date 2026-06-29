@@ -1769,7 +1769,7 @@ ${currentUser?.fullName}
             }}
         />
     ), permission: UserPermission.VIEW_MY_PROFILE },
-    'Import Reservations': { component: <ExcelUpload onReservationsImported={handleReservationsImport} />, permission: UserPermission.VIEW_ADMIN_PANEL },
+    'Import Reservations': { component: <ExcelUpload onReservationsImported={handleReservationsImport} years={years} />, permission: UserPermission.VIEW_ADMIN_PANEL },
   };
 
   const sidebarLinks: Record<string, SidebarLink[]> = {

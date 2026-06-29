@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Reservation, ReservationStatus } from '../types';
+import { MONTHS, INITIAL_YEARS } from '../constants';
 
 interface ExcelUploadProps {
   onReservationsImported: (reservations: Reservation[]) => void;
+  years?: number[];
 }
 
-const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => {
+const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years = INITIAL_YEARS }) => {
   const [uploading, setUploading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>('All');
+  const [selectedYear, setSelectedYear] = useState<number>(years[years.length - 1] || new Date().getFullYear());
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -86,10 +90,9 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
           month = v1 - 1;
           day = v2;
         } else {
-          // Ambiguous: default to MM/DD/YYYY to preserve common US-based broker formats
-          // but if we were strictly international we might prefer DD/MM
-          month = v1 - 1;
-          day = v2;
+          // Ambiguous: default to DD/MM/YYYY as requested by user ("read the dates like day and month and year")
+          day = v1;
+          month = v2 - 1;
         }
         year = y;
         hour = h;
@@ -183,6 +186,18 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
           const startDate = parseFlexibleDate(startDateRaw);
           const endDate = parseFlexibleDate(endDateRaw);
           if (!startDate || !endDate) throw new Error('Invalid date format');
+
+          // Filter by selected year and month
+          const startD = new Date(startDate);
+          const rYear = startD.getFullYear();
+          const rMonth = MONTHS[startD.getMonth()];
+
+          if (rYear !== selectedYear) {
+            throw new Error(`Reservation year (${rYear}) does not match selected year (${selectedYear})`);
+          }
+          if (selectedMonth !== 'All' && rMonth !== selectedMonth) {
+            throw new Error(`Reservation month (${rMonth}) does not match selected month (${selectedMonth})`);
+          }
 
           if (new Date(endDate) <= new Date(startDate)) {
             throw new Error('Drop-off date must be after pick-up date');
@@ -280,6 +295,35 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported }) => 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Import Reservations from Excel</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Target Year</label>
+          <select 
+            value={selectedYear} 
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-50"
+          >
+            {years.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Target Month</label>
+          <select 
+            value={selectedMonth} 
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-50"
+          >
+            <option value="All">All Year</option>
+            {MONTHS.map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
         <input
           type="file"
