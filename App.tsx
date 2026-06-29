@@ -59,6 +59,44 @@ const cleanUndefined = (obj: any): any => {
   return obj;
 };
 
+// Animated Modal Wrapper
+const AnimatedModal: React.FC<{ 
+  isOpen: boolean; 
+  onClose: () => void; 
+  children: React.ReactNode;
+  className?: string;
+}> = ({ isOpen, onClose, children, className = "" }) => {
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [animationClass, setAnimationClass] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      setAnimationClass("animate-modal-enter");
+    } else {
+      setAnimationClass("animate-modal-exit");
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+      }, 300); // match duration of animate-modal-exit
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!shouldRender) return null;
+
+  return (
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto ${className}`}>
+      <div 
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`} 
+        onClick={onClose}
+      />
+      <div className={`relative w-full max-w-5xl z-10 ${animationClass}`}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const generateInitialData = (years: number[]): AppData => {
   const data: AppData = {};
   for (const year of years) {
@@ -2044,9 +2082,18 @@ ${currentUser?.fullName}
       </div>
 
       <Suspense fallback={<LoadingSpinner />}>
-      {modals.viewVoucher && <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50"><Voucher reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} /></div>}
-      {modals.viewRentalVoucher && <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50"><Voucher reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} /></div>}
-      {modals.viewReceipt && <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50"><Receipt reservation={modals.viewReceipt} companyDetails={companyDetails} sources={sources} onClose={() => setModals(m=>({...m, viewReceipt: null}))} /></div>}
+      <AnimatedModal isOpen={!!modals.viewVoucher} onClose={() => setModals(m=>({...m, viewVoucher: null}))}>
+        {modals.viewVoucher && <Voucher reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
+      </AnimatedModal>
+
+      <AnimatedModal isOpen={!!modals.viewRentalVoucher} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))}>
+        {modals.viewRentalVoucher && <Voucher reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
+      </AnimatedModal>
+
+      <AnimatedModal isOpen={!!modals.viewReceipt} onClose={() => setModals(m=>({...m, viewReceipt: null}))}>
+        {modals.viewReceipt && <Receipt reservation={modals.viewReceipt} companyDetails={companyDetails} sources={sources} onClose={() => setModals(m=>({...m, viewReceipt: null}))} />}
+      </AnimatedModal>
+
       {reservationToExtend && <ExtendRentalModal reservation={reservationToExtend} trafficTickets={trafficTickets} companyDetails={companyDetails} onClose={() => setReservationToExtend(null)} onConfirm={handleConfirmExtension} />}
       {reservationToAddExtras && (
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50">

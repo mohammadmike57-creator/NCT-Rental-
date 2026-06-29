@@ -27,26 +27,52 @@ import {
   CheckCircleIcon
 } from './icons';
 
-// Modal component (unchanged)
+// Modal component (with animation)
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
-  if (!isOpen) return null;
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [animationClass, setAnimationClass] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      setAnimationClass("animate-modal-enter");
+    } else {
+      setAnimationClass("animate-modal-exit");
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!shouldRender) return null;
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true"></div>
+        <div 
+          className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`} 
+          onClick={onClose} 
+          aria-hidden="true"
+        ></div>
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">{title}</h3>
-            <div className="max-h-[70vh] overflow-y-auto px-1">{children}</div>
+        <div className={`inline-block align-bottom bg-white rounded-[2rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full ${animationClass}`}>
+          <div className="bg-white">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight" id="modal-title">{title}</h3>
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <CloseIcon className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="max-h-[80vh] overflow-y-auto px-6 py-6">{children}</div>
           </div>
-          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div className="bg-slate-50 px-6 py-4 flex flex-row-reverse">
             <button
               type="button"
               onClick={onClose}
-              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              className="w-full sm:w-auto inline-flex justify-center rounded-xl border border-slate-200 shadow-sm px-6 py-2 bg-white text-base font-bold text-slate-700 hover:bg-slate-50 focus:outline-none sm:text-sm transition-colors"
             >
-              Close
+              Done
             </button>
           </div>
         </div>
@@ -548,114 +574,129 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             return (
               <div
                 key={res.id}
-                className={`bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border-2 ${
-                  res.status === ReservationStatus.CONFIRMED ? 'border-green-500 shadow-green-100/50' :
-                  res.status === ReservationStatus.COMPLETED ? 'border-blue-500 shadow-blue-100/50' :
-                  res.status === ReservationStatus.CANCELLED ? 'border-red-500 shadow-red-100/50' :
-                  'border-amber-500 shadow-amber-100/50'
-                } overflow-hidden group ${idStyle}`}
+                className={`group relative bg-white rounded-3xl transition-all duration-500 hover:-translate-y-2 ${idStyle}`}
               >
-                <div className="p-5 relative">
-                  {/* Premium Background Accent */}
-                  <div className={`absolute top-0 left-0 w-1.5 h-full ${
+                {/* Status-based Glow Effect */}
+                <div className={`absolute -inset-0.5 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl ${
+                  res.status === ReservationStatus.CONFIRMED ? 'bg-green-400/20' :
+                  res.status === ReservationStatus.COMPLETED ? 'bg-blue-400/20' :
+                  res.status === ReservationStatus.CANCELLED ? 'bg-red-400/20' :
+                  'bg-amber-400/20'
+                }`} />
+
+                <div className={`relative h-full bg-white rounded-[1.75rem] shadow-sm group-hover:shadow-2xl transition-all duration-500 border border-slate-100 overflow-hidden flex flex-col`}>
+                  {/* Status Top Bar */}
+                  <div className={`h-1.5 w-full ${
                     res.status === ReservationStatus.CONFIRMED ? 'bg-green-500' :
                     res.status === ReservationStatus.COMPLETED ? 'bg-blue-500' :
                     res.status === ReservationStatus.CANCELLED ? 'bg-red-500' :
                     'bg-amber-500'
                   }`} />
-                  {/* Decorative Background Icon for Airport */}
-                  {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                    <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-500/5 rounded-full flex items-end justify-start pl-8 pb-8 transition-transform group-hover:scale-110 duration-500">
-                      <AirplaneIcon className="w-8 h-8 text-blue-500/10 transform rotate-45" />
-                    </div>
-                  )}
 
-                  <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div className="flex-1 min-w-0">
-                      <h3 
-                        className="text-lg font-black text-gray-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight" 
-                        title={res.personName}
-                        onClick={() => setDetailsModalReservation(res)}
-                      >
-                        {res.personName}
-                      </h3>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5 flex items-center">
-                         <HashtagIcon className="w-2.5 h-2.5 mr-1" />
-                         {res.bookingId || 'UNIDENTIFIED'}
-                      </p>
-                    </div>
-                    <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-sm border ${statusColor}`}>
-                      {res.status}
-                    </span>
-                  </div>
+                  <div className="p-6 flex-1">
+                    {/* Decorative Background for Airport */}
+                    {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
+                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
+                        <AirplaneIcon className="w-24 h-24 transform rotate-45" />
+                      </div>
+                    )}
 
-                  <div className="flex gap-2 mb-4 flex-wrap relative z-10">
-                    {voucherSubmitted && (
-                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter rounded bg-green-50 text-green-700 border border-green-100">
-                        ✓ Voucher Secured
-                      </span>
-                    )}
-                    {dropOffCompleted && (
-                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter rounded bg-gray-50 text-gray-700 border border-gray-200">
-                        Closed Case
-                      </span>
-                    )}
-                    {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
-                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter rounded bg-amber-50 text-amber-700 border border-amber-100">
-                        ! Pending Action
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-5 relative z-10">
-                    <div className="flex items-center gap-2 group/item">
-                       <div className="p-1.5 bg-gray-50 rounded-lg border border-gray-100 group-hover/item:bg-white transition-colors">
-                          <PhoneIcon className="w-3 h-3 text-gray-400 group-hover/item:text-indigo-500" />
-                       </div>
-                       <span className="text-xs font-bold text-gray-600 truncate">{res.contactNumber || 'No contact'}</span>
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex-1 min-w-0">
+                        <h3 
+                          className="text-xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight leading-none mb-2" 
+                          title={res.personName}
+                          onClick={() => setDetailsModalReservation(res)}
+                        >
+                          {res.personName}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                             <HashtagIcon className="w-2.5 h-2.5 mr-1" />
+                             {res.bookingId || 'UNIDENTIFIED'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm backdrop-blur-md transition-all duration-500 group-hover:scale-105 ${statusColor}`}>
+                        {res.status}
+                      </div>
                     </div>
 
-                    {res.locationName && (
-                      <div className="flex items-center gap-2 group/item">
-                        {res.locationName.includes('Airport') || res.locationName.includes('AMM') ? (
-                          <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100 group-hover/item:bg-white transition-colors">
-                            <AirplaneIcon className="w-3 h-3 text-blue-600" />
-                          </div>
-                        ) : res.locationName.includes('Downtown') ? (
-                          <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-100 group-hover/item:bg-white transition-colors">
-                            <DowntownIcon className="w-3 h-3 text-amber-600" />
-                          </div>
-                        ) : (
-                          <div className="p-1.5 bg-gray-50 rounded-lg border border-gray-100 group-hover/item:bg-white transition-colors">
-                            <MapPinIcon className="w-3 h-3 text-gray-400 group-hover/item:text-indigo-500" />
-                          </div>
-                        )}
-                        <span className={`text-[10px] font-black uppercase tracking-tight truncate ${
-                          (res.locationName.includes('Airport') || res.locationName.includes('AMM')) ? 'text-blue-700' : 
-                          res.locationName.includes('Downtown') ? 'text-amber-700' : 'text-gray-500'
-                        }`}>
-                          {res.locationName}
+                    <div className="flex gap-2 mb-6 flex-wrap">
+                      {voucherSubmitted && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full bg-green-500 text-white shadow-sm shadow-green-200">
+                          <CheckCircleIcon className="w-3 h-3" /> Agreement Signed
                         </span>
-                      </div>
-                    )}
+                      )}
+                      {dropOffCompleted && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full bg-slate-800 text-white shadow-sm shadow-slate-200">
+                          Closed Case
+                        </span>
+                      )}
+                      {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full bg-amber-400 text-white shadow-sm shadow-amber-100">
+                          Action Required
+                        </span>
+                      )}
+                    </div>
 
-                    <div className="col-span-2 border-t border-gray-50 pt-3 mt-1 grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1 flex items-center">
-                           <AirplaneLandingIcon className="w-2.5 h-2.5 mr-1 text-indigo-400" /> Pickup
-                        </p>
-                        <p className="text-[11px] font-black text-gray-900">{formatDate(res.startDate)}</p>
+                    <div className="space-y-4">
+                      {/* Car & Phone Row */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-all duration-300">
+                          <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-500">
+                             <PhoneIcon className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Contact</p>
+                            <p className="text-xs font-black text-slate-700 truncate">{res.contactNumber || '—'}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-all duration-300">
+                          <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-500">
+                             <CarIcon className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Vehicle</p>
+                            <p className="text-xs font-black text-slate-700 truncate">{res.carModel || '—'}</p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1 flex items-center">
-                           <AirplaneTakeoffIcon className="w-2.5 h-2.5 mr-1 text-indigo-400" /> Return
-                        </p>
-                        <p className="text-[11px] font-black text-gray-900">{formatDate(res.endDate)}</p>
+
+                      {/* Location & Dates */}
+                      <div className="p-4 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200 relative overflow-hidden group-hover:bg-indigo-950 transition-colors duration-500">
+                        {/* Decorative background circle */}
+                        <div className="absolute -bottom-8 -right-8 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
+                        
+                        <div className="flex items-center gap-2 mb-3">
+                          {res.locationName?.includes('Airport') || res.locationName?.includes('AMM') ? (
+                            <AirplaneIcon className="w-3 h-3 text-blue-400" />
+                          ) : (
+                            <MapPinIcon className="w-3 h-3 text-indigo-400" />
+                          )}
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">{res.locationName || 'N/A'}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 relative z-10">
+                          <div>
+                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                               <div className="w-1 h-1 bg-green-400 rounded-full" /> Pickup
+                            </p>
+                            <p className="text-[11px] font-black">{formatDate(res.startDate)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                               <div className="w-1 h-1 bg-red-400 rounded-full" /> Return
+                            </p>
+                            <p className="text-[11px] font-black">{formatDate(res.endDate)}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-end border-t border-gray-50 pt-4 relative z-10">
+                  <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 backdrop-blur-sm flex justify-between items-center">
                     <div className="flex items-center gap-2">
                        <div className="p-2 bg-indigo-50 rounded-xl">
                           <CarIcon className="w-4 h-4 text-indigo-600" />
