@@ -17,7 +17,13 @@ import {
   AirplaneIcon,
   AirplaneLandingIcon,
   AirplaneTakeoffIcon,
-  DowntownIcon
+  DowntownIcon,
+  UserIcon,
+  MapPinIcon,
+  HashtagIcon,
+  GlobeAltIcon,
+  CarIcon,
+  IdentificationIcon
 } from './icons';
 
 // Modal component (unchanged)
@@ -548,16 +554,21 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   'border-l-yellow-500'
                 } ${idStyle}`}
               >
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
+                <div className="p-4 relative overflow-hidden">
+                  {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
+                    <div className="absolute top-0 right-0 w-16 h-16 -mr-8 -mt-8 bg-blue-500/10 rounded-full flex items-end justify-start pl-4 pb-4">
+                      <AirplaneIcon className="w-4 h-4 text-blue-500/40 transform rotate-45" />
+                    </div>
+                  )}
+                  <div className="flex justify-between items-start mb-2 relative z-10">
                     <h3 
-                      className="text-base font-bold text-gray-900 truncate cursor-pointer hover:text-blue-600" 
+                      className="text-base font-bold text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" 
                       title={res.personName}
                       onClick={() => setDetailsModalReservation(res)}
                     >
                       {res.personName}
                     </h3>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusColor}`}>
+                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight rounded-full shadow-sm ${statusColor}`}>
                       {res.status}
                     </span>
                   </div>
@@ -592,17 +603,23 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                       <span>{res.contactNumber || 'No contact'}</span>
                     </div>
                     {res.locationName && (
-                      <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-1">
+                      <div className="flex items-center text-[10px] font-bold uppercase tracking-wider mt-1">
                         {res.locationName.includes('Airport') || res.locationName.includes('AMM') ? (
-                          <div className="bg-blue-600 p-1 rounded-sm mr-1.5 flex-shrink-0 shadow-sm">
+                          <div className="bg-blue-600 p-1 rounded-md mr-1.5 flex-shrink-0 shadow-md ring-1 ring-blue-400">
                             <AirplaneIcon className="w-2.5 h-2.5 text-white" />
                           </div>
                         ) : res.locationName.includes('Downtown') ? (
-                          <div className="bg-amber-500 p-1 rounded-sm mr-1.5 flex-shrink-0 shadow-sm">
+                          <div className="bg-amber-500 p-1 rounded-md mr-1.5 flex-shrink-0 shadow-md ring-1 ring-amber-400">
                             <DowntownIcon className="w-2.5 h-2.5 text-white" />
                           </div>
-                        ) : null}
-                        <span className="truncate">{res.locationName}</span>
+                        ) : (
+                          <div className="bg-gray-400 p-1 rounded-md mr-1.5 flex-shrink-0 shadow-sm">
+                            <MapPinIcon className="w-2.5 h-2.5 text-white" />
+                          </div>
+                        )}
+                        <span className={`${(res.locationName.includes('Airport') || res.locationName.includes('AMM')) ? 'text-blue-700' : 'text-gray-500'} truncate`}>
+                          {res.locationName}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -687,74 +704,183 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         </div>
       </div>
 
-      <Modal isOpen={!!detailsModalReservation} onClose={() => setDetailsModalReservation(null)} title="Reservation Details">
+      <Modal isOpen={!!detailsModalReservation} onClose={() => setDetailsModalReservation(null)} title="Reservation Preview">
         {detailsModalReservation && (
-          <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-gray-500">Renter</p><p className="font-medium">{detailsModalReservation.personName}</p></div>
-              <div><p className="text-gray-500">Contact</p><p className="font-medium">{detailsModalReservation.contactNumber || '—'}</p></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-gray-500">Booking ID</p><p className="font-medium">{detailsModalReservation.bookingId}</p></div>
-              <div><p className="text-gray-500">Source</p><p className="font-medium">{getSourceName(detailsModalReservation.source || '')}</p></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-gray-500">Car Model</p><p className="font-medium">{detailsModalReservation.carModel}</p></div>
-              <div>
-                <p className="text-gray-500">Location</p>
-                <div className="flex items-center gap-1.5">
-                  {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
-                    <AirplaneIcon className="w-4 h-4 text-blue-600" />
-                  )}
-                  {(detailsModalReservation.locationName?.includes('Downtown')) && (
-                    <DowntownIcon className="w-4 h-4 text-amber-600" />
-                  )}
-                  <p className="font-medium">{detailsModalReservation.locationName || rentalLocations.find(l => l.id === detailsModalReservation.locationName)?.name || '—'}</p>
+          <div className="space-y-6 text-sm">
+            {/* Header Section */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 -mt-5 px-6 py-6 border-b border-blue-100 mb-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-600 p-2.5 rounded-xl shadow-md">
+                    <UserIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{detailsModalReservation.personName}</h2>
+                    <div className="flex items-center text-gray-500 mt-0.5">
+                      <PhoneIcon className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="text-xs font-medium">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full shadow-sm ${
+                    detailsModalReservation.status === ReservationStatus.CONFIRMED ? 'bg-green-100 text-green-700 border border-green-200' :
+                    detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                    detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-red-100 text-red-700 border border-red-200' :
+                    'bg-amber-100 text-amber-700 border border-amber-200'
+                  }`}>
+                    {detailsModalReservation.status}
+                  </span>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-gray-500">Booking Date</p><p className="font-medium">{formatDateOnly(detailsModalReservation.bookingDate || detailsModalReservation.startDate)}</p></div>
-              <div>
-                <p className="text-gray-500">Pickup</p>
-                <div className="flex items-center gap-1.5">
-                  {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
-                    <AirplaneLandingIcon className="w-4 h-4 text-blue-500" />
-                  )}
-                  <p className="font-medium">{formatDate(detailsModalReservation.startDate)}</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Booking & Car */}
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center">
+                    <HashtagIcon className="w-3 h-3 mr-1.5" />
+                    Booking Details
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Booking ID</span>
+                      <span className="font-bold text-gray-900">{detailsModalReservation.bookingId}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-gray-200 pt-2">
+                      <span className="text-gray-500">Source</span>
+                      <div className="flex items-center font-semibold text-blue-700">
+                        <GlobeAltIcon className="w-3.5 h-3.5 mr-1.5" />
+                        {getSourceName(detailsModalReservation.source || '')}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-gray-200 pt-2">
+                      <span className="text-gray-500">Booking Date</span>
+                      <span className="font-medium">{formatDateOnly(detailsModalReservation.bookingDate || detailsModalReservation.startDate)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center">
+                    <CarIcon className="w-3 h-3 mr-1.5" />
+                    Vehicle Information
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-sm">
+                      <CarIcon className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Model</p>
+                      <p className="text-base font-bold text-gray-900">{detailsModalReservation.carModel}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Location & Schedule */}
+              <div className="space-y-4">
+                <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                  <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-3 flex items-center">
+                    <MapPinIcon className="w-3 h-3 mr-1.5" />
+                    Location & Schedule
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1 p-1.5 bg-white rounded-md shadow-sm">
+                        {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) ? (
+                          <AirplaneIcon className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <MapPinIcon className="w-4 h-4 text-indigo-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Pickup & Return Location</p>
+                        <p className="text-sm font-bold text-gray-900 leading-tight">
+                          {detailsModalReservation.locationName || 'Main Office'}
+                        </p>
+                        {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 mt-1 uppercase tracking-tighter">
+                            Airport Service
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 border-t border-indigo-100 pt-4">
+                      <div>
+                        <p className="text-[10px] text-indigo-500 font-bold uppercase mb-1 flex items-center">
+                          <AirplaneLandingIcon className="w-3 h-3 mr-1" /> Pickup
+                        </p>
+                        <p className="text-xs font-bold text-gray-900">{formatDate(detailsModalReservation.startDate)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-indigo-500 font-bold uppercase mb-1 flex items-center">
+                          <AirplaneTakeoffIcon className="w-3 h-3 mr-1" /> Return
+                        </p>
+                        <p className="text-xs font-bold text-gray-900">{formatDate(detailsModalReservation.endDate)}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center bg-white/60 p-2 rounded-lg border border-indigo-100/50">
+                      <span className="text-xs text-gray-500 font-medium">Rental Duration</span>
+                      <span className="text-sm font-bold text-indigo-700">{getDuration(detailsModalReservation.startDate, detailsModalReservation.endDate)} Days</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                  <h4 className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-2 flex items-center">
+                    <CurrencyDollarIcon className="w-3 h-3 mr-1.5" />
+                    Financial Summary
+                  </h4>
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-xs text-green-700 font-medium">Total Amount</p>
+                      <p className="text-2xl font-black text-green-800 tracking-tight">${detailsModalReservation.amount?.toFixed(2)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-green-600 font-bold uppercase">Rate Coverage</p>
+                      <p className="text-xs font-bold text-green-700">Full Payment</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-gray-500">Return</p>
-                <div className="flex items-center gap-1.5">
-                  {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
-                    <AirplaneTakeoffIcon className="w-4 h-4 text-indigo-500" />
-                  )}
-                  <p className="font-medium">{formatDate(detailsModalReservation.endDate)}</p>
-                </div>
-              </div>
-              <div><p className="text-gray-500">Duration</p><p className="font-medium">{getDuration(detailsModalReservation.startDate, detailsModalReservation.endDate)} days</p></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-gray-500">Amount</p><p className="font-medium">${detailsModalReservation.amount?.toFixed(2)}</p></div>
-              <div><p className="text-gray-500">Status</p><p className="font-medium">{detailsModalReservation.status}</p></div>
-            </div>
-            <div><p className="text-gray-500">Notes</p><p className="font-medium whitespace-pre-wrap">{detailsModalReservation.notes || '—'}</p></div>
-            <div>
-              <p className="text-gray-500">Extras</p>
-              {detailsModalReservation.selectedExtras && detailsModalReservation.selectedExtras.length > 0 ? (
-                <ul className="list-disc list-inside">
+
+            {/* Extras Section */}
+            {detailsModalReservation.selectedExtras && detailsModalReservation.selectedExtras.length > 0 && (
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center">
+                  <PlusCircleIcon className="w-3 h-3 mr-1.5" />
+                  Additional Extras
+                </h4>
+                <div className="flex flex-wrap gap-2">
                   {detailsModalReservation.selectedExtras.map((extraId, idx) => {
                     const extra = availableExtras.find(e => e.id === extraId);
-                    return <li key={idx}>{extra ? extra.name : extraId}</li>;
+                    return (
+                      <span key={idx} className="bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 shadow-sm">
+                        {extra ? extra.name : extraId}
+                      </span>
+                    );
                   })}
-                </ul>
-              ) : (
-                <p className="font-medium">None</p>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notes Section */}
+            {detailsModalReservation.notes && (
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 -mr-8 -mt-8 bg-amber-200/30 rounded-full"></div>
+                <h4 className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-2 flex items-center">
+                  <DocumentReportIcon className="w-3 h-3 mr-1.5" />
+                  Important Notes
+                </h4>
+                <p className="text-sm text-amber-900 font-medium leading-relaxed italic">
+                  "{detailsModalReservation.notes}"
+                </p>
+              </div>
+            )}
           </div>
         )}
       </Modal>
