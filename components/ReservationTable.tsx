@@ -13,7 +13,9 @@ import {
   SearchIcon,
   PdfIcon,
   ExportIcon,
-  CloseIcon
+  CloseIcon,
+  AirplaneIcon,
+  DowntownIcon
 } from './icons';
 
 // Modal component (unchanged)
@@ -587,6 +589,16 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                       <PhoneIcon className="w-3 h-3 mr-1 flex-shrink-0" />
                       <span>{res.contactNumber || 'No contact'}</span>
                     </div>
+                    {res.locationName && (
+                      <div className="flex items-center text-xs font-medium text-gray-700 mt-1">
+                        {res.locationName.includes('Airport') || res.locationName.includes('AMM') ? (
+                          <AirplaneIcon className="w-4 h-4 mr-1 text-blue-600 flex-shrink-0" />
+                        ) : res.locationName.includes('Downtown') ? (
+                          <DowntownIcon className="w-4 h-4 mr-1 text-orange-600 flex-shrink-0" />
+                        ) : null}
+                        <span className="truncate">{res.locationName}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs mb-3">

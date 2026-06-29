@@ -23,6 +23,8 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
   { id: 'loc-1', name: 'Airport Office', address: 'Queen Alia International Airport, Arrival Hall' },
   { id: 'loc-2', name: 'City Center Branch', address: '123 Main Street, Downtown Amman' },
   { id: 'loc-3', name: 'Hotel Kiosk', address: 'Grand Hyatt Amman, Lobby' },
+  { id: 'loc-4', name: 'Amman Downtown', address: 'Amman Downtown' },
+  { id: 'loc-5', name: 'Airport AMM', address: 'Queen Alia International Airport (AMM)' },
 ];
 
 

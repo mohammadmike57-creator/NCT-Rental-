@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, Reservation } from '../types';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
-import { PdfIcon, CheckCircleIcon, ClockIcon, CurrencyDollarIcon, CloseIcon } from './icons';
+import { PdfIcon, CheckCircleIcon, ClockIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon } from './icons';
 import Tabs from './Tabs';
 import SecurityKeyModal from './SecurityKeyModal';
 
@@ -81,6 +81,103 @@ const PaymentEntryModal: React.FC<{
     );
 };
 
+const StripePaymentModal: React.FC<{
+    month: string;
+    year: number;
+    amount: number;
+    currency: string;
+    onClose: () => void;
+    onConfirm: () => void;
+}> = ({ month, year, amount, currency, onClose, onConfirm }) => {
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
+
+    const handlePayment = () => {
+        setIsProcessing(true);
+        // Simulate Stripe processing
+        setTimeout(() => {
+            setIsProcessing(false);
+            setIsSuccess(true);
+            setTimeout(() => {
+                onConfirm();
+            }, 1500);
+        }, 2000);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex items-center justify-center p-4" aria-modal="true">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
+                <div className="bg-[#635bff] p-6 text-white flex justify-between items-center">
+                   <div className="flex items-center gap-2">
+                       <svg className="w-8 h-8" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                           <path d="M20 40c11.046 0 20-8.954 20-20S31.046 0 20 0 0 8.954 0 20s8.954 20 20 20z" fill="#fff" fillOpacity=".2"/>
+                           <path d="M25.743 14.82c-.443-.19-.94-.285-1.493-.285-.92 0-1.54.436-1.54 1.253 0 .592.483.978 1.458 1.328 1.344.472 2.19 1.157 2.19 2.457 0 1.944-1.61 3.033-3.924 3.033-.943 0-1.848-.15-2.585-.436v-2.348c.594.333 1.292.51 2.053.51.815 0 1.36-.376 1.36-1.002 0-.616-.543-.91-1.603-1.306-1.282-.468-2.043-1.127-2.043-2.336 0-1.745 1.503-2.88 3.524-2.88.85 0 1.62.13 2.603.413v2.348z" fill="#fff"/>
+                       </svg>
+                       <span className="text-xl font-bold">Stripe</span>
+                   </div>
+                   <button onClick={onClose} className="text-white hover:opacity-80"><CloseIcon className="w-6 h-6" /></button>
+                </div>
+                
+                <div className="p-8">
+                    {!isSuccess ? (
+                        <>
+                            <div className="text-center mb-6">
+                                <h4 className="text-gray-500 text-sm uppercase tracking-wider font-semibold">Payment to NCT Rental</h4>
+                                <p className="text-4xl font-bold text-gray-900 mt-2">{currency} {amount.toFixed(2)}</p>
+                                <p className="text-gray-500 text-sm mt-1">Franchise Fee - {month} {year}</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="border border-gray-200 rounded-md p-3">
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Card Information</label>
+                                    <div className="flex items-center gap-2 border-b pb-2 mb-2">
+                                        <div className="bg-gray-100 p-1 rounded">
+                                            <CreditCardIcon className="w-5 h-5 text-gray-400" />
+                                        </div>
+                                        <input type="text" placeholder="1234 5678 1234 5678" className="flex-grow bg-transparent focus:outline-none text-gray-700" disabled={isProcessing} />
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <input type="text" placeholder="MM / YY" className="w-1/2 bg-transparent focus:outline-none text-gray-700" disabled={isProcessing} />
+                                        <input type="text" placeholder="CVC" className="w-1/2 bg-transparent focus:outline-none text-gray-700" disabled={isProcessing} />
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={handlePayment}
+                                    disabled={isProcessing}
+                                    className={`w-full py-3 rounded-md font-semibold text-white transition-all shadow-lg ${isProcessing ? 'bg-[#635bff] opacity-70 cursor-not-allowed' : 'bg-[#635bff] hover:bg-[#534bb3]'}`}
+                                >
+                                    {isProcessing ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Processing...
+                                        </div>
+                                    ) : `Pay ${currency} ${amount.toFixed(2)}`}
+                                </button>
+                                
+                                <p className="text-center text-[10px] text-gray-400 mt-4">
+                                    Powered by Stripe | Terms | Privacy
+                                </p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center py-10 animate-pulse">
+                            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <CheckCircleIcon className="w-12 h-12" />
+                            </div>
+                            <h4 className="text-2xl font-bold text-gray-900">Payment Confirmed</h4>
+                            <p className="text-gray-500 mt-2">Your payment has been successfully processed.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const FranchisePaymentTracker: React.FC<{
     summary: any[];
     payments: FranchisePayment[];
@@ -90,6 +187,7 @@ const FranchisePaymentTracker: React.FC<{
     canManage: boolean;
 }> = ({ summary, payments, year, onPay, onDelete, canManage }) => {
     const [paymentModalData, setPaymentModalData] = useState<{month: string, amount: number} | null>(null);
+    const [stripeModalData, setStripeModalData] = useState<{month: string, amount: number, currency: 'USD' | 'JOD'} | null>(null);
     const [pendingPayment, setPendingPayment] = useState<{month: string, amount: number, currency: 'USD' | 'JOD'} | null>(null);
     const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
     const [loadingLink, setLoadingLink] = useState<string | null>(null);
@@ -126,8 +224,15 @@ const FranchisePaymentTracker: React.FC<{
 
     const handlePaymentDetailsConfirmed = (amount: number, currency: 'USD' | 'JOD') => {
         if (paymentModalData) {
-            setPendingPayment({ month: paymentModalData.month, amount, currency });
+            setStripeModalData({ month: paymentModalData.month, amount, currency });
             setPaymentModalData(null);
+        }
+    };
+
+    const handleStripeSuccess = () => {
+        if (stripeModalData) {
+            setPendingPayment({ ...stripeModalData });
+            setStripeModalData(null);
             setIsKeyModalOpen(true);
         }
     };
@@ -233,7 +338,6 @@ const FranchisePaymentTracker: React.FC<{
                                                 <div className="text-xs text-green-800 space-y-1">
                                                     <p><strong>Paid Amount:</strong> {payment.currency} {payment.amount.toFixed(2)}</p>
                                                     <p><strong>On:</strong> {new Date(payment.datePaid).toLocaleDateString()}</p>
-                                                    <p><strong>By:</strong> {payment.paidBy}</p>
                                                 </div>
                                                 {canManage && (
                                                     <button 
@@ -289,6 +393,16 @@ const FranchisePaymentTracker: React.FC<{
                     initialAmount={paymentModalData.amount}
                     onClose={() => setPaymentModalData(null)}
                     onConfirm={handlePaymentDetailsConfirmed}
+                 />
+             )}
+             {stripeModalData && (
+                 <StripePaymentModal 
+                    month={stripeModalData.month}
+                    year={year}
+                    amount={stripeModalData.amount}
+                    currency={stripeModalData.currency}
+                    onClose={() => setStripeModalData(null)}
+                    onConfirm={handleStripeSuccess}
                  />
              )}
              {isKeyModalOpen && (

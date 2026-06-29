@@ -342,3 +342,15 @@ export const ClearIcon: React.FC<{ className?: string }> = ({ className = "w-5 h
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
   </svg>
 );
+
+export const AirplaneIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.933 7.179l.966-1.933a1.918 1.918 0 013.432 0l.966 1.933m-5.364 0a1.918 1.918 0 000 1.642m5.364-1.642a1.918 1.918 0 010 1.642m-5.364 0l-.966 1.933a1.918 1.918 0 003.432 0l.966-1.933m-5.364 0h5.364m3.036 4.036l.966-1.933a1.918 1.918 0 013.432 0l.966 1.933m-5.364 0a1.918 1.918 0 000 1.642m5.364-1.642a1.918 1.918 0 010 1.642m-5.364 0l-.966 1.933a1.918 1.918 0 003.432 0l.966-1.933m-5.364 0h5.364M12 14.158l.966-1.933a1.918 1.918 0 013.432 0l.966 1.933m-5.364 0a1.918 1.918 0 000 1.642m5.364-1.642a1.918 1.918 0 010 1.642m-5.364 0l-.966 1.933a1.918 1.918 0 003.432 0l.966-1.933m-5.364 0h5.364" />
+  </svg>
+);
+
+export const DowntownIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  </svg>
+);
