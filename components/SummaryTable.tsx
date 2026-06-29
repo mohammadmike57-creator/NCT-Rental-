@@ -86,8 +86,9 @@ const FranchisePaymentTracker: React.FC<{
     payments: FranchisePayment[];
     year: number;
     onPay: (month: string, amount: number, currency: 'USD' | 'JOD') => void;
+    onDelete: (month: string) => void;
     canManage: boolean;
-}> = ({ summary, payments, year, onPay, canManage }) => {
+}> = ({ summary, payments, year, onPay, onDelete, canManage }) => {
     const [paymentModalData, setPaymentModalData] = useState<{month: string, amount: number} | null>(null);
     const [pendingPayment, setPendingPayment] = useState<{month: string, amount: number, currency: 'USD' | 'JOD'} | null>(null);
     const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
@@ -187,7 +188,7 @@ const FranchisePaymentTracker: React.FC<{
                     const deadlineDate = getDeadlineDate(row.month, year);
 
                     // Special handling for January, February, and March 2026: show only "Paid" without any amount
-                    const isSpecialPaid = year === 2026 && (['January', 'February', 'March', 'April', 'May', 'June'].includes(row.month)) && isPaid;
+                    const isSpecialPaid = year === 2026 && (['January', 'February', 'March', 'April', 'May'].includes(row.month)) && isPaid;
 
                     return (
                         <div 
@@ -228,12 +229,23 @@ const FranchisePaymentTracker: React.FC<{
 
                                     <div className="p-4 bg-slate-50 rounded-b-xl mt-auto">
                                         {isPaid && payment ? (
-                                            <div className="text-xs text-green-800 space-y-1">
-                                                <p><strong>Paid Amount:</strong> {payment.currency} {payment.amount.toFixed(2)}</p>
-                                                <p><strong>On:</strong> {new Date(payment.datePaid).toLocaleDateString()}</p>
-                                                <p><strong>By:</strong> {payment.paidBy}</p>
+                                            <div className="flex justify-between items-end">
+                                                <div className="text-xs text-green-800 space-y-1">
+                                                    <p><strong>Paid Amount:</strong> {payment.currency} {payment.amount.toFixed(2)}</p>
+                                                    <p><strong>On:</strong> {new Date(payment.datePaid).toLocaleDateString()}</p>
+                                                    <p><strong>By:</strong> {payment.paidBy}</p>
+                                                </div>
+                                                {canManage && (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); if(confirm('Are you sure you want to mark this month as UNPAID?')) onDelete(row.month); }}
+                                                        className="text-red-600 hover:text-red-800 text-xs font-semibold p-1"
+                                                        title="Mark as Unpaid"
+                                                    >
+                                                        Mark Unpaid
+                                                    </button>
+                                                )}
                                             </div>
-                                        ) : canManage && (status === 'DUE' || status === 'OVERDUE') ? (
+                                        ) : canManage ? (
                                             <button 
                                                 onClick={(e) => handlePayClick(row.month, row.totalFee, e)}
                                                 className="w-full py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-secondary transition-colors shadow-sm flex items-center justify-center gap-2"
@@ -249,12 +261,21 @@ const FranchisePaymentTracker: React.FC<{
                                 </>
                             ) : (
                                 // Special paid card: just show a simple "Paid" message with correct date
-                                <div className="p-4 flex flex-col items-center justify-center flex-grow">
+                                <div className="p-4 flex flex-col items-center justify-center flex-grow relative">
                                     <CheckCircleIcon className="w-12 h-12 text-green-600 mb-2" />
                                     <p className="text-green-800 font-semibold">Payment Completed</p>
                                     <p className="text-xs text-gray-500 mt-1">
                                         Paid on {payment ? new Date(payment.datePaid).toLocaleDateString() : ''}
                                     </p>
+                                    {canManage && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); if(confirm('Are you sure you want to mark this month as UNPAID?')) onDelete(row.month); }}
+                                            className="absolute bottom-2 right-2 text-red-600 hover:text-red-800 text-xs font-semibold p-1"
+                                            title="Mark as Unpaid"
+                                        >
+                                            Mark Unpaid
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -354,11 +375,16 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       onUpdateFranchisePayment([...franchisePayments, newPayment]);
   };
 
+  const handleDeleteFranchisePayment = (month: string) => {
+      if (!onUpdateFranchisePayment) return;
+      onUpdateFranchisePayment(franchisePayments.filter(p => !(p.year === year && p.month === month)));
+  };
+
   // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
   // For January, February, and March 2026, set totalFee = 0 (not shown) but they will be auto-paid.
   const franchiseSummary = summary.map(s => {
       let totalFee = s.commissionUSD + FIXED_ADDON;
-      if (year === 2026 && (['January', 'February', 'March', 'April', 'May', 'June'].includes(s.month))) {
+      if (year === 2026 && (['January', 'February', 'March', 'April', 'May'].includes(s.month))) {
           totalFee = 0; // Not shown
       }
       return {
@@ -369,59 +395,6 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       };
   });
 
-  // Auto-mark January, February, and March 2026 as paid with specific dates.
-  // March amount is set to 0, and existing records are corrected if needed.
-  useEffect(() => {
-      if (year === 2026 && onUpdateFranchisePayment) {
-          const newPayments = [...franchisePayments];
-          let updated = false;
-
-          const autoPayments = [
-              { month: 'January', amount: 250, datePaid: new Date(2026, 0, 1).toISOString(), note: 'Auto-paid (fixed amount)', paidBy: 'System' },
-              { month: 'February', amount: 250, datePaid: new Date(2026, 1, 1).toISOString(), note: 'Auto-paid (fixed amount)', paidBy: 'System' },
-              { month: 'March', amount: 0, datePaid: new Date(2026, 2, 1).toISOString(), note: 'Auto-paid (zero amount)', paidBy: 'System' },
-              { month: 'April', amount: 0, datePaid: new Date(2026, 3, 1).toISOString(), note: 'Paid by card', paidBy: 'Card Payment' },
-              { month: 'May', amount: 0, datePaid: new Date(2026, 4, 1).toISOString(), note: 'Paid by card', paidBy: 'Card Payment' },
-              { month: 'June', amount: 0, datePaid: new Date(2026, 5, 1).toISOString(), note: 'Paid by card', paidBy: 'Card Payment' },
-          ] as const;
-
-          autoPayments.forEach(({ month, amount, datePaid, note, paidBy }) => {
-              const existingPayment = newPayments.find(p => p.month === month && p.year === 2026);
-
-              if (!existingPayment) {
-                  newPayments.push({
-                      id: `fp-2026-${month}-auto`,
-                      year: 2026,
-                      month,
-                      amount,
-                      currency: 'USD',
-                      datePaid,
-                      paidBy,
-                      referenceNote: note,
-                  });
-                  updated = true;
-                  return;
-              }
-
-              if (existingPayment.datePaid !== datePaid || existingPayment.amount !== amount || existingPayment.paidBy !== paidBy) {
-                  const index = newPayments.findIndex(p => p.month === month && p.year === 2026);
-                  if (index !== -1) {
-                      newPayments[index] = {
-                          ...newPayments[index],
-                          datePaid,
-                          amount,
-                          paidBy,
-                      };
-                      updated = true;
-                  }
-              }
-          });
-
-          if (updated) {
-              onUpdateFranchisePayment(newPayments);
-          }
-      }
-  }, [year, franchisePayments, onUpdateFranchisePayment]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -584,8 +557,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
                   <h4 className="text-blue-800 font-bold">Franchise Fee Management</h4>
                   <p className="text-blue-700 text-sm mt-1">
-                      Total franchise fee = 7.5% commission + $250 fixed fee per month.  
-                      (January, February, March, April, May, and June 2026 are auto-marked as paid.)
+                      Total franchise fee = 7.5% commission + $250 fixed fee per month.
                   </p>
               </div>
               <FranchisePaymentTracker 
@@ -593,6 +565,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                 payments={franchisePayments} 
                 year={year} 
                 onPay={handlePayFranchise}
+                onDelete={handleDeleteFranchisePayment}
                 canManage={canManageFinancials}
               />
           </div>
