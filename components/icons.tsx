@@ -344,8 +344,20 @@ export const ClearIcon: React.FC<{ className?: string }> = ({ className = "w-5 h
 );
 
 export const AirplaneIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.933 7.179l.966-1.933a1.918 1.918 0 013.432 0l.966 1.933m-5.364 0a1.918 1.918 0 000 1.642m5.364-1.642a1.918 1.918 0 010 1.642m-5.364 0l-.966 1.933a1.918 1.918 0 003.432 0l.966-1.933m-5.364 0h5.364m3.036 4.036l.966-1.933a1.918 1.918 0 013.432 0l.966 1.933m-5.364 0a1.918 1.918 0 000 1.642m5.364-1.642a1.918 1.918 0 010 1.642m-5.364 0l-.966 1.933a1.918 1.918 0 003.432 0l.966-1.933m-5.364 0h5.364M12 14.158l.966-1.933a1.918 1.918 0 013.432 0l.966 1.933m-5.364 0a1.918 1.918 0 000 1.642m5.364-1.642a1.918 1.918 0 010 1.642m-5.364 0l-.966 1.933a1.918 1.918 0 003.432 0l.966-1.933m-5.364 0h5.364" />
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3.5S19 4 17.5 5.5L14 9 5.8 7.2 4.2 8.8l7.1 4.9L9 16l-2.6-.7L5 16.7l3 3 1.4-1.4-.7-2.6 2.3-2.3 4.9 7.1z"/>
+  </svg>
+);
+
+export const AirplaneLandingIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 20h20M2 11l3.5 1.5 5-4.5 7 3L22 10l-1.5 7.5-11-4.5-5 4.5Z"/>
+  </svg>
+);
+
+export const AirplaneTakeoffIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 22h20M2 17l5-4.5 7 3L22 7l-1.5 7.5-11-4.5-5 4.5Z"/>
   </svg>
 );
 

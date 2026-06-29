@@ -15,6 +15,8 @@ import {
   ExportIcon,
   CloseIcon,
   AirplaneIcon,
+  AirplaneLandingIcon,
+  AirplaneTakeoffIcon,
   DowntownIcon
 } from './icons';
 
@@ -590,11 +592,15 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                       <span>{res.contactNumber || 'No contact'}</span>
                     </div>
                     {res.locationName && (
-                      <div className="flex items-center text-xs font-medium text-gray-700 mt-1">
+                      <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-1">
                         {res.locationName.includes('Airport') || res.locationName.includes('AMM') ? (
-                          <AirplaneIcon className="w-4 h-4 mr-1 text-blue-600 flex-shrink-0" />
+                          <div className="bg-blue-600 p-1 rounded-sm mr-1.5 flex-shrink-0 shadow-sm">
+                            <AirplaneIcon className="w-2.5 h-2.5 text-white" />
+                          </div>
                         ) : res.locationName.includes('Downtown') ? (
-                          <DowntownIcon className="w-4 h-4 mr-1 text-orange-600 flex-shrink-0" />
+                          <div className="bg-amber-500 p-1 rounded-sm mr-1.5 flex-shrink-0 shadow-sm">
+                            <DowntownIcon className="w-2.5 h-2.5 text-white" />
+                          </div>
                         ) : null}
                         <span className="truncate">{res.locationName}</span>
                       </div>
@@ -608,11 +614,21 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     </div>
                     <div>
                       <span className="text-gray-500 block">Pickup</span>
-                      <span className="font-medium">{formatDate(res.startDate)}</span>
+                      <div className="flex items-center">
+                        {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
+                          <AirplaneLandingIcon className="w-3 h-3 mr-1 text-blue-500" />
+                        )}
+                        <span className="font-medium">{formatDate(res.startDate)}</span>
+                      </div>
                     </div>
                     <div>
                       <span className="text-gray-500 block">Return</span>
-                      <span className="font-medium">{formatDate(res.endDate)}</span>
+                      <div className="flex items-center">
+                        {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
+                          <AirplaneTakeoffIcon className="w-3 h-3 mr-1 text-indigo-500" />
+                        )}
+                        <span className="font-medium">{formatDate(res.endDate)}</span>
+                      </div>
                     </div>
                     <div>
                       <span className="text-gray-500 block">Duration</span>
@@ -684,14 +700,41 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><p className="text-gray-500">Car Model</p><p className="font-medium">{detailsModalReservation.carModel}</p></div>
-              <div><p className="text-gray-500">Location</p><p className="font-medium">{detailsModalReservation.locationName || rentalLocations.find(l => l.id === detailsModalReservation.locationName)?.name || '—'}</p></div>
+              <div>
+                <p className="text-gray-500">Location</p>
+                <div className="flex items-center gap-1.5">
+                  {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
+                    <AirplaneIcon className="w-4 h-4 text-blue-600" />
+                  )}
+                  {(detailsModalReservation.locationName?.includes('Downtown')) && (
+                    <DowntownIcon className="w-4 h-4 text-amber-600" />
+                  )}
+                  <p className="font-medium">{detailsModalReservation.locationName || rentalLocations.find(l => l.id === detailsModalReservation.locationName)?.name || '—'}</p>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><p className="text-gray-500">Booking Date</p><p className="font-medium">{formatDateOnly(detailsModalReservation.bookingDate || detailsModalReservation.startDate)}</p></div>
-              <div><p className="text-gray-500">Pickup</p><p className="font-medium">{formatDate(detailsModalReservation.startDate)}</p></div>
+              <div>
+                <p className="text-gray-500">Pickup</p>
+                <div className="flex items-center gap-1.5">
+                  {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
+                    <AirplaneLandingIcon className="w-4 h-4 text-blue-500" />
+                  )}
+                  <p className="font-medium">{formatDate(detailsModalReservation.startDate)}</p>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-gray-500">Return</p><p className="font-medium">{formatDate(detailsModalReservation.endDate)}</p></div>
+              <div>
+                <p className="text-gray-500">Return</p>
+                <div className="flex items-center gap-1.5">
+                  {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
+                    <AirplaneTakeoffIcon className="w-4 h-4 text-indigo-500" />
+                  )}
+                  <p className="font-medium">{formatDate(detailsModalReservation.endDate)}</p>
+                </div>
+              </div>
               <div><p className="text-gray-500">Duration</p><p className="font-medium">{getDuration(detailsModalReservation.startDate, detailsModalReservation.endDate)} days</p></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
