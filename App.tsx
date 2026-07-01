@@ -277,6 +277,7 @@ export const App: React.FC = () => {
   const [tableKey, setTableKey] = useState(0);
 
   const isInitialDataLoad = useRef(true);
+  const skipAutoSaveRef = useRef(false);
   const recurringAlertsTrackerRef = useRef<Record<string, number>>({});
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -295,6 +296,7 @@ export const App: React.FC = () => {
   const handleDataUpdate = (data: AllData) => {
       if (!data) return; 
 
+      skipAutoSaveRef.current = true;
       const initialState = getInitialState();
       
       const rawReservations = data.reservations || initialState.reservations;
@@ -302,7 +304,7 @@ export const App: React.FC = () => {
       const loadedYears = [...new Set([...(data.years || []), ...yearsFromReservations, ...initialState.years!])].sort((a,b) => a - b);
       
       setYears(loadedYears);
-      if (!loadedYears.includes(selectedYear)) {
+      if (!loadedYears.includes(selectedYear) && loadedYears.length > 0) {
           handleSetSelectedYear(loadedYears[0] || new Date().getFullYear());
       }
 
@@ -330,20 +332,23 @@ export const App: React.FC = () => {
                             }
                         }
 
-                        if (!targetYear || !targetMonth) {
-                             const today = new Date();
-                             targetYear = today.getFullYear();
-                             targetMonth = MONTHS[today.getMonth()];
+                        // If we can't determine date or it doesn't match an existing year,
+                        // fallback to the yearKey it was found under to avoid dropping data
+                        if (!targetYear || !reorganizedReservations[targetYear]) {
+                             targetYear = parseInt(yearKey);
+                             targetMonth = monthKey;
                         }
                         
-                        if (reorganizedReservations[targetYear]) {
-                            if (!reorganizedReservations[targetYear][targetMonth]) {
-                                 reorganizedReservations[targetYear][targetMonth] = [];
-                            }
+                        // Ensure the bucket exists
+                        if (!reorganizedReservations[targetYear]) {
+                            reorganizedReservations[targetYear] = {};
+                        }
+                        if (!reorganizedReservations[targetYear][targetMonth]) {
+                             reorganizedReservations[targetYear][targetMonth] = [];
+                        }
 
-                            if (!reorganizedReservations[targetYear][targetMonth].some(r => r.id === res.id)) {
-                                 reorganizedReservations[targetYear][targetMonth].push(res);
-                            }
+                        if (!reorganizedReservations[targetYear][targetMonth].some(r => r.id === res.id)) {
+                             reorganizedReservations[targetYear][targetMonth].push(res);
                         }
                   });
               }
@@ -402,6 +407,13 @@ export const App: React.FC = () => {
       });
       if (!response.ok) throw new Error('Failed to fetch state');
       const data = await response.json();
+      
+      // If we are currently saving or have unsaved changes, do not overwrite local state
+      if (saveStatusRef.current !== 'saved') {
+          console.log('Save in progress or pending, ignoring fetched data to prevent overwrite');
+          return;
+      }
+      
       console.log('Data received:', data);
       handleDataUpdate(data);
     } catch (error) {
@@ -616,6 +628,12 @@ export const App: React.FC = () => {
         return;
     }
 
+    if (skipAutoSaveRef.current) {
+        console.log("Skipping auto-save because data was just updated from backend or manual save.");
+        skipAutoSaveRef.current = false;
+        return;
+    }
+
     if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
     }
@@ -623,9 +641,9 @@ export const App: React.FC = () => {
     setSaveStatus('saving');
 
     timeoutRef.current = setTimeout(() => {
-        console.log("Auto-saving data after 1 minute of inactivity...");
+        console.log("Auto-saving data after 30 seconds of inactivity...");
         executeAutoSave();
-    }, 60000);
+    }, 30000);
 
     return () => {
         if (timeoutRef.current) {
@@ -840,6 +858,7 @@ export const App: React.FC = () => {
     newReservationsData[newYear][newMonth].push(updatedReservation);
 
     try {
+      skipAutoSaveRef.current = true;
       await saveAllData({ reservations: newReservationsData });
       setReservations(newReservationsData);
       setSaveStatus('saved');
@@ -935,6 +954,7 @@ export const App: React.FC = () => {
       nextReservations[year][month].push(reservationToSave);
 
       try {
+        skipAutoSaveRef.current = true;
         await saveAllData({ reservations: nextReservations });
         setReservations(nextReservations);
         setSaveStatus('saved');
@@ -973,6 +993,7 @@ export const App: React.FC = () => {
     }
 
     try {
+      skipAutoSaveRef.current = true;
       await saveAllData({ reservations: nextReservations });
       setReservations(nextReservations);
       setSaveStatus('saved');
@@ -995,6 +1016,7 @@ export const App: React.FC = () => {
         newReservationsData[year][month] = [];
       }
       
+      skipAutoSaveRef.current = true;
       saveAllData({ reservations: newReservationsData }).catch(err => {
            console.error("Failed to save bulk deletion immediately:", err);
            addNotification("Failed to delete from cloud. Check connection.", 'error');
@@ -1335,6 +1357,7 @@ ${currentUser?.fullName}
       setSaveStatus('saving');
       setFranchisePayments(updatedPayments);
       try {
+          skipAutoSaveRef.current = true;
           await saveAllData({ franchisePayments: updatedPayments });
           setSaveStatus('saved');
       } catch (err) {
@@ -1386,6 +1409,7 @@ ${currentUser?.fullName}
     const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);
 
     try {
+      skipAutoSaveRef.current = true;
       await saveAllData({ 
         reservations: nextReservations,
         years: nextYears
