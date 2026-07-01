@@ -142,9 +142,10 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
   const mapStatus = (status: string): ReservationStatus => {
     const s = (status || '').toLowerCase().trim();
-    if (s === 'confirm' || s === 'confirmed') return ReservationStatus.CONFIRMED;
-    if (s === 'cancel' || s === 'cancelled') return ReservationStatus.CANCELLED;
-    if (s === 'no show') return 'NO_SHOW' as ReservationStatus;
+    if (s === 'pending') return ReservationStatus.PENDING;
+    if (s === 'confirm' || s === 'confirmed' || s === 'ok') return ReservationStatus.CONFIRMED;
+    if (s === 'cancel' || s === 'cancelled' || s === 'void') return ReservationStatus.CANCELLED;
+    if (s === 'no show' || s === 'no-show' || s === 'noshow') return ReservationStatus.NO_SHOW;
     return ReservationStatus.CONFIRMED;
   };
 
