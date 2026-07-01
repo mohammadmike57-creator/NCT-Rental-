@@ -11,7 +11,7 @@ interface ExcelUploadProps {
 const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years = INITIAL_YEARS }) => {
   const [uploading, setUploading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>('All');
-  const [selectedYear, setSelectedYear] = useState<number>(years[years.length - 1] || new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number | 'All'>('All');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -169,7 +169,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       rows.forEach((row, idx) => {
         const rowNum = idx + 2;
         try {
-          const personName = getRowValueByHeaders(row, ['Client Name', 'Renter Name', 'Customer Name', 'Name', 'Driver Name', 'Renter'])?.toString().trim();
+          const personNameCandidateHeaders = ['Client Name', 'Renter Name', 'Customer Name', 'Name', 'Driver Name', 'Renter', 'Client', 'Customer', 'Guest', 'Guest Name', 'Driver'];
+          const personName = getRowValueByHeaders(row, personNameCandidateHeaders)?.toString().trim();
           if (!personName) throw new Error('Client Name missing');
 
           // Skip summary rows
@@ -178,21 +179,24 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
             throw new Error('Skipping summary row');
           }
 
-          const startDateRaw = getRowValueByHeaders(row, ['Pick-up Date', 'Pickup Date', 'Start Date', 'Date From', 'Collection Date', 'Pickup']);
-          const endDateRaw = getRowValueByHeaders(row, ['Drop-off Date', 'Dropoff Date', 'End Date', 'Date To', 'Return Date', 'Dropoff']);
+          const pickupDateCandidates = ['Pick-up Date', 'Pickup Date', 'Start Date', 'Date From', 'Collection Date', 'Pickup', 'From Date', 'Pick up', 'Out Date'];
+          const dropoffDateCandidates = ['Drop-off Date', 'Dropoff Date', 'End Date', 'Date To', 'Return Date', 'Dropoff', 'To Date', 'Drop off', 'In Date'];
+          
+          const startDateRaw = getRowValueByHeaders(row, pickupDateCandidates);
+          const endDateRaw = getRowValueByHeaders(row, dropoffDateCandidates);
           if (!startDateRaw) throw new Error('Pick-up Date missing');
           if (!endDateRaw) throw new Error('Drop-off Date missing');
 
           const startDate = parseFlexibleDate(startDateRaw);
           const endDate = parseFlexibleDate(endDateRaw);
-          if (!startDate || !endDate) throw new Error('Invalid date format');
+          if (!startDate || !endDate) throw new Error('Invalid date format (expected DD/MM/YYYY)');
 
           // Filter by selected year and month
           const startD = new Date(startDate);
           const rYear = startD.getFullYear();
           const rMonth = MONTHS[startD.getMonth()];
 
-          if (rYear !== selectedYear) {
+          if (selectedYear !== 'All' && rYear !== selectedYear) {
             throw new Error(`Reservation year (${rYear}) does not match selected year (${selectedYear})`);
           }
           if (selectedMonth !== 'All' && rMonth !== selectedMonth) {
@@ -203,12 +207,22 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
             throw new Error('Drop-off date must be after pick-up date');
           }
 
-          const bookingId = getRowValueByHeaders(row, ['Reference Number', 'Booking ID', 'Reservation Number', 'Order Number', 'Ref', 'ID'])?.toString().trim() || `import-${Date.now()}-${idx}`;
-          const sourceName = getRowValueByHeaders(row, ['Broker Name', 'Source', 'Vendor', 'Agency', 'Company', 'Broker'])?.toString().trim() || 'Website';
-          const bookingDateRaw = getRowValueByHeaders(row, ['Booked on Date', 'Booking Date', 'Reservation Date', 'Date Booked', 'Booked']);
+          const bookingIdCandidates = ['Reference Number', 'Booking ID', 'Reservation Number', 'Order Number', 'Ref', 'ID', 'Reference', 'Booking #', 'Res #'];
+          const bookingId = getRowValueByHeaders(row, bookingIdCandidates)?.toString().trim() || `import-${Date.now()}-${idx}`;
+          
+          const sourceCandidates = ['Broker Name', 'Source', 'Vendor', 'Agency', 'Company', 'Broker', 'Channel', 'Booked via'];
+          const sourceName = getRowValueByHeaders(row, sourceCandidates)?.toString().trim() || 'Website';
+          
+          const bookingDateCandidates = ['Booked on Date', 'Booking Date', 'Reservation Date', 'Date Booked', 'Booked', 'Booked On'];
+          const bookingDateRaw = getRowValueByHeaders(row, bookingDateCandidates);
           const bookingDate = bookingDateRaw ? parseFlexibleDate(bookingDateRaw)?.split('T')[0] : new Date().toISOString().split('T')[0];
-          const locationName = getRowValueByHeaders(row, ['Branch', 'Location', 'Pickup Location', 'Pick-up Location', 'Office'])?.toString().trim() || '';
-          const carModel = getRowValueByHeaders(row, ['Car Type', 'Car Model', 'Vehicle Type', 'Vehicle', 'Group', 'Category'])?.toString().trim() || '';
+          
+          const locationCandidates = ['Branch', 'Location', 'Pickup Location', 'Pick-up Location', 'Office', 'Station'];
+          const locationName = getRowValueByHeaders(row, locationCandidates)?.toString().trim() || '';
+          
+          const carModelCandidates = ['Car Type', 'Car Model', 'Vehicle Type', 'Vehicle', 'Group', 'Category', 'Car'];
+          const carModel = getRowValueByHeaders(row, carModelCandidates)?.toString().trim() || '';
+          
           const amountCandidates = [
             'Base Amount',
             'Amount',
@@ -228,7 +242,9 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
             'Selling Price',
             'Total (USD)',
             'Amount (USD)',
-            'Price (USD)'
+            'Price (USD)',
+            'Voucher Amount',
+            'Total Price'
           ];
           
           let amount = 0;
@@ -301,9 +317,10 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           <label className="block text-sm font-medium text-gray-700 mb-1">Target Year</label>
           <select 
             value={selectedYear} 
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            onChange={(e) => setSelectedYear(e.target.value === 'All' ? 'All' : parseInt(e.target.value))}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-50"
           >
+            <option value="All">All Years</option>
             {years.map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
