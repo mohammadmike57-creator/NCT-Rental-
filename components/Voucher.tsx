@@ -16,18 +16,18 @@ interface VoucherProps {
 }
 
 const InfoBlock: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
-  <div className={`bg-white border border-slate-200 rounded-[2rem] shadow-lg p-8 h-full ${className || ''}`}>
-    <h3 className="text-sm font-black text-indigo-600 border-b-2 border-slate-100 pb-4 mb-6 uppercase tracking-[0.2em]">
+  <div className={`bg-white border border-slate-200 rounded-2xl shadow-md p-5 h-full ${className || ''}`}>
+    <h3 className="text-xs font-black text-indigo-600 border-b border-slate-100 pb-2 mb-4 uppercase tracking-widest">
       {title}
     </h3>
-    <div className="space-y-6 text-base">{children}</div>
+    <div className="space-y-4 text-sm">{children}</div>
   </div>
 );
 
 const InfoPair: React.FC<{ label: string; value?: string | React.ReactNode }> = ({ label, value }) => (
   <div>
-    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">{label}</p>
-    <p className="font-bold text-slate-800 break-words whitespace-pre-wrap text-base">{value || '—'}</p>
+    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{label}</p>
+    <p className="font-bold text-slate-800 break-words whitespace-pre-wrap text-sm">{value || '—'}</p>
   </div>
 );
 
@@ -1140,32 +1140,32 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-10">
-          <div id="voucher-print-area" className="space-y-10">
-            <div className="flex justify-between items-start pb-8 border-b-4 border-slate-900">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div id="voucher-print-area" className="space-y-6">
+            <div className="flex justify-between items-start pb-6 border-b-2 border-slate-900">
               <div>
-                <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-16 mb-4" />
-                <div className="text-base text-slate-500 font-medium">
-                  <p className="font-black text-slate-900 text-lg uppercase tracking-tight">{companyDetails.name}</p>
+                <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-12 mb-3" />
+                <div className="text-sm text-slate-500 font-medium">
+                  <p className="font-black text-slate-900 text-base uppercase tracking-tight">{companyDetails.name}</p>
                   <p>{companyDetails.address}</p>
-                  <p className="mt-1">Phone: {companyDetails.phone} | Email: {companyDetails.email}</p>
+                  <p className="mt-0.5">Phone: {companyDetails.phone} | Email: {companyDetails.email}</p>
                 </div>
               </div>
               <div className="text-right">
-                <h1 className="text-4xl font-black uppercase text-slate-900 tracking-tighter">Rental Agreement</h1>
-                <p className="text-lg text-slate-500 font-bold mt-2">
-                  <span className="font-black text-slate-400 uppercase text-xs tracking-[0.2em] mr-2">Agreement #:</span> {reservation.bookingId || 'N/A'}
+                <h1 className="text-2xl font-black uppercase text-slate-900 tracking-tight">Rental Agreement</h1>
+                <p className="text-base text-slate-500 font-bold mt-1">
+                  <span className="font-black text-slate-400 uppercase text-[10px] tracking-widest mr-2">Agreement #:</span> {reservation.bookingId || 'N/A'}
                 </p>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-200">
-              <h3 className="text-sm font-black text-indigo-600 border-b-2 border-slate-200 pb-4 mb-6 uppercase tracking-[0.3em]">
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <h3 className="text-[10px] font-black text-indigo-600 border-b border-slate-200 pb-3 mb-4 uppercase tracking-widest">
                 Renter Details
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <InfoPair label="Name" value={<span className="text-xl font-bold">{reservation.personName}</span>} />
-                <InfoPair label="Contact Number" value={<span className="text-xl font-bold">{reservation.contactNumber}</span>} />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <InfoPair label="Name" value={<span className="text-lg font-bold">{reservation.personName}</span>} />
+                <InfoPair label="Contact Number" value={<span className="text-lg font-bold">{reservation.contactNumber}</span>} />
                 {renderTextField(
                   'Customer Email',
                   localReservation.customerEmail || '',

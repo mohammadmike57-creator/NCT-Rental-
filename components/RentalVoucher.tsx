@@ -85,113 +85,113 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-white rounded-[3rem] shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-y-auto border border-slate-200">
-        <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 px-10 py-6 flex justify-between items-center z-20">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Rental Agreement</h2>
-          <div className="flex gap-4">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto border border-slate-200">
+        <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex justify-between items-center z-20">
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">Rental Agreement</h2>
+          <div className="flex gap-3">
             <button
               onClick={handlePrint}
-              className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95"
+              className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-md active:scale-95"
             >
               Print / PDF
             </button>
             <button
               onClick={onClose}
-              className="px-8 py-3 border border-slate-200 rounded-2xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all active:scale-95"
+              className="px-6 py-2 border border-slate-200 rounded-xl text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all active:scale-95"
             >
               Close
             </button>
           </div>
         </div>
 
-        <div ref={printRef} className="p-12">
+        <div ref={printRef} className="p-8">
           {/* Header */}
-          <div className="text-center border-b-4 border-slate-900 pb-8 mb-10">
-            <h1 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tight">{companyDetails.name}</h1>
-            <p className="text-base text-slate-500 font-medium">{companyDetails.address}</p>
-            <p className="text-sm text-gray-600">Tel: {companyDetails.phone} | Email: {companyDetails.email}</p>
-            <p className="text-sm text-gray-600">Tax Number: {companyDetails.taxNumber}</p>
+          <div className="text-center border-b-2 border-slate-900 pb-6 mb-8">
+            <h1 className="text-2xl font-black text-slate-900 mb-1 uppercase tracking-tight">{companyDetails.name}</h1>
+            <p className="text-xs text-slate-500 font-medium">{companyDetails.address}</p>
+            <p className="text-[10px] text-gray-600">Tel: {companyDetails.phone} | Email: {companyDetails.email}</p>
+            <p className="text-[10px] text-gray-600">Tax Number: {companyDetails.taxNumber}</p>
           </div>
 
           {/* Voucher Title */}
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-black text-slate-800 tracking-tight">RENTAL VOUCHER / AGREEMENT</h2>
-            <p className="text-lg text-slate-500 font-bold mt-2">Booking ID: {reservation.bookingId}</p>
+          <div className="text-center mb-8">
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">RENTAL VOUCHER / AGREEMENT</h2>
+            <p className="text-base text-slate-500 font-bold mt-1">Booking ID: {reservation.bookingId}</p>
           </div>
 
           {/* Renter Information */}
-          <div className="mb-10 bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-            <h3 className="text-xl font-black border-b-2 border-slate-200 pb-4 mb-6 uppercase tracking-widest text-slate-700">Renter Information</h3>
-            <div className="grid grid-cols-2 gap-8">
+          <div className="mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+            <h3 className="text-sm font-black border-b border-slate-200 pb-3 mb-4 uppercase tracking-widest text-slate-700">Renter Information</h3>
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-xs text-slate-400 font-black uppercase tracking-widest mb-1">Full Name</p>
-                <p className="text-xl font-bold text-slate-900">{reservation.personName}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Full Name</p>
+                <p className="text-base font-bold text-slate-900">{reservation.personName}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400 font-black uppercase tracking-widest mb-1">Contact Number</p>
-                <p className="text-xl font-bold text-slate-900">{reservation.contactNumber || '—'}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Contact Number</p>
+                <p className="text-base font-bold text-slate-900">{reservation.contactNumber || '—'}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400 font-black uppercase tracking-widest mb-1">Email Address</p>
-                <p className="text-xl font-bold text-slate-900">{reservation.customerEmail || '—'}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Email Address</p>
+                <p className="text-base font-bold text-slate-900">{reservation.customerEmail || '—'}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400 font-black uppercase tracking-widest mb-1">Booking Source</p>
-                <p className="text-xl font-bold text-slate-900">{sourceName}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Booking Source</p>
+                <p className="text-base font-bold text-slate-900">{sourceName}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400 font-black uppercase tracking-widest mb-1">Booking Date</p>
-                <p className="text-xl font-bold text-slate-900">{reservation.bookingDate ? formatDateOnly(reservation.bookingDate) : '—'}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Booking Date</p>
+                <p className="text-base font-bold text-slate-900">{reservation.bookingDate ? formatDateOnly(reservation.bookingDate) : '—'}</p>
               </div>
             </div>
           </div>
 
           {/* Vehicle & Rental Details */}
-          <div className="mb-10 bg-slate-900 text-white p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32" />
-            <h3 className="text-xl font-black border-b border-white/20 pb-4 mb-8 uppercase tracking-widest text-slate-300 relative z-10">Vehicle & Rental Details</h3>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-8 relative z-10">
+          <div className="mb-8 bg-slate-900 text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-2xl -mr-24 -mt-24" />
+            <h3 className="text-sm font-black border-b border-white/20 pb-3 mb-6 uppercase tracking-widest text-slate-300 relative z-10">Vehicle & Rental Details</h3>
+            <div className="grid grid-cols-2 gap-x-10 gap-y-6 relative z-10">
               <div>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Vehicle Model</p>
-                <p className="text-2xl font-black">{reservation.carModel}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">License Plate</p>
-                <p className="text-2xl font-black text-indigo-400">{reservation.licensePlate || '—'}</p>
-              </div>
-              <div className="border-l-2 border-emerald-500/50 pl-6">
-                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-2">Pickup Date/Time</p>
-                <p className="text-xl font-bold">{formatDate(reservation.startDate)}</p>
-              </div>
-              <div className="border-l-2 border-rose-500/50 pl-6">
-                <p className="text-[10px] text-rose-400 font-black uppercase tracking-widest mb-2">Return Date/Time</p>
-                <p className="text-xl font-bold">{formatDate(reservation.endDate)}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Vehicle Model</p>
+                <p className="text-xl font-black">{reservation.carModel}</p>
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Pickup Location</p>
-                <p className="text-lg font-bold">{reservation.locationName || '—'}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">License Plate</p>
+                <p className="text-xl font-black text-indigo-400">{reservation.licensePlate || '—'}</p>
+              </div>
+              <div className="border-l-2 border-emerald-500/50 pl-5">
+                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-1">Pickup Date/Time</p>
+                <p className="text-base font-bold">{formatDate(reservation.startDate)}</p>
+              </div>
+              <div className="border-l-2 border-rose-500/50 pl-5">
+                <p className="text-[10px] text-rose-400 font-black uppercase tracking-widest mb-1">Return Date/Time</p>
+                <p className="text-base font-bold">{formatDate(reservation.endDate)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Duration</p>
-                <p className="text-2xl font-black text-indigo-300">{durationDays} day{durationDays > 1 ? 's' : ''}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Pickup Location</p>
+                <p className="text-sm font-bold">{reservation.locationName || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Duration</p>
+                <p className="text-xl font-black text-indigo-300">{durationDays} day{durationDays > 1 ? 's' : ''}</p>
               </div>
             </div>
           </div>
 
           {/* Financial Summary */}
-          <div className="mb-10 bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-            <h3 className="text-xl font-black border-b-2 border-slate-200 pb-4 mb-6 uppercase tracking-widest text-slate-700">Financial Summary</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between text-lg">
-                <span className="text-slate-500 font-bold uppercase tracking-widest text-xs">Rental Amount:</span>
+          <div className="mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+            <h3 className="text-sm font-black border-b border-slate-200 pb-3 mb-4 uppercase tracking-widest text-slate-700">Financial Summary</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-bold uppercase tracking-widest text-[9px]">Rental Amount:</span>
                 <span className="font-black text-slate-900">${reservation.amount?.toFixed(2) || '0.00'}</span>
               </div>
               {reservation.selectedExtras && reservation.selectedExtras.length > 0 && (
                 <>
-                  <div className="font-black text-xs text-indigo-600 uppercase tracking-widest mt-4">Selected Extras:</div>
+                  <div className="font-black text-[9px] text-indigo-600 uppercase tracking-widest mt-3">Selected Extras:</div>
                   {reservation.selectedExtras.map((extraId, index) => {
                     return (
-                      <div key={index} className="flex justify-between text-base">
+                      <div key={index} className="flex justify-between text-xs">
                         <span className="text-slate-600">{extraId}</span>
                         <span className="font-bold text-emerald-600">Included</span>
                       </div>
@@ -199,18 +199,18 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
                   })}
                 </>
               )}
-              <div className="flex justify-between font-black text-3xl border-t-2 border-slate-200 pt-6 mt-6 text-slate-900 tracking-tighter">
+              <div className="flex justify-between font-black text-2xl border-t border-slate-200 pt-4 mt-4 text-slate-900 tracking-tight">
                 <span>Total Amount:</span>
                 <span className="text-indigo-600">${reservation.amount?.toFixed(2) || '0.00'}</span>
               </div>
-              <div className="grid grid-cols-2 gap-8 mt-6">
-                <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                  <span className="block text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Security Deposit:</span>
-                  <span className="text-xl font-black text-slate-800">${reservation.securityDeposit?.toFixed(2) || '0.00'}</span>
+              <div className="grid grid-cols-2 gap-6 mt-4">
+                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                  <span className="block text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Security Deposit:</span>
+                  <span className="text-lg font-black text-slate-800">${reservation.securityDeposit?.toFixed(2) || '0.00'}</span>
                 </div>
-                <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                  <span className="block text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Insurance Excess:</span>
-                  <span className="text-xl font-black text-slate-800">${reservation.excess?.toFixed(2) || '0.00'}</span>
+                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                  <span className="block text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Insurance Excess:</span>
+                  <span className="text-lg font-black text-slate-800">${reservation.excess?.toFixed(2) || '0.00'}</span>
                 </div>
               </div>
             </div>

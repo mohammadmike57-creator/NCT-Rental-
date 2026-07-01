@@ -115,70 +115,70 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
 
 
     return (
-        <div className="bg-white p-10 sm:p-14 rounded-[3rem] shadow-2xl font-sans w-full max-w-4xl border border-slate-200">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl font-sans w-full max-w-3xl border border-slate-200">
             <div className="printable-area">
-                <header className="flex justify-between items-start pb-8 border-b-4 border-slate-900">
+                <header className="flex justify-between items-start pb-6 border-b-2 border-slate-900">
                     <div>
-                        <img src={URDRIVE_LOGO_B64} alt={`${companyDetails.name} Logo`} className="h-12 mb-4" />
-                        <div className="text-base text-slate-500 font-medium">
-                            <p className="font-black text-2xl text-slate-900 uppercase tracking-tight">{companyDetails.name}</p>
+                        <img src={URDRIVE_LOGO_B64} alt={`${companyDetails.name} Logo`} className="h-10 mb-3" />
+                        <div className="text-sm text-slate-500 font-medium">
+                            <p className="font-black text-xl text-slate-900 uppercase tracking-tight">{companyDetails.name}</p>
                             <p>{companyDetails.address}</p>
-                            <p className="mt-1">TEL: {companyDetails.phone}</p>
+                            <p className="mt-0.5">TEL: {companyDetails.phone}</p>
                             <p>EMAIL: {companyDetails.email}</p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <h1 className="text-5xl font-black uppercase text-slate-900 tracking-tighter">Receipt</h1>
-                        <p className="text-lg text-slate-500 font-bold mt-2">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mr-2">Receipt ID:</span> RCPT-{reservation.bookingId || 'N/A'}
+                        <h1 className="text-3xl font-black uppercase text-slate-900 tracking-tight">Receipt</h1>
+                        <p className="text-base text-slate-500 font-bold mt-1">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Receipt ID:</span> RCPT-{reservation.bookingId || 'N/A'}
                         </p>
-                         <p className="text-lg text-slate-500 font-bold mt-1">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mr-2">Date:</span> {new Date().toLocaleDateString()}
+                         <p className="text-base text-slate-500 font-bold mt-0.5">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Date:</span> {new Date().toLocaleDateString()}
                         </p>
                     </div>
                 </header>
 
-                <section className="my-12">
-                    <h2 className="text-xl font-black text-slate-900 border-b-2 border-slate-100 pb-4 mb-8 uppercase tracking-[0.2em]">Transaction Details</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                            <h3 className="font-black text-indigo-600 mb-4 uppercase text-xs tracking-[0.3em]">Billed To</h3>
-                            <div className="space-y-4">
-                                <DetailItem icon={<UserIcon />} label="Name" value={<span className="text-lg font-bold">{reservation.personName}</span>} />
-                                <DetailItem icon={<MailIcon />} label="Email" value={<span className="text-lg font-bold">{reservation.customerEmail}</span>} />
+                <section className="my-8">
+                    <h2 className="text-base font-black text-slate-900 border-b border-slate-100 pb-3 mb-6 uppercase tracking-widest">Transaction Details</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <h3 className="font-black text-indigo-600 mb-3 uppercase text-[10px] tracking-widest">Billed To</h3>
+                            <div className="space-y-3">
+                                <DetailItem icon={<UserIcon className="w-4 h-4" />} label="Name" value={<span className="text-base font-bold">{reservation.personName}</span>} />
+                                <DetailItem icon={<MailIcon className="w-4 h-4" />} label="Email" value={<span className="text-base font-bold">{reservation.customerEmail}</span>} />
                             </div>
                         </div>
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                            <h3 className="font-black text-indigo-600 mb-4 uppercase text-xs tracking-[0.3em]">Rental Summary</h3>
-                            <div className="space-y-4">
-                                <DetailItem icon={<CarIcon />} label="Vehicle" value={<span className="text-lg font-bold">{reservation.carModel}</span>} />
-                                <DetailItem icon={<CalendarIcon />} label="Rental Period" value={<span className="text-lg font-bold">{reservation.startDate} to {reservation.endDate}</span>} />
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <h3 className="font-black text-indigo-600 mb-3 uppercase text-[10px] tracking-widest">Rental Summary</h3>
+                            <div className="space-y-3">
+                                <DetailItem icon={<CarIcon className="w-4 h-4" />} label="Vehicle" value={<span className="text-base font-bold">{reservation.carModel}</span>} />
+                                <DetailItem icon={<CalendarIcon className="w-4 h-4" />} label="Rental Period" value={<span className="text-base font-bold">{reservation.startDate} to {reservation.endDate}</span>} />
                             </div>
                         </div>
                     </div>
                 </section>
                 
                 <section>
-                     <h2 className="text-xl font-black text-slate-900 border-b-2 border-slate-100 pb-4 mb-8 uppercase tracking-[0.2em]">Payment Summary</h2>
-                     <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                        <table className="min-w-full text-base">
+                     <h2 className="text-base font-black text-slate-900 border-b border-slate-100 pb-3 mb-6 uppercase tracking-widest">Payment Summary</h2>
+                     <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <table className="min-w-full text-sm">
                             <thead>
                                 <tr className="bg-slate-900 text-white">
-                                    <th className="text-left font-black p-4 uppercase text-xs tracking-[0.2em]">Description</th>
-                                    <th className="text-right font-black p-4 uppercase text-xs tracking-[0.2em]">Amount</th>
+                                    <th className="text-left font-black p-3 uppercase text-[10px] tracking-widest">Description</th>
+                                    <th className="text-right font-black p-3 uppercase text-[10px] tracking-widest">Amount</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 <tr className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-4 text-slate-600 font-medium">Base Rental Fee ({rentalDays} day(s))</td>
-                                    <td className="p-4 text-right font-black text-slate-900">{formatCurrency(baseRentalFee)}</td>
+                                    <td className="p-3 text-slate-600 font-medium">Base Rental Fee ({rentalDays} day(s))</td>
+                                    <td className="p-3 text-right font-black text-slate-900">{formatCurrency(baseRentalFee)}</td>
                                 </tr>
                                 {(reservation.extras?.length || 0) > 0 && (
                                     <>
                                         {reservation.extras?.map((extra, i) => (
                                              <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                                <td className="p-4 text-slate-500 pl-8 text-sm italic">{extra.name}</td>
-                                                <td className="p-4 text-right font-bold text-slate-900">
+                                                <td className="p-3 text-slate-500 pl-6 text-xs italic">{extra.name}</td>
+                                                <td className="p-3 text-right font-bold text-slate-900">
                                                     {extra.isComplementary ? 'Free' : formatCurrency(extra.dailyPrice * rentalDays)}
                                                 </td>
                                             </tr>
@@ -186,18 +186,18 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
                                     </>
                                 )}
                             </tbody>
-                            <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                            <tfoot className="bg-slate-50 border-t border-slate-200">
                                 <tr>
-                                    <td className="text-right font-bold p-4 pt-6 text-slate-500 uppercase text-xs tracking-widest">Total Charges:</td>
-                                    <td className="text-right font-black p-4 pt-6 text-slate-900 text-xl">{formatCurrency(totalCharges)}</td>
+                                    <td className="text-right font-bold p-3 pt-4 text-slate-500 uppercase text-[9px] tracking-widest">Total Charges:</td>
+                                    <td className="text-right font-black p-3 pt-4 text-slate-900 text-lg">{formatCurrency(totalCharges)}</td>
                                 </tr>
                                 <tr>
-                                    <td className="text-right font-bold p-4 text-emerald-600 uppercase text-xs tracking-widest">Amount Paid:</td>
-                                    <td className="text-right font-black p-4 text-emerald-600 text-xl">{formatCurrency(amountPaid)}</td>
+                                    <td className="text-right font-bold p-3 text-emerald-600 uppercase text-[9px] tracking-widest">Amount Paid:</td>
+                                    <td className="text-right font-black p-3 text-emerald-600 text-lg">{formatCurrency(amountPaid)}</td>
                                 </tr>
                                 <tr className="bg-indigo-600 text-white">
-                                    <td className="text-right font-black text-lg p-6 uppercase tracking-widest">Balance Due:</td>
-                                    <td className="text-right font-black text-3xl p-6 tracking-tighter">{formatCurrency(balanceDue)}</td>
+                                    <td className="text-right font-black text-base p-4 uppercase tracking-widest">Balance Due:</td>
+                                    <td className="text-right font-black text-2xl p-4 tracking-tight">{formatCurrency(balanceDue)}</td>
                                 </tr>
                             </tfoot>
                         </table>

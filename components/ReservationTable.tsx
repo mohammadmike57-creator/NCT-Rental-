@@ -597,30 +597,30 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             return (
               <div
                 key={res.id}
-                className={`group relative bg-white rounded-[3rem] transition-all duration-700 hover:-translate-y-3 flex flex-col h-full overflow-hidden border ${
-                  isDuplicate ? 'border-red-300 ring-4 ring-red-50' : 'border-slate-200 shadow-lg'
-                } hover:shadow-3xl hover:shadow-indigo-200/40`}
+                className={`group relative bg-white rounded-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col h-full overflow-hidden border ${
+                  isDuplicate ? 'border-red-300 ring-2 ring-red-50' : 'border-slate-200 shadow-md'
+                } hover:shadow-xl hover:shadow-indigo-100/40`}
               >
                 {/* Status-based Accent line */}
-                <div className={`h-3 w-full ${
+                <div className={`h-2 w-full ${
                   res.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500' :
                   res.status === ReservationStatus.COMPLETED ? 'bg-indigo-500' :
                   res.status === ReservationStatus.CANCELLED ? 'bg-rose-500' :
                   'bg-amber-500'
                 }`} />
 
-                <div className="p-9 flex-1 flex flex-col relative">
+                <div className="p-6 flex-1 flex flex-col relative">
                   {/* Decorative Background for Airport */}
                   {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                    <div className="absolute top-0 right-0 p-8 opacity-[0.04] group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none">
-                      <AirplaneIcon className="w-48 h-48 transform rotate-12" />
+                    <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-500 pointer-events-none">
+                      <AirplaneIcon className="w-32 h-32 transform rotate-12" />
                     </div>
                   )}
 
-                  <div className="flex justify-between items-start mb-8">
+                  <div className="flex justify-between items-start mb-5">
                     <div className="flex-1 min-w-0">
                       <h3 
-                        className="text-3xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tighter leading-tight mb-2" 
+                        className="text-xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight leading-tight mb-1" 
                         title={res.personName}
                         onClick={() => setDetailsModalReservation(res)}
                       >
@@ -639,86 +639,86 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                         )}
                       </div>
                     </div>
-                    <div className={`px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest border-2 shadow-md backdrop-blur-md transition-all duration-700 group-hover:scale-110 ${statusColor}`}>
+                    <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm backdrop-blur-sm transition-all duration-500 group-hover:scale-105 ${statusColor}`}>
                       {res.status}
                     </div>
                   </div>
 
                   {/* Badges row */}
-                  <div className="flex gap-3 mb-8 flex-wrap">
+                  <div className="flex gap-2 mb-5 flex-wrap">
                     {voucherSubmitted && (
-                      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-xl shadow-emerald-200/60 border border-emerald-400">
-                        <CheckCircleIcon className="w-4 h-4" /> Agreement Signed
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-lg shadow-emerald-200/40 border border-emerald-400">
+                        <CheckCircleIcon className="w-3.5 h-3.5" /> Agreement Signed
                       </span>
                     )}
                     {dropOffCompleted && (
-                      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-xl shadow-slate-300 border border-slate-700">
-                        <CheckCircleIcon className="w-4 h-4" /> Closed Case
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-lg shadow-slate-300 border border-slate-700">
+                        <CheckCircleIcon className="w-3.5 h-3.5" /> Closed Case
                       </span>
                     )}
                     {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
-                      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-xl shadow-orange-200/60 border border-amber-300">
-                        <ShieldExclamationIcon className="w-4 h-4" /> Action Required
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-200/40 border border-amber-300">
+                        <ShieldExclamationIcon className="w-3.5 h-3.5" /> Action Required
                       </span>
                     )}
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {/* Vehicle & Contact Section */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="flex items-center gap-5 p-5 rounded-[2rem] bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-200 group-hover:shadow-lg transition-all duration-700">
-                        <div className="p-3.5 bg-white rounded-2xl shadow-md border border-slate-100 text-indigo-600">
-                           <CarIcon className="w-6 h-6" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
+                        <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-600">
+                           <CarIcon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-2">Vehicle Type</p>
-                          <p className="text-base font-black text-slate-800 truncate">{res.carModel || '—'}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Vehicle Type</p>
+                          <p className="text-sm font-black text-slate-800 truncate">{res.carModel || '—'}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-5 p-5 rounded-[2rem] bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-200 group-hover:shadow-lg transition-all duration-700">
-                        <div className="p-3.5 bg-white rounded-2xl shadow-md border border-slate-100 text-emerald-600">
-                           <PhoneIcon className="w-6 h-6" />
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
+                        <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-emerald-600">
+                           <PhoneIcon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-2">Contact Info</p>
-                          <p className="text-base font-black text-slate-800 truncate">{res.contactNumber || '—'}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Contact Info</p>
+                          <p className="text-sm font-black text-slate-800 truncate">{res.contactNumber || '—'}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Timeline-style Dates & Location */}
-                    <div className="p-8 rounded-[2.5rem] bg-slate-900 text-white shadow-2xl shadow-slate-400/50 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-700">
-                      <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-[80px] -mr-24 -mt-24" />
+                    <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-300/50 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-500">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full blur-[40px] -mr-16 -mt-16" />
                       
-                      <div className="flex items-center gap-4 mb-8 relative z-10">
-                        <div className="p-3 bg-white/15 rounded-2xl backdrop-blur-md border border-white/10">
+                      <div className="flex items-center gap-3 mb-5 relative z-10">
+                        <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/5">
                           {res.locationName?.includes('Airport') || res.locationName?.includes('AMM') ? (
-                            <AirplaneIcon className="w-5 h-5 text-sky-300" />
+                            <AirplaneIcon className="w-4 h-4 text-sky-300" />
                           ) : (
-                            <MapPinIcon className="w-5 h-5 text-indigo-300" />
+                            <MapPinIcon className="w-4 h-4 text-indigo-300" />
                           )}
                         </div>
-                        <span className="text-sm font-black uppercase tracking-[0.2em] text-slate-100 truncate">{res.locationName || 'Location N/A'}</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-slate-100 truncate">{res.locationName || 'Location N/A'}</span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-10 relative z-10">
-                        <div className="relative pl-6 border-l-2 border-emerald-500/50">
-                          <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                      <div className="grid grid-cols-2 gap-6 relative z-10">
+                        <div className="relative pl-4 border-l-2 border-emerald-500/40">
+                          <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                              Pickup
                           </p>
-                          <div className="space-y-1">
-                            <p className="text-base font-black tracking-tight">{formatDateOnly(res.startDate)}</p>
-                            <p className="text-xl font-light text-emerald-50/80">{res.startDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] font-bold tracking-tight">{formatDateOnly(res.startDate)}</p>
+                            <p className="text-sm font-light text-emerald-50/70">{res.startDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
                           </div>
                         </div>
-                        <div className="relative pl-6 border-l-2 border-rose-500/50">
-                          <p className="text-[10px] text-rose-400 font-black uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                        <div className="relative pl-4 border-l-2 border-rose-500/40">
+                          <p className="text-[9px] text-rose-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                              Return
                           </p>
-                          <div className="space-y-1">
-                            <p className="text-base font-black tracking-tight">{formatDateOnly(res.endDate)}</p>
-                            <p className="text-xl font-light text-rose-50/80">{res.endDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] font-bold tracking-tight">{formatDateOnly(res.endDate)}</p>
+                            <p className="text-sm font-light text-rose-50/70">{res.endDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
                           </div>
                         </div>
                       </div>
@@ -727,32 +727,32 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 </div>
 
                 {/* Footer Section */}
-                <div className="px-9 py-7 bg-slate-50/80 border-t border-slate-200 backdrop-blur-md flex flex-col gap-6">
+                <div className="px-6 py-5 bg-slate-50 border-t border-slate-200 flex flex-col gap-4">
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3.5 bg-white rounded-3xl shadow-md border border-slate-100 text-indigo-700">
-                          <CurrencyDollarIcon className="w-7 h-7" />
+                    <div className="flex items-center gap-3">
+                       <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-700">
+                          <CurrencyDollarIcon className="w-5 h-5" />
                        </div>
                        <div>
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">Total Amount</p>
-                          <p className="text-4xl font-black text-slate-900 tracking-tighter">${res.amount?.toFixed(2)}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Total Amount</p>
+                          <p className="text-2xl font-black text-slate-900 tracking-tight">${res.amount?.toFixed(2)}</p>
                        </div>
                     </div>
                     
-                    <div className="flex gap-2.5">
+                    <div className="flex gap-2">
                       {canViewVoucherActions && (
-                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-3.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all shadow-md bg-white border border-slate-200 hover:border-emerald-600 active:scale-90" title="Rental Agreement">
-                          <DocumentReportIcon className="w-6 h-6" />
+                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Rental Agreement">
+                          <DocumentReportIcon className="w-5 h-5" />
                         </button>
                       )}
                       {canViewVoucherActions && (
-                        <button onClick={() => onShowReceipt(res)} className="p-3.5 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all shadow-md bg-white border border-slate-200 hover:border-indigo-600 active:scale-90" title="Receipt">
-                          <CurrencyDollarIcon className="w-6 h-6" />
+                        <button onClick={() => onShowReceipt(res)} className="p-2.5 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Receipt">
+                          <CurrencyDollarIcon className="w-5 h-5" />
                         </button>
                       )}
                       {!dropOffCompleted && res.status === ReservationStatus.CONFIRMED && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND) && (
-                        <button onClick={() => onExtend(res)} className="p-3.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-2xl transition-all shadow-md bg-white border border-slate-200 hover:border-amber-600 active:scale-90" title="Extend Rental">
-                          <ClockIcon className="w-6 h-6" />
+                        <button onClick={() => onExtend(res)} className="p-2.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Extend Rental">
+                          <ClockIcon className="w-5 h-5" />
                         </button>
                       )}
                     </div>
@@ -807,25 +807,24 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         {detailsModalReservation && (
           <div className="space-y-6 text-sm">
             {/* Professional High-End Header */}
-            <div className="bg-gradient-to-br from-[#004d40] via-[#00695c] to-[#00796b] -mx-6 -mt-5 px-10 py-12 text-white relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 right-0 w-80 h-80 -mr-20 -mt-20 bg-white/5 rounded-full blur-[100px]"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 -ml-20 -mb-20 bg-emerald-400/10 rounded-full blur-[80px]"></div>
+            <div className="bg-gradient-to-br from-[#004d40] via-[#00695c] to-[#00796b] -mx-6 -mt-5 px-6 py-8 text-white relative overflow-hidden shadow-xl">
+              <div className="absolute top-0 right-0 w-64 h-64 -mr-16 -mt-16 bg-white/5 rounded-full blur-[80px]"></div>
               
               <div className="relative flex justify-between items-start">
-                <div className="flex items-center gap-6">
-                  <div className="bg-white/10 backdrop-blur-xl p-5 rounded-[2rem] border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] transform hover:scale-105 transition-transform duration-500">
-                    <UserIcon className="w-10 h-10 text-emerald-300" />
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/10 backdrop-blur-lg p-3 rounded-2xl border border-white/20 shadow-lg transform hover:scale-105 transition-transform duration-500">
+                    <UserIcon className="w-8 h-8 text-emerald-300" />
                   </div>
                   <div>
-                    <h2 className="text-4xl font-black tracking-tight drop-shadow-md bg-clip-text text-transparent bg-gradient-to-b from-white to-emerald-100">{detailsModalReservation.personName}</h2>
-                    <div className="flex items-center text-emerald-100/80 mt-3 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10 w-fit">
-                      <PhoneIcon className="w-4 h-4 mr-2 text-emerald-400" />
-                      <span className="text-sm font-bold tracking-wide">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
+                    <h2 className="text-2xl font-black tracking-tight drop-shadow-md bg-clip-text text-transparent bg-gradient-to-b from-white to-emerald-100">{detailsModalReservation.personName}</h2>
+                    <div className="flex items-center text-emerald-100/70 mt-2 bg-white/5 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10 w-fit">
+                      <PhoneIcon className="w-3.5 h-3.5 mr-2 text-emerald-400" />
+                      <span className="text-xs font-bold tracking-wide">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-4">
-                  <span className={`px-6 py-2 text-[11px] font-black uppercase tracking-[0.3em] rounded-full backdrop-blur-xl border-2 shadow-[0_4px_16px_rgba(0,0,0,0.2)] ${
+                <div className="flex flex-col items-end gap-3">
+                  <span className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full backdrop-blur-lg border shadow-md ${
                     detailsModalReservation.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/40' :
                     detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-blue-500/30 text-blue-300 border-blue-500/40' :
                     detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-red-500/30 text-red-300 border-red-500/40' :
@@ -834,9 +833,9 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     {detailsModalReservation.status}
                   </span>
                   {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
-                    <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 shadow-lg group cursor-help">
-                      <AirplaneIcon className="w-5 h-5 text-emerald-400 group-hover:rotate-12 transition-transform" />
-                      <span className="text-[11px] font-black uppercase tracking-[0.1em]">VIP Airport Service</span>
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 shadow-sm group cursor-help">
+                      <AirplaneIcon className="w-4 h-4 text-emerald-400" />
+                      <span className="text-[9px] font-bold uppercase tracking-tight">VIP Airport</span>
                     </div>
                   )}
                 </div>
@@ -847,14 +846,14 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               {/* Customer & Vehicle Information */}
               <div className="space-y-6">
                 <section>
-                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
-                    <IdentificationIcon className="w-4 h-4 mr-2" />
+                  <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center">
+                    <IdentificationIcon className="w-3.5 h-3.5 mr-1.5" />
                     Reservation Identity
                   </h4>
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-4 flex justify-between items-center border-b border-gray-50">
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden text-xs">
+                    <div className="p-3 flex justify-between items-center border-b border-gray-50">
                       <span className="text-gray-400 font-medium">Booking ID</span>
-                      <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-1 rounded-md">{detailsModalReservation.bookingId}</span>
+                      <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-0.5 rounded">{detailsModalReservation.bookingId}</span>
                     </div>
                     <div className="p-4 flex justify-between items-center border-b border-gray-50">
                       <span className="text-gray-400 font-medium">Platform</span>
@@ -871,17 +870,17 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 </section>
 
                 <section>
-                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
-                    <CarIcon className="w-4 h-4 mr-2" />
+                  <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center">
+                    <CarIcon className="w-3.5 h-3.5 mr-1.5" />
                     Vehicle Selection
                   </h4>
-                  <div className="bg-indigo-50/30 rounded-2xl border border-indigo-100 p-5 flex items-center gap-5">
-                    <div className="bg-white p-3 rounded-xl shadow-md border border-indigo-50">
-                      <CarIcon className="w-8 h-8 text-indigo-600" />
+                  <div className="bg-indigo-50/30 rounded-xl border border-indigo-100 p-4 flex items-center gap-4 text-xs">
+                    <div className="bg-white p-2 rounded-lg shadow-sm border border-indigo-50">
+                      <CarIcon className="w-6 h-6 text-indigo-600" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Assigned Model</p>
-                      <p className="text-lg font-black text-gray-900 leading-tight mt-0.5">{detailsModalReservation.carModel}</p>
+                      <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider">Assigned Model</p>
+                      <p className="text-base font-black text-gray-900 leading-tight mt-0.5">{detailsModalReservation.carModel}</p>
                     </div>
                   </div>
                 </section>
