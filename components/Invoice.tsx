@@ -264,82 +264,82 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, year, month, companyDetails
 
 
   const InvoicePreview: React.FC<{data: InvoiceData}> = ({ data }) => (
-     <div className="space-y-8 font-serif-professional">
-        <div className="grid grid-cols-2 gap-4">
+     <div className="space-y-12 font-serif-professional p-6">
+        <div className="grid grid-cols-2 gap-8">
           <div>
-             <img src={URDRIVE_LOGO_B64} alt={`${companyDetails.name} Logo`} className="h-8" />
-             <div className="mt-2">
-                <h2 className="text-lg font-bold text-gray-800">{companyDetails.name}</h2>
-                <p className="text-xs text-gray-600">{companyDetails.subName}</p>
+             <img src={URDRIVE_LOGO_B64} alt={`${companyDetails.name} Logo`} className="h-12" />
+             <div className="mt-4">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">{companyDetails.name}</h2>
+                <p className="text-sm text-slate-500 font-medium uppercase tracking-widest">{companyDetails.subName}</p>
              </div>
-            <p className="text-sm text-gray-600 mt-2">{companyDetails.address}</p>
-            <p className="text-sm text-gray-600">TEL: {companyDetails.phone}</p>
-            <p className="text-sm text-gray-600">EMAIL: {companyDetails.email}</p>
+            <p className="text-base text-slate-600 mt-4">{companyDetails.address}</p>
+            <p className="text-base text-slate-600">TEL: {companyDetails.phone}</p>
+            <p className="text-base text-slate-600">EMAIL: {companyDetails.email}</p>
           </div>
           <div className="text-right">
-            <h2 className="text-3xl font-bold uppercase text-gray-800">Invoice</h2>
-            <p className="text-sm text-gray-600"><strong>Invoice #:</strong> {data.invoiceNumber}</p>
-            <p className="text-sm text-gray-600"><strong>Date:</strong> {data.issueDate}</p>
-            <p className="text-sm text-gray-600"><strong>Tax Number:</strong> {companyDetails.taxNumber}</p>
+            <h2 className="text-5xl font-black uppercase text-slate-900 tracking-tighter">Invoice</h2>
+            <p className="text-lg text-slate-500 font-bold mt-2"><span className="text-xs font-black text-slate-400 uppercase tracking-widest mr-2">Invoice #:</span> {data.invoiceNumber}</p>
+            <p className="text-lg text-slate-500 font-bold mt-1"><span className="text-xs font-black text-slate-400 uppercase tracking-widest mr-2">Date:</span> {data.issueDate}</p>
+            <p className="text-lg text-slate-500 font-bold mt-1"><span className="text-xs font-black text-slate-400 uppercase tracking-widest mr-2">Tax Number:</span> {companyDetails.taxNumber}</p>
           </div>
         </div>
-        <div>
-            <h5 className="font-semibold text-gray-500 uppercase text-sm">Bill To</h5>
-            <p className="font-bold text-gray-800">{data.billToName}</p>
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+            <h5 className="font-black text-slate-400 uppercase text-xs tracking-[0.3em] mb-2">Bill To</h5>
+            <p className="text-2xl font-black text-slate-900">{data.billToName}</p>
         </div>
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+        <div className="overflow-x-auto rounded-[2rem] border-2 border-slate-100 shadow-sm">
+            <table className="min-w-full divide-y-2 divide-slate-100">
+                <thead className="bg-slate-900 text-white">
                     <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renter</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Days</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tax (16%)</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest">Renter</th>
+                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest">Source</th>
+                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest">Period</th>
+                        <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-widest">Days</th>
+                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest">Status</th>
+                        <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-widest">Subtotal</th>
+                        <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-widest">Tax</th>
+                        <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-widest">Total</th>
                     </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-slate-100">
                     {data.reservations.map((res) => (
-                        <tr key={res.id}>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{res.personName}</td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{res.source}</td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{res.startDate} to {res.endDate}</td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{calculateDays(res.startDate, res.endDate)}</td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        <tr key={res.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-6 py-5 whitespace-nowrap text-base font-bold text-slate-900">{res.personName}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-sm text-slate-600 font-medium">{res.source}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-sm text-slate-600 font-medium">{res.startDate} to {res.endDate}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-base text-slate-900 text-right font-bold">{calculateDays(res.startDate, res.endDate)}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-sm text-slate-700">
+                                <span className="px-3 py-1 inline-flex text-xs leading-5 font-black uppercase tracking-widest rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                                     {res.status}
                                 </span>
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{formatCurrency(res.subtotal)}</td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 text-right">{formatCurrency(res.tax)}</td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold text-right">{formatCurrency(res.total)}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-base text-slate-700 text-right font-medium">{formatCurrency(res.subtotal)}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-base text-slate-700 text-right font-medium">{formatCurrency(res.tax)}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-xl text-indigo-600 font-black text-right">{formatCurrency(res.total)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
         </div>
-        <div className="flex justify-end">
-            <div className="w-full max-w-sm">
-                <div className="flex justify-between items-center py-2">
-                    <span className="text-md font-medium text-gray-600">Subtotal:</span>
-                    <span className="text-md font-medium text-gray-800">{formatCurrency(data.totalSubtotal)}</span>
+        <div className="flex justify-end pt-8">
+            <div className="w-full max-w-md bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100 shadow-lg">
+                <div className="flex justify-between items-center py-3 border-b border-slate-200">
+                    <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Subtotal:</span>
+                    <span className="text-xl font-bold text-slate-900">{formatCurrency(data.totalSubtotal)}</span>
                 </div>
-                 <div className="flex justify-between items-center py-2">
-                    <span className="text-md font-medium text-gray-600">Total Tax (16%):</span>
-                    <span className="text-md font-medium text-gray-800">{formatCurrency(data.totalTax)}</span>
+                 <div className="flex justify-between items-center py-3 border-b border-slate-200">
+                    <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Total Tax (16%):</span>
+                    <span className="text-xl font-bold text-slate-900">{formatCurrency(data.totalTax)}</span>
                 </div>
-                <div className="flex justify-between items-center py-2 mt-2 border-t-2 border-gray-800">
-                    <span className="text-xl font-bold text-gray-800">Invoice Grand Total:</span>
-                    <span className="text-xl font-bold text-gray-800">{formatCurrency(data.grandTotal)}</span>
+                <div className="flex justify-between items-center py-6 mt-4 border-t-4 border-slate-900">
+                    <span className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Grand Total:</span>
+                    <span className="text-4xl font-black text-indigo-600 tracking-tighter">{formatCurrency(data.grandTotal)}</span>
                 </div>
             </div>
         </div>
-        <div className="pt-4 border-t border-gray-200">
-            <h5 className="font-semibold text-gray-500 uppercase text-sm">Amount in words</h5>
-            <p className="text-md font-semibold text-gray-800 mt-1">{data.grandTotalInWords}</p>
+        <div className="pt-8 border-t-2 border-slate-100">
+            <h5 className="font-black text-slate-400 uppercase text-xs tracking-widest mb-2">Amount in words</h5>
+            <p className="text-lg font-bold text-slate-900 mt-1 italic">{data.grandTotalInWords}</p>
         </div>
       </div>
   );

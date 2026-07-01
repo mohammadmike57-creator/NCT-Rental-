@@ -13,39 +13,49 @@ const ReservationCard: React.FC<{
   month: string;
   onShowVoucher: (reservation: Reservation, year: number, month: string) => void;
 }> = ({ reservation, year, month, onShowVoucher }) => (
-    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 group">
-        <div className="flex justify-between items-start mb-4">
+    <div className="bg-white p-8 rounded-[2.5rem] shadow-lg border border-slate-200 hover:shadow-2xl hover:shadow-indigo-100 transition-all duration-700 group">
+        <div className="flex justify-between items-start mb-6">
             <div className="min-w-0">
-                <p className="font-black text-slate-900 truncate tracking-tight text-lg group-hover:text-indigo-600 transition-colors">{reservation.personName}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {reservation.bookingId || 'N/A'}</p>
+                <p className="font-black text-slate-900 truncate tracking-tighter text-2xl group-hover:text-indigo-600 transition-colors">{reservation.personName}</p>
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100 inline-block">ID: {reservation.bookingId || 'N/A'}</p>
             </div>
             <button
                 onClick={() => onShowVoucher(reservation, year, month)}
-                className="p-2.5 rounded-2xl text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95"
-                title="View Voucher"
+                className="p-3.5 rounded-2xl text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all shadow-md active:scale-95 border border-indigo-100"
+                title="View Agreement"
             >
-                <DocumentTextIcon className="w-5 h-5" />
+                <DocumentTextIcon className="w-6 h-6" />
             </button>
         </div>
-        <div className="space-y-3">
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100/50 group-hover:bg-white group-hover:border-indigo-100 transition-all">
-                <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-500">
-                   <CarIcon className="w-4 h-4" />
+        <div className="space-y-4">
+            <div className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-all duration-500">
+                <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-600">
+                   <CarIcon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                   <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Vehicle</p>
-                   <p className="text-xs font-black text-slate-700 truncate">{reservation.carModel} <span className="text-slate-400 font-medium ml-1">({reservation.licensePlate || 'TBD'})</span></p>
+                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">Vehicle</p>
+                   <p className="text-sm font-black text-slate-800 truncate">{reservation.carModel} <span className="text-slate-400 font-medium ml-1 text-xs">({reservation.licensePlate || 'TBD'})</span></p>
                 </div>
             </div>
-             <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-200">
-                <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
-                   <ClockIcon className="w-4 h-4 text-emerald-400" />
+             <div className="p-6 rounded-[2rem] bg-slate-900 text-white shadow-xl shadow-slate-200 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-700">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl -mr-12 -mt-12" />
+                <div className="flex items-center gap-3 mb-4 relative z-10">
+                   <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
+                      <ClockIcon className="w-4 h-4 text-emerald-400" />
+                   </div>
+                   <p className="text-[9px] text-slate-300 font-black uppercase tracking-[0.2em]">Duration & Time</p>
                 </div>
-                <div className="min-w-0 flex-1">
-                   <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Duration</p>
-                   <p className="text-[10px] font-bold truncate">
-                      {reservation.startDate.replace('T', ' ')} <span className="text-slate-500 mx-1">→</span> {reservation.endDate.replace('T', ' ')}
-                   </p>
+                <div className="grid grid-cols-2 gap-4 relative z-10">
+                   <div className="border-l border-emerald-500/30 pl-3">
+                      <p className="text-[8px] text-emerald-400 font-bold uppercase mb-1">Pickup</p>
+                      <p className="text-[11px] font-black">{reservation.startDate?.split('T')[0]}</p>
+                      <p className="text-lg font-light text-emerald-50">{reservation.startDate?.split('T')[1]?.substring(0,5)}</p>
+                   </div>
+                   <div className="border-l border-rose-500/30 pl-3">
+                      <p className="text-[8px] text-rose-400 font-bold uppercase mb-1">Return</p>
+                      <p className="text-[11px] font-black">{reservation.endDate?.split('T')[0]}</p>
+                      <p className="text-lg font-light text-rose-50">{reservation.endDate?.split('T')[1]?.substring(0,5)}</p>
+                   </div>
                 </div>
             </div>
         </div>

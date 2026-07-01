@@ -487,21 +487,21 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   return (
     <>
-      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-8">
-        <div className="p-8 bg-white border-b border-slate-50">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+      <div className="bg-white rounded-[3rem] shadow-xl border border-slate-200 overflow-hidden mb-12">
+        <div className="p-10 bg-white border-b border-slate-100">
+          <div className="flex flex-col lg:flex-row justify-between items-center gap-10">
+            <h2 className="text-4xl font-black text-slate-900 tracking-tighter">
               {isAgreementView ? (
-                <span className="flex items-center gap-4">
-                  <div className="p-3 bg-indigo-50 rounded-2xl shadow-sm border border-indigo-100">
-                    <DocumentReportIcon className="w-7 h-7 text-indigo-600" />
+                <span className="flex items-center gap-6">
+                  <div className="p-5 bg-indigo-50 rounded-[2rem] shadow-lg shadow-indigo-100 border border-indigo-100">
+                    <DocumentReportIcon className="w-10 h-10 text-indigo-600" />
                   </div>
                   Agreement • {selectedMonth} {selectedYear}
                 </span>
               ) : (
-                <span className="flex items-center gap-4">
-                   <div className="p-3 bg-emerald-50 rounded-2xl shadow-sm border border-emerald-100">
-                    <CalendarIcon className="w-7 h-7 text-emerald-600" />
+                <span className="flex items-center gap-6">
+                   <div className="p-5 bg-emerald-50 rounded-[2rem] shadow-lg shadow-emerald-100 border border-emerald-100">
+                    <CalendarIcon className="w-10 h-10 text-emerald-600" />
                   </div>
                   {selectedMonth} {selectedYear}
                 </span>
@@ -584,7 +584,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           <div className="p-8 text-center text-gray-500">No reservations match your search.</div>
         )}
 
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
           {filteredReservations.map((res) => {
             const isNew = res.isNew;
             const voucherSubmitted = res.voucherSubmitted;
@@ -597,125 +597,129 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             return (
               <div
                 key={res.id}
-                className={`group relative bg-white rounded-[2.5rem] transition-all duration-500 hover:-translate-y-2 flex flex-col h-full overflow-hidden border ${
-                  isDuplicate ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-100 shadow-sm'
-                } hover:shadow-2xl hover:shadow-slate-200/50`}
+                className={`group relative bg-white rounded-[3rem] transition-all duration-700 hover:-translate-y-3 flex flex-col h-full overflow-hidden border ${
+                  isDuplicate ? 'border-red-300 ring-4 ring-red-50' : 'border-slate-200 shadow-lg'
+                } hover:shadow-3xl hover:shadow-indigo-200/40`}
               >
                 {/* Status-based Accent line */}
-                <div className={`h-2 w-full ${
+                <div className={`h-3 w-full ${
                   res.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500' :
                   res.status === ReservationStatus.COMPLETED ? 'bg-indigo-500' :
                   res.status === ReservationStatus.CANCELLED ? 'bg-rose-500' :
                   'bg-amber-500'
                 }`} />
 
-                <div className="p-7 flex-1 flex flex-col relative">
+                <div className="p-9 flex-1 flex flex-col relative">
                   {/* Decorative Background for Airport */}
                   {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                    <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500 pointer-events-none">
-                      <AirplaneIcon className="w-32 h-32 transform rotate-12" />
+                    <div className="absolute top-0 right-0 p-8 opacity-[0.04] group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none">
+                      <AirplaneIcon className="w-48 h-48 transform rotate-12" />
                     </div>
                   )}
 
-                  <div className="flex justify-between items-start mb-6">
+                  <div className="flex justify-between items-start mb-8">
                     <div className="flex-1 min-w-0">
                       <h3 
-                        className="text-2xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight leading-tight mb-1" 
+                        className="text-3xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tighter leading-tight mb-2" 
                         title={res.personName}
                         onClick={() => setDetailsModalReservation(res)}
                       >
                         {res.personName}
                       </h3>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="flex items-center text-[10px] text-slate-500 font-black uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
-                           <HashtagIcon className="w-3 h-3 mr-1 text-slate-400" />
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="flex items-center text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
+                           <HashtagIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
                            {res.bookingId || 'NO-ID'}
                         </span>
                         {res.source && (
-                          <span className="flex items-center text-[10px] text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
-                             <GlobeAltIcon className="w-3 h-3 mr-1" />
+                          <span className="flex items-center text-[11px] text-indigo-600 font-black uppercase tracking-[0.2em] bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-100">
+                             <GlobeAltIcon className="w-3.5 h-3.5 mr-1.5" />
                              {res.source}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className={`px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border shadow-sm backdrop-blur-md transition-all duration-500 group-hover:scale-110 ${statusColor}`}>
+                    <div className={`px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest border-2 shadow-md backdrop-blur-md transition-all duration-700 group-hover:scale-110 ${statusColor}`}>
                       {res.status}
                     </div>
                   </div>
 
                   {/* Badges row */}
-                  <div className="flex gap-2 mb-6 flex-wrap">
+                  <div className="flex gap-3 mb-8 flex-wrap">
                     {voucherSubmitted && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-lg shadow-emerald-200/50 border border-emerald-400">
-                        <CheckCircleIcon className="w-3 h-3" /> Agreement Signed
+                      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-xl shadow-emerald-200/60 border border-emerald-400">
+                        <CheckCircleIcon className="w-4 h-4" /> Agreement Signed
                       </span>
                     )}
                     {dropOffCompleted && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-lg shadow-slate-200 border border-slate-700">
-                        <CheckCircleIcon className="w-3 h-3" /> Closed Case
+                      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-xl shadow-slate-300 border border-slate-700">
+                        <CheckCircleIcon className="w-4 h-4" /> Closed Case
                       </span>
                     )}
                     {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-200 border border-amber-300">
-                        <ShieldExclamationIcon className="w-3 h-3" /> Action Required
+                      <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-xl shadow-orange-200/60 border border-amber-300">
+                        <ShieldExclamationIcon className="w-4 h-4" /> Action Required
                       </span>
                     )}
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {/* Vehicle & Contact Section */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
-                        <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-500">
-                           <CarIcon className="w-5 h-5" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-5 p-5 rounded-[2rem] bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-200 group-hover:shadow-lg transition-all duration-700">
+                        <div className="p-3.5 bg-white rounded-2xl shadow-md border border-slate-100 text-indigo-600">
+                           <CarIcon className="w-6 h-6" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.15em] leading-none mb-1.5">Vehicle</p>
-                          <p className="text-sm font-black text-slate-800 truncate">{res.carModel || '—'}</p>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-2">Vehicle Type</p>
+                          <p className="text-base font-black text-slate-800 truncate">{res.carModel || '—'}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
-                        <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-emerald-500">
-                           <PhoneIcon className="w-5 h-5" />
+                      <div className="flex items-center gap-5 p-5 rounded-[2rem] bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-200 group-hover:shadow-lg transition-all duration-700">
+                        <div className="p-3.5 bg-white rounded-2xl shadow-md border border-slate-100 text-emerald-600">
+                           <PhoneIcon className="w-6 h-6" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.15em] leading-none mb-1.5">Contact</p>
-                          <p className="text-sm font-black text-slate-800 truncate">{res.contactNumber || '—'}</p>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-2">Contact Info</p>
+                          <p className="text-base font-black text-slate-800 truncate">{res.contactNumber || '—'}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Timeline-style Dates & Location */}
-                    <div className="p-6 rounded-[2rem] bg-slate-900 text-white shadow-2xl shadow-slate-300/50 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-500">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl -mr-16 -mt-16" />
+                    <div className="p-8 rounded-[2.5rem] bg-slate-900 text-white shadow-2xl shadow-slate-400/50 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-700">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-[80px] -mr-24 -mt-24" />
                       
-                      <div className="flex items-center gap-3 mb-5 relative z-10">
-                        <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
+                      <div className="flex items-center gap-4 mb-8 relative z-10">
+                        <div className="p-3 bg-white/15 rounded-2xl backdrop-blur-md border border-white/10">
                           {res.locationName?.includes('Airport') || res.locationName?.includes('AMM') ? (
-                            <AirplaneIcon className="w-4 h-4 text-sky-400" />
+                            <AirplaneIcon className="w-5 h-5 text-sky-300" />
                           ) : (
-                            <MapPinIcon className="w-4 h-4 text-indigo-400" />
+                            <MapPinIcon className="w-5 h-5 text-indigo-300" />
                           )}
                         </div>
-                        <span className="text-xs font-black uppercase tracking-widest text-slate-200 truncate">{res.locationName || 'Location N/A'}</span>
+                        <span className="text-sm font-black uppercase tracking-[0.2em] text-slate-100 truncate">{res.locationName || 'Location N/A'}</span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-8 relative z-10">
-                        <div className="relative">
-                          <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-emerald-500/30 rounded-full" />
-                          <p className="text-[9px] text-emerald-400 font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
-                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" /> Pickup
+                      <div className="grid grid-cols-2 gap-10 relative z-10">
+                        <div className="relative pl-6 border-l-2 border-emerald-500/50">
+                          <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                             Pickup
                           </p>
-                          <p className="text-sm font-black tracking-tight">{formatDate(res.startDate)}</p>
+                          <div className="space-y-1">
+                            <p className="text-base font-black tracking-tight">{formatDateOnly(res.startDate)}</p>
+                            <p className="text-xl font-light text-emerald-50/80">{res.startDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
+                          </div>
                         </div>
-                        <div className="relative">
-                          <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-rose-500/30 rounded-full" />
-                          <p className="text-[9px] text-rose-400 font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
-                             <div className="w-1.5 h-1.5 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.8)]" /> Return
+                        <div className="relative pl-6 border-l-2 border-rose-500/50">
+                          <p className="text-[10px] text-rose-400 font-black uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                             Return
                           </p>
-                          <p className="text-sm font-black tracking-tight">{formatDate(res.endDate)}</p>
+                          <div className="space-y-1">
+                            <p className="text-base font-black tracking-tight">{formatDateOnly(res.endDate)}</p>
+                            <p className="text-xl font-light text-rose-50/80">{res.endDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -723,32 +727,32 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 </div>
 
                 {/* Footer Section */}
-                <div className="px-7 py-5 bg-slate-50/50 border-t border-slate-100 backdrop-blur-sm flex flex-col gap-4">
+                <div className="px-9 py-7 bg-slate-50/80 border-t border-slate-200 backdrop-blur-md flex flex-col gap-6">
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                       <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-600">
-                          <CurrencyDollarIcon className="w-5 h-5" />
+                    <div className="flex items-center gap-4">
+                       <div className="p-3.5 bg-white rounded-3xl shadow-md border border-slate-100 text-indigo-700">
+                          <CurrencyDollarIcon className="w-7 h-7" />
                        </div>
                        <div>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] leading-none mb-1">Total Amount</p>
-                          <p className="text-2xl font-black text-slate-900 tracking-tighter">${res.amount?.toFixed(2)}</p>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mb-1.5">Total Amount</p>
+                          <p className="text-4xl font-black text-slate-900 tracking-tighter">${res.amount?.toFixed(2)}</p>
                        </div>
                     </div>
                     
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-2.5">
                       {canViewVoucherActions && (
-                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all shadow-sm bg-white border border-slate-100 hover:border-emerald-600 active:scale-95" title="Rental Agreement">
-                          <DocumentReportIcon className="w-5 h-5" />
+                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-3.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all shadow-md bg-white border border-slate-200 hover:border-emerald-600 active:scale-90" title="Rental Agreement">
+                          <DocumentReportIcon className="w-6 h-6" />
                         </button>
                       )}
                       {canViewVoucherActions && (
-                        <button onClick={() => onShowReceipt(res)} className="p-2.5 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all shadow-sm bg-white border border-slate-100 hover:border-indigo-600 active:scale-95" title="Receipt">
-                          <CurrencyDollarIcon className="w-5 h-5" />
+                        <button onClick={() => onShowReceipt(res)} className="p-3.5 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all shadow-md bg-white border border-slate-200 hover:border-indigo-600 active:scale-90" title="Receipt">
+                          <CurrencyDollarIcon className="w-6 h-6" />
                         </button>
                       )}
                       {!dropOffCompleted && res.status === ReservationStatus.CONFIRMED && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND) && (
-                        <button onClick={() => onExtend(res)} className="p-2.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-2xl transition-all shadow-sm bg-white border border-slate-100 hover:border-amber-600 active:scale-95" title="Extend Rental">
-                          <ClockIcon className="w-5 h-5" />
+                        <button onClick={() => onExtend(res)} className="p-3.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-2xl transition-all shadow-md bg-white border border-slate-200 hover:border-amber-600 active:scale-90" title="Extend Rental">
+                          <ClockIcon className="w-6 h-6" />
                         </button>
                       )}
                     </div>
