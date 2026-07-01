@@ -200,6 +200,10 @@ export const App: React.FC = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const saveStatusRef = useRef<'saved' | 'saving' | 'error'>('saved');
+  useEffect(() => {
+    saveStatusRef.current = saveStatus;
+  }, [saveStatus]);
   
   // State for each data slice
   const [reservations, setReservations] = useState<AppData>({});
@@ -293,14 +297,15 @@ export const App: React.FC = () => {
 
       const initialState = getInitialState();
       
-      const loadedYears = (data.years && data.years.length > 0 ? data.years : initialState.years!).sort((a,b) => a - b);
+      const rawReservations = data.reservations || initialState.reservations;
+      const yearsFromReservations = Object.keys(rawReservations).map(Number).filter(n => !isNaN(n));
+      const loadedYears = [...new Set([...(data.years || []), ...yearsFromReservations, ...initialState.years!])].sort((a,b) => a - b);
+      
       setYears(loadedYears);
       if (!loadedYears.includes(selectedYear)) {
           handleSetSelectedYear(loadedYears[0] || new Date().getFullYear());
       }
 
-      const rawReservations = data.reservations || initialState.reservations;
-      
       const reorganizedReservations: AppData = {};
       loadedYears.forEach(y => {
           reorganizedReservations[y] = {};
@@ -467,7 +472,11 @@ export const App: React.FC = () => {
       if (user) {
         setIsLoading(false);
         fetchAllData(); // Fetch immediately after login
-        pollingIntervalRef.current = setInterval(fetchAllData, 5000);
+        pollingIntervalRef.current = setInterval(() => {
+            if (saveStatusRef.current !== 'saving') {
+                fetchAllData();
+            }
+        }, 15000);
       } else {
         // Load initial state from constants
         handleDataUpdate(getInitialState());
@@ -784,7 +793,7 @@ export const App: React.FC = () => {
     }
   };
   
-  const handleUpdateReservations = useCallback((reservation: Reservation, oldYear: number, oldMonth: string) => {
+  const handleUpdateReservations = useCallback(async (reservation: Reservation, oldYear: number, oldMonth: string) => {
     const updatedReservation = { ...reservation, lastEditedBy: currentUser?.fullName };
 
     if (reservation.isNew) {
@@ -809,33 +818,37 @@ export const App: React.FC = () => {
     const newYear = newDate.getFullYear();
     const newMonth = MONTHS[newDate.getMonth()];
 
-    setReservations(prev => {
-        const newReservationsData = JSON.parse(JSON.stringify(prev)) as AppData;
-        
-        for (const y in newReservationsData) {
-            for (const m in newReservationsData[y]) {
-                newReservationsData[y][m] = newReservationsData[y][m].filter((res: Reservation) => res.id !== reservation.id);
-            }
+    setSaveStatus('saving');
+    
+    const newReservationsData = JSON.parse(JSON.stringify(reservations)) as AppData;
+    
+    // Remove from everywhere (in case year/month changed)
+    for (const y in newReservationsData) {
+        for (const m in newReservationsData[y]) {
+            newReservationsData[y][m] = newReservationsData[y][m].filter((res: Reservation) => res.id !== reservation.id);
         }
-        
-        if (!newReservationsData[newYear]) {
-             newReservationsData[newYear] = {};
-             MONTHS.forEach(m => newReservationsData[newYear][m] = []);
-        }
-        if (!newReservationsData[newYear][newMonth]) {
-             newReservationsData[newYear][newMonth] = [];
-        }
-        
-        newReservationsData[newYear][newMonth].push(updatedReservation);
+    }
+    
+    if (!newReservationsData[newYear]) {
+         newReservationsData[newYear] = {};
+         MONTHS.forEach(m => newReservationsData[newYear][m] = []);
+    }
+    if (!newReservationsData[newYear][newMonth]) {
+         newReservationsData[newYear][newMonth] = [];
+    }
+    
+    newReservationsData[newYear][newMonth].push(updatedReservation);
 
-        saveAllData({ reservations: newReservationsData }).catch(err => {
-             console.error("Failed to save updated reservation immediately:", err);
-             addNotification("Failed to save changes to cloud. Check connection.", 'error');
-        });
-
-        return newReservationsData;
-    });
-  }, [currentUser, allReservationsFlat]);
+    try {
+      await saveAllData({ reservations: newReservationsData });
+      setReservations(newReservationsData);
+      setSaveStatus('saved');
+    } catch (err) {
+      setSaveStatus('error');
+      console.error("Failed to save updated reservation:", err);
+      addNotification("Failed to save changes. Check connection.", 'error');
+    }
+  }, [currentUser, allReservationsFlat, reservations, addNotification]);
   
   const handleUpdateSingleReservation = (updatedReservation: Reservation) => {
     let foundYear = -1;
@@ -876,7 +889,7 @@ export const App: React.FC = () => {
     }]);
   };
   
-  const handleSaveNewReservation = (reservation: Reservation) => {
+  const handleSaveNewReservation = async (reservation: Reservation) => {
       const { isNew, id: transientId, ...newRes } = reservation;
       
       if (!newRes.startDate) {
@@ -909,54 +922,65 @@ export const App: React.FC = () => {
           createdBy: currentUser?.fullName,
       };
 
-      setReservations(prev => {
-        const newReservationsData = JSON.parse(JSON.stringify(prev));
-        
-        if (!newReservationsData[year]) {
-             newReservationsData[year] = {};
-             MONTHS.forEach(m => newReservationsData[year][m] = []);
-        }
-        if (!newReservationsData[year][month]) {
-            newReservationsData[year][month] = [];
-        }
-
-        newReservationsData[year][month].push(reservationToSave);
-
-        saveAllData({ reservations: newReservationsData }).then(() => {
-            console.log("New reservation persisted successfully.");
-            showConfirmation(`Reservation for ${reservationToSave.personName} saved.`);
-        }).catch(err => {
-             console.error("Failed to save new reservation immediately:", err);
-             addNotification("Failed to save new reservation to cloud. Check connection.", 'error');
-        });
-
-        return newReservationsData;
-      });
+      setSaveStatus('saving');
       
-      handleSetSelectedYear(year);
-      handleSetSelectedMonth(month);
-      setNewReservations(prev => prev.filter(r => r.id !== transientId));
+      const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
+      if (!nextReservations[year]) {
+           nextReservations[year] = {};
+           MONTHS.forEach(m => nextReservations[year][m] = []);
+      }
+      if (!nextReservations[year][month]) {
+          nextReservations[year][month] = [];
+      }
+      nextReservations[year][month].push(reservationToSave);
+
+      try {
+        await saveAllData({ reservations: nextReservations });
+        setReservations(nextReservations);
+        setSaveStatus('saved');
+        showConfirmation(`Reservation for ${reservationToSave.personName} saved.`);
+        handleSetSelectedYear(year);
+        handleSetSelectedMonth(month);
+        setNewReservations(prev => prev.filter(r => r.id !== transientId));
+      } catch (err) {
+        setSaveStatus('error');
+        console.error("Failed to save new reservation:", err);
+        addNotification("Failed to save reservation. Check connection.", 'error');
+      }
   };
 
-  const handleDeleteReservation = (id: string, isNew?: boolean, year?: number, month?: string) => {
+  const handleDeleteReservation = async (id: string, isNew?: boolean, year?: number, month?: string) => {
     if (isNew) {
       setNewReservations(prev => prev.filter(res => res.id !== id));
-    } else {
-      setReservations(prev => {
-        const newReservationsData = JSON.parse(JSON.stringify(prev)) as AppData;
-        for (const y in newReservationsData) {
-            for (const m in newReservationsData[y]) {
-                newReservationsData[y][m] = newReservationsData[y][m].filter((res: Reservation) => res.id !== id);
-            }
-        }
-        
-        saveAllData({ reservations: newReservationsData }).catch(err => {
-             console.error("Failed to save deletion immediately:", err);
-             addNotification("Failed to delete from cloud. Check connection.", 'error');
-        });
+      return;
+    }
 
-        return newReservationsData;
-      });
+    setSaveStatus('saving');
+    const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
+    let found = false;
+
+    for (const y in nextReservations) {
+        for (const m in nextReservations[y]) {
+            const initialCount = nextReservations[y][m].length;
+            nextReservations[y][m] = nextReservations[y][m].filter((res: Reservation) => res.id !== id);
+            if (nextReservations[y][m].length < initialCount) found = true;
+        }
+    }
+
+    if (!found) {
+        setSaveStatus('saved');
+        return;
+    }
+
+    try {
+      await saveAllData({ reservations: nextReservations });
+      setReservations(nextReservations);
+      setSaveStatus('saved');
+      showConfirmation('Reservation deleted.');
+    } catch (err) {
+      setSaveStatus('error');
+      console.error("Failed to delete reservation:", err);
+      addNotification("Failed to delete reservation. Check connection.", 'error');
     }
   };
 
@@ -1307,91 +1331,75 @@ ${currentUser?.fullName}
       setMainView('Internal Messages');
   };
   
-  const handleUpdateFranchisePayments = (updatedPayments: FranchisePayment[]) => {
+  const handleUpdateFranchisePayments = async (updatedPayments: FranchisePayment[]) => {
+      setSaveStatus('saving');
       setFranchisePayments(updatedPayments);
-      const allData: AllData = {
-          reservations, sources, fleet, companyDetails,
-          trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-          availableExtras, franchisePayments: updatedPayments,
-          activityLog,
-          aggregators,
-          stopSales,
-          years,
-      };
-      saveAllData(cleanUndefined(allData)).catch(err => {
+      try {
+          await saveAllData({ franchisePayments: updatedPayments });
+          setSaveStatus('saved');
+      } catch (err) {
+          setSaveStatus('error');
           console.error("Failed to save franchise payments:", err);
           addNotification("Failed to save franchise payments. Check connection.", 'error');
-      });
+      }
   };
 
-  const handleReservationsImport = useCallback((importedReservations: Reservation[]) => {
+  const handleReservationsImport = useCallback(async (importedReservations: Reservation[]) => {
     if (!importedReservations || importedReservations.length === 0) return;
 
-    setReservations(prev => {
-      const newReservations = { ...prev };
-      const importedIds = new Set(importedReservations.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
-      let updateCount = 0;
-      let newCount = 0;
+    setSaveStatus('saving');
+    
+    const nextReservations = { ...reservations };
+    const importedIds = new Set(importedReservations.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
 
-      // 1. Remove existing reservations that match imported booking IDs (to replace them)
-      Object.keys(newReservations).forEach(year => {
-        const y = parseInt(year);
-        Object.keys(newReservations[y]).forEach(month => {
-          const originalCount = newReservations[y][month].length;
-          newReservations[y][month] = newReservations[y][month].filter(res => {
-            const bid = res.bookingId?.trim().toLowerCase();
-            return !(bid && importedIds.has(bid));
-          });
-          const removedCount = originalCount - newReservations[y][month].length;
-          updateCount += removedCount;
+    // 1. Remove existing reservations that match imported booking IDs
+    Object.keys(nextReservations).forEach(year => {
+      const y = parseInt(year);
+      Object.keys(nextReservations[y]).forEach(month => {
+        nextReservations[y][month] = nextReservations[y][month].filter(res => {
+          const bid = res.bookingId?.trim().toLowerCase();
+          return !(bid && importedIds.has(bid));
         });
       });
-
-      // 2. Add all imported reservations
-      importedReservations.forEach(res => {
-        const startDate = new Date(res.startDate);
-        if (isNaN(startDate.getTime())) return;
-        
-        const year = startDate.getFullYear();
-        const month = MONTHS[startDate.getMonth()];
-        
-        if (!newReservations[year]) {
-          newReservations[year] = {};
-          MONTHS.forEach(m => newReservations[year][m] = []);
-        }
-        if (!newReservations[year][month]) {
-          newReservations[year][month] = [];
-        }
-
-        const bid = res.bookingId?.trim().toLowerCase();
-        // If it wasn't an update (not found in existing), it's a new one
-        // Wait, updateCount counts how many we REMOVED. 
-        // We should probably just count how many we are adding.
-        
-        const id = res.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        newReservations[year][month].push({ ...res, id });
-      });
-
-      newCount = importedReservations.length - updateCount;
-      if (newCount < 0) newCount = importedReservations.length; // Fallback if updateCount calculation was fuzzy
-
-      const allData: AllData = {
-        reservations: newReservations,
-        sources, fleet, companyDetails,
-        trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-        availableExtras, franchisePayments,
-        activityLog, aggregators, stopSales, years,
-      };
-      saveAllData(cleanUndefined(allData)).catch(err => {
-        console.error("Failed to save imported reservations:", err);
-        addNotification("Failed to save imported reservations. Check connection.", 'error');
-      });
-      
-      return newReservations;
     });
-    
-    showConfirmation(`Successfully imported ${importedReservations.length} reservations. Existing records were updated if they matched by Booking ID.`);
-  }, [allReservationsFlat, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years, addNotification, showConfirmation]);
+
+    // 2. Add all imported reservations
+    importedReservations.forEach(res => {
+      const startDate = new Date(res.startDate);
+      if (isNaN(startDate.getTime())) return;
+      
+      const year = startDate.getFullYear();
+      const month = MONTHS[startDate.getMonth()];
+      
+      if (!nextReservations[year]) {
+        nextReservations[year] = {};
+        MONTHS.forEach(m => nextReservations[year][m] = []);
+      }
+      if (!nextReservations[year][month]) {
+        nextReservations[year][month] = [];
+      }
+
+      const id = res.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      nextReservations[year][month].push({ ...res, id });
+    });
+
+    const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);
+
+    try {
+      await saveAllData({ 
+        reservations: nextReservations,
+        years: nextYears
+      });
+      setReservations(nextReservations);
+      setYears(nextYears);
+      setSaveStatus('saved');
+      showConfirmation(`Successfully imported ${importedReservations.length} reservations. Existing records were updated if they matched by Booking ID.`);
+    } catch (err) {
+      setSaveStatus('error');
+      console.error("Failed to save imported reservations:", err);
+      addNotification("Failed to save imported reservations. Check connection.", 'error');
+    }
+  }, [reservations, years, addNotification, showConfirmation]);
 
   const clearReservationFilters = useCallback(() => {
     setFilters({
