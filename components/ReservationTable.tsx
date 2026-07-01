@@ -25,7 +25,9 @@ import {
   CarIcon,
   IdentificationIcon,
   CheckCircleIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  EditIcon,
+  ShieldExclamationIcon
 } from './icons';
 
 // Modal component (with animation)
@@ -582,196 +584,213 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           <div className="p-8 text-center text-gray-500">No reservations match your search.</div>
         )}
 
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredReservations.map((res) => {
             const isNew = res.isNew;
             const voucherSubmitted = res.voucherSubmitted;
             const dropOffCompleted = res.dropOffCompleted;
             const { year: reservationYear, month: reservationMonth } = getReservationPeriod(res);
-            const idStyle = duplicateBookingIds.has(res.bookingId?.trim()) ? 'border-2 border-red-400' : '';
+            const isDuplicate = duplicateBookingIds.has(res.bookingId?.trim());
             const statusColor = getStatusColor(res.status);
-
-            // DEBUG: Log per reservation
             const canUpgrade = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE);
-            console.log(`Reservation ${res.id}: canUpgrade = ${canUpgrade}`);
 
             return (
               <div
                 key={res.id}
-                className={`group relative bg-white rounded-3xl transition-all duration-500 hover:-translate-y-2 ${idStyle}`}
+                className={`group relative bg-white rounded-[2.5rem] transition-all duration-500 hover:-translate-y-2 flex flex-col h-full overflow-hidden border ${
+                  isDuplicate ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-100 shadow-sm'
+                } hover:shadow-2xl hover:shadow-slate-200/50`}
               >
-                {/* Status-based Glow Effect */}
-                <div className={`absolute -inset-0.5 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl ${
-                  res.status === ReservationStatus.CONFIRMED ? 'bg-green-400/20' :
-                  res.status === ReservationStatus.COMPLETED ? 'bg-blue-400/20' :
-                  res.status === ReservationStatus.CANCELLED ? 'bg-red-400/20' :
-                  'bg-amber-400/20'
+                {/* Status-based Accent line */}
+                <div className={`h-2 w-full ${
+                  res.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500' :
+                  res.status === ReservationStatus.COMPLETED ? 'bg-indigo-500' :
+                  res.status === ReservationStatus.CANCELLED ? 'bg-rose-500' :
+                  'bg-amber-500'
                 }`} />
 
-                <div className={`relative h-full bg-white rounded-[1.75rem] shadow-sm group-hover:shadow-2xl transition-all duration-500 border border-slate-100 overflow-hidden flex flex-col`}>
-                  {/* Status Top Bar */}
-                  <div className={`h-1.5 w-full ${
-                    res.status === ReservationStatus.CONFIRMED ? 'bg-green-500' :
-                    res.status === ReservationStatus.COMPLETED ? 'bg-blue-500' :
-                    res.status === ReservationStatus.CANCELLED ? 'bg-red-500' :
-                    'bg-amber-500'
-                  }`} />
+                <div className="p-7 flex-1 flex flex-col relative">
+                  {/* Decorative Background for Airport */}
+                  {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
+                    <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500 pointer-events-none">
+                      <AirplaneIcon className="w-32 h-32 transform rotate-12" />
+                    </div>
+                  )}
 
-                  <div className="p-6 flex-1">
-                    {/* Decorative Background for Airport */}
-                    {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
-                        <AirplaneIcon className="w-24 h-24 transform rotate-45" />
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex-1 min-w-0">
-                        <h3 
-                          className="text-xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight leading-none mb-2" 
-                          title={res.personName}
-                          onClick={() => setDetailsModalReservation(res)}
-                        >
-                          {res.personName}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                             <HashtagIcon className="w-2.5 h-2.5 mr-1" />
-                             {res.bookingId || 'UNIDENTIFIED'}
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex-1 min-w-0">
+                      <h3 
+                        className="text-2xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight leading-tight mb-1" 
+                        title={res.personName}
+                        onClick={() => setDetailsModalReservation(res)}
+                      >
+                        {res.personName}
+                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="flex items-center text-[10px] text-slate-500 font-black uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
+                           <HashtagIcon className="w-3 h-3 mr-1 text-slate-400" />
+                           {res.bookingId || 'NO-ID'}
+                        </span>
+                        {res.source && (
+                          <span className="flex items-center text-[10px] text-indigo-500 font-black uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                             <GlobeAltIcon className="w-3 h-3 mr-1" />
+                             {res.source}
                           </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border shadow-sm backdrop-blur-md transition-all duration-500 group-hover:scale-110 ${statusColor}`}>
+                      {res.status}
+                    </div>
+                  </div>
+
+                  {/* Badges row */}
+                  <div className="flex gap-2 mb-6 flex-wrap">
+                    {voucherSubmitted && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-lg shadow-emerald-200/50 border border-emerald-400">
+                        <CheckCircleIcon className="w-3 h-3" /> Agreement Signed
+                      </span>
+                    )}
+                    {dropOffCompleted && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-lg shadow-slate-200 border border-slate-700">
+                        <CheckCircleIcon className="w-3 h-3" /> Closed Case
+                      </span>
+                    )}
+                    {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-200 border border-amber-300">
+                        <ShieldExclamationIcon className="w-3 h-3" /> Action Required
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Vehicle & Contact Section */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
+                        <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-500">
+                           <CarIcon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.15em] leading-none mb-1.5">Vehicle</p>
+                          <p className="text-sm font-black text-slate-800 truncate">{res.carModel || '—'}</p>
                         </div>
                       </div>
-                      <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm backdrop-blur-md transition-all duration-500 group-hover:scale-105 ${statusColor}`}>
-                        {res.status}
+
+                      <div className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
+                        <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-emerald-500">
+                           <PhoneIcon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.15em] leading-none mb-1.5">Contact</p>
+                          <p className="text-sm font-black text-slate-800 truncate">{res.contactNumber || '—'}</p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-2 mb-6 flex-wrap">
-                      {voucherSubmitted && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full bg-green-500 text-white shadow-sm shadow-green-200">
-                          <CheckCircleIcon className="w-3 h-3" /> Agreement Signed
-                        </span>
-                      )}
-                      {dropOffCompleted && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full bg-slate-800 text-white shadow-sm shadow-slate-200">
-                          Closed Case
-                        </span>
-                      )}
-                      {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full bg-amber-400 text-white shadow-sm shadow-amber-100">
-                          Action Required
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Car & Phone Row */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-all duration-300">
-                          <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-500">
-                             <PhoneIcon className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Contact</p>
-                            <p className="text-xs font-black text-slate-700 truncate">{res.contactNumber || '—'}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-all duration-300">
-                          <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-500">
-                             <CarIcon className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Vehicle</p>
-                            <p className="text-xs font-black text-slate-700 truncate">{res.carModel || '—'}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Location & Dates */}
-                      <div className="p-4 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200 relative overflow-hidden group-hover:bg-indigo-950 transition-colors duration-500">
-                        {/* Decorative background circle */}
-                        <div className="absolute -bottom-8 -right-8 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
-                        
-                        <div className="flex items-center gap-2 mb-3">
+                    {/* Timeline-style Dates & Location */}
+                    <div className="p-6 rounded-[2rem] bg-slate-900 text-white shadow-2xl shadow-slate-300/50 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-500">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl -mr-16 -mt-16" />
+                      
+                      <div className="flex items-center gap-3 mb-5 relative z-10">
+                        <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
                           {res.locationName?.includes('Airport') || res.locationName?.includes('AMM') ? (
-                            <AirplaneIcon className="w-3 h-3 text-blue-400" />
+                            <AirplaneIcon className="w-4 h-4 text-sky-400" />
                           ) : (
-                            <MapPinIcon className="w-3 h-3 text-indigo-400" />
+                            <MapPinIcon className="w-4 h-4 text-indigo-400" />
                           )}
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">{res.locationName || 'N/A'}</span>
                         </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-200 truncate">{res.locationName || 'Location N/A'}</span>
+                      </div>
 
-                        <div className="grid grid-cols-2 gap-4 relative z-10">
-                          <div>
-                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
-                               <div className="w-1 h-1 bg-green-400 rounded-full" /> Pickup
-                            </p>
-                            <p className="text-[11px] font-black">{formatDate(res.startDate)}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
-                               <div className="w-1 h-1 bg-red-400 rounded-full" /> Return
-                            </p>
-                            <p className="text-[11px] font-black">{formatDate(res.endDate)}</p>
-                          </div>
+                      <div className="grid grid-cols-2 gap-8 relative z-10">
+                        <div className="relative">
+                          <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-emerald-500/30 rounded-full" />
+                          <p className="text-[9px] text-emerald-400 font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" /> Pickup
+                          </p>
+                          <p className="text-sm font-black tracking-tight">{formatDate(res.startDate)}</p>
+                        </div>
+                        <div className="relative">
+                          <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-rose-500/30 rounded-full" />
+                          <p className="text-[9px] text-rose-400 font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.8)]" /> Return
+                          </p>
+                          <p className="text-sm font-black tracking-tight">{formatDate(res.endDate)}</p>
                         </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 backdrop-blur-sm flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                       <div className="p-2 bg-indigo-50 rounded-xl">
-                          <CarIcon className="w-4 h-4 text-indigo-600" />
+                {/* Footer Section */}
+                <div className="px-7 py-5 bg-slate-50/50 border-t border-slate-100 backdrop-blur-sm flex flex-col gap-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-600">
+                          <CurrencyDollarIcon className="w-5 h-5" />
                        </div>
                        <div>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Vehicle</p>
-                          <p className="text-sm font-black text-gray-900 truncate max-w-[120px]">{res.carModel}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] leading-none mb-1">Total Amount</p>
+                          <p className="text-2xl font-black text-slate-900 tracking-tighter">${res.amount?.toFixed(2)}</p>
                        </div>
                     </div>
-                    <div className="text-right">
-                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Total</p>
-                       <p className="text-xl font-black text-gray-900 tracking-tighter">${res.amount?.toFixed(2)}</p>
+                    
+                    <div className="flex gap-1.5">
+                      {canViewVoucherActions && (
+                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all shadow-sm bg-white border border-slate-100 hover:border-emerald-600 active:scale-95" title="Rental Agreement">
+                          <DocumentReportIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      {canViewVoucherActions && (
+                        <button onClick={() => onShowReceipt(res)} className="p-2.5 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all shadow-sm bg-white border border-slate-100 hover:border-indigo-600 active:scale-95" title="Receipt">
+                          <CurrencyDollarIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      {!dropOffCompleted && res.status === ReservationStatus.CONFIRMED && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND) && (
+                        <button onClick={() => onExtend(res)} className="p-2.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-2xl transition-all shadow-sm bg-white border border-slate-100 hover:border-amber-600 active:scale-95" title="Extend Rental">
+                          <ClockIcon className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {res.notes && (
-                    <div className="text-xs text-gray-500 italic border-t pt-2 mt-2 truncate" title={res.notes}>
-                      📝 {res.notes}
+                    <div className="text-[10px] text-slate-500 italic bg-white/50 p-2 rounded-xl border border-slate-100 truncate" title={res.notes}>
+                      <span className="font-bold not-italic mr-1">Notes:</span> {res.notes}
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-1 mt-3 pt-2 border-t border-gray-100">
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
                     {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && (
-                      <button onClick={() => openEditModal(res)} className="text-xs px-2 py-1 border border-indigo-300 text-indigo-700 rounded hover:bg-indigo-50" title="Edit">Edit</button>
+                      <button 
+                        onClick={() => openEditModal(res)} 
+                        className="flex-1 py-2.5 px-4 rounded-2xl border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                      >
+                        <EditIcon className="w-3.5 h-3.5" />
+                        Edit
+                      </button>
                     )}
                     {canUpgrade && (
-                      <button onClick={() => openUpgradeModal(res)} className="text-xs px-2 py-1 border border-orange-300 text-orange-700 rounded hover:bg-orange-50" title="Upgrade">Upgrade</button>
-                    )}
-                    {canViewVoucherActions && (
-                      <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Rental Agreement">
-                        <DocumentReportIcon className="w-4 h-4" />
+                      <button 
+                        onClick={() => openUpgradeModal(res)} 
+                        className="flex-1 py-2.5 px-4 rounded-2xl border border-orange-100 bg-orange-50 text-[10px] font-black uppercase tracking-widest text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                      >
+                        <CarIcon className="w-3.5 h-3.5" />
+                        Upgrade
                       </button>
                     )}
-                    {canViewVoucherActions && (
-                      <button onClick={() => onShowReceipt(res)} className="p-1 text-purple-600 hover:bg-purple-50 rounded" title="Receipt">
-                        <CurrencyDollarIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    {!dropOffCompleted && res.status === ReservationStatus.CONFIRMED && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND) && (
-                      <button onClick={() => onExtend(res)} className="p-1 text-orange-600 hover:bg-orange-50 rounded" title="Extend Rental">
-                        <ClockIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && (
-                      <button onClick={() => onShare(res)} className="p-1 text-indigo-600 hover:bg-indigo-50 rounded" title="Share">
-                        <ShareIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    {!voucherSubmitted && !dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
-                      <button onClick={() => onDelete(res.id, isNew, reservationYear, reservationMonth)} className="text-xs px-2 py-1 border border-red-300 text-red-700 rounded hover:bg-red-50">Delete</button>
-                    )}
+                    <div className="flex gap-1.5 ml-1">
+                      {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && (
+                        <button onClick={() => onShare(res)} className="p-2.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all border border-transparent hover:border-indigo-100 active:scale-95" title="Share">
+                          <ShareIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      {!voucherSubmitted && !dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
+                        <button onClick={() => onDelete(res.id, isNew, reservationYear, reservationMonth)} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all border border-transparent hover:border-rose-100 active:scale-95" title="Delete">
+                          <CloseIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

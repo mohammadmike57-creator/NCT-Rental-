@@ -13,28 +13,40 @@ const ReservationCard: React.FC<{
   month: string;
   onShowVoucher: (reservation: Reservation, year: number, month: string) => void;
 }> = ({ reservation, year, month, onShowVoucher }) => (
-    <div className="bg-white p-4 rounded-lg shadow border border-gray-200 space-y-3">
-        <div className="flex justify-between items-start">
-            <div>
-                <p className="font-bold text-gray-800">{reservation.personName}</p>
-                <p className="text-xs text-gray-500">Booking ID: {reservation.bookingId}</p>
+    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 group">
+        <div className="flex justify-between items-start mb-4">
+            <div className="min-w-0">
+                <p className="font-black text-slate-900 truncate tracking-tight text-lg group-hover:text-indigo-600 transition-colors">{reservation.personName}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {reservation.bookingId || 'N/A'}</p>
             </div>
             <button
                 onClick={() => onShowVoucher(reservation, year, month)}
-                className="p-1.5 rounded-md text-blue-600 hover:bg-blue-100"
+                className="p-2.5 rounded-2xl text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95"
                 title="View Voucher"
             >
-                <DocumentTextIcon />
+                <DocumentTextIcon className="w-5 h-5" />
             </button>
         </div>
-        <div className="text-sm space-y-2">
-            <div className="flex items-center gap-2 text-gray-700">
-                <CarIcon />
-                <span>{reservation.carModel} ({reservation.licensePlate || 'TBD'})</span>
+        <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100/50 group-hover:bg-white group-hover:border-indigo-100 transition-all">
+                <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-500">
+                   <CarIcon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                   <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Vehicle</p>
+                   <p className="text-xs font-black text-slate-700 truncate">{reservation.carModel} <span className="text-slate-400 font-medium ml-1">({reservation.licensePlate || 'TBD'})</span></p>
+                </div>
             </div>
-             <div className="flex items-center gap-2 text-gray-600">
-                <ClockIcon />
-                <span>{reservation.startDate.replace('T', ' ')} to {reservation.endDate.replace('T', ' ')}</span>
+             <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-200">
+                <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
+                   <ClockIcon className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                   <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Duration</p>
+                   <p className="text-[10px] font-bold truncate">
+                      {reservation.startDate.replace('T', ' ')} <span className="text-slate-500 mx-1">→</span> {reservation.endDate.replace('T', ' ')}
+                   </p>
+                </div>
             </div>
         </div>
     </div>
