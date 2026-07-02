@@ -471,23 +471,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   const canManageFinancials = currentUser?.permissions.includes(UserPermission.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS) ?? false;
 
   const summary = useMemo(() => {
-    // Get reservations for the SPECIFIC year only
-    const yearReservations: Reservation[] = yearData ? Object.values(yearData).flat() as Reservation[] : [];
-
-    return MONTHS.map((month, index) => {
-      const reservationsInMonth = yearReservations.filter(r => {
-          if (!r.startDate) return false;
-
-          // If reservation has importLockedYear/Month, use that for filtering
-          if (r.importLockedYear !== undefined && r.importLockedMonth !== undefined) {
-            return r.importLockedYear === year && r.importLockedMonth === month;
-          }
-
-          // Otherwise use startDate
-          const startDate = new Date(r.startDate);
-          if (isNaN(startDate.getTime())) return false;
-          return startDate.getFullYear() === year && startDate.getMonth() === index;
-      });
+    return MONTHS.map((month) => {
+      // THE NEW RULE: Summary ONLY reads the month bucket that is currently selected.
+      // We trust the data structure. No scanning, no re-inferring from dates.
+      const reservationsInMonth = yearData[month] || [];
       
       const confirmedReservations = reservationsInMonth.filter(
         r => r.status === ReservationStatus.CONFIRMED && typeof r.amount === 'number' && r.amount >= 0

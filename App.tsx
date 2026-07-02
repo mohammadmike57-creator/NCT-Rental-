@@ -845,44 +845,22 @@ export const App: React.FC = () => {
         return;
     }
 
-    const newDate = new Date(updatedReservation.startDate);
-    const newYearFromDate = newDate.getFullYear();
-    const newMonthFromDate = MONTHS[newDate.getMonth()];
+    const targetYear = oldYear;
+    const targetMonth = oldMonth;
 
-    // Determine target year/month: prioritize locked values, otherwise use date
-    let targetYear: number;
-    let targetMonth: string;
-
-    if (updatedReservation.importLockedYear !== undefined && updatedReservation.importLockedMonth !== undefined) {
-      // If reservation is locked, keep it locked UNLESS user manually changed date to different period
-      if (updatedReservation.importLockedYear === newYearFromDate && updatedReservation.importLockedMonth === newMonthFromDate) {
-        // Date matches lock - keep it locked
-        targetYear = updatedReservation.importLockedYear;
-        targetMonth = updatedReservation.importLockedMonth;
-      } else {
-        // User intentionally changed date to different period - unlock and use new date
-        updatedReservation.importLockedYear = undefined;
-        updatedReservation.importLockedMonth = undefined;
-        targetYear = newYearFromDate;
-        targetMonth = newMonthFromDate;
-      }
-    } else {
-      // Not locked - use the date
-      targetYear = newYearFromDate;
-      targetMonth = newMonthFromDate;
-    }
+    // NEVER change the storage location based on dates anymore.
+    // The bucket (targetYear/targetMonth) is permanent.
+    const reservationToSave = { 
+        ...updatedReservation,
+        importLockedYear: targetYear,
+        importLockedMonth: targetMonth
+    };
 
     setSaveStatus('saving');
 
     const newReservationsData = JSON.parse(JSON.stringify(reservations)) as AppData;
 
-    // Remove from everywhere (in case year/month changed)
-    for (const y in newReservationsData) {
-        for (const m in newReservationsData[y]) {
-            newReservationsData[y][m] = newReservationsData[y][m].filter((res: Reservation) => res.id !== reservation.id);
-        }
-    }
-
+    // Update in the specific bucket
     if (!newReservationsData[targetYear]) {
          newReservationsData[targetYear] = {};
          MONTHS.forEach(m => newReservationsData[targetYear][m] = []);
@@ -891,11 +869,25 @@ export const App: React.FC = () => {
          newReservationsData[targetYear][targetMonth] = [];
     }
 
-    newReservationsData[targetYear][targetMonth].push(updatedReservation);
+    newReservationsData[targetYear][targetMonth] = newReservationsData[targetYear][targetMonth].map((res: Reservation) => 
+        res.id === reservationToSave.id ? reservationToSave : res
+    );
+
+    // If for some reason it wasn't in that bucket (shouldn't happen with oldYear/oldMonth), add it
+    if (!newReservationsData[targetYear][targetMonth].some((r: Reservation) => r.id === reservationToSave.id)) {
+        newReservationsData[targetYear][targetMonth].push(reservationToSave);
+    }
 
     try {
       skipAutoSaveRef.current = true;
-      await saveAllData({ reservations: newReservationsData });
+      // OPTIMIZED SAVE: Only send the modified year/month to prevent race conditions on other months
+      await saveAllData({ 
+        reservations: { 
+          [targetYear]: { 
+            [targetMonth]: newReservationsData[targetYear][targetMonth] 
+          } 
+        } 
+      });
       setReservations(newReservationsData);
       setSaveStatus('saved');
     } catch (err) {
@@ -960,21 +952,19 @@ export const App: React.FC = () => {
         }
       }
       
-      const dateObj = new Date(newRes.startDate);
-      const year = dateObj.getFullYear();
-      const month = MONTHS[dateObj.getMonth()];
-      
-      if (!years.includes(year)) {
-          alert(`The year ${year} is not enabled. Please add it in 'Manage Years' first.`);
-          return;
-      }
+      // ALWAYS save new reservations into the CURRENTLY SELECTED month/year
+      // This is the "selected month during import is the permanent storage location" rule applied to manual entry too.
+      const year = selectedYear;
+      const month = selectedMonth;
       
       const reservationId = `res-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
-      const reservationToSave = {
+      const reservationToSave: Reservation = {
           ...newRes,
           id: reservationId,
           createdBy: currentUser?.fullName,
+          importLockedYear: year,
+          importLockedMonth: month,
       };
 
       setSaveStatus('saving');
@@ -991,12 +981,17 @@ export const App: React.FC = () => {
 
       try {
         skipAutoSaveRef.current = true;
-        await saveAllData({ reservations: nextReservations });
+        // OPTIMIZED SAVE: Only send the new month's data
+        await saveAllData({ 
+          reservations: { 
+            [year]: { 
+              [month]: nextReservations[year][month] 
+            } 
+          } 
+        });
         setReservations(nextReservations);
         setSaveStatus('saved');
-        showConfirmation(`Reservation for ${reservationToSave.personName} saved.`);
-        handleSetSelectedYear(year);
-        handleSetSelectedMonth(month);
+        showConfirmation(`Reservation for ${reservationToSave.personName} saved into ${month} ${year}.`);
         setNewReservations(prev => prev.filter(r => r.id !== transientId));
       } catch (err) {
         setSaveStatus('error');
@@ -1030,7 +1025,34 @@ export const App: React.FC = () => {
 
     try {
       skipAutoSaveRef.current = true;
-      await saveAllData({ reservations: nextReservations });
+      // Find which year/month the reservation was in to optimize save
+      let targetYear: number | null = null;
+      let targetMonth: string | null = null;
+      
+      for (const y in reservations) {
+        for (const m in reservations[y]) {
+          if (reservations[y][m].some(r => r.id === id)) {
+            targetYear = parseInt(y);
+            targetMonth = m;
+            break;
+          }
+        }
+        if (targetYear) break;
+      }
+
+      if (targetYear && targetMonth) {
+        await saveAllData({ 
+          reservations: { 
+            [targetYear]: { 
+              [targetMonth]: nextReservations[targetYear][targetMonth] 
+            } 
+          } 
+        });
+      } else {
+        // Fallback to full save if not found (shouldn't happen)
+        await saveAllData({ reservations: nextReservations });
+      }
+      
       setReservations(nextReservations);
       setSaveStatus('saved');
       showConfirmation('Reservation deleted.');
@@ -1053,7 +1075,13 @@ export const App: React.FC = () => {
       }
       
       skipAutoSaveRef.current = true;
-      saveAllData({ reservations: newReservationsData }).catch(err => {
+      saveAllData({ 
+        reservations: { 
+          [year]: { 
+            [month]: [] 
+          } 
+        } 
+      }).catch(err => {
            console.error("Failed to save bulk deletion immediately:", err);
            addNotification("Failed to delete from cloud. Check connection.", 'error');
       });
@@ -1394,27 +1422,28 @@ ${currentUser?.fullName}
     setSaveStatus('saving');
 
     const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
-    const importedIds = new Set(importedReservations.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
-    const fallbackDate = (index: number) => {
-      const date = new Date();
-      date.setHours(12, index % 60, 0, 0);
-      return date.toISOString().slice(0, 16);
-    };
-
-    // 1. Remove existing reservations that match imported booking IDs
+    
+    // THE NEW RULE: No deduplication unless IDs are identical.
+    // We no longer deduplicate by bookingId, only by the internal system ID.
+    const importedInternalIds = new Set(importedReservations.map(r => r.id).filter(Boolean));
+    
     let removedCount = 0;
-    Object.keys(nextReservations).forEach(year => {
-      const y = parseInt(year);
-      Object.keys(nextReservations[y]).forEach(month => {
-        const before = nextReservations[y][month].length;
-        nextReservations[y][month] = nextReservations[y][month].filter(res => {
-          const bid = res.bookingId?.trim().toLowerCase();
-          return !(bid && importedIds.has(bid));
+    if (importedInternalIds.size > 0) {
+      Object.keys(nextReservations).forEach(year => {
+        const y = parseInt(year);
+        Object.keys(nextReservations[y]).forEach(month => {
+          const before = nextReservations[y][month].length;
+          nextReservations[y][month] = nextReservations[y][month].filter(res => {
+            return !importedInternalIds.has(res.id);
+          });
+          removedCount += before - nextReservations[y][month].length;
         });
-        removedCount += before - nextReservations[y][month].length;
       });
-    });
-    console.log('🟡 Removed existing reservations with matching IDs:', removedCount);
+    }
+    console.log('🟡 Removed existing reservations with matching internal IDs:', removedCount);
+
+    // Track which months were touched for optimized save
+    const touchedMonths = new Set<string>();
 
     // 2. Add all imported reservations - STRICTLY enforce target month if provided
     importedReservations.forEach((res, index) => {
@@ -1431,17 +1460,13 @@ ${currentUser?.fullName}
         startDate = new Date(reservationToStore.startDate);
       }
 
-      // CRITICAL: If target is provided, ALWAYS use it (month lock)
-      // Never fall back to startDate when importing with a selected month
       let year: number;
       let month: string;
 
       if (target?.year !== undefined && target?.month !== undefined) {
-        // User selected specific month - LOCK IT THERE
         year = target.year;
         month = target.month;
       } else {
-        // No target specified - use date or existing lock
         year = reservationToStore.importLockedYear || startDate.getFullYear();
         month = reservationToStore.importLockedMonth || MONTHS[startDate.getMonth()];
       }
@@ -1454,16 +1479,16 @@ ${currentUser?.fullName}
         nextReservations[year][month] = [];
       }
 
-      const id = reservationToStore.id || `imported-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
-      const finalReservation = {
+      const id = reservationToStore.id || `res-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
+      const finalReservation: Reservation = {
         ...reservationToStore,
         id,
-        // ALWAYS set locks when target is specified
-        importLockedYear: target?.year !== undefined ? target.year : (reservationToStore.importLockedYear || undefined),
-        importLockedMonth: target?.month !== undefined ? target.month : (reservationToStore.importLockedMonth || undefined),
+        importLockedYear: year,
+        importLockedMonth: month,
       };
 
       nextReservations[year][month].push(finalReservation);
+      touchedMonths.add(`${year}|${month}`);
 
       if (index < 3) {
         console.log(`🟢 Added reservation ${index + 1}:`, {
@@ -1513,26 +1538,18 @@ ${currentUser?.fullName}
       blockPollingUntilRef.current = Date.now() + 60000; // 60 seconds
       console.log('🚫 POLLING BLOCKED for 60 seconds to prevent data corruption');
 
-      const allData: AllData = {
-        reservations: nextReservations,
-        sources,
-        fleet,
-        companyDetails,
-        trafficTickets,
-        vehicleDamages,
-        users,
-        expenses,
-        messages,
-        rentalLocations,
-        invoices,
-        availableExtras,
-        franchisePayments,
-        activityLog,
-        aggregators,
-        stopSales,
-        years: nextYears,
-      };
-      await saveAllData(cleanUndefined(allData));
+      const partialReservations: any = {};
+      touchedMonths.forEach(key => {
+        const [y, m] = key.split('|');
+        const yearInt = parseInt(y);
+        if (!partialReservations[yearInt]) partialReservations[yearInt] = {};
+        partialReservations[yearInt][m] = nextReservations[yearInt][m];
+      });
+
+      await saveAllData({ 
+        reservations: partialReservations,
+        years: nextYears 
+      });
       setReservations(nextReservations);
       setYears(nextYears);
 
@@ -1569,7 +1586,7 @@ ${currentUser?.fullName}
       }
 
       setSaveStatus('saved');
-      showConfirmation(`Successfully imported ${importedReservations.length} reservations into ${target?.month || 'various months'}. Existing records were updated if they matched by Booking ID.`);
+      showConfirmation(`Successfully imported ${importedReservations.length} reservations into ${target?.month || 'various months'}. No existing records were overwritten unless they had the same internal ID.`);
     } catch (err) {
       setSaveStatus('error');
       console.error("❌ Failed to save imported reservations:", err);

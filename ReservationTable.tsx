@@ -348,6 +348,11 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
     nextWeek.setDate(today.getDate() + 7);
 
     return sourceData.filter(res => {
+      // Phase 9 Logging: Render Month verification
+      if (res.id && !res.isNew) {
+        console.log(`[RENDER LOG] Res ID: ${res.id}, Storage: ${res.originalYear}/${res.originalMonth}, UI Selected: ${selectedYear}/${selectedMonth}`);
+      }
+      
       const sourceMatch = !sourceFilter || res.source === sourceFilter;
       const modelMatch = !carModelFilter || res.carModel === carModelFilter;
       const statusMatch = !statusFilter || res.status === statusFilter;
