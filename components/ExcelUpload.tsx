@@ -231,6 +231,20 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // CRITICAL: Require specific month selection for import
+    if (selectedMonth === 'All' || selectedYear === 'All') {
+      setError('⚠️ You must select a specific Year and Month before importing. Reservations will be locked to the selected month.');
+      event.target.value = '';
+      return;
+    }
+
+    console.log('📁 Excel Upload Started:', {
+      file: file.name,
+      targetYear: selectedYear,
+      targetMonth: selectedMonth,
+      timestamp: new Date().toISOString()
+    });
+
     setUploading(true);
     setError(null);
     setSuccess(null);
@@ -385,11 +399,34 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
         return;
       }
 
+      // VALIDATION: Verify all reservations have locks set correctly
+      const lockedCount = reservations.filter(r =>
+        r.importLockedYear === selectedYear && r.importLockedMonth === selectedMonth
+      ).length;
+
+      console.log('✅ Excel Parsing Complete:', {
+        totalReservations: reservations.length,
+        lockedToTarget: lockedCount,
+        targetLocation: `${selectedYear}/${selectedMonth}`,
+        allLocksCorrect: lockedCount === reservations.length,
+        sample: reservations.slice(0, 2).map(r => ({
+          name: r.personName,
+          locks: { year: r.importLockedYear, month: r.importLockedMonth }
+        }))
+      });
+
+      if (lockedCount !== reservations.length) {
+        console.error('❌ LOCK VALIDATION FAILED - Some reservations missing locks!');
+        setError('Internal error: Failed to set month locks on reservations. Please try again.');
+        return;
+      }
+
       onReservationsImported(reservations, {
         year: typeof selectedYear === 'number' ? selectedYear : undefined,
         month: selectedMonth !== 'All' ? selectedMonth : undefined,
       });
-      setSuccess(`Imported ${reservations.length} reservations. ${errors.length} rows skipped.`);
+
+      setSuccess(`✅ Imported ${reservations.length} reservations into ${selectedMonth} ${selectedYear}. ${errors.length} rows skipped.`);
       if (errors.length > 0) {
         setError(`Skipped rows:\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more` : ''}`);
       }

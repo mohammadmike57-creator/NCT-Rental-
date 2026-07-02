@@ -310,78 +310,61 @@ export const App: React.FC = () => {
           handleSetSelectedYear(loadedYears[0] || new Date().getFullYear());
       }
 
-      const reorganizedReservations: AppData = {};
+      // CRITICAL: Accept backend data structure AS-IS with minimal reorganization
+      // Only ensure year/month structure exists, but don't move reservations around
+      const finalReservations: AppData = {};
+
+      // Initialize structure for all years
       loadedYears.forEach(y => {
-          reorganizedReservations[y] = {};
-          MONTHS.forEach(m => reorganizedReservations[y][m] = []);
+          finalReservations[y] = {};
+          MONTHS.forEach(m => finalReservations[y][m] = []);
       });
 
       let lockedCount = 0;
-      let movedCount = 0;
+      let totalCount = 0;
 
+      // Copy reservations directly from backend location - NO REORGANIZATION
       Object.keys(rawReservations).forEach(yearKey => {
+          const yearNum = parseInt(yearKey);
           const yearData = rawReservations[yearKey as any];
           if (!yearData) return;
 
           Object.keys(yearData).forEach(monthKey => {
               const monthList = yearData[monthKey];
               if (Array.isArray(monthList)) {
+                  // Ensure the destination bucket exists
+                  if (!finalReservations[yearNum]) {
+                      finalReservations[yearNum] = {};
+                      MONTHS.forEach(m => finalReservations[yearNum][m] = []);
+                  }
+                  if (!finalReservations[yearNum][monthKey]) {
+                      finalReservations[yearNum][monthKey] = [];
+                  }
+
+                  // Copy ALL reservations from this location to the SAME location
+                  // NO reorganization based on dates or any other logic
                   monthList.forEach((res: Reservation) => {
-                        let targetYear, targetMonth;
+                      if (res.importLockedYear !== undefined && res.importLockedMonth !== undefined) {
+                          lockedCount++;
+                      }
+                      totalCount++;
 
-                        // Priority 1: If reservation has importLockedYear/Month, ALWAYS use those (never change)
-                        if (res.importLockedYear !== undefined && res.importLockedMonth !== undefined) {
-                            targetYear = res.importLockedYear;
-                            targetMonth = res.importLockedMonth;
-                            lockedCount++;
-                        } else if (res.startDate) {
-                            // Priority 2: Use startDate for non-locked reservations
-                            const d = new Date(res.startDate);
-                            if (!isNaN(d.getTime())) {
-                                targetYear = d.getFullYear();
-                                targetMonth = MONTHS[d.getMonth()];
-                            }
-                        }
-
-                        // Priority 3: If we still can't determine, use the location where it was found
-                        if (!targetYear || !targetMonth) {
-                             targetYear = parseInt(yearKey);
-                             targetMonth = monthKey;
-                        }
-
-                        // Track if reservation moved
-                        if (targetYear !== parseInt(yearKey) || targetMonth !== monthKey) {
-                            movedCount++;
-                        }
-
-                        // Ensure the year exists in our structure
-                        if (!reorganizedReservations[targetYear]) {
-                            reorganizedReservations[targetYear] = {};
-                            MONTHS.forEach(m => reorganizedReservations[targetYear][m] = []);
-                        }
-                        // Ensure the month bucket exists
-                        if (!reorganizedReservations[targetYear][targetMonth]) {
-                             reorganizedReservations[targetYear][targetMonth] = [];
-                        }
-
-                        // Only add if not already present (prevent duplicates)
-                        if (!reorganizedReservations[targetYear][targetMonth].some(r => r.id === res.id)) {
-                             reorganizedReservations[targetYear][targetMonth].push(res);
-                        }
+                      // Add to the EXACT same location where backend stored it
+                      if (!finalReservations[yearNum][monthKey].some(r => r.id === res.id)) {
+                          finalReservations[yearNum][monthKey].push(res);
+                      }
                   });
               }
           });
       });
 
-      console.log('🔄 DATA REORGANIZED:', {
-        totalReservations: Object.values(reorganizedReservations).reduce((sum, yearData) =>
-          sum + Object.values(yearData).reduce((s, monthArr) => s + monthArr.length, 0), 0
-        ),
+      console.log('🔄 DATA LOADED FROM BACKEND:', {
+        totalReservations: totalCount,
         lockedReservations: lockedCount,
-        movedDuringReorganization: movedCount
+        message: 'Loaded exactly as stored - NO reorganization performed'
       });
 
-      setReservations(reorganizedReservations);
+      setReservations(finalReservations);
       setSources(data.sources || initialState.sources);
       setFleet(data.fleet || initialState.fleet);
       setCompanyDetails({
@@ -1489,15 +1472,30 @@ ${currentUser?.fullName}
 
     const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);
 
-    // Log final state before save
-    const targetMonthCount = target?.year && target?.month ? nextReservations[target.year]?.[target.month]?.length : 0;
-    console.log('🔵 BEFORE SAVE:', {
-      targetMonth: target ? `${target.year}/${target.month}` : 'none',
-      reservationsInTargetMonth: targetMonthCount,
-      totalReservationsInSystem: Object.values(nextReservations).reduce((sum, yearData) =>
-        sum + Object.values(yearData).reduce((s, monthArr) => s + monthArr.length, 0), 0
-      )
-    });
+    // FINAL VALIDATION before save
+    if (target?.year !== undefined && target?.month !== undefined) {
+      const targetMonthReservations = nextReservations[target.year]?.[target.month] || [];
+      const correctlyLocked = targetMonthReservations.filter(r =>
+        r.importLockedYear === target.year && r.importLockedMonth === target.month
+      ).length;
+
+      console.log('🔍 FINAL VALIDATION:', {
+        targetMonth: `${target.year}/${target.month}`,
+        reservationsInTargetMonth: targetMonthReservations.length,
+        correctlyLocked: correctlyLocked,
+        validationPassed: correctlyLocked === targetMonthReservations.length,
+        totalInSystem: Object.values(nextReservations).reduce((sum, yearData) =>
+          sum + Object.values(yearData).reduce((s, monthArr) => s + monthArr.length, 0), 0
+        )
+      });
+
+      if (correctlyLocked < targetMonthReservations.length) {
+        console.error('❌ VALIDATION FAILED - Some reservations in target month are missing locks!');
+        addNotification('Import validation failed. Please try again.', 'error');
+        setSaveStatus('error');
+        return;
+      }
+    }
 
     try {
       skipAutoSaveRef.current = true;
