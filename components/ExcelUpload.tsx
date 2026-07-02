@@ -88,18 +88,9 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   };
 
   const normalizeReservationDatesToSelectedPeriod = (startDate: string, endDate: string) => {
-    if (selectedYear === 'All' && selectedMonth === 'All') {
-      return { startDate, endDate };
-    }
-
-    const normalizedStart = normalizeDateToSelectedPeriod(startDate);
-    let normalizedEnd = normalizeDateToSelectedPeriod(endDate);
-
-    if (new Date(normalizedEnd) <= new Date(normalizedStart)) {
-      normalizedEnd = formatDateTimeLocal(new Date(new Date(normalizedStart).getTime() + 24 * 60 * 60 * 1000));
-    }
-
-    return { startDate: normalizedStart, endDate: normalizedEnd };
+    // REDESIGN: Dates are metadata only. We no longer modify dates to match the selected period.
+    // The storage location is strictly determined by importLockedYear/Month, not by the dates.
+    return { startDate, endDate };
   };
 
   const parseTime = (value: string): { hour: number; minute: number } => {
@@ -399,25 +390,27 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
         return;
       }
 
-      // VALIDATION: Verify all reservations have locks set correctly
+      // VALIDATION: Verify all reservations have locks set correctly if a specific target is selected
+      const isTargetSpecified = typeof selectedYear === 'number' && selectedMonth !== 'All';
       const lockedCount = reservations.filter(r =>
-        r.importLockedYear === selectedYear && r.importLockedMonth === selectedMonth
+        (typeof selectedYear === 'number' ? r.importLockedYear === selectedYear : true) && 
+        (selectedMonth !== 'All' ? r.importLockedMonth === selectedMonth : true)
       ).length;
 
       console.log('✅ Excel Parsing Complete:', {
         totalReservations: reservations.length,
-        lockedToTarget: lockedCount,
+        lockedCount,
         targetLocation: `${selectedYear}/${selectedMonth}`,
-        allLocksCorrect: lockedCount === reservations.length,
-        sample: reservations.slice(0, 2).map(r => ({
-          name: r.personName,
-          locks: { year: r.importLockedYear, month: r.importLockedMonth }
-        }))
+        allLocksCorrect: lockedCount === reservations.length
       });
 
       if (lockedCount !== reservations.length) {
-        console.error('❌ LOCK VALIDATION FAILED - Some reservations missing locks!');
-        setError('Internal error: Failed to set month locks on reservations. Please try again.');
+        console.error('❌ LOCK VALIDATION FAILED - Some reservations missing locks!', {
+          total: reservations.length,
+          locked: lockedCount,
+          sample: reservations.find(r => !(typeof selectedYear === 'number' ? r.importLockedYear === selectedYear : true) || !(selectedMonth !== 'All' ? r.importLockedMonth === selectedMonth : true))
+        });
+        setError('Internal error: Failed to set month locks on reservations correctly. Please check selection.');
         return;
       }
 

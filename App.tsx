@@ -1463,12 +1463,24 @@ ${currentUser?.fullName}
       let year: number;
       let month: string;
 
+      // REDESIGN: Use the target month provided by the importer.
+      // If target is incomplete, fallback to currently selected view, NEVER to reservation dates.
+      const fallbackYear = typeof selectedYear === 'number' ? selectedYear : (years[0] || new Date().getFullYear());
+      const fallbackMonth = selectedMonth !== 'All' ? selectedMonth : MONTHS[new Date().getMonth()];
+
       if (target?.year !== undefined && target?.month !== undefined) {
         year = target.year;
         month = target.month;
+      } else if (target?.year !== undefined) {
+        year = target.year;
+        month = fallbackMonth;
+      } else if (target?.month !== undefined) {
+        year = fallbackYear;
+        month = target.month;
       } else {
-        year = reservationToStore.importLockedYear || startDate.getFullYear();
-        month = reservationToStore.importLockedMonth || MONTHS[startDate.getMonth()];
+        // Both undefined or "All"
+        year = reservationToStore.importLockedYear || fallbackYear;
+        month = reservationToStore.importLockedMonth || fallbackMonth;
       }
 
       if (!nextReservations[year]) {
@@ -1506,26 +1518,36 @@ ${currentUser?.fullName}
 
     const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);
 
-    // FINAL VALIDATION before save
+    // FINAL VALIDATION before save - ONLY validate the NEWLY imported reservations
     if (target?.year !== undefined && target?.month !== undefined) {
       const targetMonthReservations = nextReservations[target.year]?.[target.month] || [];
-      const correctlyLocked = targetMonthReservations.filter(r =>
+      
+      // Filter only those that were just imported (they are in importedReservations)
+      // Actually, it's easier to just check ALL reservations in target month and warn,
+      // but only FAIL if the NEW ones are missing locks.
+      // But wait, all reservations being added in THIS function have locks set at lines 1486-1487.
+      
+      // Let's change validation to only check if nextReservations[target.year][target.month]
+      // has grown by the expected amount and that the NEW additions have locks.
+      
+      const newlyAdded = targetMonthReservations.filter(r => 
+        importedInternalIds.has(r.id) || !reservations[target.year]?.[target.month]?.some((old: any) => old.id === r.id)
+      );
+
+      const correctlyLocked = newlyAdded.filter(r =>
         r.importLockedYear === target.year && r.importLockedMonth === target.month
       ).length;
 
-      console.log('🔍 FINAL VALIDATION:', {
+      console.log('🔍 IMPORT VALIDATION:', {
         targetMonth: `${target.year}/${target.month}`,
-        reservationsInTargetMonth: targetMonthReservations.length,
+        newlyAdded: newlyAdded.length,
         correctlyLocked: correctlyLocked,
-        validationPassed: correctlyLocked === targetMonthReservations.length,
-        totalInSystem: Object.values(nextReservations).reduce((sum, yearData) =>
-          sum + Object.values(yearData).reduce((s, monthArr) => s + monthArr.length, 0), 0
-        )
+        validationPassed: correctlyLocked === newlyAdded.length
       });
 
-      if (correctlyLocked < targetMonthReservations.length) {
-        console.error('❌ VALIDATION FAILED - Some reservations in target month are missing locks!');
-        addNotification('Import validation failed. Please try again.', 'error');
+      if (correctlyLocked < newlyAdded.length) {
+        console.error('❌ VALIDATION FAILED - Some NEW reservations in target month are missing locks!');
+        addNotification('Import validation failed. Some records missing required locks.', 'error');
         setSaveStatus('error');
         return;
       }
