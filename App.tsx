@@ -1348,6 +1348,11 @@ ${currentUser?.fullName}
     
     const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
     const importedIds = new Set(importedReservations.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
+    const fallbackDate = (index: number) => {
+      const date = new Date();
+      date.setHours(12, index % 60, 0, 0);
+      return date.toISOString().slice(0, 16);
+    };
 
     // 1. Remove existing reservations that match imported booking IDs
     Object.keys(nextReservations).forEach(year => {
@@ -1361,9 +1366,19 @@ ${currentUser?.fullName}
     });
 
     // 2. Add all imported reservations
-    importedReservations.forEach(res => {
-      const startDate = new Date(res.startDate);
-      if (isNaN(startDate.getTime())) return;
+    importedReservations.forEach((res, index) => {
+      let reservationToStore = { ...res };
+      let startDate = new Date(reservationToStore.startDate);
+      if (isNaN(startDate.getTime())) {
+        reservationToStore = {
+          ...reservationToStore,
+          startDate: fallbackDate(index),
+          endDate: reservationToStore.endDate || fallbackDate(index + 1),
+          hasDateError: true,
+          dateErrorDetail: `${reservationToStore.dateErrorDetail ? `${reservationToStore.dateErrorDetail}. ` : ''}Invalid Pick-up Date`,
+        };
+        startDate = new Date(reservationToStore.startDate);
+      }
       
       const year = startDate.getFullYear();
       const month = MONTHS[startDate.getMonth()];
@@ -1376,8 +1391,8 @@ ${currentUser?.fullName}
         nextReservations[year][month] = [];
       }
 
-      const id = res.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      nextReservations[year][month].push({ ...res, id });
+      const id = reservationToStore.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      nextReservations[year][month].push({ ...reservationToStore, id });
     });
 
     const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);

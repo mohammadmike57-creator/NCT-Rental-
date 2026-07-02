@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { AllData } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 let token: string | null = localStorage.getItem('token');
 
@@ -42,7 +42,12 @@ export const fetchInitialData = async (): Promise<AllData | null> => {
   if (!currentToken) return null;
   try {
     const response = await axios.get(`${API_URL}/api/state`, {
-      headers: { Authorization: `Bearer ${currentToken}` }
+      params: { ts: Date.now() },
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      }
     });
     return response.data;
   } catch (error) {

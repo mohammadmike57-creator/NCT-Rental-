@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'nct-rental-cache-v5';
+const CACHE_NAME = 'nct-rental-cache-v6';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
@@ -51,6 +51,11 @@ self.addEventListener('fetch', event => {
   }
 
   const url = new URL(event.request.url);
+
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
+    return;
+  }
 
   // Use a Network First, falling back to Cache strategy for app shell and scripts.
   // This ensures users get the latest updates when online.

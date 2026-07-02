@@ -54,6 +54,30 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
     return 0;
   };
 
+  const getFallbackDate = (offsetDays = 0): Date => {
+    const fallbackYear = typeof selectedYear === 'number' ? selectedYear : new Date().getFullYear();
+    const fallbackMonth = selectedMonth !== 'All' ? MONTHS.indexOf(selectedMonth) : new Date().getMonth();
+    const date = new Date(fallbackYear, fallbackMonth >= 0 ? fallbackMonth : new Date().getMonth(), 1 + offsetDays, 12, 0);
+    return date;
+  };
+
+  const formatDateTimeLocal = (date: Date): string => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const parseTime = (value: string): { hour: number; minute: number } => {
+    const match = value.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i) || value.match(/\b(\d{1,2}):(\d{2})\b/);
+    if (!match) return { hour: 12, minute: 0 };
+
+    let hour = parseInt(match[1], 10);
+    const minute = match[2] ? parseInt(match[2], 10) : 0;
+    const meridian = match[3]?.toLowerCase();
+    if (meridian === 'pm' && hour < 12) hour += 12;
+    if (meridian === 'am' && hour === 12) hour = 0;
+    return { hour: Math.min(Math.max(hour, 0), 23), minute: Math.min(Math.max(minute, 0), 59) };
+  };
+
   // Parse date from various formats
   const parseFlexibleDate = (dateValue: any): string | null => {
     if (!dateValue) return null;
@@ -74,31 +98,34 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       hour = date.H || 12;
       minute = date.M || 0;
     } else if (typeof dateValue === 'string') {
-      const cleaned = dateValue.trim().replace(/\s+/g, ' ');
+      const cleaned = dateValue.trim().replace(/\u00a0/g, ' ').replace(/\s+/g, ' ');
       if (!cleaned) return null;
+      const parsedTime = parseTime(cleaned);
+      hour = parsedTime.hour;
+      minute = parsedTime.minute;
 
-      // Handle "June 10, 2026" or "10 June 2026"
-      const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-      const shortMonthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-      
-      const lowerCleaned = cleaned.toLowerCase();
-      let foundMonth = -1;
-      monthNames.forEach((m, i) => { if (lowerCleaned.includes(m)) foundMonth = i; });
-      if (foundMonth === -1) {
-        shortMonthNames.forEach((m, i) => { if (lowerCleaned.includes(m)) foundMonth = i; });
-      }
+      const monthNamePattern = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+      const monthLookup: Record<string, number> = {
+        jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+        may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7,
+        sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+      };
+      const monthFirst = new RegExp(`\\b${monthNamePattern}\\b\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*,?\\s*(\\d{2,4})?`, 'i');
+      const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${monthNamePattern}\\b\\s*,?\\s*(\\d{2,4})?`, 'i');
+      const monthFirstMatch = cleaned.match(monthFirst);
+      const dayFirstMatch = cleaned.match(dayFirst);
 
-      if (foundMonth !== -1) {
-        const yearMatch = cleaned.match(/\b(20\d{2})\b/);
-        const dayMatch = cleaned.match(/\b(\d{1,2})\b/);
-        
-        if (yearMatch) year = parseInt(yearMatch[1]);
-        else year = typeof selectedYear === 'number' ? selectedYear : new Date().getFullYear();
-        
-        if (dayMatch) day = parseInt(dayMatch[1]);
-        else day = 1;
-        
-        month = foundMonth;
+      if (dayFirstMatch || monthFirstMatch) {
+        if (dayFirstMatch) {
+          day = parseInt(dayFirstMatch[1], 10);
+          month = monthLookup[dayFirstMatch[2].toLowerCase()];
+          year = dayFirstMatch[3] ? parseInt(dayFirstMatch[3], 10) : (typeof selectedYear === 'number' ? selectedYear : new Date().getFullYear());
+        } else {
+          month = monthLookup[monthFirstMatch![1].toLowerCase()];
+          day = parseInt(monthFirstMatch![2], 10);
+          year = monthFirstMatch![3] ? parseInt(monthFirstMatch![3], 10) : (typeof selectedYear === 'number' ? selectedYear : new Date().getFullYear());
+        }
+        if (year < 100) year += 2000;
       } else {
         // Try numeric formats with various separators (/, -, ., //, etc.)
         const normalized = cleaned.replace(/[./-]{1,2}/g, '/').replace(/\s+/g, ' ');
@@ -186,8 +213,15 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
         const rowNum = idx + 2;
         try {
           const personNameCandidateHeaders = ['Client Name', 'Renter Name', 'Customer Name', 'Name', 'Driver Name', 'Renter', 'Client', 'Customer', 'Guest', 'Guest Name', 'Driver'];
-          const personName = getRowValueByHeaders(row, personNameCandidateHeaders)?.toString().trim();
-          if (!personName) throw new Error('Client Name missing');
+          let personName = getRowValueByHeaders(row, personNameCandidateHeaders)?.toString().trim();
+          let hasImportError = false;
+          let importErrorDetail = '';
+
+          if (!personName) {
+            personName = 'UNKNOWN CLIENT';
+            hasImportError = true;
+            importErrorDetail = 'Client Name missing';
+          }
 
           // Skip summary rows
           const lowerName = personName.toLowerCase();
@@ -200,12 +234,20 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           
           const startDateRaw = getRowValueByHeaders(row, pickupDateCandidates);
           const endDateRaw = getRowValueByHeaders(row, dropoffDateCandidates);
-          if (!startDateRaw) throw new Error('Pick-up Date missing');
-          if (!endDateRaw) throw new Error('Drop-off Date missing');
 
-          const startDate = parseFlexibleDate(startDateRaw);
-          const endDate = parseFlexibleDate(endDateRaw);
-          if (!startDate || !endDate) throw new Error('Invalid date format');
+          let startDate = parseFlexibleDate(startDateRaw);
+          let endDate = parseFlexibleDate(endDateRaw);
+
+          if (!startDate) {
+            startDate = formatDateTimeLocal(getFallbackDate(idx));
+            hasImportError = true;
+            importErrorDetail = `${importErrorDetail ? `${importErrorDetail}. ` : ''}Invalid Pick-up Date: ${startDateRaw || 'missing'}`;
+          }
+          if (!endDate) {
+            endDate = formatDateTimeLocal(new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000));
+            hasImportError = true;
+            importErrorDetail = `${importErrorDetail ? `${importErrorDetail}. ` : ''}Invalid Drop-off Date: ${endDateRaw || 'missing'}`;
+          }
 
           // Optional: Force to selected year/month if requested by user's specific context
           // But usually better to let them be imported as parsed.
@@ -220,7 +262,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           // if (selectedMonth !== 'All' && rMonth !== selectedMonth) ...
 
           if (new Date(endDate) <= new Date(startDate)) {
-            throw new Error('Drop-off date must be after pick-up date');
+            hasImportError = true;
+            importErrorDetail = `${importErrorDetail ? `${importErrorDetail}. ` : ''}Drop-off date must be after pick-up date`;
           }
 
           const bookingIdCandidates = ['Reference Number', 'Booking ID', 'Reservation Number', 'Order Number', 'Ref', 'ID', 'Reference', 'Booking #', 'Res #'];
@@ -299,6 +342,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
             locationName,
             status,
             amount,
+            hasDateError: hasImportError,
+            dateErrorDetail: hasImportError ? importErrorDetail : undefined,
           } as Reservation);
         } catch (err: any) {
           errors.push(`Row ${rowNum}: ${err.message}`);
