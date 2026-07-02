@@ -396,17 +396,12 @@ export const App: React.FC = () => {
       console.log('Data updated, table key incremented to', tableKey + 1);
   };
 
-  // Polling function to fetch full state from /api/state – now uses token directly
+  // Polling function to fetch full state from /api/state – now uses fetchInitialData
   const fetchAllData = useCallback(async () => {
     console.log('fetchAllData called');
-    const token = localStorage.getItem('token');
-    if (!token) return;
     try {
-      const response = await fetch('https://www.nctrental.com/api/state', {
-        headers: { Authorization: 'Bearer ' + token }
-      });
-      if (!response.ok) throw new Error('Failed to fetch state');
-      const data = await response.json();
+      const data = await fetchInitialData();
+      if (!data) return;
       
       // If we are currently saving or have unsaved changes, do not overwrite local state
       if (saveStatusRef.current !== 'saved') {
@@ -641,9 +636,9 @@ export const App: React.FC = () => {
     setSaveStatus('saving');
 
     timeoutRef.current = setTimeout(() => {
-        console.log("Auto-saving data after 30 seconds of inactivity...");
+        console.log("Auto-saving data after 2 seconds of inactivity...");
         executeAutoSave();
-    }, 30000);
+    }, 2000);
 
     return () => {
         if (timeoutRef.current) {
@@ -1153,56 +1148,35 @@ export const App: React.FC = () => {
 
   // FINAL FIX: delete all reservations – fetches state, builds empty structure, and overwrites backend
   const handleDeleteAllReservations = useCallback(async () => {
-    if (!window.confirm("DANGER: Are you absolutely sure you want to delete ALL reservations from the system? This action is permanent and cannot be undone.")) {
-      return;
-    }
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      addNotification("Not authenticated. Please log in again.", 'error');
+    if (!window.confirm("CRITICAL: This will permanently delete ALL reservations from the system. This cannot be undone. Proceed?")) {
       return;
     }
 
     try {
       setSaveStatus('saving');
 
-      const response = await fetch('https://www.nctrental.com/api/state', {
-        headers: { Authorization: 'Bearer ' + token }
-      });
-      if (!response.ok) throw new Error('Failed to fetch state');
-      const currentState = await response.json();
-
       const cleanReservations: AppData = {};
-      const yearsSet = new Set(Object.keys(currentState.reservations));
-      yearsSet.forEach(year => {
-        cleanReservations[year] = {};
-        MONTHS.forEach(month => cleanReservations[year][month] = []);
+      Object.keys(reservations).forEach(year => {
+        const y = parseInt(year);
+        cleanReservations[y] = {};
+        MONTHS.forEach(month => {
+          cleanReservations[y][month] = [];
+        });
       });
 
-      const newState = { ...currentState, reservations: cleanReservations };
-
-      const saveResponse = await fetch('https://www.nctrental.com/api/state', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + token
-        },
-        body: JSON.stringify(newState)
-      });
-      if (!saveResponse.ok) throw new Error('Failed to save cleared state');
+      skipAutoSaveRef.current = true;
+      await saveAllData({ reservations: cleanReservations });
 
       setReservations(cleanReservations);
       setNewReservations([]);
       setSaveStatus('saved');
       showConfirmation("All reservations have been deleted.");
-
-      await fetchAllData();
     } catch (err) {
       console.error("Failed to delete all reservations:", err);
       setSaveStatus('error');
       addNotification("Failed to delete reservations. Check connection.", 'error');
     }
-  }, [fetchAllData, showConfirmation, addNotification]);
+  }, [reservations, showConfirmation, addNotification]);
 
   // Handler for adding extras to a reservation
   const handleAddExtras = useCallback((reservation: Reservation) => {
@@ -1372,7 +1346,7 @@ ${currentUser?.fullName}
 
     setSaveStatus('saving');
     
-    const nextReservations = { ...reservations };
+    const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
     const importedIds = new Set(importedReservations.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
 
     // 1. Remove existing reservations that match imported booking IDs

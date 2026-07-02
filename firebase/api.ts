@@ -38,23 +38,24 @@ export const onAuthStateChangedListener = (callback: (user: any) => void) => {
 };
 
 export const fetchInitialData = async (): Promise<AllData | null> => {
-  console.log('fetchInitialData called with token:', token);
+  const currentToken = localStorage.getItem('token');
+  if (!currentToken) return null;
   try {
     const response = await axios.get(`${API_URL}/api/state`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${currentToken}` }
     });
-    console.log('Initial data received:', response.data);
     return response.data;
   } catch (error) {
     console.error('Failed to fetch initial data', error);
-    return null;
+    throw error;
   }
 };
 
 export const saveAllData = async (data: Partial<AllData>): Promise<void> => {
+  const currentToken = localStorage.getItem('token');
   try {
     await axios.post(`${API_URL}/api/state`, data, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${currentToken}` }
     });
   } catch (error: any) {
     console.error('Failed to save data:', error);
