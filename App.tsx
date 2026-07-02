@@ -1415,10 +1415,26 @@ ${currentUser?.fullName}
 
     try {
       skipAutoSaveRef.current = true;
-      await saveAllData({ 
+      const allData: AllData = {
         reservations: nextReservations,
-        years: nextYears
-      });
+        sources,
+        fleet,
+        companyDetails,
+        trafficTickets,
+        vehicleDamages,
+        users,
+        expenses,
+        messages,
+        rentalLocations,
+        invoices,
+        availableExtras,
+        franchisePayments,
+        activityLog,
+        aggregators,
+        stopSales,
+        years: nextYears,
+      };
+      await saveAllData(cleanUndefined(allData));
       setReservations(nextReservations);
       setYears(nextYears);
       
@@ -1442,7 +1458,7 @@ ${currentUser?.fullName}
       console.error("Failed to save imported reservations:", err);
       addNotification("Failed to save imported reservations. Check connection.", 'error');
     }
-  }, [reservations, years, addNotification, showConfirmation]);
+  }, [reservations, years, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, addNotification, showConfirmation]);
 
   const clearReservationFilters = useCallback(() => {
     setFilters({
