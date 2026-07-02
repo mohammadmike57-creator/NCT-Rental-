@@ -324,10 +324,12 @@ export const App: React.FC = () => {
                   monthList.forEach((res: Reservation) => {
                         let targetYear, targetMonth;
 
-                        if (res.importLockedYear && res.importLockedMonth) {
+                        // Priority 1: If reservation has importLockedYear/Month, ALWAYS use those (never change)
+                        if (res.importLockedYear !== undefined && res.importLockedMonth !== undefined) {
                             targetYear = res.importLockedYear;
                             targetMonth = res.importLockedMonth;
                         } else if (res.startDate) {
+                            // Priority 2: Use startDate for non-locked reservations
                             const d = new Date(res.startDate);
                             if (!isNaN(d.getTime())) {
                                 targetYear = d.getFullYear();
@@ -335,21 +337,23 @@ export const App: React.FC = () => {
                             }
                         }
 
-                        // If we can't determine date or it doesn't match an existing year,
-                        // fallback to the yearKey it was found under to avoid dropping data
-                        if (!targetYear || !reorganizedReservations[targetYear]) {
+                        // Priority 3: If we still can't determine, use the location where it was found
+                        if (!targetYear || !targetMonth) {
                              targetYear = parseInt(yearKey);
                              targetMonth = monthKey;
                         }
-                        
-                        // Ensure the bucket exists
+
+                        // Ensure the year exists in our structure
                         if (!reorganizedReservations[targetYear]) {
                             reorganizedReservations[targetYear] = {};
+                            MONTHS.forEach(m => reorganizedReservations[targetYear][m] = []);
                         }
+                        // Ensure the month bucket exists
                         if (!reorganizedReservations[targetYear][targetMonth]) {
                              reorganizedReservations[targetYear][targetMonth] = [];
                         }
 
+                        // Only add if not already present (prevent duplicates)
                         if (!reorganizedReservations[targetYear][targetMonth].some(r => r.id === res.id)) {
                              reorganizedReservations[targetYear][targetMonth].push(res);
                         }
@@ -831,37 +835,52 @@ export const App: React.FC = () => {
     }
 
     const newDate = new Date(updatedReservation.startDate);
-    const newYear = newDate.getFullYear();
-    const newMonth = MONTHS[newDate.getMonth()];
-    if (
-      updatedReservation.importLockedYear &&
-      updatedReservation.importLockedMonth &&
-      (updatedReservation.importLockedYear !== newYear || updatedReservation.importLockedMonth !== newMonth)
-    ) {
-      updatedReservation.importLockedYear = undefined;
-      updatedReservation.importLockedMonth = undefined;
+    const newYearFromDate = newDate.getFullYear();
+    const newMonthFromDate = MONTHS[newDate.getMonth()];
+
+    // Determine target year/month: prioritize locked values, otherwise use date
+    let targetYear: number;
+    let targetMonth: string;
+
+    if (updatedReservation.importLockedYear !== undefined && updatedReservation.importLockedMonth !== undefined) {
+      // If reservation is locked, keep it locked UNLESS user manually changed date to different period
+      if (updatedReservation.importLockedYear === newYearFromDate && updatedReservation.importLockedMonth === newMonthFromDate) {
+        // Date matches lock - keep it locked
+        targetYear = updatedReservation.importLockedYear;
+        targetMonth = updatedReservation.importLockedMonth;
+      } else {
+        // User intentionally changed date to different period - unlock and use new date
+        updatedReservation.importLockedYear = undefined;
+        updatedReservation.importLockedMonth = undefined;
+        targetYear = newYearFromDate;
+        targetMonth = newMonthFromDate;
+      }
+    } else {
+      // Not locked - use the date
+      targetYear = newYearFromDate;
+      targetMonth = newMonthFromDate;
     }
 
     setSaveStatus('saving');
-    
+
     const newReservationsData = JSON.parse(JSON.stringify(reservations)) as AppData;
-    
+
     // Remove from everywhere (in case year/month changed)
     for (const y in newReservationsData) {
         for (const m in newReservationsData[y]) {
             newReservationsData[y][m] = newReservationsData[y][m].filter((res: Reservation) => res.id !== reservation.id);
         }
     }
-    
-    if (!newReservationsData[newYear]) {
-         newReservationsData[newYear] = {};
-         MONTHS.forEach(m => newReservationsData[newYear][m] = []);
+
+    if (!newReservationsData[targetYear]) {
+         newReservationsData[targetYear] = {};
+         MONTHS.forEach(m => newReservationsData[targetYear][m] = []);
     }
-    if (!newReservationsData[newYear][newMonth]) {
-         newReservationsData[newYear][newMonth] = [];
+    if (!newReservationsData[targetYear][targetMonth]) {
+         newReservationsData[targetYear][targetMonth] = [];
     }
-    
-    newReservationsData[newYear][newMonth].push(updatedReservation);
+
+    newReservationsData[targetYear][targetMonth].push(updatedReservation);
 
     try {
       skipAutoSaveRef.current = true;
