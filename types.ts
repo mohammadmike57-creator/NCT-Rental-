@@ -252,6 +252,11 @@ export interface Reservation {
   authNumber?: string;
   cardNumber?: string;
   cardExpiry?: string;
+
+  hasDateError?: boolean;
+  dateErrorDetail?: string;
+  importLockedYear?: number;
+  importLockedMonth?: string;
   
   assignedTo?: string; // User ID
 

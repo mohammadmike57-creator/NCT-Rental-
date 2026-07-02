@@ -323,8 +323,11 @@ export const App: React.FC = () => {
               if (Array.isArray(monthList)) {
                   monthList.forEach((res: Reservation) => {
                         let targetYear, targetMonth;
-                        
-                        if (res.startDate) {
+
+                        if (res.importLockedYear && res.importLockedMonth) {
+                            targetYear = res.importLockedYear;
+                            targetMonth = res.importLockedMonth;
+                        } else if (res.startDate) {
                             const d = new Date(res.startDate);
                             if (!isNaN(d.getTime())) {
                                 targetYear = d.getFullYear();
@@ -830,6 +833,14 @@ export const App: React.FC = () => {
     const newDate = new Date(updatedReservation.startDate);
     const newYear = newDate.getFullYear();
     const newMonth = MONTHS[newDate.getMonth()];
+    if (
+      updatedReservation.importLockedYear &&
+      updatedReservation.importLockedMonth &&
+      (updatedReservation.importLockedYear !== newYear || updatedReservation.importLockedMonth !== newMonth)
+    ) {
+      updatedReservation.importLockedYear = undefined;
+      updatedReservation.importLockedMonth = undefined;
+    }
 
     setSaveStatus('saving');
     
@@ -1341,7 +1352,7 @@ ${currentUser?.fullName}
       }
   };
 
-  const handleReservationsImport = useCallback(async (importedReservations: Reservation[]) => {
+  const handleReservationsImport = useCallback(async (importedReservations: Reservation[], target?: { year?: number; month?: string }) => {
     if (!importedReservations || importedReservations.length === 0) return;
 
     setSaveStatus('saving');
@@ -1380,8 +1391,8 @@ ${currentUser?.fullName}
         startDate = new Date(reservationToStore.startDate);
       }
       
-      const year = startDate.getFullYear();
-      const month = MONTHS[startDate.getMonth()];
+      const year = target?.year || reservationToStore.importLockedYear || startDate.getFullYear();
+      const month = target?.month || reservationToStore.importLockedMonth || MONTHS[startDate.getMonth()];
       
       if (!nextReservations[year]) {
         nextReservations[year] = {};
@@ -1392,7 +1403,12 @@ ${currentUser?.fullName}
       }
 
       const id = reservationToStore.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      nextReservations[year][month].push({ ...reservationToStore, id });
+      nextReservations[year][month].push({
+        ...reservationToStore,
+        id,
+        importLockedYear: target?.year || reservationToStore.importLockedYear,
+        importLockedMonth: target?.month || reservationToStore.importLockedMonth,
+      });
     });
 
     const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);
@@ -1410,9 +1426,11 @@ ${currentUser?.fullName}
       const firstRes = importedReservations[0];
       if (firstRes && firstRes.startDate) {
         const firstD = new Date(firstRes.startDate);
-        if (!isNaN(firstD.getTime())) {
-          handleSetSelectedYear(firstD.getFullYear());
-          handleSetSelectedMonth(MONTHS[firstD.getMonth()]);
+        const viewYear = target?.year || firstRes.importLockedYear || (!isNaN(firstD.getTime()) ? firstD.getFullYear() : undefined);
+        const viewMonth = target?.month || firstRes.importLockedMonth || (!isNaN(firstD.getTime()) ? MONTHS[firstD.getMonth()] : undefined);
+        if (viewYear && viewMonth) {
+          handleSetSelectedYear(viewYear);
+          handleSetSelectedMonth(viewMonth);
           setMainView('Reservations');
         }
       }
@@ -1840,7 +1858,7 @@ ${currentUser?.fullName}
             }}
         />
     ), permission: UserPermission.VIEW_MY_PROFILE },
-    'Import Reservations': { component: <ExcelUpload onReservationsImported={handleReservationsImport} years={years} />, permission: UserPermission.VIEW_ADMIN_PANEL },
+    'Import Reservations': { component: <ExcelUpload onReservationsImported={handleReservationsImport} years={years} focusYear={selectedYear} focusMonth={selectedMonth} />, permission: UserPermission.VIEW_ADMIN_PANEL },
   };
 
   const sidebarLinks: Record<string, SidebarLink[]> = {

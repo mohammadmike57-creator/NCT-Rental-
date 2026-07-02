@@ -4,14 +4,16 @@ import { Reservation, ReservationStatus } from '../types';
 import { MONTHS, INITIAL_YEARS } from '../constants';
 
 interface ExcelUploadProps {
-  onReservationsImported: (reservations: Reservation[]) => void;
+  onReservationsImported: (reservations: Reservation[], target?: { year?: number; month?: string }) => void;
   years?: number[];
+  focusYear?: number;
+  focusMonth?: string;
 }
 
-const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years = INITIAL_YEARS }) => {
+const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years = INITIAL_YEARS, focusYear, focusMonth }) => {
   const [uploading, setUploading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>('All');
-  const [selectedYear, setSelectedYear] = useState<number | 'All'>('All');
+  const [selectedMonth, setSelectedMonth] = useState<string>(focusMonth || 'All');
+  const [selectedYear, setSelectedYear] = useState<number | 'All'>(focusYear || 'All');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -64,6 +66,40 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const formatDateTimeLocal = (date: Date): string => {
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const normalizeDateToSelectedPeriod = (dateString: string): string => {
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) return dateString;
+
+    const targetYear = typeof selectedYear === 'number' ? selectedYear : parsed.getFullYear();
+    const selectedMonthIndex = selectedMonth !== 'All' ? MONTHS.indexOf(selectedMonth) : -1;
+    const targetMonth = selectedMonthIndex >= 0 ? selectedMonthIndex : parsed.getMonth();
+    const maxDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const targetDay = Math.min(parsed.getDate(), maxDay);
+
+    return formatDateTimeLocal(new Date(
+      targetYear,
+      targetMonth,
+      targetDay,
+      parsed.getHours(),
+      parsed.getMinutes()
+    ));
+  };
+
+  const normalizeReservationDatesToSelectedPeriod = (startDate: string, endDate: string) => {
+    if (selectedYear === 'All' && selectedMonth === 'All') {
+      return { startDate, endDate };
+    }
+
+    const normalizedStart = normalizeDateToSelectedPeriod(startDate);
+    let normalizedEnd = normalizeDateToSelectedPeriod(endDate);
+
+    if (new Date(normalizedEnd) <= new Date(normalizedStart)) {
+      normalizedEnd = formatDateTimeLocal(new Date(new Date(normalizedStart).getTime() + 24 * 60 * 60 * 1000));
+    }
+
+    return { startDate: normalizedStart, endDate: normalizedEnd };
   };
 
   const parseTime = (value: string): { hour: number; minute: number } => {
@@ -249,17 +285,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
             importErrorDetail = `${importErrorDetail ? `${importErrorDetail}. ` : ''}Invalid Drop-off Date: ${endDateRaw || 'missing'}`;
           }
 
-          // Optional: Force to selected year/month if requested by user's specific context
-          // But usually better to let them be imported as parsed.
-          // The user said: "uploude all to the selected month perfectlly"
-          // We will remove the skip filters below.
-
-          /* Remove strict month/year filtering as requested by user to "upload all" */
-          // const startD = new Date(startDate);
-          // const rYear = startD.getFullYear();
-          // const rMonth = MONTHS[startD.getMonth()];
-          // if (selectedYear !== 'All' && rYear !== selectedYear) ...
-          // if (selectedMonth !== 'All' && rMonth !== selectedMonth) ...
+          ({ startDate, endDate } = normalizeReservationDatesToSelectedPeriod(startDate, endDate));
 
           if (new Date(endDate) <= new Date(startDate)) {
             hasImportError = true;
@@ -344,6 +370,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
             amount,
             hasDateError: hasImportError,
             dateErrorDetail: hasImportError ? importErrorDetail : undefined,
+            importLockedYear: typeof selectedYear === 'number' ? selectedYear : undefined,
+            importLockedMonth: selectedMonth !== 'All' ? selectedMonth : undefined,
           } as Reservation);
         } catch (err: any) {
           errors.push(`Row ${rowNum}: ${err.message}`);
@@ -355,7 +383,10 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
         return;
       }
 
-      onReservationsImported(reservations);
+      onReservationsImported(reservations, {
+        year: typeof selectedYear === 'number' ? selectedYear : undefined,
+        month: selectedMonth !== 'All' ? selectedMonth : undefined,
+      });
       setSuccess(`Imported ${reservations.length} reservations. ${errors.length} rows skipped.`);
       if (errors.length > 0) {
         setError(`Skipped rows:\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more` : ''}`);
@@ -375,7 +406,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Focus Year (for view)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Import Year</label>
           <select 
             value={selectedYear} 
             onChange={(e) => setSelectedYear(e.target.value === 'All' ? 'All' : parseInt(e.target.value))}
@@ -388,7 +419,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Focus Month (for view)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Import Month</label>
           <select 
             value={selectedMonth} 
             onChange={(e) => setSelectedMonth(e.target.value)}
