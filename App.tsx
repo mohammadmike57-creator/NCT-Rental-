@@ -294,7 +294,9 @@ export const App: React.FC = () => {
   }, []);
   
   const handleDataUpdate = (data: AllData) => {
-      if (!data) return; 
+      if (!data) return;
+
+      console.log('🔄 DATA UPDATE STARTED - Loading from backend');
 
       skipAutoSaveRef.current = true;
       const initialState = getInitialState();
@@ -314,6 +316,9 @@ export const App: React.FC = () => {
           MONTHS.forEach(m => reorganizedReservations[y][m] = []);
       });
 
+      let lockedCount = 0;
+      let movedCount = 0;
+
       Object.keys(rawReservations).forEach(yearKey => {
           const yearData = rawReservations[yearKey as any];
           if (!yearData) return;
@@ -328,6 +333,7 @@ export const App: React.FC = () => {
                         if (res.importLockedYear !== undefined && res.importLockedMonth !== undefined) {
                             targetYear = res.importLockedYear;
                             targetMonth = res.importLockedMonth;
+                            lockedCount++;
                         } else if (res.startDate) {
                             // Priority 2: Use startDate for non-locked reservations
                             const d = new Date(res.startDate);
@@ -341,6 +347,11 @@ export const App: React.FC = () => {
                         if (!targetYear || !targetMonth) {
                              targetYear = parseInt(yearKey);
                              targetMonth = monthKey;
+                        }
+
+                        // Track if reservation moved
+                        if (targetYear !== parseInt(yearKey) || targetMonth !== monthKey) {
+                            movedCount++;
                         }
 
                         // Ensure the year exists in our structure
@@ -360,6 +371,14 @@ export const App: React.FC = () => {
                   });
               }
           });
+      });
+
+      console.log('🔄 DATA REORGANIZED:', {
+        totalReservations: Object.values(reorganizedReservations).reduce((sum, yearData) =>
+          sum + Object.values(yearData).reduce((s, monthArr) => s + monthArr.length, 0), 0
+        ),
+        lockedReservations: lockedCount,
+        movedDuringReorganization: movedCount
       });
 
       setReservations(reorganizedReservations);
@@ -1374,8 +1393,14 @@ ${currentUser?.fullName}
   const handleReservationsImport = useCallback(async (importedReservations: Reservation[], target?: { year?: number; month?: string }) => {
     if (!importedReservations || importedReservations.length === 0) return;
 
+    console.log('🔵 IMPORT STARTED', {
+      count: importedReservations.length,
+      target,
+      firstReservation: importedReservations[0]
+    });
+
     setSaveStatus('saving');
-    
+
     const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
     const importedIds = new Set(importedReservations.map(r => r.bookingId?.trim().toLowerCase()).filter(Boolean));
     const fallbackDate = (index: number) => {
@@ -1385,17 +1410,21 @@ ${currentUser?.fullName}
     };
 
     // 1. Remove existing reservations that match imported booking IDs
+    let removedCount = 0;
     Object.keys(nextReservations).forEach(year => {
       const y = parseInt(year);
       Object.keys(nextReservations[y]).forEach(month => {
+        const before = nextReservations[y][month].length;
         nextReservations[y][month] = nextReservations[y][month].filter(res => {
           const bid = res.bookingId?.trim().toLowerCase();
           return !(bid && importedIds.has(bid));
         });
+        removedCount += before - nextReservations[y][month].length;
       });
     });
+    console.log('🟡 Removed existing reservations with matching IDs:', removedCount);
 
-    // 2. Add all imported reservations
+    // 2. Add all imported reservations - STRICTLY enforce target month if provided
     importedReservations.forEach((res, index) => {
       let reservationToStore = { ...res };
       let startDate = new Date(reservationToStore.startDate);
@@ -1409,10 +1438,22 @@ ${currentUser?.fullName}
         };
         startDate = new Date(reservationToStore.startDate);
       }
-      
-      const year = target?.year || reservationToStore.importLockedYear || startDate.getFullYear();
-      const month = target?.month || reservationToStore.importLockedMonth || MONTHS[startDate.getMonth()];
-      
+
+      // CRITICAL: If target is provided, ALWAYS use it (month lock)
+      // Never fall back to startDate when importing with a selected month
+      let year: number;
+      let month: string;
+
+      if (target?.year !== undefined && target?.month !== undefined) {
+        // User selected specific month - LOCK IT THERE
+        year = target.year;
+        month = target.month;
+      } else {
+        // No target specified - use date or existing lock
+        year = reservationToStore.importLockedYear || startDate.getFullYear();
+        month = reservationToStore.importLockedMonth || MONTHS[startDate.getMonth()];
+      }
+
       if (!nextReservations[year]) {
         nextReservations[year] = {};
         MONTHS.forEach(m => nextReservations[year][m] = []);
@@ -1421,16 +1462,42 @@ ${currentUser?.fullName}
         nextReservations[year][month] = [];
       }
 
-      const id = reservationToStore.id || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      nextReservations[year][month].push({
+      const id = reservationToStore.id || `imported-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
+      const finalReservation = {
         ...reservationToStore,
         id,
-        importLockedYear: target?.year || reservationToStore.importLockedYear,
-        importLockedMonth: target?.month || reservationToStore.importLockedMonth,
-      });
+        // ALWAYS set locks when target is specified
+        importLockedYear: target?.year !== undefined ? target.year : (reservationToStore.importLockedYear || undefined),
+        importLockedMonth: target?.month !== undefined ? target.month : (reservationToStore.importLockedMonth || undefined),
+      };
+
+      nextReservations[year][month].push(finalReservation);
+
+      if (index < 3) {
+        console.log(`🟢 Added reservation ${index + 1}:`, {
+          id: finalReservation.id,
+          personName: finalReservation.personName,
+          startDate: finalReservation.startDate,
+          storedIn: `${year}/${month}`,
+          locks: {
+            year: finalReservation.importLockedYear,
+            month: finalReservation.importLockedMonth
+          }
+        });
+      }
     });
 
     const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);
+
+    // Log final state before save
+    const targetMonthCount = target?.year && target?.month ? nextReservations[target.year]?.[target.month]?.length : 0;
+    console.log('🔵 BEFORE SAVE:', {
+      targetMonth: target ? `${target.year}/${target.month}` : 'none',
+      reservationsInTargetMonth: targetMonthCount,
+      totalReservationsInSystem: Object.values(nextReservations).reduce((sum, yearData) =>
+        sum + Object.values(yearData).reduce((s, monthArr) => s + monthArr.length, 0), 0
+      )
+    });
 
     try {
       skipAutoSaveRef.current = true;
@@ -1456,25 +1523,21 @@ ${currentUser?.fullName}
       await saveAllData(cleanUndefined(allData));
       setReservations(nextReservations);
       setYears(nextYears);
-      
-      // Auto-switch view to the first imported reservation to ensure user sees results
-      const firstRes = importedReservations[0];
-      if (firstRes && firstRes.startDate) {
-        const firstD = new Date(firstRes.startDate);
-        const viewYear = target?.year || firstRes.importLockedYear || (!isNaN(firstD.getTime()) ? firstD.getFullYear() : undefined);
-        const viewMonth = target?.month || firstRes.importLockedMonth || (!isNaN(firstD.getTime()) ? MONTHS[firstD.getMonth()] : undefined);
-        if (viewYear && viewMonth) {
-          handleSetSelectedYear(viewYear);
-          handleSetSelectedMonth(viewMonth);
-          setMainView('Reservations');
-        }
+
+      console.log('🟢 SAVE COMPLETE - State updated');
+
+      // Auto-switch view to the target month to ensure user sees results
+      if (target?.year && target?.month) {
+        handleSetSelectedYear(target.year);
+        handleSetSelectedMonth(target.month);
+        setMainView('Reservations');
       }
 
       setSaveStatus('saved');
-      showConfirmation(`Successfully imported ${importedReservations.length} reservations. Existing records were updated if they matched by Booking ID.`);
+      showConfirmation(`Successfully imported ${importedReservations.length} reservations into ${target?.month || 'various months'}. Existing records were updated if they matched by Booking ID.`);
     } catch (err) {
       setSaveStatus('error');
-      console.error("Failed to save imported reservations:", err);
+      console.error("❌ Failed to save imported reservations:", err);
       addNotification("Failed to save imported reservations. Check connection.", 'error');
     }
   }, [reservations, years, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, addNotification, showConfirmation]);

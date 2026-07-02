@@ -285,7 +285,9 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
             importErrorDetail = `${importErrorDetail ? `${importErrorDetail}. ` : ''}Invalid Drop-off Date: ${endDateRaw || 'missing'}`;
           }
 
-          ({ startDate, endDate } = normalizeReservationDatesToSelectedPeriod(startDate, endDate));
+          // IMPORTANT: Keep the original dates as-is, don't normalize them
+          // The importLockedYear/Month fields will control where they're stored
+          // This preserves the actual pickup/dropoff dates for the reservation
 
           if (new Date(endDate) <= new Date(startDate)) {
             hasImportError = true;
