@@ -11,6 +11,40 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const normalizeHeader = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const getRowValueByHeaders = (row: Record<string, any>, candidateHeaders: string[]): any => {
+    for (const header of candidateHeaders) {
+      const value = row[header];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return value;
+      }
+    }
+
+    const normalizedCandidates = new Set(candidateHeaders.map(normalizeHeader));
+    for (const key of Object.keys(row)) {
+      if (normalizedCandidates.has(normalizeHeader(key))) {
+        const value = row[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          return value;
+        }
+      }
+    }
+
+    return undefined;
+  };
+
+  const parseAmount = (value: any): number => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9.,-]/g, '').trim();
+      if (!cleaned) return 0;
+      const parsed = parseFloat(cleaned.replace(/,/g, ''));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -32,14 +66,19 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
       rows.forEach((row, idx) => {
         const rowNum = idx + 2; // 1‑based, header row is row 1
         try {
-          const modelName = row['Model']?.toString().trim();
-          const licensePlate = row['License Plate']?.toString().trim();
-          const registrationExpiry = row['Registration Expiry']?.toString().trim() || '';
-          const category = row['Category']?.toString().trim() || '';
-          const securityDeposit = parseFloat(row['Security Deposit']);
-          const excess = parseFloat(row['Excess']);
-          const sippCode = row['SIPP Code']?.toString().trim() || '';
-          const transmission = row['Transmission']?.toString().trim() || '';
+          const modelName = getRowValueByHeaders(row, ['Model', 'Vehicle Model', 'Car Model', 'Vehicle', 'Car'])?.toString().trim();
+          const licensePlate = getRowValueByHeaders(row, ['License Plate', 'Plate', 'Plate Number', 'Reg Number'])?.toString().trim();
+          const registrationExpiry = getRowValueByHeaders(row, ['Registration Expiry', 'Expiry', 'Reg Expiry', 'Expiry Date'])?.toString().trim() || '';
+          const category = getRowValueByHeaders(row, ['Category', 'Type', 'Group', 'Class'])?.toString().trim() || '';
+          
+          const securityDepositRaw = getRowValueByHeaders(row, ['Security Deposit', 'Deposit', 'Sec Deposit']);
+          const excessRaw = getRowValueByHeaders(row, ['Excess', 'Insurance Excess', 'Excess Amount']);
+          
+          const securityDeposit = parseAmount(securityDepositRaw);
+          const excess = parseAmount(excessRaw);
+          
+          const sippCode = getRowValueByHeaders(row, ['SIPP Code', 'SIPP', 'ACRISS'])?.toString().trim() || '';
+          const transmission = getRowValueByHeaders(row, ['Transmission', 'Gearbox', 'Gear'])?.toString().trim() || '';
 
           if (!modelName) throw new Error('Model missing');
           if (!licensePlate) throw new Error('License Plate missing');

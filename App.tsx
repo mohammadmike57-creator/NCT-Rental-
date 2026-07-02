@@ -1416,6 +1416,18 @@ ${currentUser?.fullName}
       });
       setReservations(nextReservations);
       setYears(nextYears);
+      
+      // Auto-switch view to the first imported reservation to ensure user sees results
+      const firstRes = importedReservations[0];
+      if (firstRes && firstRes.startDate) {
+        const firstD = new Date(firstRes.startDate);
+        if (!isNaN(firstD.getTime())) {
+          handleSetSelectedYear(firstD.getFullYear());
+          handleSetSelectedMonth(MONTHS[firstD.getMonth()]);
+          setMainView('Reservations');
+        }
+      }
+
       setSaveStatus('saved');
       showConfirmation(`Successfully imported ${importedReservations.length} reservations. Existing records were updated if they matched by Booking ID.`);
     } catch (err) {

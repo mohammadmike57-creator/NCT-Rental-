@@ -59,7 +59,13 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
     if (!dateValue) return null;
     let year: number, month: number, day: number, hour = 12, minute = 0;
 
-    if (typeof dateValue === 'number') {
+    if (dateValue instanceof Date) {
+      year = dateValue.getFullYear();
+      month = dateValue.getMonth();
+      day = dateValue.getDate();
+      hour = dateValue.getHours();
+      minute = dateValue.getMinutes();
+    } else if (typeof dateValue === 'number') {
       // Excel serial date
       const date = XLSX.SSF.parse_date_code(dateValue);
       year = date.y;
@@ -68,73 +74,82 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       hour = date.H || 12;
       minute = date.M || 0;
     } else if (typeof dateValue === 'string') {
-      const cleaned = dateValue.trim();
+      const cleaned = dateValue.trim().replace(/\s+/g, ' ');
       if (!cleaned) return null;
 
-      // Try DD/MM/YYYY or MM/DD/YYYY with various separators
-      const dmyMatch = cleaned.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
-      if (dmyMatch) {
-        const v1 = parseInt(dmyMatch[1]);
-        const v2 = parseInt(dmyMatch[2]);
-        let y = parseInt(dmyMatch[3]);
-        if (y < 100) y += 2000;
-        const h = dmyMatch[4] ? parseInt(dmyMatch[4]) : 12;
-        const min = dmyMatch[5] ? parseInt(dmyMatch[5]) : 0;
+      // Handle "June 10, 2026" or "10 June 2026"
+      const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+      const shortMonthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+      
+      const lowerCleaned = cleaned.toLowerCase();
+      let foundMonth = -1;
+      monthNames.forEach((m, i) => { if (lowerCleaned.includes(m)) foundMonth = i; });
+      if (foundMonth === -1) {
+        shortMonthNames.forEach((m, i) => { if (lowerCleaned.includes(m)) foundMonth = i; });
+      }
 
-        if (v1 > 12) {
-          // Definitely DD/MM/YYYY
-          day = v1;
-          month = v2 - 1;
-        } else if (v2 > 12) {
-          // Definitely MM/DD/YYYY
-          month = v1 - 1;
-          day = v2;
-        } else {
-          // Ambiguous: default to DD/MM/YYYY as requested by user ("read the dates like day and month and year")
-          day = v1;
-          month = v2 - 1;
-        }
-        year = y;
-        hour = h;
-        minute = min;
+      if (foundMonth !== -1) {
+        const yearMatch = cleaned.match(/\b(20\d{2})\b/);
+        const dayMatch = cleaned.match(/\b(\d{1,2})\b/);
+        
+        if (yearMatch) year = parseInt(yearMatch[1]);
+        else year = typeof selectedYear === 'number' ? selectedYear : new Date().getFullYear();
+        
+        if (dayMatch) day = parseInt(dayMatch[1]);
+        else day = 1;
+        
+        month = foundMonth;
       } else {
-        // Try YYYY-MM-DD
-        const isoMatch = cleaned.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})(?:[T\s](\d{1,2}):(\d{2}))?/);
-        if (isoMatch) {
-          year = parseInt(isoMatch[1]);
-          month = parseInt(isoMatch[2]) - 1;
-          day = parseInt(isoMatch[3]);
-          hour = isoMatch[4] ? parseInt(isoMatch[4]) : 12;
-          minute = isoMatch[5] ? parseInt(isoMatch[5]) : 0;
+        // Try numeric formats with various separators (/, -, ., //, etc.)
+        const normalized = cleaned.replace(/[./-]{1,2}/g, '/').replace(/\s+/g, ' ');
+        const parts = normalized.split(/[\/\s,]+/);
+        
+        if (parts.length >= 3) {
+          const p1 = parseInt(parts[0]);
+          const p2 = parseInt(parts[1]);
+          let p3 = parseInt(parts[2]);
+          if (p3 < 100) p3 += 2000;
+
+          if (p1 > 12) { // DD/MM/YYYY
+            day = p1;
+            month = p2 - 1;
+            year = p3;
+          } else if (p2 > 12) { // MM/DD/YYYY
+            month = p1 - 1;
+            day = p2;
+            year = p3;
+          } else {
+            // Default to DD/MM/YYYY as per previous requirements
+            day = p1;
+            month = p2 - 1;
+            year = p3;
+          }
         } else {
-          // Try standard JS parsing as fallback
+          // Fallback to JS Date
           const d = new Date(cleaned);
           if (!isNaN(d.getTime())) {
             year = d.getFullYear();
             month = d.getMonth();
             day = d.getDate();
-            hour = d.getHours();
-            minute = d.getMinutes();
           } else {
             return null;
           }
         }
       }
-    } else if (dateValue instanceof Date) {
-      year = dateValue.getFullYear();
-      month = dateValue.getMonth();
-      day = dateValue.getDate();
-      hour = dateValue.getHours();
-      minute = dateValue.getMinutes();
     } else {
       return null;
     }
 
-    // Validate ranges
-    if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+    // Use selected year/month as fallback if they are specific and parsing results are questionable
+    if (selectedYear !== 'All' && isNaN(year)) year = selectedYear;
+    if (selectedMonth !== 'All' && isNaN(month)) {
+      const mIdx = MONTHS.indexOf(selectedMonth);
+      if (mIdx !== -1) month = mIdx;
+    }
 
-    const localDate = new Date(year, month, day, hour, minute);
-    if (isNaN(localDate.getTime())) return null;
+    // Final validation
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+    if (month < 0 || month > 11 || day < 1 || day > 31) return null;
 
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${year}-${pad(month + 1)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
@@ -159,10 +174,10 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: true });
 
       const reservations: Reservation[] = [];
       const errors: string[] = [];
@@ -190,19 +205,19 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
           const startDate = parseFlexibleDate(startDateRaw);
           const endDate = parseFlexibleDate(endDateRaw);
-          if (!startDate || !endDate) throw new Error('Invalid date format (expected DD/MM/YYYY)');
+          if (!startDate || !endDate) throw new Error('Invalid date format');
 
-          // Filter by selected year and month
-          const startD = new Date(startDate);
-          const rYear = startD.getFullYear();
-          const rMonth = MONTHS[startD.getMonth()];
+          // Optional: Force to selected year/month if requested by user's specific context
+          // But usually better to let them be imported as parsed.
+          // The user said: "uploude all to the selected month perfectlly"
+          // We will remove the skip filters below.
 
-          if (selectedYear !== 'All' && rYear !== selectedYear) {
-            throw new Error(`Reservation year (${rYear}) does not match selected year (${selectedYear})`);
-          }
-          if (selectedMonth !== 'All' && rMonth !== selectedMonth) {
-            throw new Error(`Reservation month (${rMonth}) does not match selected month (${selectedMonth})`);
-          }
+          /* Remove strict month/year filtering as requested by user to "upload all" */
+          // const startD = new Date(startDate);
+          // const rYear = startD.getFullYear();
+          // const rMonth = MONTHS[startD.getMonth()];
+          // if (selectedYear !== 'All' && rYear !== selectedYear) ...
+          // if (selectedMonth !== 'All' && rMonth !== selectedMonth) ...
 
           if (new Date(endDate) <= new Date(startDate)) {
             throw new Error('Drop-off date must be after pick-up date');
@@ -315,7 +330,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Target Year</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Focus Year (for view)</label>
           <select 
             value={selectedYear} 
             onChange={(e) => setSelectedYear(e.target.value === 'All' ? 'All' : parseInt(e.target.value))}
@@ -328,7 +343,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Target Month</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Focus Month (for view)</label>
           <select 
             value={selectedMonth} 
             onChange={(e) => setSelectedMonth(e.target.value)}
