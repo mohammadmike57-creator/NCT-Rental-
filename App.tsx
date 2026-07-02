@@ -280,7 +280,8 @@ export const App: React.FC = () => {
   const skipAutoSaveRef = useRef(false);
   const recurringAlertsTrackerRef = useRef<Record<string, number>>({});
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+  const blockPollingUntilRef = useRef<number>(0); // Timestamp to block polling until
+
   // Auto-save logic
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
@@ -408,16 +409,24 @@ export const App: React.FC = () => {
   // Polling function to fetch full state from /api/state – now uses fetchInitialData
   const fetchAllData = useCallback(async () => {
     console.log('fetchAllData called');
+
+    // Check if polling is blocked (e.g., after import)
+    const now = Date.now();
+    if (blockPollingUntilRef.current > now) {
+      console.log('🚫 Polling blocked for', Math.round((blockPollingUntilRef.current - now) / 1000), 'more seconds (recent import)');
+      return;
+    }
+
     try {
       const data = await fetchInitialData();
       if (!data) return;
-      
+
       // If we are currently saving or have unsaved changes, do not overwrite local state
       if (saveStatusRef.current !== 'saved') {
           console.log('Save in progress or pending, ignoring fetched data to prevent overwrite');
           return;
       }
-      
+
       console.log('Data received:', data);
       handleDataUpdate(data);
     } catch (error) {
@@ -1499,6 +1508,11 @@ ${currentUser?.fullName}
 
     try {
       skipAutoSaveRef.current = true;
+
+      // CRITICAL: Block polling for 60 seconds after import to prevent race conditions
+      blockPollingUntilRef.current = Date.now() + 60000; // 60 seconds
+      console.log('🚫 POLLING BLOCKED for 60 seconds to prevent data corruption');
+
       const allData: AllData = {
         reservations: nextReservations,
         sources,
@@ -1522,7 +1536,30 @@ ${currentUser?.fullName}
       setReservations(nextReservations);
       setYears(nextYears);
 
-      console.log('🟢 SAVE COMPLETE - State updated');
+      console.log('🟢 SAVE COMPLETE - State updated locally');
+
+      // VERIFY: Immediately fetch and compare to ensure backend saved correctly
+      console.log('🔍 Verifying backend save...');
+      setTimeout(async () => {
+        try {
+          const verifyData = await fetchInitialData();
+          if (verifyData && target?.year && target?.month) {
+            const backendCount = verifyData.reservations?.[target.year]?.[target.month]?.length || 0;
+            const localCount = nextReservations[target.year]?.[target.month]?.length || 0;
+            console.log('✅ Backend Verification:', {
+              localCount,
+              backendCount,
+              match: backendCount === localCount
+            });
+            if (backendCount !== localCount) {
+              console.error('❌ BACKEND MISMATCH - Backend has different count!');
+              addNotification('Warning: Backend verification failed. Please refresh and check data.', 'error');
+            }
+          }
+        } catch (err) {
+          console.error('Verification failed:', err);
+        }
+      }, 2000); // Verify 2 seconds after save
 
       // Auto-switch view to the target month to ensure user sees results
       if (target?.year && target?.month) {
