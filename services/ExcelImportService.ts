@@ -1,5 +1,6 @@
 import { Reservation, ReservationStatus, ImportReport } from '../types';
 import { ReservationValidator } from './ReservationValidator';
+import { DateUtils } from './DateUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ExcelImportService {
@@ -33,11 +34,40 @@ export class ExcelImportService {
         return;
       }
 
-      const bookingId = ReservationValidator.normalizeText(row.bookingId || row['Reservation Number'] || row['Booking ID'] || row['Booking Id'] || row['Reservation No'] || row['Reservation No.'] || row['Reservation'] || row['ID'] || row['Ref'] || row['Reference']);
-      const customer = ReservationValidator.normalizeText(row.personName || row['Customer Name'] || row['Customer'] || row['Name'] || row['Renter Name'] || row['Renter'] || row['Client Name'] || row['Client']);
-      const pickupDate = ReservationValidator.normalizeText(row.startDate || row['Pickup Date'] || row['Start Date'] || row['Pick-up Date'] || row['From Date'] || row['Date From'] || row['Pickup']);
-      const dropoffDate = ReservationValidator.normalizeText(row.endDate || row['Dropoff Date'] || row['End Date'] || row['Drop-off Date'] || row['To Date'] || row['Date To'] || row['Dropoff'] || row['Return Date']);
-      const vehicle = ReservationValidator.normalizeText(row.reservationVehicle || row['Vehicle'] || row['Car Model'] || row['Car'] || row['Category'] || row['Model']);
+      let bookingId = ReservationValidator.normalizeText(DateUtils.getRowValue(row, [
+        'bookingId', 'Reservation Number', 'Booking ID', 'Booking Id', 'Reservation No', 
+        'Reservation No.', 'Reservation', 'ID', 'Ref', 'Reference', 'Res No', 'Res #',
+        'Booking No', 'Order ID', 'Invoice', 'Invoice #', 'No', 'Number', '#',
+        'Reference No', 'Reference Number', 'Ref No', 'Ref Number', 'Booking', 'Serial'
+      ]));
+
+      // Fallback if no booking ID found but row is valid
+      if (!bookingId) {
+        bookingId = `TEMP-${targetYear}-${targetMonth}-${rowIndex}`;
+      }
+      
+      const customer = ReservationValidator.normalizeText(DateUtils.getRowValue(row, [
+        'personName', 'Customer Name', 'Customer', 'Name', 'Renter Name', 'Renter', 
+        'Client Name', 'Client', 'Guest', 'Driver', 'FullName', 'Full Name'
+      ]));
+      
+      const rawPickupDate = DateUtils.getRowValue(row, [
+        'startDate', 'Pickup Date', 'Start Date', 'Pick-up Date', 'From Date', 
+        'Date From', 'Pickup', 'Month', 'Day', 'Year', 'month', 'day', 'year', 'Start',
+        'From', 'Date', 'Pick up'
+      ]);
+      const pickupDate = DateUtils.parseExcelDate(rawPickupDate, row, '');
+      
+      const rawDropoffDate = DateUtils.getRowValue(row, [
+        'endDate', 'Dropoff Date', 'End Date', 'Drop-off Date', 'To Date', 
+        'Date To', 'Dropoff', 'Return Date', 'End Month', 'End Day', 'End Year', 
+        'Return Month', 'Return Day', 'Return Year', 'End', 'To', 'Drop off', 'Return'
+      ]);
+      const dropoffDate = DateUtils.parseExcelDate(rawDropoffDate, row, 'End');
+      
+      const vehicle = ReservationValidator.normalizeText(DateUtils.getRowValue(row, [
+        'reservationVehicle', 'Vehicle', 'Car Model', 'Car', 'Category', 'Model', 'Vehicle Model', 'Group'
+      ]));
       
       const reservation: Reservation = {
         id: uuidv4(),
@@ -52,7 +82,7 @@ export class ExcelImportService {
         vehicle: vehicle,
         invoice: bookingId,
         status: ReservationStatus.CONFIRMED,
-        notes: ReservationValidator.normalizeText(row.notes || row['Notes'] || row['Comments'] || ''),
+        notes: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['notes', 'Notes', 'Comments', 'Remarks'])),
         originalRowNumber: rowIndex,
         originalFileName: fileName,
 
@@ -63,10 +93,10 @@ export class ExcelImportService {
         endDate: dropoffDate,
         reservationVehicle: vehicle,
         
-        source: ReservationValidator.normalizeText(row.source || row['Source'] || row['Channel'] || 'Direct'),
-        bookingDate: ReservationValidator.normalizeText(row.bookingDate || row['Booking Date'] || ''),
-        carModel: ReservationValidator.normalizeText(row.carModel || vehicle),
-        amount: parseFloat(row.amount || row['Amount'] || row['Price'] || row['Total']) || 0,
+        source: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['source', 'Source', 'Channel']) || 'Direct'),
+        bookingDate: DateUtils.parseExcelDate(DateUtils.getRowValue(row, ['bookingDate', 'Booking Date']), row, 'Booking'),
+        carModel: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['carModel', 'Car Model', 'Vehicle Model']) || vehicle),
+        amount: parseFloat(DateUtils.getRowValue(row, ['amount', 'Amount', 'Price', 'Total', 'Cost'])) || 0,
       };
 
       reservations.push(reservation);

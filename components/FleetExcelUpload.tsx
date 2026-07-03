@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { FleetVehicle } from '../types';
+import { DateUtils } from '../services/DateUtils';
 
 interface FleetExcelUploadProps {
   onFleetImported: (vehicles: FleetVehicle[]) => void;
@@ -11,28 +12,6 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const normalizeHeader = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  const getRowValueByHeaders = (row: Record<string, any>, candidateHeaders: string[]): any => {
-    for (const header of candidateHeaders) {
-      const value = row[header];
-      if (value !== undefined && value !== null && String(value).trim() !== '') {
-        return value;
-      }
-    }
-
-    const normalizedCandidates = new Set(candidateHeaders.map(normalizeHeader));
-    for (const key of Object.keys(row)) {
-      if (normalizedCandidates.has(normalizeHeader(key))) {
-        const value = row[key];
-        if (value !== undefined && value !== null && String(value).trim() !== '') {
-          return value;
-        }
-      }
-    }
-
-    return undefined;
-  };
 
   const parseAmount = (value: any): number => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -66,19 +45,20 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
       rows.forEach((row, idx) => {
         const rowNum = idx + 2; // 1‑based, header row is row 1
         try {
-          const modelName = getRowValueByHeaders(row, ['Model', 'Vehicle Model', 'Car Model', 'Vehicle', 'Car'])?.toString().trim();
-          const licensePlate = getRowValueByHeaders(row, ['License Plate', 'Plate', 'Plate Number', 'Reg Number'])?.toString().trim();
-          const registrationExpiry = getRowValueByHeaders(row, ['Registration Expiry', 'Expiry', 'Reg Expiry', 'Expiry Date'])?.toString().trim() || '';
-          const category = getRowValueByHeaders(row, ['Category', 'Type', 'Group', 'Class'])?.toString().trim() || '';
+          const modelName = DateUtils.getRowValue(row, ['Model', 'Vehicle Model', 'Car Model', 'Vehicle', 'Car'])?.toString().trim();
+          const licensePlate = DateUtils.getRowValue(row, ['License Plate', 'Plate', 'Plate Number', 'Reg Number', 'License'])?.toString().trim();
+          const rawExpiry = DateUtils.getRowValue(row, ['Registration Expiry', 'Expiry', 'Reg Expiry', 'Expiry Date', 'Registration Expiry Date']);
+          const registrationExpiry = DateUtils.parseExcelDate(rawExpiry, row, 'Registration') || DateUtils.parseExcelDate(rawExpiry, row, '') || '';
+          const category = DateUtils.getRowValue(row, ['Category', 'Type', 'Group', 'Class'])?.toString().trim() || '';
           
-          const securityDepositRaw = getRowValueByHeaders(row, ['Security Deposit', 'Deposit', 'Sec Deposit']);
-          const excessRaw = getRowValueByHeaders(row, ['Excess', 'Insurance Excess', 'Excess Amount']);
+          const securityDepositRaw = DateUtils.getRowValue(row, ['Security Deposit', 'Deposit', 'Sec Deposit']);
+          const excessRaw = DateUtils.getRowValue(row, ['Excess', 'Insurance Excess', 'Excess Amount']);
           
           const securityDeposit = parseAmount(securityDepositRaw);
           const excess = parseAmount(excessRaw);
           
-          const sippCode = getRowValueByHeaders(row, ['SIPP Code', 'SIPP', 'ACRISS'])?.toString().trim() || '';
-          const transmission = getRowValueByHeaders(row, ['Transmission', 'Gearbox', 'Gear'])?.toString().trim() || '';
+          const sippCode = DateUtils.getRowValue(row, ['SIPP Code', 'SIPP', 'ACRISS'])?.toString().trim() || '';
+          const transmission = DateUtils.getRowValue(row, ['Transmission', 'Gearbox', 'Gear'])?.toString().trim() || '';
 
           if (!modelName) throw new Error('Model missing');
           if (!licensePlate) throw new Error('License Plate missing');
