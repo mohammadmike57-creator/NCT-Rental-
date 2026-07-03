@@ -1246,11 +1246,16 @@ ${currentUser?.fullName}
   };
 
   const handleReservationsImport = useCallback(async (data: AppData, report: ImportReport) => {
-    console.log('🔵 IMPORT COMPLETED', report);
+    console.log('[IMPORT LOG] Received imported data:', report);
     setReservations(data);
     setSaveStatus('saved');
     setTableKey(prev => prev + 1);
-    addNotification(`Successfully imported ${report.imported} reservations.`, 'success');
+    
+    if (report.imported === 0 && report.duplicates === 0) {
+        addNotification(`Import complete: 0 imported. Please check Excel headers.`, 'warning');
+    } else {
+        addNotification(`Successfully imported ${report.imported} and updated ${report.duplicates} reservations.`, 'success');
+    }
     setMainView('Reservations');
   }, [addNotification]);
 

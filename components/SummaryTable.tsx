@@ -99,29 +99,41 @@ const StripePaymentModal: React.FC<{
 
     useEffect(() => {
         const fetchLink = async () => {
+            console.log(`[STRIPE LOG] Fetching payment link for ${month} ${year}, amount: ${amount} ${currency}`);
             setIsLoadingLink(true);
             try {
+                // Ensure amount is in USD for the API
+                const usdAmount = currency === 'JOD' ? amount / USD_TO_JOD_RATE : amount;
+
+                const currentToken = localStorage.getItem('token');
                 const response = await fetch(`${API_URL}/stripe/create-payment-link`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
                     body: JSON.stringify({
-                        amount: amount,
-                        description: `Franchise Payment - ${month} ${year}`
+                        amount: usdAmount,
+                        description: `Franchise Payment - ${month} ${year} (${currency} ${amount.toFixed(2)})`
                     })
                 });
 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`[STRIPE LOG] API error: ${response.status} - ${errorText}`);
                     throw new Error(`Error: ${response.status}`);
                 }
 
                 const data = await response.json();
                 if (data.url) {
+                    console.log(`[STRIPE LOG] Successfully received link: ${data.url}`);
                     setRealPaymentLink(data.url);
                 } else {
+                    console.warn('[STRIPE LOG] No URL returned from server');
                     throw new Error('No URL returned from server');
                 }
             } catch (err) {
-                console.error('Failed to fetch Stripe link:', err);
+                console.error('[STRIPE LOG] Failed to fetch Stripe link:', err);
                 setFetchError('Could not generate payment link. Please check backend connection.');
                 // Fallback to simulated link if backend fails, to allow progress
                 setRealPaymentLink(`https://buy.stripe.com/nct_rental_${month.toLowerCase()}_${year}_${amount.toFixed(0)}`);
@@ -131,7 +143,7 @@ const StripePaymentModal: React.FC<{
         };
 
         fetchLink();
-    }, [amount, month, year]);
+    }, [amount, month, year, currency]);
 
     const handleConfirm = () => {
         setIsProcessing(true);
@@ -252,8 +264,12 @@ const FranchisePaymentTracker: React.FC<{
     const [loadingLink, setLoadingLink] = useState<string | null>(null);
 
     const handleCardClick = (totalFee: number, month: string) => {
+        console.log(`[SUMMARY LOG] Month card clicked: ${month}, totalFee: ${totalFee}, canManage: ${canManage}`);
         if (canManage) {
             setPaymentModalData({ month, amount: totalFee });
+        } else {
+            console.warn('[SUMMARY LOG] User lacks permission to manage franchise payments.');
+            alert("You do not have permission to record payments. Please contact an administrator.");
         }
     };
 

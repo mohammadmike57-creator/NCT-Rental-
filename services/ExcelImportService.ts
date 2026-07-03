@@ -27,12 +27,17 @@ export class ExcelImportService {
       const validation = ReservationValidator.validateRow(row, rowIndex);
 
       if (!validation.isValid) {
+        console.warn(`[IMPORT LOG] Skipping row ${rowIndex}:`, validation.errors);
         report.invalidRows++;
         report.errors.push({ row: rowIndex, details: validation.errors.join(', ') });
         return;
       }
 
-      const bookingId = ReservationValidator.normalizeText(row.bookingId || row['Reservation Number'] || row['Booking ID']);
+      const bookingId = ReservationValidator.normalizeText(row.bookingId || row['Reservation Number'] || row['Booking ID'] || row['Booking Id'] || row['Reservation No'] || row['Reservation No.'] || row['Reservation'] || row['ID'] || row['Ref'] || row['Reference']);
+      const customer = ReservationValidator.normalizeText(row.personName || row['Customer Name'] || row['Customer'] || row['Name'] || row['Renter Name'] || row['Renter'] || row['Client Name'] || row['Client']);
+      const pickupDate = ReservationValidator.normalizeText(row.startDate || row['Pickup Date'] || row['Start Date'] || row['Pick-up Date'] || row['From Date'] || row['Date From'] || row['Pickup']);
+      const dropoffDate = ReservationValidator.normalizeText(row.endDate || row['Dropoff Date'] || row['End Date'] || row['Drop-off Date'] || row['To Date'] || row['Date To'] || row['Dropoff'] || row['Return Date']);
+      const vehicle = ReservationValidator.normalizeText(row.reservationVehicle || row['Vehicle'] || row['Car Model'] || row['Car'] || row['Category'] || row['Model']);
       
       const reservation: Reservation = {
         id: uuidv4(),
@@ -41,27 +46,27 @@ export class ExcelImportService {
         updatedAt: timestamp,
         storageYear: targetYear,
         storageMonth: targetMonth,
-        pickupDate: ReservationValidator.normalizeText(row.startDate || row['Pickup Date'] || row['Start Date']),
-        dropoffDate: ReservationValidator.normalizeText(row.endDate || row['Dropoff Date'] || row['End Date']),
-        customer: ReservationValidator.normalizeText(row.personName || row['Customer Name'] || row['Customer']),
-        vehicle: ReservationValidator.normalizeText(row.reservationVehicle || row['Vehicle'] || row['Car Model']),
+        pickupDate: pickupDate,
+        dropoffDate: dropoffDate,
+        customer: customer,
+        vehicle: vehicle,
         invoice: bookingId,
         status: ReservationStatus.CONFIRMED,
-        notes: ReservationValidator.normalizeText(row.notes || ''),
+        notes: ReservationValidator.normalizeText(row.notes || row['Notes'] || row['Comments'] || ''),
         originalRowNumber: rowIndex,
         originalFileName: fileName,
 
         // Aliases for compatibility
-        personName: ReservationValidator.normalizeText(row.personName || row['Customer Name'] || row['Customer']),
+        personName: customer,
         bookingId: bookingId,
-        startDate: ReservationValidator.normalizeText(row.startDate || row['Pickup Date'] || row['Start Date']),
-        endDate: ReservationValidator.normalizeText(row.endDate || row['Dropoff Date'] || row['End Date']),
-        reservationVehicle: ReservationValidator.normalizeText(row.reservationVehicle || row['Vehicle'] || row['Car Model']),
+        startDate: pickupDate,
+        endDate: dropoffDate,
+        reservationVehicle: vehicle,
         
-        source: ReservationValidator.normalizeText(row.source || 'Direct'),
-        bookingDate: ReservationValidator.normalizeText(row.bookingDate || ''),
-        carModel: ReservationValidator.normalizeText(row.carModel || row.reservationVehicle || row['Vehicle'] || row['Car Model']),
-        amount: parseFloat(row.amount) || 0,
+        source: ReservationValidator.normalizeText(row.source || row['Source'] || row['Channel'] || 'Direct'),
+        bookingDate: ReservationValidator.normalizeText(row.bookingDate || row['Booking Date'] || ''),
+        carModel: ReservationValidator.normalizeText(row.carModel || vehicle),
+        amount: parseFloat(row.amount || row['Amount'] || row['Price'] || row['Total']) || 0,
       };
 
       reservations.push(reservation);

@@ -33,6 +33,10 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       const worksheet = workbook.Sheets[sheetName];
       const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: true });
 
+      if (rows.length > 0) {
+        console.log('[IMPORT LOG] Found headers:', Object.keys(rows[0]));
+      }
+
       const result = await reservationService.importFromExcel(
         rows,
         selectedYear,
