@@ -120,7 +120,10 @@ const VehicleCard: React.FC<{ vehicle: Vehicle; isBusy: boolean; daysRemaining: 
                     <div className="flex items-center justify-between text-sm border-b pb-2 border-gray-100">
                         <div className="flex items-center gap-2 text-gray-700">
                             <UserIcon className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-gray-900 truncate w-24" title={reservation.personName}>{reservation.personName}</span>
+                            <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 truncate w-24" title={reservation.personName}>{reservation.personName}</span>
+                                <span className="text-[9px] text-indigo-600 font-bold uppercase tracking-tight">{reservation.source || 'Direct'}</span>
+                            </div>
                         </div>
                          <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">
                             {calculateDuration(reservation.startDate, reservation.endDate)} Days

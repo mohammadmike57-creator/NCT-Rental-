@@ -93,7 +93,11 @@ export class ExcelImportService {
         endDate: dropoffDate,
         reservationVehicle: vehicle,
         
-        source: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['source', 'Source', 'Channel']) || 'Direct'),
+        source: ReservationValidator.normalizeText(DateUtils.getRowValue(row, [
+          'source', 'Source', 'Channel', 'Website', 'Site', 'Partner', 'Agent', 
+          'Provider', 'Marketplace', 'Origin', 'Platform', 'Discover Cars', 
+          'Discover', 'Car Jet', 'CarJet', 'Booking.com', 'Expedia', 'Rentalcars'
+        ]) || 'Direct'),
         bookingDate: DateUtils.parseExcelDate(DateUtils.getRowValue(row, ['bookingDate', 'Booking Date']), row, 'Booking'),
         carModel: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['carModel', 'Car Model', 'Vehicle Model']) || vehicle),
         amount: DateUtils.parseNumeric(DateUtils.getRowValue(row, [

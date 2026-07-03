@@ -37,6 +37,12 @@ const ReservationCard: React.FC<{
                    <p className="text-xs font-black text-slate-800 truncate">{reservation.carModel} <span className="text-slate-400 font-medium ml-1 text-[10px]">({reservation.licensePlate || 'TBD'})</span></p>
                 </div>
             </div>
+            <div className="flex items-center gap-3 p-2 px-3 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-all duration-300">
+                <div className="min-w-0">
+                   <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Source</p>
+                   <p className="text-[10px] font-black text-indigo-600 truncate uppercase">{reservation.source || 'Direct'}</p>
+                </div>
+            </div>
              <div className="p-4 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-200 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-500">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl -mr-8 -mt-8" />
                 <div className="flex items-center gap-2 mb-3 relative z-10">
