@@ -562,6 +562,7 @@ export const App: React.FC = () => {
   const executeAutoSave = useCallback(async () => {
     if (!isAuthenticated) return;
     setSaveStatus('saving');
+    ReservationSyncService.setSaving(true);
     
     const allData: AllData = {
         reservations, sources, fleet, companyDetails,
@@ -582,6 +583,8 @@ export const App: React.FC = () => {
         console.error("Failed to auto-save data:", err);
         setSaveStatus('error');
         addNotification("Auto-save failed. Please check your connection.", 'error');
+    } finally {
+        ReservationSyncService.setSaving(false);
     }
   }, [
       isAuthenticated, reservations, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years, addNotification
@@ -903,13 +906,17 @@ export const App: React.FC = () => {
       }
       
       skipAutoSaveRef.current = true;
+      ReservationSyncService.setSaving(true);
       saveAllData({ 
         reservations: { 
           [year]: { 
             [month]: [] 
           } 
         } 
+      }).then(() => {
+          ReservationSyncService.setSaving(false);
       }).catch(err => {
+           ReservationSyncService.setSaving(false);
            console.error("Failed to save bulk deletion immediately:", err);
            addNotification("Failed to delete from cloud. Check connection.", 'error');
       });

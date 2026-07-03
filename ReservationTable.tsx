@@ -459,8 +459,9 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
     const reservation = reservationsToDisplay.find(r => r.id === id);
     if (!reservation) return;
 
-    const year = reservation.originalYear;
-    const month = reservation.originalMonth;
+    // Ensure we have the bucket info
+    const year = reservation.originalYear || selectedYear;
+    const month = reservation.originalMonth || selectedMonth;
     
     setPendingAction({ type: 'delete', payload: { id, isNew, year, month } });
     setIsKeyModalOpen(true);

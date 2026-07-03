@@ -71,9 +71,10 @@ export class ReservationService {
       }
     });
 
-    ReservationSyncService.setLocalChanges(true);
-    await this.repository.save(updatedData);
-    ReservationSyncService.setLocalChanges(false);
+    const saved = await ReservationSyncService.saveToBackend(updatedData);
+    if (!saved) {
+      throw new Error("Failed to save imported reservations to backend");
+    }
     
     // Refresh the repository store with the new data
     this.setData(updatedData);
@@ -83,17 +84,23 @@ export class ReservationService {
 
   async updateReservation(reservation: Reservation): Promise<AppData> {
     const updatedData = this.repository.updateLocalReservation(reservation);
-    ReservationSyncService.setLocalChanges(true);
-    await this.repository.save(updatedData);
-    ReservationSyncService.setLocalChanges(false);
+    const saved = await ReservationSyncService.saveToBackend(updatedData);
+    if (!saved) {
+      throw new Error("Failed to save updated reservation to backend");
+    }
+    // Refresh the repository store with the new data
+    this.setData(updatedData);
     return updatedData;
   }
 
   async deleteReservation(id: string, year: number, month: string): Promise<AppData> {
     const updatedData = this.repository.deleteLocalReservation(id, year, month);
-    ReservationSyncService.setLocalChanges(true);
-    await this.repository.save(updatedData);
-    ReservationSyncService.setLocalChanges(false);
+    const saved = await ReservationSyncService.saveToBackend(updatedData);
+    if (!saved) {
+      throw new Error("Failed to delete reservation from backend");
+    }
+    // Refresh the repository store with the new data
+    this.setData(updatedData);
     return updatedData;
   }
 

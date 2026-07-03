@@ -6,13 +6,22 @@ export class ReservationSyncService {
   private static isSaving: boolean = false;
   private static hasLocalChanges: boolean = false;
 
+  static setSaving(value: boolean) {
+    this.isSaving = value;
+  }
+
   static setLocalChanges(value: boolean) {
     this.hasLocalChanges = value;
   }
 
   static async syncWithBackend(currentData: AppData): Promise<AppData | null> {
-    if (this.isSaving || this.hasLocalChanges) {
-      console.log('[SYNC LOG] Skipping sync: Saving in progress or local changes exist');
+    if (this.isSaving) {
+      console.log('[SYNC LOG] Skipping sync: Saving in progress');
+      return null;
+    }
+
+    if (this.hasLocalChanges) {
+      console.log('[SYNC LOG] Skipping sync: Unsaved local changes exist');
       return null;
     }
 

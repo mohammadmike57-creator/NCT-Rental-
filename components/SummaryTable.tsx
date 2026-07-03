@@ -6,6 +6,7 @@ import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../const
 import { PdfIcon, CheckCircleIcon, ClockIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon } from './icons';
 import Tabs from './Tabs';
 import SecurityKeyModal from './SecurityKeyModal';
+import { API_URL } from '../firebase/api';
 
 const FIXED_ADDON = 250; // Fixed extra amount per month
 
@@ -100,12 +101,7 @@ const StripePaymentModal: React.FC<{
         const fetchLink = async () => {
             setIsLoadingLink(true);
             try {
-                // Determine the correct API base URL
-                const baseUrl = window.location.origin.includes('localhost') 
-                    ? 'http://localhost:8080' 
-                    : 'https://www.nctrental.com';
-
-                const response = await fetch(`${baseUrl}/stripe/create-payment-link`, {
+                const response = await fetch(`${API_URL}/stripe/create-payment-link`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

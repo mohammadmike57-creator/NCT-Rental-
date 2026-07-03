@@ -27,6 +27,13 @@ export class ReservationStore {
 
   updateReservation(reservation: Reservation): AppData {
     const { storageYear: year, storageMonth: month, id } = reservation;
+    
+    if (!year || !month) {
+      console.error(`[STORE ERROR] Cannot update reservation ${id}: Missing storage bucket info`, reservation);
+      return this.data;
+    }
+
+    console.log(`[STORE LOG] Updating reservation ${id} in bucket ${year}/${month}`);
     const bucket = this.getBucket(year, month);
     const index = bucket.findIndex(r => r.id === id);
     
@@ -35,10 +42,19 @@ export class ReservationStore {
       newBucket[index] = { ...reservation, updatedAt: new Date().toISOString() };
       return this.setBucket(year, month, newBucket);
     }
-    return this.data;
+    
+    console.log(`[STORE LOG] Reservation ${id} not found in bucket ${year}/${month}, adding as new`);
+    const newBucket = [...bucket, { ...reservation, updatedAt: new Date().toISOString() }];
+    return this.setBucket(year, month, newBucket);
   }
 
   deleteReservation(id: string, year: number, month: string): AppData {
+    if (!year || !month) {
+      console.error(`[STORE ERROR] Cannot delete reservation ${id}: Missing storage bucket info`);
+      return this.data;
+    }
+
+    console.log(`[STORE LOG] Deleting reservation ${id} from bucket ${year}/${month}`);
     const bucket = this.getBucket(year, month);
     const newBucket = bucket.filter(r => r.id !== id);
     return this.setBucket(year, month, newBucket);
