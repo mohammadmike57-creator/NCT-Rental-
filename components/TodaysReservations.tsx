@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { AppData, Reservation, ReservationStatus } from '../types';
+import { AppData, Reservation, ReservationStatus, RentalSource } from '../types';
 import { DocumentTextIcon, CarIcon, ClockIcon } from './icons';
 
 interface TodaysReservationsProps {
   allData: AppData;
+  rentalSources: RentalSource[];
   onShowVoucher: (reservation: Reservation, year: number, month: string) => void;
 }
 
@@ -11,8 +12,11 @@ const ReservationCard: React.FC<{
   reservation: Reservation;
   year: number;
   month: string;
+  rentalSources: RentalSource[];
   onShowVoucher: (reservation: Reservation, year: number, month: string) => void;
-}> = ({ reservation, year, month, onShowVoucher }) => (
+}> = ({ reservation, year, month, rentalSources, onShowVoucher }) => {
+    const getSourceName = (sourceId: string) => rentalSources.find(s => s.id === sourceId)?.name || sourceId;
+    return (
     <div className="bg-white p-5 rounded-2xl shadow-md border border-slate-200 hover:shadow-xl transition-all duration-500 group">
         <div className="flex justify-between items-start mb-4">
             <div className="min-w-0">
@@ -40,7 +44,7 @@ const ReservationCard: React.FC<{
             <div className="flex items-center gap-3 p-2 px-3 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-all duration-300">
                 <div className="min-w-0">
                    <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Source</p>
-                   <p className="text-[10px] font-black text-indigo-600 truncate uppercase">{reservation.source || 'Direct'}</p>
+                   <p className="text-[10px] font-black text-indigo-600 truncate uppercase">{getSourceName(reservation.source || 'Direct')}</p>
                 </div>
             </div>
              <div className="p-4 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-200 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-500">
@@ -67,9 +71,10 @@ const ReservationCard: React.FC<{
         </div>
     </div>
 );
+};
 
 
-const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, onShowVoucher }) => {
+const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rentalSources, onShowVoucher }) => {
     
     const today = new Date();
 
@@ -134,7 +139,7 @@ const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, onShow
                     <h4 className="text-lg font-semibold text-green-700 mb-3 pb-2 border-b-2 border-green-200">Pickups ({pickups.length})</h4>
                     <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
                         {pickups.length > 0 ? (
-                            pickups.map(item => <ReservationCard key={item.res.id} reservation={item.res} year={item.year} month={item.month} onShowVoucher={onShowVoucher} />)
+                            pickups.map(item => <ReservationCard key={item.res.id} reservation={item.res} year={item.year} month={item.month} rentalSources={rentalSources} onShowVoucher={onShowVoucher} />)
                         ) : (
                             <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg">
                                 <p>No pickups scheduled for today.</p>
@@ -148,7 +153,7 @@ const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, onShow
                     <h4 className="text-lg font-semibold text-red-700 mb-3 pb-2 border-b-2 border-red-200">Returns ({returns.length})</h4>
                     <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
                          {returns.length > 0 ? (
-                            returns.map(item => <ReservationCard key={item.res.id} reservation={item.res} year={item.year} month={item.month} onShowVoucher={onShowVoucher} />)
+                            returns.map(item => <ReservationCard key={item.res.id} reservation={item.res} year={item.year} month={item.month} rentalSources={rentalSources} onShowVoucher={onShowVoucher} />)
                         ) : (
                              <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg">
                                 <p>No returns scheduled for today.</p>
@@ -162,7 +167,7 @@ const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, onShow
                     <h4 className="text-lg font-semibold text-blue-700 mb-3 pb-2 border-b-2 border-blue-200">Ongoing Rentals ({ongoing.length})</h4>
                     <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
                          {ongoing.length > 0 ? (
-                           ongoing.map(item => <ReservationCard key={item.res.id} reservation={item.res} year={item.year} month={item.month} onShowVoucher={onShowVoucher} />)
+                           ongoing.map(item => <ReservationCard key={item.res.id} reservation={item.res} year={item.year} month={item.month} rentalSources={rentalSources} onShowVoucher={onShowVoucher} />)
                         ) : (
                             <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg">
                                 <p>No other ongoing rentals today.</p>

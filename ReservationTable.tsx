@@ -1056,7 +1056,7 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
                             <div className="flex items-center gap-2 truncate"><LocationIcon/> <span className="truncate">{res.locationName || 'No location'}</span></div>
                             <div className="flex items-center gap-2 truncate">
                                 <span className="font-bold text-xs uppercase text-slate-400">Source:</span>
-                                <span className="truncate font-medium text-slate-700">{res.source || 'Direct'}</span>
+                                <span className="truncate font-medium text-slate-700">{getSourceName(res.source || 'Direct')}</span>
                             </div>
                             <div className="col-span-2 flex items-center gap-2 mt-1"><CalendarIcon/> <span>{res.startDate?.replace('T', ' ')} to {res.endDate?.replace('T', ' ')}</span></div>
                         </div>

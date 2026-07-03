@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Fleet, YearData, ReservationStatus, Reservation } from '../types';
+import { Fleet, YearData, ReservationStatus, Reservation, RentalSource } from '../types';
 import { MONTHS, CAR_CATEGORIES, INITIAL_YEARS } from '../constants';
 import Tabs from './Tabs';
 import DailyAvailabilityModal from './DailyAvailabilityModal';
@@ -16,6 +16,7 @@ interface FleetAvailabilityProps {
   currentMonth: string; 
   onMonthChange: (month: string) => void;
   onYearChange: (year: number) => void;
+  rentalSources: RentalSource[];
 }
 
 export interface DailyUsage {
@@ -38,7 +39,7 @@ const StatCard: React.FC<{ title: string; value: string | number; subtitle: stri
     </div>
 );
 
-const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, year, currentMonth, onMonthChange, onYearChange }) => {
+const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, year, currentMonth, onMonthChange, onYearChange, rentalSources }) => {
   const [activeView, setActiveView] = useState<'calendar' | 'timeline' | 'tracker'>('calendar');
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [trackerDate, setTrackerDate] = useState<string>('');
@@ -298,6 +299,7 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
                         fleet={filteredFleet}
                         assignments={dailyAssignments.get(trackerDate) || {}}
                         selectedDate={trackerDate}
+                        rentalSources={rentalSources}
                     />
                 )}
             </div>

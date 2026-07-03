@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { Fleet, Vehicle, Reservation } from '../types';
+import { Fleet, Vehicle, Reservation, RentalSource } from '../types';
 import { DailyAssignments } from './FleetAvailability';
 import { CarIcon, ClockIcon, CheckCircleIcon, UserIcon, CalendarIcon } from './icons';
 
@@ -8,6 +8,7 @@ interface FleetStatusTrackerProps {
     fleet: Fleet;
     assignments: DailyAssignments;
     selectedDate: string;
+    rentalSources: RentalSource[];
 }
 
 const calculateDaysRemaining = (endDateStr: string, selectedDateStr: string): number | null => {
@@ -95,7 +96,9 @@ const StatusBadge: React.FC<{ days: number | null, isBusy: boolean }> = ({ days,
     );
 }
 
-const VehicleCard: React.FC<{ vehicle: Vehicle; isBusy: boolean; daysRemaining: number | null; reservation?: Reservation | null }> = ({ vehicle, isBusy, daysRemaining, reservation }) => (
+const VehicleCard: React.FC<{ vehicle: Vehicle; isBusy: boolean; daysRemaining: number | null; reservation?: Reservation | null, rentalSources: RentalSource[] }> = ({ vehicle, isBusy, daysRemaining, reservation, rentalSources }) => {
+    const getSourceName = (sourceId: string) => rentalSources.find(s => s.id === sourceId)?.name || sourceId;
+    return (
     <div className={`flex flex-col h-full rounded-xl border shadow-sm transition-all hover:shadow-md ${isBusy ? 'bg-white border-gray-200' : 'bg-white border-green-200 hover:border-green-300'}`}>
         <div className={`px-4 py-3 border-b flex justify-between items-center rounded-t-xl ${isBusy ? 'bg-gray-50' : 'bg-green-50'}`}>
              <div className="flex items-center gap-2 overflow-hidden">
@@ -122,7 +125,7 @@ const VehicleCard: React.FC<{ vehicle: Vehicle; isBusy: boolean; daysRemaining: 
                             <UserIcon className="w-4 h-4 text-gray-400" />
                             <div className="flex flex-col">
                                 <span className="font-medium text-gray-900 truncate w-24" title={reservation.personName}>{reservation.personName}</span>
-                                <span className="text-[9px] text-indigo-600 font-bold uppercase tracking-tight">{reservation.source || 'Direct'}</span>
+                                <span className="text-[9px] text-indigo-600 font-bold uppercase tracking-tight">{getSourceName(reservation.source || 'Direct')}</span>
                             </div>
                         </div>
                          <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">
@@ -154,8 +157,9 @@ const VehicleCard: React.FC<{ vehicle: Vehicle; isBusy: boolean; daysRemaining: 
         </div>
     </div>
 );
+};
 
-const FleetStatusTracker: React.FC<FleetStatusTrackerProps> = ({ fleet, assignments, selectedDate }) => {
+const FleetStatusTracker: React.FC<FleetStatusTrackerProps> = ({ fleet, assignments, selectedDate, rentalSources }) => {
     
     // Group fleet by category
     const groupedFleet = useMemo(() => {
@@ -210,6 +214,7 @@ const FleetStatusTracker: React.FC<FleetStatusTrackerProps> = ({ fleet, assignme
                                         isBusy={isBusy} 
                                         daysRemaining={daysRemaining} 
                                         reservation={reservation}
+                                        rentalSources={rentalSources}
                                     />
                                 );
                             })}

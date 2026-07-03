@@ -1423,6 +1423,7 @@ ${currentUser?.fullName}
     'Today\'s Reservations': { component: (
       <TodaysReservations
         allData={reservations}
+        rentalSources={sources}
         onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewVoucher: { reservation, year, month }}))}
       />
     ), permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
@@ -1449,7 +1450,17 @@ ${currentUser?.fullName}
             currentUser={currentUser}
         />
     ), permission: UserPermission.VIEW_REPORTS_YEARLY_SUMMARY },
-    'Fleet Availability': { component: <FleetAvailability fleet={fleet} yearData={reservations[selectedYear]} year={selectedYear} currentMonth={selectedMonth} onMonthChange={handleSetSelectedMonth} onYearChange={handleSetSelectedYear}/>, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
+    'Fleet Availability': { component: (
+      <FleetAvailability 
+        fleet={fleet} 
+        yearData={reservations[selectedYear]} 
+        year={selectedYear} 
+        currentMonth={selectedMonth} 
+        onMonthChange={handleSetSelectedMonth} 
+        onYearChange={handleSetSelectedYear}
+        rentalSources={sources}
+      />
+    ), permission: UserPermission.VIEW_FLEET_AVAILABILITY },
     'Invoice Generation': { component: <Invoice yearData={reservations[selectedYear]} year={selectedYear} month={selectedMonth} companyDetails={companyDetails} sources={sources} invoices={invoices} onSaveInvoice={(inv) => setInvoices(prev => [...prev, inv])} />, permission: UserPermission.VIEW_REPORTS_INVOICE_GENERATION },
     'Source Performance': { component: <SourcePerformanceReport reservations={allReservationsFlat} year={selectedYear} month={selectedMonth} />, permission: UserPermission.VIEW_REPORTS_SOURCE_PERFORMANCE },
     'Accounting': { component: <AccountingDashboard allData={reservations} trafficTickets={trafficTickets} vehicleDamages={vehicleDamages} expenses={expenses} users={users} onUpdateExpenses={setExpenses} />, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },

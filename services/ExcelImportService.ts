@@ -69,6 +69,34 @@ export class ExcelImportService {
         'reservationVehicle', 'Vehicle', 'Car Model', 'Car', 'Category', 'Model', 'Vehicle Model', 'Group'
       ]));
       
+      const sourceRaw = DateUtils.getRowValue(row, [
+        'source', 'Source', 'Channel', 'Website', 'Site', 'Partner', 'Agent', 
+        'Provider', 'Marketplace', 'Origin', 'Platform', 'Broker name', 'Broker',
+        'BrokerName', 'Platform Name', 'Booking Source', 'Reservation Source', 'Company'
+      ]);
+
+      let sourceValue = ReservationValidator.normalizeText(sourceRaw);
+
+      if (!sourceValue || sourceValue.toLowerCase() === 'direct') {
+        // Try to find if any header or ANY cell value contains known aggregator names
+        const aggregatorNames = [
+          'Discover Cars', 'Discover', 'Car Jet', 'CarJet', 'Booking.com', 'Expedia', 
+          'Rentalcars', 'Rental Cars', 'Zest', 'Auto Europe', 'Argus', 'Holiday Autos', 
+          'QEEQ', 'Wisecars', 'Economy Booking', 'EconomyBookings', 'Local'
+        ];
+        
+        const rowValues = Object.values(row).map(v => String(v).toLowerCase());
+        const rowKeys = Object.keys(row).map(k => String(k).toLowerCase());
+
+        for (const name of aggregatorNames) {
+          const lowerName = name.toLowerCase();
+          if (rowValues.some(v => v.includes(lowerName)) || rowKeys.some(k => k.includes(lowerName))) {
+            sourceValue = name;
+            break;
+          }
+        }
+      }
+
       const reservation: Reservation = {
         id: uuidv4(),
         uploadBatchId: batchId,
@@ -93,11 +121,7 @@ export class ExcelImportService {
         endDate: dropoffDate,
         reservationVehicle: vehicle,
         
-        source: ReservationValidator.normalizeText(DateUtils.getRowValue(row, [
-          'source', 'Source', 'Channel', 'Website', 'Site', 'Partner', 'Agent', 
-          'Provider', 'Marketplace', 'Origin', 'Platform', 'Broker name', 'Broker',
-          'Discover Cars', 'Discover', 'Car Jet', 'CarJet', 'Booking.com', 'Expedia', 'Rentalcars'
-        ]) || 'Direct'),
+        source: sourceValue || 'Direct',
         bookingDate: DateUtils.parseExcelDate(DateUtils.getRowValue(row, ['bookingDate', 'Booking Date']), row, 'Booking'),
         carModel: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['carModel', 'Car Model', 'Vehicle Model']) || vehicle),
         amount: DateUtils.parseNumeric(DateUtils.getRowValue(row, [

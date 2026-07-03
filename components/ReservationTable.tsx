@@ -634,7 +634,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                         {res.source && (
                           <span className="flex items-center text-[11px] text-indigo-600 font-black uppercase tracking-[0.2em] bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-100">
                              <GlobeAltIcon className="w-3.5 h-3.5 mr-1.5" />
-                             {res.source}
+                             {getSourceName(res.source)}
                           </span>
                         )}
                       </div>
