@@ -88,4 +88,19 @@ export class DateUtils {
 
     return s;
   }
+
+  static parseNumeric(value: any): number {
+    if (value === undefined || value === null || value === '') return 0;
+    if (typeof value === 'number') return value;
+    
+    const s = String(value).trim();
+    if (!s) return 0;
+    
+    // Remove currency symbols, commas, and other non-numeric characters except decimal point and minus sign
+    // But keep the first decimal point
+    const cleaned = s.replace(/[^\d.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    
+    return isNaN(parsed) ? 0 : parsed;
+  }
 }

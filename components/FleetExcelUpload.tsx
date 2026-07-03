@@ -13,17 +13,6 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
   const [success, setSuccess] = useState<string | null>(null);
 
 
-  const parseAmount = (value: any): number => {
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    if (typeof value === 'string') {
-      const cleaned = value.replace(/[^0-9.,-]/g, '').trim();
-      if (!cleaned) return 0;
-      const parsed = parseFloat(cleaned.replace(/,/g, ''));
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    return 0;
-  };
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -54,8 +43,8 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
           const securityDepositRaw = DateUtils.getRowValue(row, ['Security Deposit', 'Deposit', 'Sec Deposit']);
           const excessRaw = DateUtils.getRowValue(row, ['Excess', 'Insurance Excess', 'Excess Amount']);
           
-          const securityDeposit = parseAmount(securityDepositRaw);
-          const excess = parseAmount(excessRaw);
+          const securityDeposit = DateUtils.parseNumeric(securityDepositRaw);
+          const excess = DateUtils.parseNumeric(excessRaw);
           
           const sippCode = DateUtils.getRowValue(row, ['SIPP Code', 'SIPP', 'ACRISS'])?.toString().trim() || '';
           const transmission = DateUtils.getRowValue(row, ['Transmission', 'Gearbox', 'Gear'])?.toString().trim() || '';

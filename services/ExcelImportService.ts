@@ -96,8 +96,25 @@ export class ExcelImportService {
         source: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['source', 'Source', 'Channel']) || 'Direct'),
         bookingDate: DateUtils.parseExcelDate(DateUtils.getRowValue(row, ['bookingDate', 'Booking Date']), row, 'Booking'),
         carModel: ReservationValidator.normalizeText(DateUtils.getRowValue(row, ['carModel', 'Car Model', 'Vehicle Model']) || vehicle),
-        amount: parseFloat(DateUtils.getRowValue(row, ['amount', 'Amount', 'Price', 'Total', 'Cost'])) || 0,
+        amount: DateUtils.parseNumeric(DateUtils.getRowValue(row, [
+          'amount', 'Amount', 'Price', 'Total', 'Cost', 'Grand Total', 'Total Amount', 
+          'Net Amount', 'Rental Fee', 'Total Fee', 'Balance', 'Rate', 'Total Price',
+          'Rental Price', 'Contract Amount', 'Booking Amount', 'Paid Amount', 'Payable',
+          'Total Charge', 'Charges', 'Fee', 'Fees'
+        ])),
+        baseAmount: DateUtils.parseNumeric(DateUtils.getRowValue(row, [
+          'baseAmount', 'Base Amount', 'Base Rate', 'Daily Rate', 'Subtotal', 'Sub Total'
+        ])),
       };
+
+      // If baseAmount is zero but amount is not, set baseAmount to amount
+      if (reservation.baseAmount === 0 && reservation.amount > 0) {
+        reservation.baseAmount = reservation.amount;
+      }
+      // Conversely, if amount is zero but baseAmount is not, set amount to baseAmount
+      if (reservation.amount === 0 && reservation.baseAmount > 0) {
+        reservation.amount = reservation.baseAmount;
+      }
 
       reservations.push(reservation);
       report.imported++;
