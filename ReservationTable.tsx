@@ -197,7 +197,7 @@ const ManageExtrasModal: React.FC<ManageExtrasModalProps> = ({ reservation, onSa
 interface ReservationTableProps {
   allData: AppData;
   newReservations: Reservation[];
-  onUpdate: (reservation: Reservation, year: number, month: string) => void;
+  onUpdate: (reservation: Reservation) => void;
   onAdd: () => void;
   onDelete: (id: string, isNew?: boolean, year?: number, month?: string) => void;
   onShowVoucher: (reservation: Reservation, year: number, month: string) => void;
@@ -442,7 +442,7 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
             updatedReservation.sippCode = selectedCar?.sippCode || '';
         }
         
-        onUpdate(updatedReservation, year, month);
+        onUpdate(updatedReservation);
     }
 };
   
@@ -491,7 +491,7 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
             } else {
                 // Bypass approval: mark as collected and show voucher
                 const updatedReservation = { ...reservation, pickupPaymentCollected: true, paymentConfirmationPending: false };
-                onUpdate(updatedReservation, year, month);
+                onUpdate(updatedReservation);
                 onShowVoucher(updatedReservation, year, month);
             }
         } else {
@@ -531,7 +531,7 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
         const year = reservation.originalYear || selectedYear;
         const month = reservation.originalMonth || selectedMonth;
         const { originalYear, originalMonth, ...reservationToSave } = reservation;
-        onUpdate(reservationToSave, year, month);
+        onUpdate(reservationToSave);
     }
     setEditingId(null);
     setOriginalReservation(null);
@@ -541,7 +541,7 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
     if (originalReservation) {
       const year = originalReservation.originalYear || selectedYear;
       const month = originalReservation.originalMonth || selectedMonth;
-      onUpdate(originalReservation, year, month);
+      onUpdate(originalReservation);
     }
     setEditingId(null);
     setOriginalReservation(null);
@@ -553,7 +553,7 @@ const ReservationTable: React.FC<ReservationTableProps> = ({ allData, newReserva
       const year = reservation.originalYear || selectedYear;
       const month = reservation.originalMonth || selectedMonth;
       const statusToSet = reservation.status === newStatus ? ReservationStatus.PENDING : newStatus;
-      onUpdate({ ...reservation, status: statusToSet }, year, month);
+      onUpdate({ ...reservation, status: statusToSet });
     }
   };
   

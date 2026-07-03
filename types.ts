@@ -187,51 +187,64 @@ export enum TransmissionType {
 
 export interface Reservation {
   id: string;
-  personName: string;
+  uploadBatchId: string;
+  createdAt: string;
+  updatedAt: string;
+  storageYear: number;
+  storageMonth: string;
+  pickupDate: string;
+  dropoffDate: string;
+  customer: string;
+  vehicle: string;
+  invoice: string;
+  status: ReservationStatus;
+  notes: string;
+  originalRowNumber?: number;
+  originalFileName?: string;
+
+  // Business fields (keeping for UI compatibility)
+  personName: string; // Alias for customer
+  bookingId: string; // Alias for invoice
+  startDate: string; // Alias for pickupDate
+  endDate: string;   // Alias for dropoffDate
+  reservationVehicle?: string; // Alias for vehicle
+  
   contactNumber?: string;
-  bookingId: string;
   source: string;
   bookingDate: string;
-  startDate: string;
-  endDate: string;
-  reservationVehicle?: string; // The vehicle requested/booked by the customer
-  carModel: string; // The vehicle actually assigned from the fleet
+  carModel: string; // Assigned car
   sippCode?: string;
   licensePlate?: string;
   locationName?: string;
-  notes: string;
-  status: ReservationStatus;
   amount: number;
   baseAmount?: number;
   isNew?: boolean;
   extras?: ReservationExtra[];
   upgradeInfo?: UpgradeInfo;
-  voucherSubmitted?: boolean; // PICKUP completed
-  dropOffCompleted?: boolean; // New
+  voucherSubmitted?: boolean;
+  dropOffCompleted?: boolean;
   customerEmail?: string;
-  
-  // Vehicle details specific to reservation
   transmission?: TransmissionType;
 
   // Pickup fields
-  pickupDateTime?: string; // New
-  pickupRenterSignature?: string; // from renterSignature
-  pickupAgentSignature?: string;  // from agentSignature
-  pickupAgentName?: string;       // from agentName
-  pickupDamageMarkers?: DamageMarker[]; // from damageMarkers
-  pickupChecklist?: { [item: string]: boolean }; // from checklist
-  pickupFuelLevel?: number; // New, 0-8
+  pickupDateTime?: string;
+  pickupRenterSignature?: string;
+  pickupAgentSignature?: string;
+  pickupAgentName?: string;
+  pickupDamageMarkers?: DamageMarker[];
+  pickupChecklist?: { [item: string]: boolean };
+  pickupFuelLevel?: number;
   pickupKmOut?: number;
   pickupNotes?: string;
 
   // Drop-off fields
-  dropOffDateTime?: string; // New
-  dropOffRenterSignature?: string; // New
-  dropOffAgentSignature?: string;  // New
-  dropOffAgentName?: string;       // New
-  dropOffDamageMarkers?: DamageMarker[]; // New
-  dropOffChecklist?: { [item: string]: boolean }; // New
-  dropOffFuelLevel?: number; // New, 0-8
+  dropOffDateTime?: string;
+  dropOffRenterSignature?: string;
+  dropOffAgentSignature?: string;
+  dropOffAgentName?: string;
+  dropOffDamageMarkers?: DamageMarker[];
+  dropOffChecklist?: { [item: string]: boolean };
+  dropOffFuelLevel?: number;
   dropOffKmIn?: number;
   dropOffNotes?: string;
 
@@ -255,17 +268,26 @@ export interface Reservation {
 
   hasDateError?: boolean;
   dateErrorDetail?: string;
-  importLockedYear?: number;
-  importLockedMonth?: string;
   
   assignedTo?: string; // User ID
 
-  // Deprecated fields for migration
+  // Deprecated fields
   checklist?: { [item: string]: boolean };
   damageMarkers?: DamageMarker[];
   renterSignature?: string;
   agentSignature?: string;
   agentName?: string;
+  importLockedYear?: number;
+  importLockedMonth?: string;
+}
+
+export interface ImportReport {
+  imported: number;
+  skipped: number;
+  duplicates: number;
+  invalidRows: number;
+  warnings: string[];
+  errors: { row: number; details: string }[];
 }
 
 export interface TrafficTicket {

@@ -1,5 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
-import { AppData, Reservation, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale } from './types';
+import { v4 as uuidv4 } from 'uuid';
+import { AppData, Reservation, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
+import { reservationService } from './services/reservationService';
+import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
 import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
@@ -297,12 +300,39 @@ export const App: React.FC = () => {
   const handleDataUpdate = (data: AllData) => {
       if (!data) return;
 
-      console.log('🔄 DATA UPDATE STARTED - Loading from backend');
+      console.log('🔄 DATA UPDATE STARTED - Initializing Reservation Engine');
 
       skipAutoSaveRef.current = true;
       const initialState = getInitialState();
       
       const rawReservations = data.reservations || initialState.reservations;
+      
+      // MIGRATION: Ensure all legacy reservations have mandatory persistence fields
+      const migratedReservations: AppData = {};
+      Object.keys(rawReservations).forEach(yKey => {
+          const y = parseInt(yKey);
+          migratedReservations[y] = {};
+          Object.keys(rawReservations[y]).forEach(m => {
+              migratedReservations[y][m] = rawReservations[y][m].map((res: Reservation) => ({
+                  ...res,
+                  id: res.id || uuidv4(),
+                  storageYear: res.storageYear || res.importLockedYear || y,
+                  storageMonth: res.storageMonth || res.importLockedMonth || m,
+                  pickupDate: res.pickupDate || res.startDate,
+                  dropoffDate: res.dropoffDate || res.endDate,
+                  customer: res.customer || res.personName,
+                  invoice: res.invoice || res.bookingId,
+                  vehicle: res.vehicle || res.reservationVehicle || '',
+                  createdAt: res.createdAt || new Date().toISOString(),
+                  updatedAt: res.updatedAt || new Date().toISOString(),
+                  uploadBatchId: res.uploadBatchId || 'LEGACY'
+              }));
+          });
+      });
+
+      // Initialize the service with migrated data
+      reservationService.setData(migratedReservations);
+      
       const yearsFromReservations = Object.keys(rawReservations).map(Number).filter(n => !isNaN(n));
       const loadedYears = [...new Set([...(data.years || []), ...yearsFromReservations, ...initialState.years!])].sort((a,b) => a - b);
       
@@ -311,61 +341,7 @@ export const App: React.FC = () => {
           handleSetSelectedYear(loadedYears[0] || new Date().getFullYear());
       }
 
-      // CRITICAL: Accept backend data structure AS-IS with minimal reorganization
-      // Only ensure year/month structure exists, but don't move reservations around
-      const finalReservations: AppData = {};
-
-      // Initialize structure for all years
-      loadedYears.forEach(y => {
-          finalReservations[y] = {};
-          MONTHS.forEach(m => finalReservations[y][m] = []);
-      });
-
-      let lockedCount = 0;
-      let totalCount = 0;
-
-      // Copy reservations directly from backend location - NO REORGANIZATION
-      Object.keys(rawReservations).forEach(yearKey => {
-          const yearNum = parseInt(yearKey);
-          const yearData = rawReservations[yearKey as any];
-          if (!yearData) return;
-
-          Object.keys(yearData).forEach(monthKey => {
-              const monthList = yearData[monthKey];
-              if (Array.isArray(monthList)) {
-                  // Ensure the destination bucket exists
-                  if (!finalReservations[yearNum]) {
-                      finalReservations[yearNum] = {};
-                      MONTHS.forEach(m => finalReservations[yearNum][m] = []);
-                  }
-                  if (!finalReservations[yearNum][monthKey]) {
-                      finalReservations[yearNum][monthKey] = [];
-                  }
-
-                  // Copy ALL reservations from this location to the SAME location
-                  // NO reorganization based on dates or any other logic
-                  monthList.forEach((res: Reservation) => {
-                      if (res.importLockedYear !== undefined && res.importLockedMonth !== undefined) {
-                          lockedCount++;
-                      }
-                      totalCount++;
-
-                      // Add to the EXACT same location where backend stored it
-                      if (!finalReservations[yearNum][monthKey].some(r => r.id === res.id)) {
-                          finalReservations[yearNum][monthKey].push(res);
-                      }
-                  });
-              }
-          });
-      });
-
-      console.log('🔄 DATA LOADED FROM BACKEND:', {
-        totalReservations: totalCount,
-        lockedReservations: lockedCount,
-        message: 'Loaded exactly as stored - NO reorganization performed'
-      });
-
-      setReservations(finalReservations);
+      setReservations(migratedReservations);
       setSources(data.sources || initialState.sources);
       setFleet(data.fleet || initialState.fleet);
       setCompanyDetails({
@@ -375,23 +351,7 @@ export const App: React.FC = () => {
       setTrafficTickets(data.trafficTickets || initialState.trafficTickets);
       setVehicleDamages(data.vehicleDamages || initialState.vehicleDamages);
       
-      // Users: prioritize localStorage over backend
-      const storedUsers = localStorage.getItem(USERS_CACHE_KEY);
-      if (storedUsers) {
-          try {
-              const parsed = JSON.parse(storedUsers);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                  setUsers(parsed);
-              } else {
-                  setUsers(data.users || initialState.users);
-              }
-          } catch (e) {
-              setUsers(data.users || initialState.users);
-          }
-      } else {
-          setUsers(data.users || initialState.users);
-      }
-
+      setUsers(data.users || initialState.users);
       setExpenses(data.expenses || initialState.expenses);
       setMessages(data.messages || initialState.messages);
       setRentalLocations(data.rentalLocations || initialState.rentalLocations);
@@ -403,37 +363,29 @@ export const App: React.FC = () => {
       setStopSales(data.stopSales || initialState.stopSales);
 
       setTableKey(prev => prev + 1);
-      console.log('Data updated, table key incremented to', tableKey + 1);
+      console.log('Reservation Engine Initialized with', Object.keys(rawReservations).length, 'years of data');
   };
 
   // Polling function to fetch full state from /api/state – now uses fetchInitialData
   const fetchAllData = useCallback(async () => {
-    console.log('fetchAllData called');
-
-    // Check if polling is blocked (e.g., after import)
-    const now = Date.now();
-    if (blockPollingUntilRef.current > now) {
-      console.log('🚫 Polling blocked for', Math.round((blockPollingUntilRef.current - now) / 1000), 'more seconds (recent import)');
-      return;
-    }
+    console.log('[SYNC LOG] Polling for updates...');
 
     try {
-      const data = await fetchInitialData();
-      if (!data) return;
-
-      // If we are currently saving or have unsaved changes, do not overwrite local state
-      if (saveStatusRef.current !== 'saved') {
-          console.log('Save in progress or pending, ignoring fetched data to prevent overwrite');
-          return;
+      // Use SyncService to check if we should fetch
+      const updatedReservations = await ReservationSyncService.syncWithBackend(reservations);
+      
+      if (updatedReservations) {
+        // If we got new reservations, we also need the rest of the state
+        // fetchInitialData already fetched everything, but we need to update all state slices
+        const fullState = await fetchInitialData();
+        if (fullState) {
+          handleDataUpdate(fullState);
+        }
       }
-
-      console.log('Data received:', data);
-      handleDataUpdate(data);
     } catch (error) {
-      console.error('Polling fetch failed', error);
-      addNotification('Failed to sync data', 'error');
+      console.error('[SYNC LOG] Polling fetch failed', error);
     }
-  }, []);
+  }, [reservations, handleDataUpdate]);
 
   // Compute flat list of reservations for auto‑selection
   const allReservationsFlat = useMemo(() => {
@@ -824,100 +776,32 @@ export const App: React.FC = () => {
     }
   };
   
-  const handleUpdateReservations = useCallback(async (reservation: Reservation, oldYear: number, oldMonth: string) => {
-    const updatedReservation = { ...reservation, lastEditedBy: currentUser?.fullName };
+  const handleUpdateReservations = useCallback(async (reservation: Reservation) => {
+    const updatedReservation = { 
+      ...reservation, 
+      lastEditedBy: currentUser?.fullName,
+      updatedAt: new Date().toISOString()
+    };
 
     if (reservation.isNew) {
         setNewReservations(prev => prev.map(r => r.id === reservation.id ? updatedReservation : r));
         return;
     }
 
-    if (updatedReservation.bookingId && updatedReservation.bookingId.trim()) {
-        const trimmedId = updatedReservation.bookingId.trim().toLowerCase();
-        if (allReservationsFlat.some(r => r.id !== updatedReservation.id && r.bookingId && r.bookingId.trim().toLowerCase() === trimmedId)) {
-            alert(`Error: A reservation with Booking ID "${updatedReservation.bookingId}" already exists. Please use a unique ID.`);
-            return;
-        }
-    }
-    
-    if (!updatedReservation.startDate) {
-        alert('Start Date is required for a reservation.');
-        return;
-    }
-
-    const targetYear = oldYear;
-    const targetMonth = oldMonth;
-
-    // NEVER change the storage location based on dates anymore.
-    // The bucket (targetYear/targetMonth) is permanent.
-    const reservationToSave = { 
-        ...updatedReservation,
-        importLockedYear: targetYear,
-        importLockedMonth: targetMonth
-    };
-
     setSaveStatus('saving');
-
-    const newReservationsData = JSON.parse(JSON.stringify(reservations)) as AppData;
-
-    // Update in the specific bucket
-    if (!newReservationsData[targetYear]) {
-         newReservationsData[targetYear] = {};
-         MONTHS.forEach(m => newReservationsData[targetYear][m] = []);
-    }
-    if (!newReservationsData[targetYear][targetMonth]) {
-         newReservationsData[targetYear][targetMonth] = [];
-    }
-
-    newReservationsData[targetYear][targetMonth] = newReservationsData[targetYear][targetMonth].map((res: Reservation) => 
-        res.id === reservationToSave.id ? reservationToSave : res
-    );
-
-    // If for some reason it wasn't in that bucket (shouldn't happen with oldYear/oldMonth), add it
-    if (!newReservationsData[targetYear][targetMonth].some((r: Reservation) => r.id === reservationToSave.id)) {
-        newReservationsData[targetYear][targetMonth].push(reservationToSave);
-    }
-
     try {
-      skipAutoSaveRef.current = true;
-      // OPTIMIZED SAVE: Only send the modified year/month to prevent race conditions on other months
-      await saveAllData({ 
-        reservations: { 
-          [targetYear]: { 
-            [targetMonth]: newReservationsData[targetYear][targetMonth] 
-          } 
-        } 
-      });
-      setReservations(newReservationsData);
+      const updatedData = await reservationService.updateReservation(updatedReservation);
+      setReservations(updatedData);
       setSaveStatus('saved');
     } catch (err) {
       setSaveStatus('error');
       console.error("Failed to save updated reservation:", err);
       addNotification("Failed to save changes. Check connection.", 'error');
     }
-  }, [currentUser, allReservationsFlat, reservations, addNotification]);
+  }, [currentUser, addNotification]);
   
   const handleUpdateSingleReservation = (updatedReservation: Reservation) => {
-    let foundYear = -1;
-    let foundMonth = '';
-    
-    outerLoop:
-    for (const year in reservations) {
-        for (const month in reservations[year]) {
-            if (reservations[year][month].some(r => r.id === updatedReservation.id)) {
-                foundYear = parseInt(year);
-                foundMonth = month;
-                break outerLoop;
-            }
-        }
-    }
-    
-    if (foundYear !== -1) {
-        handleUpdateReservations(updatedReservation, foundYear, foundMonth);
-    } else if (updatedReservation.startDate) {
-            const d = new Date(updatedReservation.startDate);
-            handleUpdateReservations(updatedReservation, d.getFullYear(), MONTHS[d.getMonth()]);
-    }
+    handleUpdateReservations(updatedReservation);
   };
 
   const handleAddNewReservation = (status: ReservationStatus = ReservationStatus.CONFIRMED) => {
@@ -937,59 +821,40 @@ export const App: React.FC = () => {
   };
   
   const handleSaveNewReservation = async (reservation: Reservation) => {
-      const { isNew, id: transientId, ...newRes } = reservation;
+      const { isNew, id: transientId, ...newResData } = reservation;
       
-      if (!newRes.startDate) {
-          alert('A Start Date is required to save a new reservation.');
-          return;
-      }
-
-      if (newRes.bookingId && newRes.bookingId.trim()) {
-        const trimmedId = newRes.bookingId.trim().toLowerCase();
-        if (allReservationsFlat.some(r => r.bookingId && r.bookingId.trim().toLowerCase() === trimmedId)) {
-            alert(`Error: A reservation with Booking ID "${newRes.bookingId}" already exists. Please use a unique ID.`);
-            return;
-        }
-      }
-      
-      // ALWAYS save new reservations into the CURRENTLY SELECTED month/year
-      // This is the "selected month during import is the permanent storage location" rule applied to manual entry too.
       const year = selectedYear;
       const month = selectedMonth;
       
-      const reservationId = `res-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      
+      const timestamp = new Date().toISOString();
       const reservationToSave: Reservation = {
-          ...newRes,
-          id: reservationId,
+          ...newResData,
+          id: uuidv4(),
+          uploadBatchId: 'MANUAL',
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          storageYear: year,
+          storageMonth: month,
+          customer: newResData.personName || '',
+          invoice: newResData.bookingId || '',
+          pickupDate: newResData.startDate || '',
+          dropoffDate: newResData.endDate || '',
+          vehicle: newResData.reservationVehicle || '',
           createdBy: currentUser?.fullName,
+          
+          // Legacy fields for compatibility
+          personName: newResData.personName || '',
+          bookingId: newResData.bookingId || '',
+          startDate: newResData.startDate || '',
+          endDate: newResData.endDate || '',
           importLockedYear: year,
           importLockedMonth: month,
-      };
+      } as Reservation;
 
       setSaveStatus('saving');
-      
-      const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
-      if (!nextReservations[year]) {
-           nextReservations[year] = {};
-           MONTHS.forEach(m => nextReservations[year][m] = []);
-      }
-      if (!nextReservations[year][month]) {
-          nextReservations[year][month] = [];
-      }
-      nextReservations[year][month].push(reservationToSave);
-
       try {
-        skipAutoSaveRef.current = true;
-        // OPTIMIZED SAVE: Only send the new month's data
-        await saveAllData({ 
-          reservations: { 
-            [year]: { 
-              [month]: nextReservations[year][month] 
-            } 
-          } 
-        });
-        setReservations(nextReservations);
+        const updatedData = await reservationService.updateReservation(reservationToSave);
+        setReservations(updatedData);
         setSaveStatus('saved');
         showConfirmation(`Reservation for ${reservationToSave.personName} saved into ${month} ${year}.`);
         setNewReservations(prev => prev.filter(r => r.id !== transientId));
@@ -1001,59 +866,22 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteReservation = async (id: string, isNew?: boolean, year?: number, month?: string) => {
+    if (!window.confirm("Are you sure you want to delete this reservation?")) return;
+
     if (isNew) {
       setNewReservations(prev => prev.filter(res => res.id !== id));
       return;
     }
 
+    if (year === undefined || month === undefined) {
+      console.error("Year and month are required to delete a reservation.");
+      return;
+    }
+
     setSaveStatus('saving');
-    const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
-    let found = false;
-
-    for (const y in nextReservations) {
-        for (const m in nextReservations[y]) {
-            const initialCount = nextReservations[y][m].length;
-            nextReservations[y][m] = nextReservations[y][m].filter((res: Reservation) => res.id !== id);
-            if (nextReservations[y][m].length < initialCount) found = true;
-        }
-    }
-
-    if (!found) {
-        setSaveStatus('saved');
-        return;
-    }
-
     try {
-      skipAutoSaveRef.current = true;
-      // Find which year/month the reservation was in to optimize save
-      let targetYear: number | null = null;
-      let targetMonth: string | null = null;
-      
-      for (const y in reservations) {
-        for (const m in reservations[y]) {
-          if (reservations[y][m].some(r => r.id === id)) {
-            targetYear = parseInt(y);
-            targetMonth = m;
-            break;
-          }
-        }
-        if (targetYear) break;
-      }
-
-      if (targetYear && targetMonth) {
-        await saveAllData({ 
-          reservations: { 
-            [targetYear]: { 
-              [targetMonth]: nextReservations[targetYear][targetMonth] 
-            } 
-          } 
-        });
-      } else {
-        // Fallback to full save if not found (shouldn't happen)
-        await saveAllData({ reservations: nextReservations });
-      }
-      
-      setReservations(nextReservations);
+      const updatedData = await reservationService.deleteReservation(id, year, month);
+      setReservations(updatedData);
       setSaveStatus('saved');
       showConfirmation('Reservation deleted.');
     } catch (err) {
@@ -1410,211 +1238,14 @@ ${currentUser?.fullName}
       }
   };
 
-  const handleReservationsImport = useCallback(async (importedReservations: Reservation[], target?: { year?: number; month?: string }) => {
-    if (!importedReservations || importedReservations.length === 0) return;
-
-    console.log('🔵 IMPORT STARTED', {
-      count: importedReservations.length,
-      target,
-      firstReservation: importedReservations[0]
-    });
-
-    setSaveStatus('saving');
-
-    const nextReservations = JSON.parse(JSON.stringify(reservations)) as AppData;
-    
-    // THE NEW RULE: No deduplication unless IDs are identical.
-    // We no longer deduplicate by bookingId, only by the internal system ID.
-    const importedInternalIds = new Set(importedReservations.map(r => r.id).filter(Boolean));
-    
-    let removedCount = 0;
-    if (importedInternalIds.size > 0) {
-      Object.keys(nextReservations).forEach(year => {
-        const y = parseInt(year);
-        Object.keys(nextReservations[y]).forEach(month => {
-          const before = nextReservations[y][month].length;
-          nextReservations[y][month] = nextReservations[y][month].filter(res => {
-            return !importedInternalIds.has(res.id);
-          });
-          removedCount += before - nextReservations[y][month].length;
-        });
-      });
-    }
-    console.log('🟡 Removed existing reservations with matching internal IDs:', removedCount);
-
-    // Track which months were touched for optimized save
-    const touchedMonths = new Set<string>();
-
-    // 2. Add all imported reservations - STRICTLY enforce target month if provided
-    importedReservations.forEach((res, index) => {
-      let reservationToStore = { ...res };
-      let startDate = new Date(reservationToStore.startDate);
-      if (isNaN(startDate.getTime())) {
-        reservationToStore = {
-          ...reservationToStore,
-          startDate: fallbackDate(index),
-          endDate: reservationToStore.endDate || fallbackDate(index + 1),
-          hasDateError: true,
-          dateErrorDetail: `${reservationToStore.dateErrorDetail ? `${reservationToStore.dateErrorDetail}. ` : ''}Invalid Pick-up Date`,
-        };
-        startDate = new Date(reservationToStore.startDate);
-      }
-
-      let year: number;
-      let month: string;
-
-      // REDESIGN: Use the target month provided by the importer.
-      // If target is incomplete, fallback to currently selected view, NEVER to reservation dates.
-      const fallbackYear = typeof selectedYear === 'number' ? selectedYear : (years[0] || new Date().getFullYear());
-      const fallbackMonth = selectedMonth !== 'All' ? selectedMonth : MONTHS[new Date().getMonth()];
-
-      if (target?.year !== undefined && target?.month !== undefined) {
-        year = target.year;
-        month = target.month;
-      } else if (target?.year !== undefined) {
-        year = target.year;
-        month = fallbackMonth;
-      } else if (target?.month !== undefined) {
-        year = fallbackYear;
-        month = target.month;
-      } else {
-        // Both undefined or "All"
-        year = reservationToStore.importLockedYear || fallbackYear;
-        month = reservationToStore.importLockedMonth || fallbackMonth;
-      }
-
-      if (!nextReservations[year]) {
-        nextReservations[year] = {};
-        MONTHS.forEach(m => nextReservations[year][m] = []);
-      }
-      if (!nextReservations[year][month]) {
-        nextReservations[year][month] = [];
-      }
-
-      const id = reservationToStore.id || `res-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
-      const finalReservation: Reservation = {
-        ...reservationToStore,
-        id,
-        importLockedYear: year,
-        importLockedMonth: month,
-      };
-
-      nextReservations[year][month].push(finalReservation);
-      touchedMonths.add(`${year}|${month}`);
-
-      if (index < 3) {
-        console.log(`🟢 Added reservation ${index + 1}:`, {
-          id: finalReservation.id,
-          personName: finalReservation.personName,
-          startDate: finalReservation.startDate,
-          storedIn: `${year}/${month}`,
-          locks: {
-            year: finalReservation.importLockedYear,
-            month: finalReservation.importLockedMonth
-          }
-        });
-      }
-    });
-
-    const nextYears = [...new Set([...years, ...Object.keys(nextReservations).map(Number)])].sort((a,b) => a-b);
-
-    // FINAL VALIDATION before save - ONLY validate the NEWLY imported reservations
-    if (target?.year !== undefined && target?.month !== undefined) {
-      const targetMonthReservations = nextReservations[target.year]?.[target.month] || [];
-      
-      // Filter only those that were just imported (they are in importedReservations)
-      // Actually, it's easier to just check ALL reservations in target month and warn,
-      // but only FAIL if the NEW ones are missing locks.
-      // But wait, all reservations being added in THIS function have locks set at lines 1486-1487.
-      
-      // Let's change validation to only check if nextReservations[target.year][target.month]
-      // has grown by the expected amount and that the NEW additions have locks.
-      
-      const newlyAdded = targetMonthReservations.filter(r => 
-        importedInternalIds.has(r.id) || !reservations[target.year]?.[target.month]?.some((old: any) => old.id === r.id)
-      );
-
-      const correctlyLocked = newlyAdded.filter(r =>
-        r.importLockedYear === target.year && r.importLockedMonth === target.month
-      ).length;
-
-      console.log('🔍 IMPORT VALIDATION:', {
-        targetMonth: `${target.year}/${target.month}`,
-        newlyAdded: newlyAdded.length,
-        correctlyLocked: correctlyLocked,
-        validationPassed: correctlyLocked === newlyAdded.length
-      });
-
-      if (correctlyLocked < newlyAdded.length) {
-        console.error('❌ VALIDATION FAILED - Some NEW reservations in target month are missing locks!');
-        addNotification('Import validation failed. Some records missing required locks.', 'error');
-        setSaveStatus('error');
-        return;
-      }
-    }
-
-    try {
-      skipAutoSaveRef.current = true;
-
-      // CRITICAL: Block polling for 60 seconds after import to prevent race conditions
-      blockPollingUntilRef.current = Date.now() + 60000; // 60 seconds
-      console.log('🚫 POLLING BLOCKED for 60 seconds to prevent data corruption');
-
-      const partialReservations: any = {};
-      touchedMonths.forEach(key => {
-        const [y, m] = key.split('|');
-        const yearInt = parseInt(y);
-        if (!partialReservations[yearInt]) partialReservations[yearInt] = {};
-        partialReservations[yearInt][m] = nextReservations[yearInt][m];
-      });
-
-      await saveAllData({ 
-        reservations: partialReservations,
-        years: nextYears 
-      });
-      setReservations(nextReservations);
-      setYears(nextYears);
-
-      console.log('🟢 SAVE COMPLETE - State updated locally');
-
-      // VERIFY: Immediately fetch and compare to ensure backend saved correctly
-      console.log('🔍 Verifying backend save...');
-      setTimeout(async () => {
-        try {
-          const verifyData = await fetchInitialData();
-          if (verifyData && target?.year && target?.month) {
-            const backendCount = verifyData.reservations?.[target.year]?.[target.month]?.length || 0;
-            const localCount = nextReservations[target.year]?.[target.month]?.length || 0;
-            console.log('✅ Backend Verification:', {
-              localCount,
-              backendCount,
-              match: backendCount === localCount
-            });
-            if (backendCount !== localCount) {
-              console.error('❌ BACKEND MISMATCH - Backend has different count!');
-              addNotification('Warning: Backend verification failed. Please refresh and check data.', 'error');
-            }
-          }
-        } catch (err) {
-          console.error('Verification failed:', err);
-        }
-      }, 2000); // Verify 2 seconds after save
-
-      // Auto-switch view to the target month to ensure user sees results
-      if (target?.year && target?.month) {
-        handleSetSelectedYear(target.year);
-        handleSetSelectedMonth(target.month);
-        setMainView('Reservations');
-      }
-
-      setSaveStatus('saved');
-      showConfirmation(`Successfully imported ${importedReservations.length} reservations into ${target?.month || 'various months'}. No existing records were overwritten unless they had the same internal ID.`);
-    } catch (err) {
-      setSaveStatus('error');
-      console.error("❌ Failed to save imported reservations:", err);
-      addNotification("Failed to save imported reservations. Check connection.", 'error');
-    }
-  }, [reservations, years, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, addNotification, showConfirmation]);
+  const handleReservationsImport = useCallback(async (data: AppData, report: ImportReport) => {
+    console.log('🔵 IMPORT COMPLETED', report);
+    setReservations(data);
+    setSaveStatus('saved');
+    setTableKey(prev => prev + 1);
+    addNotification(`Successfully imported ${report.imported} reservations.`, 'success');
+    setMainView('Reservations');
+  }, [addNotification]);
 
   const clearReservationFilters = useCallback(() => {
     setFilters({
