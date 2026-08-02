@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserPermission } from '../types';
 import { MailIcon, KeyIcon } from './icons';
+import { API_URL } from '../firebase/api';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -27,7 +28,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, firebaseUser, on
     setIsChangingPassword(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://www.nctrental.com/auth/change-password', {
+      const response = await fetch(`${API_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
