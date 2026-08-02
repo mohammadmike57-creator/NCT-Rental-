@@ -32,9 +32,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // Handle preflight OPTIONS request immediately
-        if (request.getMethod().equals("OPTIONS")) {
-            response.setStatus(HttpServletResponse.SC_OK);
+        // Handle preflight OPTIONS request
+        if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -42,13 +41,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String requestUri = request.getRequestURI();
 
         // Public endpoints – skip authentication
-        if (requestUri.startsWith("/auth/login") ||
-            requestUri.startsWith("/auth/signup") ||
-            requestUri.startsWith("/auth/change-password") ||
+        if (requestUri.startsWith("/auth/") ||
             requestUri.startsWith("/stripe/") ||
+            requestUri.startsWith("/api/state") ||
+            requestUri.startsWith("/api/voucher") ||
             requestUri.equals("/") ||
-            requestUri.equals("/health") ||
-            requestUri.equals("/api/state")) {
+            requestUri.equals("/health")) {
             filterChain.doFilter(request, response);
             return;
         }

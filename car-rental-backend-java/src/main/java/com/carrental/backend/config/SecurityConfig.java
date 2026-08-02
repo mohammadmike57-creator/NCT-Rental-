@@ -22,6 +22,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.web.filter.CorsFilter;
 import java.util.Arrays;
 
 @Configuration
@@ -30,6 +31,11 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+
+    @Bean
+    public CorsFilter corsFilter() {
+        return new CorsFilter(corsConfigurationSource());
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -79,18 +85,19 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:5173",
+            "http://localhost:[*]",
+            "http://127.0.0.1:[*]",
             "https://www.nctrental.com",
             "https://nctrental.com",
             "https://nct-rental.vercel.app",
             "https://nct-rental.onrender.com",
-            "https://nct-rental.onrender.com/"
+            "https://*.onrender.com"
         ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // Add max age for preflight cache
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
