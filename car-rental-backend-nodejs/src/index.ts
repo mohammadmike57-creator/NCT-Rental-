@@ -37,16 +37,16 @@ app.use(cors({
       (allowed.includes('onrender.com') && origin.endsWith('onrender.com'))
     );
     
-    if (isAllowed || process.env.NODE_ENV !== 'production') {
+    // Always allow the requested origin for now to be absolutely sure
+    if (isAllowed || origin === 'https://nct-rental.onrender.com' || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       console.log('Blocked origin:', origin);
-      callback(null, true); // Allow anyway for now to solve the persistent issue, but log it
+      callback(null, true); // Still allow but log
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['*'],
-  exposedHeaders: ['Authorization'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'X-Requested-With', 'Accept', 'Origin'],
   credentials: true,
   optionsSuccessStatus: 200
 }));

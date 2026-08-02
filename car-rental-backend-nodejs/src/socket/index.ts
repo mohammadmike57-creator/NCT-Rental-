@@ -26,6 +26,7 @@ export const initSocket = (server: http.Server) => {
         callback(null, true); // Allow all for now but log matching
       },
       methods: ['GET', 'POST', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'X-Requested-With', 'Accept', 'Origin'],
       credentials: true
     }
   });
