@@ -13,12 +13,6 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Connect to MongoDB
-connectDB();
-
-// Initialize Socket.io
-initSocket(server);
-
 // CORS configuration - allow both local development and production frontend
 const allowedOrigins = [
   'http://localhost:3000',
@@ -32,21 +26,31 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, or same-origin requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+    // Check if origin is in allowedOrigins or starts with one of them (to handle trailing slashes)
+    const isAllowed = allowedOrigins.some(allowed => 
+      origin === allowed || origin === `${allowed}/`
+    );
+    
+    if (isAllowed || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       console.log('Blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false); // Use false instead of error to avoid Express error handler
     }
   },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   credentials: true,
   optionsSuccessStatus: 200
 }));
+
+// Connect to MongoDB
+connectDB();
+
+// Initialize Socket.io
+initSocket(server);
 
 app.use(express.json({ limit: '10mb' }));
 
