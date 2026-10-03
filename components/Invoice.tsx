@@ -127,7 +127,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, year, month, companyDetails
 
     if (!startDate || !endDate || prepaidSources.length === 0) return null;
 
-    const allReservations = Object.values(yearData).flat();
+    const allReservations = yearData ? Object.values(yearData).flat() : [];
     
     const billableReservations: InvoiceReservationItem[] = allReservations
       .filter((r: Reservation) => {

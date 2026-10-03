@@ -491,7 +491,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     return MONTHS.map((month) => {
       // THE NEW RULE: Summary ONLY reads the month bucket that is currently selected.
       // We trust the data structure. No scanning, no re-inferring from dates.
-      const reservationsInMonth = yearData[month] || [];
+      const reservationsInMonth = (yearData && yearData[month]) || [];
       
       const confirmedReservations = reservationsInMonth.filter(
         r => r.status === ReservationStatus.CONFIRMED && typeof r.amount === 'number' && r.amount >= 0
@@ -512,7 +512,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
         commissionUSD: totalRevenueUSD * COMMISSION_RATE
       };
     });
-  }, [allData, year, conversionRate]);
+  }, [allData, yearData, year, conversionRate]);
   
   const grandTotal = useMemo(() => {
       return summary.reduce((totals, monthData) => {
