@@ -12,7 +12,11 @@ public interface NotificationTemplateRepository extends JpaRepository<Notificati
 
     Optional<NotificationTemplate> findByNameAndLanguage(String name, String language);
 
+    Optional<NotificationTemplate> findByNameAndIsActive(String name, boolean isActive);
+
     List<NotificationTemplate> findByIsActiveTrue();
 
     List<NotificationTemplate> findByType(NotificationTemplate.NotificationType type);
+
+    List<NotificationTemplate> findByTypeAndIsActive(NotificationTemplate.NotificationType type, boolean isActive);
 }
