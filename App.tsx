@@ -5,7 +5,7 @@ import { reservationService } from './services/reservationService';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
-import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
+import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, SearchIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import Notifications from './components/Notifications';
 import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData } from './firebase/api';
@@ -180,18 +180,49 @@ interface SidebarLink {
     badge?: number;
 }
 
-const SidebarSection: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => {
-    const [isOpen, setIsOpen] = useState(true);
+const SIDEBAR_COLLAPSED_KEY = 'NCT_SIDEBAR_COLLAPSED';
+
+const readCollapsedSections = (): Record<string, boolean> => {
+    try {
+        return JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) || '{}');
+    } catch {
+        return {};
+    }
+};
+
+const SidebarSection: React.FC<{ title: string, forceOpen?: boolean, children: React.ReactNode }> = ({ title, forceOpen = false, children }) => {
+    const [isOpen, setIsOpen] = useState(() => !readCollapsedSections()[title]);
+
+    const toggle = () => {
+        const next = !isOpen;
+        setIsOpen(next);
+        try {
+            const collapsed = readCollapsedSections();
+            collapsed[title] = !next;
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(collapsed));
+        } catch {
+            // Collapse state is a convenience only
+        }
+    };
+
+    const expanded = isOpen || forceOpen;
     return (
         <div>
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-700/50 rounded-md">
-                {title}
-                <ChevronDownIcon className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <button
+                onClick={toggle}
+                aria-expanded={expanded}
+                className="group w-full flex justify-between items-center px-3 pt-3 pb-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-[0.08em] hover:text-slate-300 transition-colors"
+            >
+                <span>{title}</span>
+                <ChevronDownIcon className={`w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-transform duration-200 ${expanded ? '' : '-rotate-90'}`} />
             </button>
-            {isOpen && <div className="pl-3 pt-1 space-y-1">{children}</div>}
+            {expanded && <div className="space-y-0.5">{children}</div>}
         </div>
     );
 };
+
+const getInitials = (name?: string) =>
+    (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]!.toUpperCase()).join('');
 
 const hasPermission = (user: User | null, permission: UserPermission): boolean => {
     if (!user) return false;
@@ -248,6 +279,7 @@ export const App: React.FC = () => {
   const [mainView, setMainView] = useState('Home');
   const [newReservations, setNewReservations] = useState<Reservation[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [navQuery, setNavQuery] = useState('');
   const [isDesktopView, setIsDesktopView] = useState(window.innerWidth >= 1024);
 
   const [filters, setFilters] = useState<ReservationFilters>({
@@ -1734,87 +1766,127 @@ ${currentUser?.fullName}
     <div className="flex h-screen bg-slate-100">
       {isSidebarOpen && <div className="fixed inset-0 z-30 bg-black bg-opacity-50 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
       
-      <aside className={`absolute md:relative z-40 md:z-auto w-64 bg-slate-800 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full`}>
-         <div className="flex items-center justify-between p-4 border-b border-slate-700 h-16 flex-shrink-0">
-            <div className="flex items-center gap-2">
-                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-8 w-8" />
-                <h1 className="text-xl font-bold text-white font-serif-professional">NCT Rental</h1>
+      <aside className={`absolute md:relative z-40 md:z-auto w-64 bg-slate-900 text-white flex-shrink-0 border-r border-white/5 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full`}>
+         <div className="flex items-center justify-between px-4 h-16 flex-shrink-0 border-b border-white/5">
+            <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-xl bg-white/95 flex items-center justify-center shadow-sm ring-1 ring-white/10 flex-shrink-0">
+                    <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-7 w-7" />
+                </div>
+                <div className="min-w-0">
+                    <h1 className="text-[15px] font-semibold text-white leading-tight tracking-tight">NCT Rental</h1>
+                    <p className="text-[11px] text-slate-400 leading-tight truncate">{companyDetails.name || 'Management Console'}</p>
+                </div>
             </div>
-            <button className="text-slate-300 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)}><CloseIcon /></button>
+            <button className="text-slate-400 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu"><CloseIcon /></button>
          </div>
-        
+
+         <div className="px-3 pt-3 pb-1 flex-shrink-0">
+            <div className="relative">
+                <SearchIcon className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                    type="text"
+                    value={navQuery}
+                    onChange={(e) => setNavQuery(e.target.value)}
+                    placeholder="Search menu…"
+                    aria-label="Search menu"
+                    className="w-full h-9 pl-9 pr-8 rounded-lg bg-white/5 border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:bg-white/10 focus:border-emerald-500/40 transition-colors"
+                />
+                {navQuery && (
+                    <button onClick={() => setNavQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300" aria-label="Clear search">
+                        <CloseIcon className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+         </div>
+
          <div className="flex-1 overflow-y-auto flex flex-col">
-            <nav className="px-2 py-4 space-y-4 flex-1">
-                {Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
-                    const visibleLinks = links.filter(link => {
-                        if (link.name === 'Agreement') {
-                            return true;
-                        }
-                        if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) {
-                            return false;
-                        }
-                        return hasPermission(currentUser, link.permission)
-                    });
-                    if (sectionTitle === "Administration" && !hasPermission(currentUser, UserPermission.VIEW_ADMIN_PANEL)) return null;
-                    if(visibleLinks.length === 0) return null;
+            <nav className="px-3 pb-4 flex-1">
+                {(() => {
+                    const query = navQuery.trim().toLowerCase();
+                    const sections = Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
+                        if (sectionTitle === "Administration" && !hasPermission(currentUser, UserPermission.VIEW_ADMIN_PANEL)) return null;
+                        const visibleLinks = links.filter(link => {
+                            if (query && !link.name.toLowerCase().includes(query) && !sectionTitle.toLowerCase().includes(query)) return false;
+                            if (link.name === 'Agreement') return true;
+                            if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) return false;
+                            return hasPermission(currentUser, link.permission);
+                        });
+                        if (visibleLinks.length === 0) return null;
 
-                    return (
-                        <SidebarSection key={sectionTitle} title={sectionTitle}>
-                            {visibleLinks.map(({ name, icon: Icon, badge }) => (
-                                <a
-                                    key={name}
-                                    href="#"
-                                    onClick={(e) => { e.preventDefault(); handleNavigation(name); }}
-                                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${mainView === name ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                    <Icon />
-                                    <span>{name}</span>
-                                    </div>
-                                    {typeof badge === 'number' && badge > 0 && (
-                                    <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">{badge}</span>
-                                    )}
-                                </a>
-                            ))}
-                        </SidebarSection>
+                        return (
+                            <SidebarSection key={sectionTitle} title={sectionTitle} forceOpen={!!query}>
+                                {visibleLinks.map(({ name, icon: Icon, badge }) => {
+                                    const isActive = mainView === name;
+                                    return (
+                                        <a
+                                            key={name}
+                                            href="#"
+                                            onClick={(e) => { e.preventDefault(); handleNavigation(name); setNavQuery(''); }}
+                                            aria-current={isActive ? 'page' : undefined}
+                                            className={`group relative flex items-center justify-between gap-3 pl-3 pr-2.5 py-2 rounded-lg text-[13.5px] font-medium transition-colors ${isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
+                                        >
+                                            {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-emerald-400" />}
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                                                <span className="truncate">{name}</span>
+                                            </div>
+                                            {typeof badge === 'number' && badge > 0 && (
+                                                <span className="min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[11px] font-semibold text-white bg-rose-500 rounded-full">{badge > 99 ? '99+' : badge}</span>
+                                            )}
+                                        </a>
+                                    );
+                                })}
+                            </SidebarSection>
+                        );
+                    }).filter(Boolean);
+
+                    return sections.length > 0 ? sections : (
+                        <p className="px-3 py-6 text-sm text-slate-500 text-center">No menu items match “{navQuery}”.</p>
                     );
-                })}
+                })()}
             </nav>
+         </div>
 
-            <div className="p-4 border-t border-slate-700 flex-shrink-0">
+         <div className="p-3 border-t border-white/5 flex-shrink-0">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5">
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-[13px] font-semibold text-white flex-shrink-0">
+                    {getInitials(currentUser?.fullName)}
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white truncate">{currentUser?.fullName}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{currentUser?.position || currentUser?.email}</p>
+                </div>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1">
+                {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) ? (
+                    <button
+                        onClick={() => handleNavigation('My Profile')}
+                        title="My Profile"
+                        className={`flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium transition-colors ${mainView === 'My Profile' ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
+                    >
+                        <UserCircleIcon className="w-[18px] h-[18px]" />
+                        Profile
+                    </button>
+                ) : <div />}
                 {notificationPermission === 'denied' ? (
-                    <div className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-400 bg-slate-900/50 rounded-md cursor-not-allowed" title="Notifications are blocked in your browser settings.">
-                        <BellSlashIcon />
-                        <span>Notifications Blocked</span>
+                    <div title="Notifications are blocked in your browser settings." className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-slate-600 cursor-not-allowed">
+                        <BellSlashIcon className="w-[18px] h-[18px]" />
+                        Blocked
                     </div>
                 ) : isPushSubscribed ? (
-                    <button onClick={handleDisableNotifications} className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-300 bg-red-800/70 hover:bg-red-600 hover:text-white rounded-md transition-colors">
-                        <BellSlashIcon />
-                        <span>Disable Notifications</span>
+                    <button onClick={handleDisableNotifications} title="Disable notifications" className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-emerald-400 hover:bg-white/5 transition-colors">
+                        <BellIcon className="w-[18px] h-[18px]" />
+                        Alerts on
                     </button>
                 ) : (
-                    <button onClick={handleEnableNotifications} className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-300 bg-slate-700/50 hover:bg-secondary hover:text-white rounded-md transition-colors">
-                        <BellIcon />
-                        <span>Enable Notifications</span>
+                    <button onClick={handleEnableNotifications} title="Enable notifications" className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-slate-400 hover:bg-white/5 hover:text-slate-100 transition-colors">
+                        <BellSlashIcon className="w-[18px] h-[18px]" />
+                        Alerts off
                     </button>
                 )}
-                {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); handleNavigation('My Profile'); }}
-                        className={`flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium rounded-md transition-colors ${mainView === 'My Profile' ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
-                    >
-                        <UserCircleIcon />
-                        <span>My Profile</span>
-                    </a>
-                )}
-                <div className="px-3 py-2 rounded-md bg-slate-900/50">
-                    <p className="text-xs text-slate-400">Logged in as</p>
-                    <p className="text-sm font-semibold text-white">{currentUser?.fullName}</p>
-                </div>
-                <button onClick={handleLogout} className="flex items-center w-full gap-3 px-3 py-2.5 mt-3 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white rounded-md">
-                    <LogoutIcon />
-                    <span>Logout</span>
+                <button onClick={handleLogout} title="Log out" className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-slate-400 hover:bg-rose-500/10 hover:text-rose-300 transition-colors">
+                    <LogoutIcon className="w-[18px] h-[18px]" />
+                    Log out
                 </button>
             </div>
          </div>

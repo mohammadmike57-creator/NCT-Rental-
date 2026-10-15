@@ -10,7 +10,7 @@ interface TabsProps {
 }
 
 const Tabs: React.FC<TabsProps> = ({ tabs, selectedTab, onSelectTab, variant = 'pills', size = 'md' }) => {
-  const getPillBaseClasses = () => "font-medium transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary";
+  const getPillBaseClasses = () => "font-medium transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-secondary";
   const getPillSizeClasses = () => size === 'sm' ? "px-3 py-1 text-sm rounded-md" : "px-4 py-2 text-base rounded-lg";
   const getPillStateClasses = (tab: string) => {
       return selectedTab === tab
@@ -18,7 +18,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, selectedTab, onSelectTab, variant = '
         : "text-gray-600 hover:bg-gray-200";
   };
   
-  const getUnderlineBaseClasses = () => "font-medium transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-inset focus:ring-secondary pb-2 border-b-2";
+  const getUnderlineBaseClasses = () => "font-medium transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary pb-2 border-b-2";
   const getUnderlineSizeClasses = () => size === 'sm' ? "text-sm" : "text-base";
   const getUnderlineStateClasses = (tab: string) => {
     return selectedTab === tab
