@@ -97,7 +97,7 @@ export default function MobileReservationsPage() {
       render: (value: string, row: Reservation) => (
         <div>
           <div className="font-semibold">{row.customerName}</div>
-          <div className="text-xs text-gray-500">{value}</div>
+          <div className="text-xs text-slate-500">{value}</div>
         </div>
       ),
     },
@@ -110,10 +110,10 @@ export default function MobileReservationsPage() {
       label: 'Status',
       render: (value: string) => {
         const statusColors = {
-          active: 'bg-green-100 text-green-700',
-          pending: 'bg-yellow-100 text-yellow-700',
-          completed: 'bg-blue-100 text-blue-700',
-          cancelled: 'bg-red-100 text-red-700',
+          active: 'bg-emerald-100 text-emerald-700',
+          pending: 'bg-amber-100 text-amber-700',
+          completed: 'bg-sky-100 text-sky-700',
+          cancelled: 'bg-rose-100 text-rose-700',
         };
         return (
           <span
@@ -186,13 +186,13 @@ export default function MobileReservationsPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-slate-50">
       {/* Header */}
-      <div className="sticky top-14 z-20 bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-6 safe-area-top">
+      <div className="sticky top-14 z-20 px-4 py-6 safe-area-top bg-slate-900">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">Reservations</h1>
-            <p className="text-blue-100">Manage your bookings</p>
+            <p className="text-sky-100">Manage your bookings</p>
           </div>
           <button
             onClick={() => setShowFilters(true)}
@@ -206,15 +206,15 @@ export default function MobileReservationsPage() {
         <div className="grid grid-cols-3 gap-3 mt-4">
           <div className="bg-white bg-opacity-20 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold text-white">42</div>
-            <div className="text-xs text-blue-100">Active</div>
+            <div className="text-xs text-sky-100">Active</div>
           </div>
           <div className="bg-white bg-opacity-20 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold text-white">28</div>
-            <div className="text-xs text-blue-100">Pending</div>
+            <div className="text-xs text-sky-100">Pending</div>
           </div>
           <div className="bg-white bg-opacity-20 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold text-white">156</div>
-            <div className="text-xs text-blue-100">Total</div>
+            <div className="text-xs text-sky-100">Total</div>
           </div>
         </div>
       </div>
@@ -238,7 +238,7 @@ export default function MobileReservationsPage() {
       {/* Floating Action Button */}
       <button
         onClick={handleNewReservation}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-blue-600 rounded-full shadow-lg flex items-center justify-center text-white active:scale-95 transition-transform z-30 touch-manipulation"
+        className="fixed bottom-20 right-4 w-14 h-14 bg-emerald-600 rounded-full shadow-lg flex items-center justify-center text-white active:scale-95 transition-transform z-30 touch-manipulation"
       >
         <PlusIcon className="w-7 h-7" />
       </button>
@@ -292,11 +292,11 @@ export default function MobileReservationsPage() {
 
           {/* Summary */}
           {formData.pickupDate && formData.returnDate && (
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">
+            <div className="bg-sky-50 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">
                 Reservation Summary
               </h3>
-              <div className="space-y-1 text-sm text-gray-700">
+              <div className="space-y-1 text-sm text-slate-700">
                 <div className="flex justify-between">
                   <span>Duration:</span>
                   <span className="font-semibold">
@@ -312,9 +312,9 @@ export default function MobileReservationsPage() {
                   <span>Rate:</span>
                   <span className="font-semibold">$90.00 / day</span>
                 </div>
-                <div className="flex justify-between pt-2 border-t border-blue-200">
+                <div className="flex justify-between pt-2 border-t border-sky-200">
                   <span className="font-semibold">Total:</span>
-                  <span className="font-bold text-blue-600">$450.00</span>
+                  <span className="font-bold text-sky-600">$450.00</span>
                 </div>
               </div>
             </div>
@@ -323,7 +323,7 @@ export default function MobileReservationsPage() {
           <button
             type="button"
             onClick={handleSubmitReservation}
-            className="w-full px-4 py-3 text-base font-medium text-white bg-blue-600 rounded-lg active:bg-blue-700 transition-colors touch-manipulation"
+            className="w-full px-4 py-3 text-base font-medium text-white bg-emerald-600 rounded-lg active:bg-emerald-600 transition-colors touch-manipulation"
           >
             Create Reservation
           </button>
@@ -339,7 +339,7 @@ export default function MobileReservationsPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Status
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -349,8 +349,8 @@ export default function MobileReservationsPage() {
                   onClick={() => setFilterData({ ...filterData, status })}
                   className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-colors touch-manipulation ${
                     filterData.status === status
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-100 text-slate-700 active:bg-slate-200'
                   }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -378,7 +378,7 @@ export default function MobileReservationsPage() {
                 setFilterData({ status: 'all', dateFrom: '', dateTo: '' });
                 setShowFilters(false);
               }}
-              className="flex-1 px-4 py-3 text-base font-medium text-gray-700 bg-gray-100 rounded-lg active:bg-gray-200 transition-colors touch-manipulation"
+              className="flex-1 px-4 py-3 text-base font-medium text-slate-700 bg-slate-100 rounded-lg active:bg-slate-200 transition-colors touch-manipulation"
             >
               Reset
             </button>
@@ -387,7 +387,7 @@ export default function MobileReservationsPage() {
                 console.log('Apply filters:', filterData);
                 setShowFilters(false);
               }}
-              className="flex-1 px-4 py-3 text-base font-medium text-white bg-blue-600 rounded-lg active:bg-blue-700 transition-colors touch-manipulation"
+              className="flex-1 px-4 py-3 text-base font-medium text-white bg-emerald-600 rounded-lg active:bg-emerald-600 transition-colors touch-manipulation"
             >
               Apply
             </button>

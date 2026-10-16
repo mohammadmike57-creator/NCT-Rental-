@@ -436,23 +436,23 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Paid':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'Pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'Overdue':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'Cancelled':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-slate-100 text-slate-800 border-slate-200';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-slate-100 text-slate-800 border-slate-200';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-6">
+    <div className="min-h-screen p-6 bg-slate-50">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-2xl p-8 mb-8 text-white">
+        <div className="rounded-2xl shadow-2xl p-8 mb-8 text-white bg-slate-900">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
@@ -460,7 +460,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
               </div>
               <div>
                 <h1 className="text-4xl font-bold mb-2">Professional Invoice Generation</h1>
-                <p className="text-blue-100 text-lg">Create, manage, and track invoices with ease</p>
+                <p className="text-sky-100 text-lg">Create, manage, and track invoices with ease</p>
               </div>
             </div>
           </div>
@@ -468,51 +468,51 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-sky-500 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium mb-1">Total Invoices</p>
-                <p className="text-3xl font-bold text-gray-900">{statistics.totalInvoices}</p>
+                <p className="text-slate-500 text-sm font-medium mb-1">Total Invoices</p>
+                <p className="text-3xl font-bold text-slate-900">{statistics.totalInvoices}</p>
               </div>
-              <DocumentTextIcon className="w-12 h-12 text-blue-500 opacity-20" />
+              <DocumentTextIcon className="w-12 h-12 text-sky-500 opacity-20" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-emerald-500 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium mb-1">Total Revenue</p>
-                <p className="text-3xl font-bold text-gray-900">{formatCurrency(statistics.totalRevenue)}</p>
+                <p className="text-slate-500 text-sm font-medium mb-1">Total Revenue</p>
+                <p className="text-3xl font-bold text-slate-900">{formatCurrency(statistics.totalRevenue)}</p>
               </div>
               <div className="text-4xl">💰</div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-emerald-500 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium mb-1">Paid</p>
-                <p className="text-3xl font-bold text-green-600">{formatCurrency(statistics.paidAmount)}</p>
+                <p className="text-slate-500 text-sm font-medium mb-1">Paid</p>
+                <p className="text-3xl font-bold text-emerald-600">{formatCurrency(statistics.paidAmount)}</p>
               </div>
-              <CheckCircleIcon className="w-12 h-12 text-green-500 opacity-20" />
+              <CheckCircleIcon className="w-12 h-12 text-emerald-500 opacity-20" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-amber-500 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium mb-1">Pending</p>
-                <p className="text-3xl font-bold text-yellow-600">{formatCurrency(statistics.pendingAmount)}</p>
+                <p className="text-slate-500 text-sm font-medium mb-1">Pending</p>
+                <p className="text-3xl font-bold text-amber-600">{formatCurrency(statistics.pendingAmount)}</p>
               </div>
               <div className="text-4xl">⏳</div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-rose-500 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium mb-1">Overdue</p>
-                <p className="text-3xl font-bold text-red-600">{formatCurrency(statistics.overdueAmount)}</p>
+                <p className="text-slate-500 text-sm font-medium mb-1">Overdue</p>
+                <p className="text-3xl font-bold text-rose-600">{formatCurrency(statistics.overdueAmount)}</p>
               </div>
               <div className="text-4xl">⚠️</div>
             </div>
@@ -521,14 +521,14 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-lg mb-8">
-          <div className="border-b border-gray-200">
+          <div className="border-b border-slate-200">
             <div className="flex space-x-8 px-6">
               <button
                 onClick={() => setActiveTab('create')}
                 className={`py-4 px-2 border-b-2 font-semibold transition-colors ${
                   activeTab === 'create'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-sky-600 text-sky-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
                 Create Invoice
@@ -537,8 +537,8 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                 onClick={() => setActiveTab('history')}
                 className={`py-4 px-2 border-b-2 font-semibold transition-colors ${
                   activeTab === 'history'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-sky-600 text-sky-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
                 Invoice History
@@ -553,29 +553,29 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                 {/* Left Column - Invoice Form */}
                 <div className="space-y-6">
                   {/* Invoice Details */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                      <DocumentTextIcon className="w-6 h-6 mr-2 text-blue-600" />
+                  <div className="rounded-xl p-6 border border-sky-200 bg-slate-50">
+                    <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center">
+                      <DocumentTextIcon className="w-6 h-6 mr-2 text-sky-600" />
                       Invoice Details
                     </h3>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Invoice Number</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Invoice Number</label>
                         <input
                           type="text"
                           value={invoiceForm.invoiceNumber}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Template</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Template</label>
                         <select
                           value={invoiceForm.template}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, template: e.target.value as any })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         >
                           <option value="Standard">Standard</option>
                           <option value="Detailed">Detailed</option>
@@ -584,31 +584,31 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
                         <input
                           type="date"
                           value={invoiceForm.date}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, date: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Due Date</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
                         <input
                           type="date"
                           value={invoiceForm.dueDate}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Currency</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Currency</label>
                         <select
                           value={invoiceForm.currency}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, currency: e.target.value as any })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         >
                           <option value="USD">USD ($)</option>
                           <option value="JOD">JOD (JOD)</option>
@@ -617,11 +617,11 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Status</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Status</label>
                         <select
                           value={invoiceForm.paymentStatus}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, paymentStatus: e.target.value as any })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         >
                           <option value="Pending">Pending</option>
                           <option value="Paid">Paid</option>
@@ -633,42 +633,42 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   </div>
 
                   {/* Customer Details */}
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <div className="rounded-xl p-6 border border-emerald-200 bg-slate-50">
+                    <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center">
                       <div className="text-2xl mr-2">👤</div>
                       Customer Details
                     </h3>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Customer Name</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Customer Name</label>
                         <input
                           type="text"
                           value={invoiceForm.customerName}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, customerName: e.target.value })}
                           placeholder="John Doe"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
                           <input
                             type="email"
                             value={invoiceForm.customerEmail}
                             onChange={(e) => setInvoiceForm({ ...invoiceForm, customerEmail: e.target.value })}
                             placeholder="john@example.com"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Customer Type</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Customer Type</label>
                           <select
                             value={invoiceForm.customerType}
                             onChange={(e) => setInvoiceForm({ ...invoiceForm, customerType: e.target.value as any })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           >
                             <option value="Individual">Individual</option>
                             <option value="Corporate">Corporate</option>
@@ -677,22 +677,22 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
                         <textarea
                           value={invoiceForm.customerAddress}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, customerAddress: e.target.value })}
                           placeholder="123 Main St, City, State, ZIP"
                           rows={3}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Source/Channel</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Source/Channel</label>
                         <select
                           value={invoiceForm.source}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, source: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         >
                           <option value="Direct">Direct</option>
                           <option value="Booking.com">Booking.com</option>
@@ -707,15 +707,15 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   </div>
 
                   {/* Line Items */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+                  <div className="rounded-xl p-6 border border-emerald-200 bg-slate-50">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                      <h3 className="text-xl font-bold text-slate-900 flex items-center">
                         <div className="text-2xl mr-2">📋</div>
                         Line Items
                       </h3>
                       <button
                         onClick={addLineItem}
-                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
+                        className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md"
                       >
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Add Item
@@ -724,7 +724,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
 
                     <div className="space-y-4">
                       {invoiceForm.lineItems.map((item, index) => (
-                        <div key={item.id} className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
+                        <div key={item.id} className="bg-white rounded-lg p-4 border border-emerald-200 shadow-sm">
                           <div className="flex items-start space-x-3">
                             <div className="flex-1 space-y-3">
                               <input
@@ -732,33 +732,33 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                                 value={item.description}
                                 onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
                                 placeholder="Item description"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                               />
                               <div className="grid grid-cols-3 gap-3">
                                 <div>
-                                  <label className="block text-xs font-semibold text-gray-600 mb-1">Quantity</label>
+                                  <label className="block text-xs font-semibold text-slate-600 mb-1">Quantity</label>
                                   <input
                                     type="number"
                                     value={item.quantity}
                                     onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
                                     min="1"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-semibold text-gray-600 mb-1">Unit Price</label>
+                                  <label className="block text-xs font-semibold text-slate-600 mb-1">Unit Price</label>
                                   <input
                                     type="number"
                                     value={item.unitPrice}
                                     onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                                     min="0"
                                     step="0.01"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-semibold text-gray-600 mb-1">Total</label>
-                                  <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-bold text-gray-900">
+                                  <label className="block text-xs font-semibold text-slate-600 mb-1">Total</label>
+                                  <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm font-bold text-slate-900">
                                     {formatCurrency(item.total)}
                                   </div>
                                 </div>
@@ -767,7 +767,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                             {invoiceForm.lineItems.length > 1 && (
                               <button
                                 onClick={() => removeLineItem(item.id)}
-                                className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
                               >
                                 <TrashIcon className="w-5 h-5" />
                               </button>
@@ -779,8 +779,8 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   </div>
 
                   {/* Calculations */}
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <div className="rounded-xl p-6 border border-amber-200 bg-slate-50">
+                    <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center">
                       <div className="text-2xl mr-2">🧮</div>
                       Calculations
                     </h3>
@@ -788,7 +788,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Discount (%)</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Discount (%)</label>
                           <input
                             type="number"
                             value={invoiceForm.discountPercent}
@@ -796,12 +796,12 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                             min="0"
                             max="100"
                             step="0.1"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Tax Rate (%)</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Tax Rate (%)</label>
                           <input
                             type="number"
                             value={invoiceForm.taxRate}
@@ -809,28 +809,28 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                             min="0"
                             max="100"
                             step="0.1"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                           />
                         </div>
                       </div>
 
                       <div className="bg-white rounded-lg p-4 border border-amber-200 space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Subtotal:</span>
-                          <span className="font-semibold text-gray-900">{formatCurrency(invoiceForm.subtotal)}</span>
+                          <span className="text-slate-600">Subtotal:</span>
+                          <span className="font-semibold text-slate-900">{formatCurrency(invoiceForm.subtotal)}</span>
                         </div>
                         {invoiceForm.discountPercent > 0 && (
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Discount ({invoiceForm.discountPercent}%):</span>
-                            <span className="font-semibold text-red-600">-{formatCurrency(invoiceForm.discountAmount)}</span>
+                            <span className="text-slate-600">Discount ({invoiceForm.discountPercent}%):</span>
+                            <span className="font-semibold text-rose-600">-{formatCurrency(invoiceForm.discountAmount)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Tax ({invoiceForm.taxRate}%):</span>
-                          <span className="font-semibold text-gray-900">{formatCurrency(invoiceForm.taxAmount)}</span>
+                          <span className="text-slate-600">Tax ({invoiceForm.taxRate}%):</span>
+                          <span className="font-semibold text-slate-900">{formatCurrency(invoiceForm.taxAmount)}</span>
                         </div>
                         <div className="border-t border-amber-200 pt-2 flex justify-between">
-                          <span className="text-lg font-bold text-gray-900">Total:</span>
+                          <span className="text-lg font-bold text-slate-900">Total:</span>
                           <span className="text-2xl font-bold text-amber-600">{formatCurrency(invoiceForm.total)}</span>
                         </div>
                       </div>
@@ -838,19 +838,19 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   </div>
 
                   {/* Additional Information */}
-                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl p-6 border border-indigo-200">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <div className="rounded-xl p-6 border border-emerald-200 bg-slate-50">
+                    <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center">
                       <div className="text-2xl mr-2">📝</div>
                       Additional Information
                     </h3>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Terms</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Terms</label>
                         <select
                           value={invoiceForm.paymentTerms}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, paymentTerms: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         >
                           <option value="Due on Receipt">Due on Receipt</option>
                           <option value="Net 15">Net 15</option>
@@ -861,13 +861,13 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Notes</label>
                         <textarea
                           value={invoiceForm.notes}
                           onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
                           placeholder="Additional notes or payment instructions..."
                           rows={4}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -877,28 +877,28 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   <div className="flex flex-wrap gap-4">
                     <button
                       onClick={saveInvoice}
-                      className="flex-1 flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl font-semibold"
+                      className="flex-1 flex items-center justify-center px-6 py-3 text-white rounded-xl transition-all shadow-lg hover:shadow-xl font-semibold bg-emerald-600 hover:bg-emerald-700"
                     >
                       <SaveIcon className="w-5 h-5 mr-2" />
                       Save Invoice
                     </button>
                     <button
                       onClick={exportToPDF}
-                      className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-xl hover:from-red-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl font-semibold"
+                      className="flex items-center justify-center px-6 py-3 text-white rounded-xl transition-all shadow-lg hover:shadow-xl font-semibold bg-emerald-600 hover:bg-emerald-700"
                     >
                       <PdfIcon className="w-5 h-5 mr-2" />
                       Export PDF
                     </button>
                     <button
                       onClick={printInvoice}
-                      className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl font-semibold"
+                      className="flex items-center justify-center px-6 py-3 text-white rounded-xl transition-all shadow-lg hover:shadow-xl font-semibold bg-emerald-600 hover:bg-emerald-700"
                     >
                       <PrinterIcon className="w-5 h-5 mr-2" />
                       Print
                     </button>
                     <button
                       onClick={() => setShowPreview(!showPreview)}
-                      className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-xl hover:from-purple-700 hover:to-violet-700 transition-all shadow-lg hover:shadow-xl font-semibold"
+                      className="flex items-center justify-center px-6 py-3 text-white rounded-xl transition-all shadow-lg hover:shadow-xl font-semibold bg-emerald-600 hover:bg-emerald-700"
                     >
                       {showPreview ? <CloseIcon className="w-5 h-5 mr-2" /> : <div className="text-xl mr-2">👁️</div>}
                       {showPreview ? 'Hide' : 'Preview'}
@@ -908,19 +908,19 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
 
                 {/* Right Column - Preview */}
                 <div className="lg:sticky lg:top-6 lg:h-fit">
-                  <div className="bg-white rounded-xl shadow-2xl p-8 border border-gray-200">
-                    <div className="mb-6 pb-4 border-b border-gray-200">
-                      <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <div className="bg-white rounded-xl shadow-2xl p-8 border border-slate-200">
+                    <div className="mb-6 pb-4 border-b border-slate-200">
+                      <h3 className="text-2xl font-bold text-slate-900 flex items-center">
                         <div className="text-3xl mr-3">👁️</div>
                         Invoice Preview
                       </h3>
-                      <p className="text-sm text-gray-600 mt-1">Live preview of your invoice</p>
+                      <p className="text-sm text-slate-600 mt-1">Live preview of your invoice</p>
                     </div>
 
                     {/* Preview Content */}
-                    <div className="border border-gray-300 rounded-lg p-6 bg-gray-50 space-y-6">
+                    <div className="border border-slate-300 rounded-lg p-6 bg-slate-50 space-y-6">
                       {/* Header */}
-                      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-lg -m-6 mb-6">
+                      <div className="text-white p-6 rounded-lg -m-6 mb-6 bg-slate-900">
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="text-2xl font-bold mb-2">{companyDetails.name || 'Your Company'}</h4>
@@ -939,11 +939,11 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
 
                       {/* Bill To */}
                       <div>
-                        <h6 className="text-sm font-bold text-gray-700 mb-2">BILL TO:</h6>
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                          <p className="font-semibold text-gray-900">{invoiceForm.customerName || 'Customer Name'}</p>
-                          <p className="text-sm text-gray-600">{invoiceForm.customerEmail || 'customer@email.com'}</p>
-                          <p className="text-sm text-gray-600">{invoiceForm.customerAddress || 'Customer Address'}</p>
+                        <h6 className="text-sm font-bold text-slate-700 mb-2">BILL TO:</h6>
+                        <div className="bg-white rounded-lg p-4 border border-slate-200">
+                          <p className="font-semibold text-slate-900">{invoiceForm.customerName || 'Customer Name'}</p>
+                          <p className="text-sm text-slate-600">{invoiceForm.customerEmail || 'customer@email.com'}</p>
+                          <p className="text-sm text-slate-600">{invoiceForm.customerAddress || 'Customer Address'}</p>
                         </div>
                       </div>
 
@@ -951,7 +951,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                       <div>
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="bg-gray-200 border-b border-gray-300">
+                            <tr className="bg-slate-200 border-b border-slate-300">
                               <th className="text-left py-2 px-3 font-semibold">Description</th>
                               <th className="text-center py-2 px-3 font-semibold">Qty</th>
                               <th className="text-right py-2 px-3 font-semibold">Price</th>
@@ -960,7 +960,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                           </thead>
                           <tbody className="bg-white">
                             {invoiceForm.lineItems.map((item, idx) => (
-                              <tr key={item.id} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                              <tr key={item.id} className={idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
                                 <td className="py-2 px-3">{item.description || '-'}</td>
                                 <td className="py-2 px-3 text-center">{item.quantity}</td>
                                 <td className="py-2 px-3 text-right">{formatCurrency(item.unitPrice)}</td>
@@ -972,54 +972,54 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                       </div>
 
                       {/* Totals */}
-                      <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-2">
+                      <div className="bg-white rounded-lg p-4 border border-slate-200 space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Subtotal:</span>
+                          <span className="text-slate-600">Subtotal:</span>
                           <span className="font-semibold">{formatCurrency(invoiceForm.subtotal)}</span>
                         </div>
                         {invoiceForm.discountPercent > 0 && (
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Discount ({invoiceForm.discountPercent}%):</span>
-                            <span className="font-semibold text-red-600">-{formatCurrency(invoiceForm.discountAmount)}</span>
+                            <span className="text-slate-600">Discount ({invoiceForm.discountPercent}%):</span>
+                            <span className="font-semibold text-rose-600">-{formatCurrency(invoiceForm.discountAmount)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Tax ({invoiceForm.taxRate}%):</span>
+                          <span className="text-slate-600">Tax ({invoiceForm.taxRate}%):</span>
                           <span className="font-semibold">{formatCurrency(invoiceForm.taxAmount)}</span>
                         </div>
-                        <div className="border-t border-gray-300 pt-2 flex justify-between">
+                        <div className="border-t border-slate-300 pt-2 flex justify-between">
                           <span className="text-lg font-bold">TOTAL:</span>
-                          <span className="text-xl font-bold text-blue-600">{formatCurrency(invoiceForm.total)}</span>
+                          <span className="text-xl font-bold text-sky-600">{formatCurrency(invoiceForm.total)}</span>
                         </div>
                       </div>
 
                       {/* Status Badge */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Status</p>
+                          <p className="text-xs text-slate-500 mb-1">Status</p>
                           <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(invoiceForm.paymentStatus)}`}>
                             {invoiceForm.paymentStatus}
                           </span>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-gray-500 mb-1">Due Date</p>
+                          <p className="text-xs text-slate-500 mb-1">Due Date</p>
                           <p className="text-sm font-semibold">{invoiceForm.dueDate}</p>
                         </div>
                       </div>
 
                       {/* Payment Terms */}
                       {invoiceForm.paymentTerms && (
-                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                          <p className="text-xs font-semibold text-blue-900 mb-1">Payment Terms</p>
-                          <p className="text-sm text-blue-800">{invoiceForm.paymentTerms}</p>
+                        <div className="bg-sky-50 rounded-lg p-3 border border-sky-200">
+                          <p className="text-xs font-semibold text-sky-900 mb-1">Payment Terms</p>
+                          <p className="text-sm text-sky-800">{invoiceForm.paymentTerms}</p>
                         </div>
                       )}
 
                       {/* Notes */}
                       {invoiceForm.notes && (
-                        <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                          <p className="text-xs font-semibold text-yellow-900 mb-1">Notes</p>
-                          <p className="text-sm text-yellow-800">{invoiceForm.notes}</p>
+                        <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                          <p className="text-xs font-semibold text-amber-900 mb-1">Notes</p>
+                          <p className="text-sm text-amber-800">{invoiceForm.notes}</p>
                         </div>
                       )}
                     </div>
@@ -1033,19 +1033,19 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
           {activeTab === 'history' && (
             <div className="p-8">
               {/* Filters */}
-              <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 mb-6 border border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <FilterIcon className="w-5 h-5 mr-2 text-blue-600" />
+              <div className="rounded-xl p-6 mb-6 border border-slate-200 bg-slate-50">
+                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center">
+                  <FilterIcon className="w-5 h-5 mr-2 text-sky-600" />
                   Filters
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Source/Channel</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Source/Channel</label>
                     <select
                       value={selectedSource}
                       onChange={(e) => setSelectedSource(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                     >
                       <option value="All">All Sources</option>
                       <option value="Direct">Direct</option>
@@ -1059,11 +1059,11 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Customer Type</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Customer Type</label>
                     <select
                       value={selectedCustomerType}
                       onChange={(e) => setSelectedCustomerType(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                     >
                       <option value="All">All Types</option>
                       <option value="Individual">Individual</option>
@@ -1072,11 +1072,11 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Status</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Status</label>
                     <select
                       value={selectedPaymentStatus}
                       onChange={(e) => setSelectedPaymentStatus(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                     >
                       <option value="All">All Status</option>
                       <option value="Paid">Paid</option>
@@ -1087,15 +1087,15 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Search</label>
                     <div className="relative">
-                      <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search invoices..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -1104,7 +1104,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                 <div className="mt-4 flex justify-end">
                   <button
                     onClick={exportToCSV}
-                    className="flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-md"
+                    className="flex items-center px-4 py-2 text-white rounded-lg transition-all shadow-md bg-emerald-600 hover:bg-emerald-700"
                   >
                     <ExportIcon className="w-5 h-5 mr-2" />
                     Export to CSV
@@ -1116,7 +1116,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                    <thead className="text-white bg-slate-900">
                       <tr>
                         <th className="px-6 py-4 text-left text-sm font-bold">Invoice #</th>
                         <th className="px-6 py-4 text-left text-sm font-bold">Date</th>
@@ -1128,7 +1128,7 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                         <th className="px-6 py-4 text-center text-sm font-bold">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-slate-200">
                       {invoices
                         .filter(inv => {
                           if (selectedSource !== 'All' && inv.source !== selectedSource) return false;
@@ -1139,25 +1139,25 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                           return true;
                         })
                         .map((invoice, idx) => (
-                          <tr key={invoice.id} className={`hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          <tr key={invoice.id} className={`hover:bg-sky-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                             <td className="px-6 py-4">
-                              <span className="font-semibold text-blue-600">{invoice.invoiceNumber}</span>
+                              <span className="font-semibold text-sky-600">{invoice.invoiceNumber}</span>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">{invoice.date}</td>
+                            <td className="px-6 py-4 text-sm text-slate-600">{invoice.date}</td>
                             <td className="px-6 py-4">
                               <div>
-                                <p className="font-semibold text-gray-900">{invoice.customerName}</p>
-                                <p className="text-xs text-gray-500">{invoice.customerEmail}</p>
+                                <p className="font-semibold text-slate-900">{invoice.customerName}</p>
+                                <p className="text-xs text-slate-500">{invoice.customerEmail}</p>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">{invoice.source}</td>
+                            <td className="px-6 py-4 text-sm text-slate-600">{invoice.source}</td>
                             <td className="px-6 py-4">
-                              <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
+                              <span className="inline-block px-2 py-1 bg-sky-100 text-sky-800 text-xs font-semibold rounded">
                                 {invoice.customerType}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <span className="font-bold text-gray-900">{formatCurrency(invoice.total, invoice.currency)}</span>
+                              <span className="font-bold text-slate-900">{formatCurrency(invoice.total, invoice.currency)}</span>
                             </td>
                             <td className="px-6 py-4 text-center">
                               <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(invoice.paymentStatus)}`}>
@@ -1171,21 +1171,21 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                                     setInvoiceForm(invoice);
                                     setActiveTab('create');
                                   }}
-                                  className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                  className="p-2 text-sky-600 hover:bg-sky-100 rounded-lg transition-colors"
                                   title="View/Edit"
                                 >
                                   <div className="text-lg">👁️</div>
                                 </button>
                                 <button
                                   onClick={exportToPDF}
-                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
                                   title="Export PDF"
                                 >
                                   <PdfIcon className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={printInvoice}
-                                  className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                                  className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
                                   title="Print"
                                 >
                                   <PrinterIcon className="w-5 h-5" />
@@ -1200,8 +1200,8 @@ const ProfessionalInvoiceGeneration: React.FC<ProfessionalInvoiceGenerationProps
                   {invoices.length === 0 && (
                     <div className="text-center py-12">
                       <div className="text-6xl mb-4">📋</div>
-                      <p className="text-gray-500 text-lg font-semibold">No invoices found</p>
-                      <p className="text-gray-400 text-sm mt-2">Create your first invoice to get started</p>
+                      <p className="text-slate-500 text-lg font-semibold">No invoices found</p>
+                      <p className="text-slate-400 text-sm mt-2">Create your first invoice to get started</p>
                     </div>
                   )}
                 </div>

@@ -198,15 +198,15 @@ export default function MobileDashboard() {
   };
 
   const colorClasses = {
-    blue: 'bg-blue-50 text-blue-700',
-    green: 'bg-green-50 text-green-700',
-    purple: 'bg-purple-50 text-purple-700',
-    orange: 'bg-orange-50 text-orange-700',
-    gray: 'bg-gray-50 text-gray-700',
+    blue: 'bg-sky-50 text-sky-700',
+    green: 'bg-emerald-50 text-emerald-700',
+    purple: 'bg-emerald-50 text-emerald-700',
+    orange: 'bg-amber-50 text-amber-700',
+    gray: 'bg-slate-50 text-slate-700',
   };
 
   return (
-    <div className="relative min-h-screen bg-gray-50 pb-20">
+    <div className="relative min-h-screen bg-slate-50 pb-20">
       {/* Pull to Refresh Indicator */}
       {pullDistance > 0 && (
         <div
@@ -215,7 +215,7 @@ export default function MobileDashboard() {
         >
           <div className="bg-white rounded-full shadow-lg p-3">
             <div
-              className={`w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full ${
+              className={`w-6 h-6 border-3 border-sky-600 border-t-transparent rounded-full ${
                 isRefreshing ? 'animate-spin' : ''
               }`}
               style={{
@@ -235,9 +235,9 @@ export default function MobileDashboard() {
         onTouchEnd={handleTouchEnd}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 pt-6 pb-8 safe-area-top">
+        <div className="px-4 pt-6 pb-8 safe-area-top bg-slate-900">
           <h1 className="text-2xl font-bold text-white mb-2">Dashboard</h1>
-          <p className="text-blue-100">Welcome back! Here's your overview</p>
+          <p className="text-sky-100">Welcome back! Here's your overview</p>
         </div>
 
         {/* KPI Cards - Horizontal Scroll */}
@@ -254,7 +254,7 @@ export default function MobileDashboard() {
                   </div>
                   <div
                     className={`flex items-center space-x-1 text-sm font-semibold ${
-                      card.change >= 0 ? 'text-green-600' : 'text-red-600'
+                      card.change >= 0 ? 'text-emerald-600' : 'text-rose-600'
                     }`}
                   >
                     {card.change >= 0 ? (
@@ -265,11 +265,11 @@ export default function MobileDashboard() {
                     <span>{Math.abs(card.change)}%</span>
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                <h3 className="text-2xl font-bold text-slate-900 mb-1">
                   {card.value}
                 </h3>
-                <p className="text-sm font-medium text-gray-600 mb-1">{card.title}</p>
-                <p className="text-xs text-gray-500">{card.subtitle}</p>
+                <p className="text-sm font-medium text-slate-600 mb-1">{card.title}</p>
+                <p className="text-xs text-slate-500">{card.subtitle}</p>
               </div>
             ))}
           </div>
@@ -277,7 +277,7 @@ export default function MobileDashboard() {
 
         {/* Quick Actions */}
         <div className="px-4 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Quick Actions</h2>
           <div className="grid grid-cols-2 gap-3">
             {quickActions.map((action) => (
               <button
@@ -297,12 +297,12 @@ export default function MobileDashboard() {
 
         {/* Recent Activity */}
         <div className="px-4 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Recent Activity</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Recent Activity</h2>
           <div className="space-y-3">
             {recentActivity.map((activity) => (
               <div
                 key={activity.id}
-                className="bg-white rounded-xl shadow-sm p-4 active:bg-gray-50 transition-colors touch-manipulation"
+                className="bg-white rounded-xl shadow-sm p-4 active:bg-slate-50 transition-colors touch-manipulation"
               >
                 <div className="flex items-start space-x-3">
                   <div
@@ -314,14 +314,14 @@ export default function MobileDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900">
+                      <h3 className="text-sm font-semibold text-slate-900">
                         {activity.title}
                       </h3>
-                      <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                      <span className="text-xs text-slate-500 ml-2 flex-shrink-0">
                         {activity.time}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mt-0.5">
+                    <p className="text-sm text-slate-600 mt-0.5">
                       {activity.description}
                     </p>
                   </div>
@@ -333,7 +333,7 @@ export default function MobileDashboard() {
 
         {/* Load More */}
         <div className="px-4 pb-6">
-          <button className="w-full py-3 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg active:bg-blue-100 transition-colors touch-manipulation">
+          <button className="w-full py-3 text-sm font-medium text-sky-700 bg-sky-50 rounded-lg active:bg-sky-100 transition-colors touch-manipulation">
             Load More Activity
           </button>
         </div>
@@ -358,7 +358,7 @@ export default function MobileDashboard() {
               className={`flex items-center justify-end space-x-2 transition-all duration-300`}
               style={{ transitionDelay: `${index * 50}ms` }}
             >
-              <span className="bg-white px-3 py-2 rounded-lg shadow-lg text-sm font-medium text-gray-700 whitespace-nowrap">
+              <span className="bg-white px-3 py-2 rounded-lg shadow-lg text-sm font-medium text-slate-700 whitespace-nowrap">
                 {action.label}
               </span>
               <div
@@ -378,7 +378,7 @@ export default function MobileDashboard() {
             hapticFeedback();
             setFabExpanded(!fabExpanded);
           }}
-          className={`w-14 h-14 bg-blue-600 rounded-full shadow-lg flex items-center justify-center text-white active:scale-95 transition-all ${
+          className={`w-14 h-14 bg-emerald-600 rounded-full shadow-lg flex items-center justify-center text-white active:scale-95 transition-all ${
             fabExpanded ? 'rotate-45' : 'rotate-0'
           }`}
         >

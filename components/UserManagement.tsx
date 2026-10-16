@@ -124,7 +124,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
       <div className="mt-2 border-t pt-2">
         <button
           onClick={() => handleToggleExpand(userId)}
-          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+          className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
         >
           {isExpanded ? <ChevronUpIcon className="w-3 h-3" /> : <ChevronDownIcon className="w-3 h-3" />}
           {isExpanded ? 'Hide permissions' : 'Show permissions'}
@@ -201,26 +201,26 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
 
   const getStatusBadgeClass = (status: UserStatus) => {
     switch (status) {
-      case UserStatus.ACTIVE: return 'bg-green-100 text-green-800';
-      case UserStatus.INACTIVE: return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case UserStatus.ACTIVE: return 'bg-emerald-100 text-emerald-800';
+      case UserStatus.INACTIVE: return 'bg-rose-100 text-rose-800';
+      default: return 'bg-slate-100 text-slate-800';
     }
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">User & Staff Management</h2>
+        <h2 className="text-xl font-semibold text-slate-800">User & Staff Management</h2>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
+          className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 flex items-center gap-2"
         >
           <PlusIcon className="w-4 h-4" /> Add User
         </button>
       </div>
 
       {showAddForm && (
-        <div className="mb-6 border rounded-lg p-4 bg-gray-50">
+        <div className="mb-6 border rounded-lg p-4 bg-slate-50">
           <h3 className="text-md font-semibold mb-3">Add New User</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="email" placeholder="Email *" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="border rounded px-3 py-2" />
@@ -236,7 +236,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
           </div>
           {renderPermissionsSection('new', newUser.permissions || [], true)}
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowAddForm(false)} className="px-4 py-2 border rounded text-gray-700">Cancel</button>
+            <button onClick={() => setShowAddForm(false)} className="px-4 py-2 border rounded text-slate-700">Cancel</button>
             <button onClick={handleAddUser} disabled={isRegistering} className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50">
               {isRegistering ? 'Creating...' : 'Create User'}
             </button>
@@ -273,9 +273,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="text-lg font-medium">{user.fullName}</span>
                         <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadgeClass(user.status)}`}>{user.status}</span>
-                        {!user.webAppAccess && <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded-full">No Web Access</span>}
+                        {!user.webAppAccess && <span className="px-2 py-0.5 text-xs bg-slate-200 text-slate-700 rounded-full">No Web Access</span>}
                       </div>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-sm text-slate-600 mt-1">
                         <div>Email: {user.email}</div>
                         <div>Username: {user.username}</div>
                       </div>
@@ -285,14 +285,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
                 <div className="flex gap-2 ml-4">
                   {isEditing ? (
                     <>
-                      <button onClick={handleSaveEdit} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Save"><SaveIcon className="w-5 h-5" /></button>
-                      <button onClick={handleCancelEdit} className="p-1 text-gray-600 hover:bg-gray-50 rounded" title="Cancel"><CancelIcon className="w-5 h-5" /></button>
+                      <button onClick={handleSaveEdit} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Save"><SaveIcon className="w-5 h-5" /></button>
+                      <button onClick={handleCancelEdit} className="p-1 text-slate-600 hover:bg-slate-50 rounded" title="Cancel"><CancelIcon className="w-5 h-5" /></button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => handleEdit(user)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Edit"><EditIcon className="w-5 h-5" /></button>
+                      <button onClick={() => handleEdit(user)} className="p-1 text-sky-600 hover:bg-sky-50 rounded" title="Edit"><EditIcon className="w-5 h-5" /></button>
                       {user.id !== currentUser?.id && (
-                        <button onClick={() => handleDelete(user.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete"><TrashIcon className="w-5 h-5" /></button>
+                        <button onClick={() => handleDelete(user.id)} className="p-1 text-rose-600 hover:bg-rose-50 rounded" title="Delete"><TrashIcon className="w-5 h-5" /></button>
                       )}
                     </>
                   )}
@@ -302,7 +302,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
             </div>
           );
         })}
-        {localUsers.length === 0 && <p className="text-center text-gray-500 py-4">No users found.</p>}
+        {localUsers.length === 0 && <p className="text-center text-slate-500 py-4">No users found.</p>}
       </div>
     </div>
   );

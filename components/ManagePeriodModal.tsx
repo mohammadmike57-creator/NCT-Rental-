@@ -132,10 +132,10 @@ const ManagePeriodModal: React.FC<ManagePeriodModalProps> = ({ plan, onSave, onC
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <header className="flex items-center justify-between p-4 border-b">
                     <h2 className="text-xl font-semibold">Edit Rate Period</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><CloseIcon /></button>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200"><CloseIcon /></button>
                 </header>
                 <div className="p-6 overflow-y-auto space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 border rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 border rounded-lg">
                         <div>
                             <label className="text-sm font-medium">Period Name</label>
                             <input type="text" value={localPlan.name} onChange={e => handlePeriodChange('name', e.target.value)} className="w-full p-2 border rounded-md mt-1" placeholder="e.g., High Season"/>
@@ -155,40 +155,40 @@ const ManagePeriodModal: React.FC<ManagePeriodModalProps> = ({ plan, onSave, onC
                             <div key={sippRate.id} className="p-3 border rounded-md bg-white shadow-sm">
                                 <div className="flex justify-between items-center mb-2 pb-2 border-b">
                                     <h4 className="font-bold text-primary">{sippRate.sippCode}</h4>
-                                    <button onClick={() => handleDeleteSippRate(sippRate.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon className="h-4 w-4"/></button>
+                                    <button onClick={() => handleDeleteSippRate(sippRate.id)} className="p-1 text-slate-400 hover:text-rose-500"><TrashIcon className="h-4 w-4"/></button>
                                 </div>
                                 <div className="space-y-2">
                                     {(sippRate.tiers || []).map((tier, tierIndex) => {
                                         const isLastTier = tierIndex === (sippRate.tiers || []).length - 1;
                                         return (
                                             <div key={tier.id} className="grid grid-cols-[auto_1fr_auto_1fr_1.5fr_auto] items-center gap-2">
-                                                <span className="text-sm font-medium text-gray-500 text-right">Days</span>
+                                                <span className="text-sm font-medium text-slate-500 text-right">Days</span>
                                                 <input type="number" value={tier.fromDay ?? ''} onChange={e => {const val = parseInt(e.target.value); handleTierChange(sippRate.id, tier.id, tierIndex, 'fromDay', isNaN(val) ? null : val);}} className="w-full p-1 border rounded-md text-sm text-center" />
                                                 <span className="text-center">-</span>
                                                 <input type="number" value={tier.toDay === Infinity || tier.toDay === null ? '' : tier.toDay} onChange={e => {const val = parseInt(e.target.value); const valueToSet = e.target.value === '' ? null : (isNaN(val) ? null : val); handleTierChange(sippRate.id, tier.id, tierIndex, 'toDay', valueToSet);}} className="w-full p-1 border rounded-md text-sm text-center" placeholder="∞" />
                                                 <div className="relative">
-                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
+                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">$</span>
                                                     <input type="number" step="0.01" value={tier.dailyPrice ?? ''} onChange={e => {const val = parseFloat(e.target.value); handleTierChange(sippRate.id, tier.id, tierIndex, 'dailyPrice', isNaN(val) ? null : val);}} className="w-full p-1 border rounded-md text-sm pl-7" placeholder="Daily Price" />
                                                 </div>
-                                                <button onClick={() => handleDeleteTier(sippRate.id, tier.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon className="h-4 w-4"/></button>
+                                                <button onClick={() => handleDeleteTier(sippRate.id, tier.id)} className="p-1 text-slate-400 hover:text-rose-500"><TrashIcon className="h-4 w-4"/></button>
                                             </div>
                                         )
                                     })}
-                                    <button onClick={() => handleAddTier(sippRate.id)} className="text-sm text-blue-600 hover:underline flex items-center gap-1 pt-2"><PlusIcon className="h-4 w-4"/> Add Tier</button>
+                                    <button onClick={() => handleAddTier(sippRate.id)} className="text-sm text-sky-600 hover:underline flex items-center gap-1 pt-2"><PlusIcon className="h-4 w-4"/> Add Tier</button>
                                 </div>
                             </div>
                         ))}
                     </div>
 
                     <div className="p-3 border-t">
-                        <label className="text-sm font-medium text-gray-600">Add SIPP Code to this Period</label>
+                        <label className="text-sm font-medium text-slate-600">Add SIPP Code to this Period</label>
                         <select
                             onChange={e => {
                                 handleAddSippRate(e.target.value);
                                 e.target.value = '';
                             }}
                             value=""
-                            className="w-full p-2 mt-1 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            className="w-full p-2 mt-1 border rounded-md disabled:bg-slate-100 disabled:cursor-not-allowed"
                             disabled={availableSippCodes.length === 0}
                         >
                             <option value="" disabled>
@@ -197,12 +197,12 @@ const ManagePeriodModal: React.FC<ManagePeriodModalProps> = ({ plan, onSave, onC
                             {availableSippCodes.map(code => <option key={code} value={code}>{code}</option>)}
                         </select>
                          {availableSippCodes.length === 0 && (
-                            <p className="text-xs text-gray-500 mt-1">All SIPP codes from your fleet are already in this rate card.</p>
+                            <p className="text-xs text-slate-500 mt-1">All SIPP codes from your fleet are already in this rate card.</p>
                          )}
                     </div>
                 </div>
-                <footer className="p-4 bg-gray-100 border-t flex justify-end gap-2">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>
+                <footer className="p-4 bg-slate-100 border-t flex justify-end gap-2">
+                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 rounded-md hover:bg-slate-300">Cancel</button>
                     <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary">Save Changes</button>
                 </footer>
             </div>

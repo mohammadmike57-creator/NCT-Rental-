@@ -94,7 +94,7 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
                                     />
                                 </div>
                             </div>
-                            <button onClick={() => handleDeleteExtra(extra.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                            <button onClick={() => handleDeleteExtra(extra.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors">
                                 <TrashIcon className="w-4 h-4" />
                             </button>
                         </div>

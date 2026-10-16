@@ -128,8 +128,8 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ title, signature, onSave, o
 
     return (
         <div>
-            <p className="text-sm font-semibold text-gray-700 mb-1">{title}</p>
-            <div className="relative w-full h-40 border-2 border-dashed rounded-md bg-gray-50 touch-none">
+            <p className="text-sm font-semibold text-slate-700 mb-1">{title}</p>
+            <div className="relative w-full h-40 border-2 border-dashed rounded-md bg-slate-50 touch-none">
                 {showImage ? (
                     <img src={signature} alt="signature" className="w-full h-full object-contain" />
                 ) : (
@@ -151,7 +151,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ title, signature, onSave, o
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="text-sm text-blue-600 hover:underline disabled:text-gray-400"
+                        className="text-sm text-sky-600 hover:underline disabled:text-slate-400"
                         disabled={!signature && !hasSigned}
                     >
                         Clear

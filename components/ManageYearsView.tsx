@@ -24,7 +24,7 @@ const ManageYearsView: React.FC<ManageYearsViewProps> = ({ years, onAddYear, onR
   return (
     <div className="bg-white rounded-lg shadow-md p-6 max-w-lg mx-auto">
       <header className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">Manage Reservation Years</h2>
+        <h2 className="text-xl font-semibold text-slate-800">Manage Reservation Years</h2>
       </header>
 
       <div>
@@ -34,7 +34,7 @@ const ManageYearsView: React.FC<ManageYearsViewProps> = ({ years, onAddYear, onR
             value={newYear}
             onChange={(e) => setNewYear(e.target.value)}
             placeholder="Add new year"
-            className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
+            className="flex-grow p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
           />
           <button
             onClick={handleAddClick}
@@ -49,12 +49,12 @@ const ManageYearsView: React.FC<ManageYearsViewProps> = ({ years, onAddYear, onR
           {[...years].sort((a, b) => a - b).map((year) => (
             <li
               key={year}
-              className="flex items-center justify-between bg-gray-50 p-2 rounded-md"
+              className="flex items-center justify-between bg-slate-50 p-2 rounded-md"
             >
-              <span className="text-gray-700">{year}</span>
+              <span className="text-slate-700">{year}</span>
               <button
                 onClick={() => onRemoveYear(year)}
-                className="text-gray-400 hover:text-red-600 transition-colors"
+                className="text-slate-400 hover:text-rose-600 transition-colors"
                 aria-label={`Delete ${year}`}
               >
                 <TrashIcon />

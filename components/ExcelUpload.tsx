@@ -59,15 +59,15 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Import Reservations from Excel</h2>
+      <h2 className="text-lg font-semibold text-slate-800 mb-4">Import Reservations from Excel</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Target Storage Year</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Target Storage Year</label>
           <select 
             value={selectedYear} 
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-50"
+            className="w-full p-2 border border-slate-300 rounded-md focus:ring-primary focus:border-primary bg-slate-50"
           >
             {years.map(y => (
               <option key={y} value={y}>{y}</option>
@@ -75,11 +75,11 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Target Storage Month</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Target Storage Month</label>
           <select 
             value={selectedMonth} 
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-50"
+            className="w-full p-2 border border-slate-300 rounded-md focus:ring-primary focus:border-primary bg-slate-50"
           >
             {MONTHS.map(m => (
               <option key={m} value={m}>{m}</option>
@@ -88,7 +88,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
         </div>
       </div>
 
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+      <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
         <input
           type="file"
           accept=".xlsx, .xls, .csv"
@@ -103,39 +103,39 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
         >
           {uploading ? 'Uploading...' : 'Choose Excel File'}
         </label>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-slate-500">
           Reservations will be permanently stored in <strong>{selectedMonth} {selectedYear}</strong>
         </p>
       </div>
 
-      {error && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md whitespace-pre-wrap">{error}</div>}
+      {error && <div className="mt-4 p-3 bg-rose-100 text-rose-700 rounded-md whitespace-pre-wrap">{error}</div>}
       
       {report && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h3 className="font-semibold text-gray-800 mb-2">Import Report</h3>
+        <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <h3 className="font-semibold text-slate-800 mb-2">Import Report</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="p-2 bg-green-50 rounded">
-              <span className="block text-green-700 font-bold">{report.imported}</span>
-              <span className="text-gray-600">Imported</span>
+            <div className="p-2 bg-emerald-50 rounded">
+              <span className="block text-emerald-700 font-bold">{report.imported}</span>
+              <span className="text-slate-600">Imported</span>
             </div>
-            <div className="p-2 bg-blue-50 rounded">
-              <span className="block text-blue-700 font-bold">{report.duplicates}</span>
-              <span className="text-gray-600">Updated</span>
+            <div className="p-2 bg-sky-50 rounded">
+              <span className="block text-sky-700 font-bold">{report.duplicates}</span>
+              <span className="text-slate-600">Updated</span>
             </div>
-            <div className="p-2 bg-yellow-50 rounded">
-              <span className="block text-yellow-700 font-bold">{report.invalidRows}</span>
-              <span className="text-gray-600">Invalid</span>
+            <div className="p-2 bg-amber-50 rounded">
+              <span className="block text-amber-700 font-bold">{report.invalidRows}</span>
+              <span className="text-slate-600">Invalid</span>
             </div>
-            <div className="p-2 bg-gray-100 rounded">
-              <span className="block text-gray-700 font-bold">{report.skipped}</span>
-              <span className="text-gray-600">Skipped</span>
+            <div className="p-2 bg-slate-100 rounded">
+              <span className="block text-slate-700 font-bold">{report.skipped}</span>
+              <span className="text-slate-600">Skipped</span>
             </div>
           </div>
           
           {report.errors.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-sm font-semibold text-red-700 mb-1">Validation Errors:</h4>
-              <ul className="text-xs text-red-600 list-disc list-inside max-h-40 overflow-y-auto">
+              <h4 className="text-sm font-semibold text-rose-700 mb-1">Validation Errors:</h4>
+              <ul className="text-xs text-rose-600 list-disc list-inside max-h-40 overflow-y-auto">
                 {report.errors.map((err, i) => (
                   <li key={i}>Row {err.row}: {err.details}</li>
                 ))}

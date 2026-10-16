@@ -56,18 +56,18 @@ const FleetCalendarView: React.FC<FleetCalendarViewProps> = ({ year, month, flee
   }, [fleet, dailyAssignments, year, monthIndex, totalFleetSize]);
 
   const getCellStyles = (availability: number | undefined) => {
-    if (typeof availability === 'undefined') return 'bg-gray-50';
-    if (availability <= 0) return 'bg-red-50 border-red-300 hover:border-red-500 ring-1 ring-red-100';
-    if (availability <= 0.3) return 'bg-orange-50 border-orange-200 hover:border-orange-400 hover:bg-orange-100';
-    if (availability <= 0.7) return 'bg-yellow-50 border-yellow-200 hover:border-yellow-400 hover:bg-yellow-100';
-    return 'bg-white border-gray-200 hover:border-green-400 hover:bg-green-50 hover:shadow-md';
+    if (typeof availability === 'undefined') return 'bg-slate-50';
+    if (availability <= 0) return 'bg-rose-50 border-rose-300 hover:border-rose-500 ring-1 ring-rose-100';
+    if (availability <= 0.3) return 'bg-amber-50 border-amber-200 hover:border-amber-400 hover:bg-amber-100';
+    if (availability <= 0.7) return 'bg-amber-50 border-amber-200 hover:border-amber-400 hover:bg-amber-100';
+    return 'bg-white border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-md';
   }
   
   const getIndicatorColor = (availability: number) => {
-      if (availability <= 0) return 'bg-red-500';
-      if (availability <= 0.3) return 'bg-orange-500';
-      if (availability <= 0.7) return 'bg-yellow-500';
-      return 'bg-green-500';
+      if (availability <= 0) return 'bg-rose-500';
+      if (availability <= 0.3) return 'bg-amber-500';
+      if (availability <= 0.7) return 'bg-amber-500';
+      return 'bg-emerald-500';
   }
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -76,7 +76,7 @@ const FleetCalendarView: React.FC<FleetCalendarViewProps> = ({ year, month, flee
     <div className="p-6">
       <div className="grid grid-cols-7 gap-4 mb-2">
         {weekDays.map(day => (
-          <div key={day} className="text-center font-bold text-gray-400 text-xs uppercase tracking-widest">{day}</div>
+          <div key={day} className="text-center font-bold text-slate-400 text-xs uppercase tracking-widest">{day}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-3">
@@ -90,33 +90,33 @@ const FleetCalendarView: React.FC<FleetCalendarViewProps> = ({ year, month, flee
             {cell.day && (
               <>
                 <div className="w-full flex justify-between items-start">
-                    <span className="font-bold text-lg text-gray-700 font-sans-ui">{cell.day}</span>
+                    <span className="font-bold text-lg text-slate-700 font-sans-ui">{cell.day}</span>
                     <div className={`w-2.5 h-2.5 rounded-full ${getIndicatorColor(cell.overallAvailability)} shadow-sm`} title="Availability Status"></div>
                 </div>
                 
                 <div className="self-center text-center my-2 w-full">
                     {cell.availableCount === 0 ? (
                         <div className="flex flex-col items-center">
-                            <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded uppercase tracking-wide">Sold Out</span>
+                            <span className="text-xs font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded uppercase tracking-wide">Sold Out</span>
                         </div>
                     ) : (
                         <>
-                            <span className="text-3xl font-extrabold text-gray-800 block leading-none">
+                            <span className="text-3xl font-extrabold text-slate-800 block leading-none">
                                 {cell.availableCount}
                             </span>
-                            <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Cars Free</span>
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Cars Free</span>
                         </>
                     )}
                 </div>
 
                 <div className="w-full flex flex-wrap gap-1 overflow-hidden h-5 content-end">
                     {Object.entries(cell.categoriesAvailable).slice(0, 3).map(([cat, count]) => (
-                        <span key={cat} className="text-xs bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded text-gray-600 font-medium truncate max-w-[100%]">
+                        <span key={cat} className="text-xs bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-medium truncate max-w-[100%]">
                             {cat}: {count}
                         </span>
                     ))}
                      {Object.keys(cell.categoriesAvailable).length > 3 && (
-                         <span className="text-xs text-gray-400 font-medium pl-1">...</span>
+                         <span className="text-xs text-slate-400 font-medium pl-1">...</span>
                      )}
                 </div>
               </>
@@ -124,11 +124,11 @@ const FleetCalendarView: React.FC<FleetCalendarViewProps> = ({ year, month, flee
           </button>
         ))}
       </div>
-       <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500 font-medium">
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span> High Availability {'>'}70%</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"></span> Good Availability (30-70%)</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></span> Low Availability (&lt;30%)</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></span> Sold Out</div>
+       <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500 font-medium">
+        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span> High Availability {'>'}70%</div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></span> Good Availability (30-70%)</div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></span> Low Availability (&lt;30%)</div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span> Sold Out</div>
       </div>
     </div>
   );

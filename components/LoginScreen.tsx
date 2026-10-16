@@ -70,7 +70,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ users }) => {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
-      <div className="absolute inset-0 z-0 animate-gradient-move bg-gradient-to-br from-slate-900 via-primary-dark to-secondary bg-[length:200%_200%]"></div>
+      <div className="absolute inset-0 z-0 animate-gradient-move via-primary-dark to-secondary bg-[length:200%_200%] bg-slate-900"></div>
       <div className="relative z-10 w-full max-w-lg bg-slate-100/50 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8 sm:p-10">
         <div className="flex flex-col items-center mb-8">
           <img src={NCT_LOGIN_LOGO_B64} alt="NCT Rental Logo" className="w-24 h-24 mb-4" />
@@ -84,13 +84,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ users }) => {
               Username or Email
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 pointer-events-none">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 pointer-events-none">
                 <UserCircleIcon className="h-5 w-5" />
               </span>
               <input
                 id="username-input" name="username" type="text" autoComplete="username" required
                 value={username} onChange={(e) => setUsername(e.target.value)}
-                className="appearance-none block w-full pl-10 px-3 py-3 bg-white/70 border border-slate-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                className="appearance-none block w-full pl-10 px-3 py-3 bg-white/70 border border-slate-300 rounded-lg shadow-sm placeholder-slate-500 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 placeholder="Username or email@address.com"
               />
             </div>
@@ -101,20 +101,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ users }) => {
               Password
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 pointer-events-none">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 pointer-events-none">
                 <LockClosedIcon className="h-5 w-5" />
               </span>
               <input
                 id="password-input" name="password" type="password" autoComplete="current-password" required
                 value={password} onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none block w-full pl-10 px-3 py-3 bg-white/70 border border-slate-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                className="appearance-none block w-full pl-10 px-3 py-3 bg-white/70 border border-slate-300 rounded-lg shadow-sm placeholder-slate-500 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 placeholder="••••••••"
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-sm text-center font-semibold text-red-600 bg-red-100 p-2 rounded-md" role="alert">
+            <p className="text-sm text-center font-semibold text-rose-600 bg-rose-100 p-2 rounded-md" role="alert">
               {error}
             </p>
           )}

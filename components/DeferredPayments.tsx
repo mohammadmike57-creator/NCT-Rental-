@@ -58,41 +58,41 @@ const DeferredPayments: React.FC<DeferredPaymentsProps> = ({ allData, onCollectP
     return (
         <div className="p-4 sm:p-6 bg-white rounded-lg shadow">
             <header className="mb-6">
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                     <CurrencyDollarIcon />
                     Deferred Extension Payments
                 </h3>
-                <p className="text-md text-gray-500 mt-1">Manage and collect outstanding payments from "Pay Later" rental extensions.</p>
+                <p className="text-md text-slate-500 mt-1">Manage and collect outstanding payments from "Pay Later" rental extensions.</p>
             </header>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renter Name</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Booking ID</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Car Model</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">New Return Date</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount Due</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Renter Name</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Booking ID</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Car Model</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">New Return Date</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Amount Due</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-slate-200">
                         {deferredPayments.length > 0 ? (
                             deferredPayments.map(res => (
                                 <tr key={res.id}>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-800">{res.personName}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{res.bookingId}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{res.carModel}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{res.endDate}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-red-600">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-800">{res.personName}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">{res.bookingId}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">{res.carModel}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">{res.endDate}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-rose-600">
                                         {formatCurrency(res.unpaidExtensionAmount || 0)}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                                         <button
                                             onClick={() => handleCollectAttempt(res)}
                                             disabled={!hasManagePermission}
-                                            className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-xs font-semibold disabled:bg-slate-400 disabled:cursor-not-allowed"
                                         >
                                             Mark as Collected
                                         </button>
@@ -101,7 +101,7 @@ const DeferredPayments: React.FC<DeferredPaymentsProps> = ({ allData, onCollectP
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={6} className="text-center py-10 text-gray-500">
+                                <td colSpan={6} className="text-center py-10 text-slate-500">
                                     All deferred payments are collected.
                                 </td>
                             </tr>

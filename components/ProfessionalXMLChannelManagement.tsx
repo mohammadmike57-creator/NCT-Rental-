@@ -201,32 +201,32 @@ const XMLSyntaxHighlighter: React.FC<{ xml: string; errors?: XMLValidationError[
 
       // Simple XML syntax highlighting
       let highlightedLine = line
-        .replace(/(&lt;)([^&\s>]+)/g, '<span class="text-blue-400">&lt;$2</span>')
-        .replace(/(&lt;\/[^&>]+&gt;|\/&gt;)/g, '<span class="text-blue-400">$1</span>')
-        .replace(/(&gt;)/g, '<span class="text-blue-400">$1</span>')
-        .replace(/([a-zA-Z0-9_-]+)=/g, '<span class="text-green-400">$1</span>=')
-        .replace(/"([^"]*)"/g, '"<span class="text-yellow-300">$1</span>"')
-        .replace(/(&lt;!--.*?--&gt;)/g, '<span class="text-gray-500 italic">$1</span>');
+        .replace(/(&lt;)([^&\s>]+)/g, '<span class="text-sky-400">&lt;$2</span>')
+        .replace(/(&lt;\/[^&>]+&gt;|\/&gt;)/g, '<span class="text-sky-400">$1</span>')
+        .replace(/(&gt;)/g, '<span class="text-sky-400">$1</span>')
+        .replace(/([a-zA-Z0-9_-]+)=/g, '<span class="text-emerald-400">$1</span>=')
+        .replace(/"([^"]*)"/g, '"<span class="text-amber-300">$1</span>"')
+        .replace(/(&lt;!--.*?--&gt;)/g, '<span class="text-slate-500 italic">$1</span>');
 
       // Convert actual < > to encoded versions for display
       if (!highlightedLine.includes('&lt;')) {
         highlightedLine = line
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
-          .replace(/(&lt;)([^&\s>]+)/g, '<span class="text-blue-400">&lt;$2</span>')
-          .replace(/(&lt;\/[^&>]+&gt;|\/&gt;)/g, '<span class="text-blue-400">$1</span>')
-          .replace(/(&gt;)/g, '<span class="text-blue-400">$1</span>')
-          .replace(/([a-zA-Z0-9_-]+)=/g, '<span class="text-green-400">$1</span>=')
-          .replace(/"([^"]*)"/g, '"<span class="text-yellow-300">$1</span>"')
-          .replace(/(&lt;!--.*?--&gt;)/g, '<span class="text-gray-500 italic">$1</span>');
+          .replace(/(&lt;)([^&\s>]+)/g, '<span class="text-sky-400">&lt;$2</span>')
+          .replace(/(&lt;\/[^&>]+&gt;|\/&gt;)/g, '<span class="text-sky-400">$1</span>')
+          .replace(/(&gt;)/g, '<span class="text-sky-400">$1</span>')
+          .replace(/([a-zA-Z0-9_-]+)=/g, '<span class="text-emerald-400">$1</span>=')
+          .replace(/"([^"]*)"/g, '"<span class="text-amber-300">$1</span>"')
+          .replace(/(&lt;!--.*?--&gt;)/g, '<span class="text-slate-500 italic">$1</span>');
       }
 
       return (
         <div
           key={lineIndex}
-          className={`flex ${hasError ? 'bg-red-900/20 border-l-4 border-red-500' : ''}`}
+          className={`flex ${hasError ? 'bg-rose-900/20 border-l-4 border-rose-500' : ''}`}
         >
-          <span className="inline-block w-12 text-right pr-4 text-gray-500 select-none">
+          <span className="inline-block w-12 text-right pr-4 text-slate-500 select-none">
             {lineNumber}
           </span>
           <span
@@ -570,35 +570,35 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
     <div className="space-y-6">
       {/* Upload Section */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">XML File Upload</h3>
+        <h3 className="text-lg font-semibold mb-4 text-slate-800">XML File Upload</h3>
 
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             isDragging
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+              ? 'border-sky-500 bg-sky-50'
+              : 'border-slate-300 hover:border-slate-400 bg-slate-50'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           <div className="flex flex-col items-center space-y-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-slate-900">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
             </div>
 
             <div>
-              <p className="text-lg font-medium text-gray-700 mb-1">
+              <p className="text-lg font-medium text-slate-700 mb-1">
                 Drag and drop XML file here
               </p>
-              <p className="text-sm text-gray-500">or click to browse</p>
+              <p className="text-sm text-slate-500">or click to browse</p>
             </div>
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md"
+              className="px-6 py-2 text-white rounded-lg transition-all shadow-md bg-emerald-600 hover:bg-emerald-700"
             >
               Select File
             </button>
@@ -612,7 +612,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
             />
 
             {xmlFile && (
-              <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-4 py-2 rounded-lg">
+              <div className="flex items-center space-x-2 text-sm text-emerald-600 bg-emerald-50 px-4 py-2 rounded-lg">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
@@ -627,36 +627,36 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
       {xmlContent && (
         <div className="grid grid-cols-2 gap-6">
           {/* Left: XML Editor */}
-          <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-gray-800 to-gray-700 px-4 py-3 flex items-center justify-between">
+          <div className="bg-slate-900 rounded-lg shadow-lg overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between bg-slate-900">
               <div className="flex items-center space-x-3">
-                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                 </svg>
                 <span className="text-white font-medium">XML Source</span>
               </div>
 
               {detectedChannel && (
-                <span className="px-3 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full border border-blue-400/30">
+                <span className="px-3 py-1 bg-sky-500/20 text-sky-300 text-xs rounded-full border border-sky-400/30">
                   {detectedChannel}
                 </span>
               )}
             </div>
 
-            <div className="p-4 overflow-auto max-h-[600px] bg-gray-900">
+            <div className="p-4 overflow-auto max-h-[600px] bg-slate-900">
               <XMLSyntaxHighlighter xml={xmlContent} errors={validationResult?.errors} />
             </div>
 
             {validationResult && !validationResult.isValid && (
-              <div className="border-t border-gray-700 p-4 bg-gray-800">
+              <div className="border-t border-slate-700 p-4 bg-slate-800">
                 <div className="space-y-2">
                   {validationResult.errors.map((error, idx) => (
                     <div
                       key={idx}
                       className={`flex items-start space-x-2 text-sm p-2 rounded ${
                         error.severity === 'error'
-                          ? 'bg-red-900/30 text-red-300'
-                          : 'bg-yellow-900/30 text-yellow-300'
+                          ? 'bg-rose-900/30 text-rose-300'
+                          : 'bg-amber-900/30 text-amber-300'
                       }`}
                     >
                       <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -674,7 +674,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
           {/* Right: Parsed Preview */}
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-green-600 to-teal-600 px-4 py-3">
+            <div className="px-4 py-3 bg-slate-900">
               <div className="flex items-center space-x-3">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -687,47 +687,47 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               {parsedReservations.length > 0 ? (
                 <div className="space-y-3">
                   {parsedReservations.map((reservation, idx) => (
-                    <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:border-green-500 transition-colors">
+                    <div key={idx} className="border border-slate-200 rounded-lg p-4 hover:border-emerald-500 transition-colors">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <span className="font-semibold text-gray-800">#{reservation.id}</span>
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                            <span className="font-semibold text-slate-800">#{reservation.id}</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full">
                               {reservation.status}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{reservation.customerId}</p>
+                          <p className="text-sm text-slate-600">{reservation.customerId}</p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                          <p className="text-gray-500">Check-in</p>
-                          <p className="font-medium text-gray-800">
+                          <p className="text-slate-500">Check-in</p>
+                          <p className="font-medium text-slate-800">
                             {new Date(reservation.startDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Check-out</p>
-                          <p className="font-medium text-gray-800">
+                          <p className="text-slate-500">Check-out</p>
+                          <p className="font-medium text-slate-800">
                             {new Date(reservation.endDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Total</p>
-                          <p className="font-medium text-gray-800">${reservation.totalCost.toFixed(2)}</p>
+                          <p className="text-slate-500">Total</p>
+                          <p className="font-medium text-slate-800">${reservation.totalCost.toFixed(2)}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Source</p>
-                          <p className="font-medium text-gray-800">{reservation.channelSource}</p>
+                          <p className="text-slate-500">Source</p>
+                          <p className="font-medium text-slate-800">{reservation.channelSource}</p>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-400">
-                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center py-12 text-slate-400">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <p>No reservations parsed yet</p>
@@ -750,7 +750,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               setValidationResult(null);
               setDetectedChannel('');
             }}
-            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
           >
             Clear
           </button>
@@ -758,7 +758,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
           <button
             onClick={handleImport}
             disabled={isProcessing}
-            className="px-6 py-2 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:from-green-700 hover:to-teal-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            className="px-6 py-2 text-white rounded-lg transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
           >
             {isProcessing ? (
               <>
@@ -785,10 +785,10 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
   const renderChannelsTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-800">Distribution Channels</h3>
+        <h3 className="text-lg font-semibold text-slate-800">Distribution Channels</h3>
         <button
           onClick={handleAddChannel}
-          className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md flex items-center space-x-2"
+          className="px-4 py-2 text-white rounded-lg transition-all shadow-md flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -803,30 +803,30 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-4">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  channel.status === 'connected' ? 'bg-green-100' :
-                  channel.status === 'error' ? 'bg-red-100' : 'bg-gray-100'
+                  channel.status === 'connected' ? 'bg-emerald-100' :
+                  channel.status === 'error' ? 'bg-rose-100' : 'bg-slate-100'
                 }`}>
                   <svg className={`w-6 h-6 ${
-                    channel.status === 'connected' ? 'text-green-600' :
-                    channel.status === 'error' ? 'text-red-600' : 'text-gray-600'
+                    channel.status === 'connected' ? 'text-emerald-600' :
+                    channel.status === 'error' ? 'text-rose-600' : 'text-slate-600'
                   }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                   </svg>
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-800">{channel.name}</h4>
-                  <p className="text-sm text-gray-500 capitalize">{channel.type}</p>
+                  <h4 className="text-lg font-semibold text-slate-800">{channel.name}</h4>
+                  <p className="text-sm text-slate-500 capitalize">{channel.type}</p>
                   <div className="flex items-center space-x-2 mt-1">
                     <span className={`px-2 py-0.5 text-xs rounded-full ${
-                      channel.status === 'connected' ? 'bg-green-100 text-green-700' :
-                      channel.status === 'error' ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-700'
+                      channel.status === 'connected' ? 'bg-emerald-100 text-emerald-700' :
+                      channel.status === 'error' ? 'bg-rose-100 text-rose-700' :
+                      'bg-slate-100 text-slate-700'
                     }`}>
                       {channel.status}
                     </span>
                     {channel.lastSync && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-slate-500">
                         Last sync: {new Date(channel.lastSync).toLocaleString()}
                       </span>
                     )}
@@ -837,7 +837,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => handleTestConnection(channel)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="p-2 text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
                   title="Test Connection"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -847,7 +847,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
                 <button
                   onClick={() => handleEditChannel(channel)}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                   title="Edit"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -857,7 +857,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
                 <button
                   onClick={() => handleDeleteChannel(channel.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                   title="Delete"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -869,35 +869,35 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
-                <p className="text-gray-500 mb-1">Endpoint</p>
-                <p className="font-mono text-xs text-gray-800 truncate">{channel.apiEndpoint}</p>
+                <p className="text-slate-500 mb-1">Endpoint</p>
+                <p className="font-mono text-xs text-slate-800 truncate">{channel.apiEndpoint}</p>
               </div>
               <div>
-                <p className="text-gray-500 mb-1">API Key</p>
-                <p className="font-mono text-xs text-gray-800">{'*'.repeat(20)}</p>
+                <p className="text-slate-500 mb-1">API Key</p>
+                <p className="font-mono text-xs text-slate-800">{'*'.repeat(20)}</p>
               </div>
               <div>
-                <p className="text-gray-500 mb-1">Reservations</p>
-                <p className="font-semibold text-gray-800">{channel.totalReservations || 0}</p>
+                <p className="text-slate-500 mb-1">Reservations</p>
+                <p className="font-semibold text-slate-800">{channel.totalReservations || 0}</p>
               </div>
             </div>
 
             {channel.settings && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="mt-4 pt-4 border-t border-slate-200">
                 <div className="flex items-center space-x-6 text-sm">
                   <div className="flex items-center space-x-2">
-                    <span className={`w-3 h-3 rounded-full ${channel.settings.autoSync ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <span className="text-gray-600">Auto Sync</span>
+                    <span className={`w-3 h-3 rounded-full ${channel.settings.autoSync ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    <span className="text-slate-600">Auto Sync</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={`w-3 h-3 rounded-full ${channel.settings.pushARI ? 'bg-blue-500' : 'bg-gray-300'}`} />
-                    <span className="text-gray-600">Push ARI</span>
+                    <span className={`w-3 h-3 rounded-full ${channel.settings.pushARI ? 'bg-sky-500' : 'bg-slate-300'}`} />
+                    <span className="text-slate-600">Push ARI</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={`w-3 h-3 rounded-full ${channel.settings.pullReservations ? 'bg-purple-500' : 'bg-gray-300'}`} />
-                    <span className="text-gray-600">Pull Reservations</span>
+                    <span className={`w-3 h-3 rounded-full ${channel.settings.pullReservations ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    <span className="text-slate-600">Pull Reservations</span>
                   </div>
-                  <div className="text-gray-600">
+                  <div className="text-slate-600">
                     Sync Interval: {channel.settings.syncInterval}s
                   </div>
                 </div>
@@ -908,13 +908,13 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
         {channels.length === 0 && (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
             </svg>
-            <p className="text-gray-500 mb-4">No distribution channels configured</p>
+            <p className="text-slate-500 mb-4">No distribution channels configured</p>
             <button
               onClick={handleAddChannel}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md"
+              className="px-4 py-2 text-white rounded-lg transition-all shadow-md bg-emerald-600 hover:bg-emerald-700"
             >
               Add Your First Channel
             </button>
@@ -926,62 +926,62 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
   const renderHistoryTab = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-800">Import History</h3>
+      <h3 className="text-lg font-semibold text-slate-800">Import History</h3>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Timestamp
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Filename
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Channel
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Reservations
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-slate-200">
             {importHistory.map(item => (
-              <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <tr key={item.id} className="hover:bg-slate-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   {new Date(item.timestamp).toLocaleString()}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   {item.filename}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                  <span className="px-2 py-1 bg-sky-100 text-sky-700 rounded-full text-xs">
                     {item.channelType || 'Unknown'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <span className={`px-2 py-1 rounded-full text-xs ${
-                    item.status === 'success' ? 'bg-green-100 text-green-700' :
-                    item.status === 'failed' ? 'bg-red-100 text-red-700' :
-                    'bg-yellow-100 text-yellow-700'
+                    item.status === 'success' ? 'bg-emerald-100 text-emerald-700' :
+                    item.status === 'failed' ? 'bg-rose-100 text-rose-700' :
+                    'bg-amber-100 text-amber-700'
                   }`}>
                     {item.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   {item.reservationsCount}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <button
                     onClick={() => setSelectedHistoryItem(item)}
-                    className="text-blue-600 hover:text-blue-800 mr-3"
+                    className="text-sky-600 hover:text-sky-800 mr-3"
                     title="View Details"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -995,7 +995,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
                         setXmlContent(item.xmlContent || '');
                         setActiveTab('import');
                       }}
-                      className="text-orange-600 hover:text-orange-800"
+                      className="text-amber-600 hover:text-amber-800"
                       title="Retry"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1010,8 +1010,8 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
         </table>
 
         {importHistory.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-12 text-slate-400">
+            <svg className="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p>No import history yet</p>
@@ -1025,17 +1025,17 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
   const renderExportTab = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">Generate XML Export</h3>
+        <h3 className="text-lg font-semibold mb-4 text-slate-800">Generate XML Export</h3>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Export Type
             </label>
             <select
               value={exportType}
               onChange={(e) => setExportType(e.target.value as any)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             >
               <option value="ARI">ARI (Availability, Rate, Inventory)</option>
               <option value="Confirmation">Reservation Confirmation</option>
@@ -1046,7 +1046,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
           <button
             onClick={generateExportXML}
-            className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-md flex items-center justify-center space-x-2"
+            className="w-full px-6 py-3 text-white rounded-lg transition-all shadow-md flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -1057,10 +1057,10 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
       </div>
 
       {generatedXML && (
-        <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden">
-          <div className="bg-gradient-to-r from-gray-800 to-gray-700 px-4 py-3 flex items-center justify-between">
+        <div className="bg-slate-900 rounded-lg shadow-lg overflow-hidden">
+          <div className="px-4 py-3 flex items-center justify-between bg-slate-900">
             <div className="flex items-center space-x-3">
-              <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <span className="text-white font-medium">Generated {exportType} XML</span>
@@ -1068,7 +1068,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
             <button
               onClick={handleDownloadXML}
-              className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm"
+              className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1077,7 +1077,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
             </button>
           </div>
 
-          <div className="p-4 overflow-auto max-h-[600px] bg-gray-900">
+          <div className="p-4 overflow-auto max-h-[600px] bg-slate-900">
             <XMLSyntaxHighlighter xml={generatedXML} />
           </div>
         </div>
@@ -1087,10 +1087,10 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
   // Main Render
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 p-6">
+    <div className="min-h-screen p-6 bg-slate-50">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-lg shadow-xl p-8 mb-6">
+        <div className="rounded-lg shadow-xl p-8 mb-6 bg-slate-900">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
@@ -1100,7 +1100,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-white">XML Channel Management</h1>
-                <p className="text-blue-100 mt-1">Professional OTA Integration System</p>
+                <p className="text-sky-100 mt-1">Professional OTA Integration System</p>
               </div>
             </div>
           </div>
@@ -1111,11 +1111,11 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Imports</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.totalImports}</p>
+                <p className="text-sm text-slate-500">Total Imports</p>
+                <p className="text-2xl font-bold text-slate-800">{stats.totalImports}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-sky-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
@@ -1125,11 +1125,11 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Success Rate</p>
-                <p className="text-2xl font-bold text-green-600">{stats.successRate}</p>
+                <p className="text-sm text-slate-500">Success Rate</p>
+                <p className="text-2xl font-bold text-emerald-600">{stats.successRate}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -1139,11 +1139,11 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.pendingImports}</p>
+                <p className="text-sm text-slate-500">Pending</p>
+                <p className="text-2xl font-bold text-amber-600">{stats.pendingImports}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -1153,11 +1153,11 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Failed</p>
-                <p className="text-2xl font-bold text-red-600">{stats.failedImports}</p>
+                <p className="text-sm text-slate-500">Failed</p>
+                <p className="text-2xl font-bold text-rose-600">{stats.failedImports}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-rose-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -1167,11 +1167,11 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Active Channels</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.activeChannels}</p>
+                <p className="text-sm text-slate-500">Active Channels</p>
+                <p className="text-2xl font-bold text-emerald-600">{stats.activeChannels}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                 </svg>
               </div>
@@ -1181,13 +1181,13 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-md mb-6">
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-slate-200">
             <button
               onClick={() => setActiveTab('import')}
               className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
                 activeTab === 'import'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  ? 'text-sky-600 border-b-2 border-sky-600 bg-sky-50'
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -1202,8 +1202,8 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               onClick={() => setActiveTab('channels')}
               className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
                 activeTab === 'channels'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  ? 'text-sky-600 border-b-2 border-sky-600 bg-sky-50'
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -1218,8 +1218,8 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               onClick={() => setActiveTab('history')}
               className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
                 activeTab === 'history'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  ? 'text-sky-600 border-b-2 border-sky-600 bg-sky-50'
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -1234,8 +1234,8 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               onClick={() => setActiveTab('export')}
               className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
                 activeTab === 'export'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  ? 'text-sky-600 border-b-2 border-sky-600 bg-sky-50'
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -1261,7 +1261,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
       {showChannelModal && editingChannel && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+            <div className="px-6 py-4 flex items-center justify-between bg-slate-900">
               <h3 className="text-xl font-semibold text-white">
                 {editingChannel.id.startsWith('CH-') ? 'Add' : 'Edit'} Channel
               </h3>
@@ -1281,26 +1281,26 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
                     Channel Name
                   </label>
                   <input
                     type="text"
                     value={editingChannel.name}
                     onChange={(e) => setEditingChannel({ ...editingChannel, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                     placeholder="e.g., Booking.com US"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
                     Channel Type
                   </label>
                   <select
                     value={editingChannel.type}
                     onChange={(e) => setEditingChannel({ ...editingChannel, type: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   >
                     <option value="booking.com">Booking.com</option>
                     <option value="expedia">Expedia</option>
@@ -1311,59 +1311,59 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   API Endpoint
                 </label>
                 <input
                   type="text"
                   value={editingChannel.apiEndpoint}
                   onChange={(e) => setEditingChannel({ ...editingChannel, apiEndpoint: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   placeholder="https://api.example.com/v1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   API Key
                 </label>
                 <input
                   type="password"
                   value={editingChannel.apiKey}
                   onChange={(e) => setEditingChannel({ ...editingChannel, apiKey: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   placeholder="Enter API key"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
                     Username (Optional)
                   </label>
                   <input
                     type="text"
                     value={editingChannel.username || ''}
                     onChange={(e) => setEditingChannel({ ...editingChannel, username: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
                     Hotel/Property ID
                   </label>
                   <input
                     type="text"
                     value={editingChannel.hotelId || ''}
                     onChange={(e) => setEditingChannel({ ...editingChannel, hotelId: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   />
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="font-medium text-gray-800 mb-3">Channel Settings</h4>
+              <div className="border-t border-slate-200 pt-4">
+                <h4 className="font-medium text-slate-800 mb-3">Channel Settings</h4>
 
                 <div className="space-y-3">
                   <label className="flex items-center space-x-3">
@@ -1374,9 +1374,9 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
                         ...editingChannel,
                         settings: { ...editingChannel.settings!, autoSync: e.target.checked }
                       })}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                      className="w-5 h-5 text-sky-600 rounded focus:ring-sky-500"
                     />
-                    <span className="text-sm text-gray-700">Enable Auto Sync</span>
+                    <span className="text-sm text-slate-700">Enable Auto Sync</span>
                   </label>
 
                   <label className="flex items-center space-x-3">
@@ -1387,9 +1387,9 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
                         ...editingChannel,
                         settings: { ...editingChannel.settings!, pushARI: e.target.checked }
                       })}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                      className="w-5 h-5 text-sky-600 rounded focus:ring-sky-500"
                     />
-                    <span className="text-sm text-gray-700">Push ARI Updates</span>
+                    <span className="text-sm text-slate-700">Push ARI Updates</span>
                   </label>
 
                   <label className="flex items-center space-x-3">
@@ -1400,13 +1400,13 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
                         ...editingChannel,
                         settings: { ...editingChannel.settings!, pullReservations: e.target.checked }
                       })}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                      className="w-5 h-5 text-sky-600 rounded focus:ring-sky-500"
                     />
-                    <span className="text-sm text-gray-700">Pull Reservations</span>
+                    <span className="text-sm text-slate-700">Pull Reservations</span>
                   </label>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
                       Sync Interval (seconds)
                     </label>
                     <input
@@ -1416,7 +1416,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
                         ...editingChannel,
                         settings: { ...editingChannel.settings!, syncInterval: parseInt(e.target.value) }
                       })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                       min="60"
                       step="60"
                     />
@@ -1425,19 +1425,19 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               </div>
             </div>
 
-            <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+            <div className="bg-slate-50 px-6 py-4 flex justify-end space-x-3">
               <button
                 onClick={() => {
                   setShowChannelModal(false);
                   setEditingChannel(null);
                 }}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveChannel}
-                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md"
+                className="px-6 py-2 text-white rounded-lg transition-all shadow-md bg-emerald-600 hover:bg-emerald-700"
               >
                 Save Channel
               </button>
@@ -1450,7 +1450,7 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
       {selectedHistoryItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-gray-800 to-gray-700 px-6 py-4 flex items-center justify-between">
+            <div className="px-6 py-4 flex items-center justify-between bg-slate-900">
               <h3 className="text-xl font-semibold text-white">Import Details</h3>
               <button
                 onClick={() => setSelectedHistoryItem(null)}
@@ -1465,25 +1465,25 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">Filename</p>
-                  <p className="font-medium text-gray-800">{selectedHistoryItem.filename}</p>
+                  <p className="text-sm text-slate-500">Filename</p>
+                  <p className="font-medium text-slate-800">{selectedHistoryItem.filename}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Timestamp</p>
-                  <p className="font-medium text-gray-800">
+                  <p className="text-sm text-slate-500">Timestamp</p>
+                  <p className="font-medium text-slate-800">
                     {new Date(selectedHistoryItem.timestamp).toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Channel Type</p>
-                  <p className="font-medium text-gray-800">{selectedHistoryItem.channelType}</p>
+                  <p className="text-sm text-slate-500">Channel Type</p>
+                  <p className="font-medium text-slate-800">{selectedHistoryItem.channelType}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Status</p>
+                  <p className="text-sm text-slate-500">Status</p>
                   <span className={`px-3 py-1 rounded-full text-sm ${
-                    selectedHistoryItem.status === 'success' ? 'bg-green-100 text-green-700' :
-                    selectedHistoryItem.status === 'failed' ? 'bg-red-100 text-red-700' :
-                    'bg-yellow-100 text-yellow-700'
+                    selectedHistoryItem.status === 'success' ? 'bg-emerald-100 text-emerald-700' :
+                    selectedHistoryItem.status === 'failed' ? 'bg-rose-100 text-rose-700' :
+                    'bg-amber-100 text-amber-700'
                   }`}>
                     {selectedHistoryItem.status}
                   </span>
@@ -1491,15 +1491,15 @@ const ProfessionalXMLChannelManagement: React.FC<ProfessionalXMLChannelManagemen
               </div>
 
               {selectedHistoryItem.errorMessage && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-red-800">Error Message:</p>
-                  <p className="text-sm text-red-700 mt-1">{selectedHistoryItem.errorMessage}</p>
+                <div className="bg-rose-50 border border-rose-200 rounded-lg p-4">
+                  <p className="text-sm font-medium text-rose-800">Error Message:</p>
+                  <p className="text-sm text-rose-700 mt-1">{selectedHistoryItem.errorMessage}</p>
                 </div>
               )}
 
               {selectedHistoryItem.xmlContent && (
-                <div className="bg-gray-900 rounded-lg overflow-hidden">
-                  <div className="bg-gray-800 px-4 py-2">
+                <div className="bg-slate-900 rounded-lg overflow-hidden">
+                  <div className="bg-slate-800 px-4 py-2">
                     <p className="text-sm text-white font-medium">XML Content</p>
                   </div>
                   <div className="p-4 overflow-auto max-h-96">

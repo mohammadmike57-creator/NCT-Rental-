@@ -30,7 +30,7 @@ const LateReturns: React.FC<LateReturnsProps> = ({ allData, onUpdateReservation 
   };
 
   if (lateReservations.length === 0) {
-    return <div className="p-8 text-center text-gray-500">No late returns at this time.</div>;
+    return <div className="p-8 text-center text-slate-500">No late returns at this time.</div>;
   }
 
   return (
@@ -42,13 +42,13 @@ const LateReturns: React.FC<LateReturnsProps> = ({ allData, onUpdateReservation 
             <div className="flex justify-between items-start">
               <div>
                 <div className="font-medium">{res.personName}</div>
-                <div className="text-sm text-gray-600">Car: {res.carModel}</div>
-                <div className="text-sm text-gray-600">Return due: {new Date(res.endDate).toLocaleString()}</div>
+                <div className="text-sm text-slate-600">Car: {res.carModel}</div>
+                <div className="text-sm text-slate-600">Return due: {new Date(res.endDate).toLocaleString()}</div>
               </div>
               <div>
                 <button
                   onClick={() => handleClose(res)}
-                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-600"
                 >
                   Close Agreement
                 </button>

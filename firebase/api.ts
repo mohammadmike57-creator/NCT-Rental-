@@ -7,10 +7,10 @@ export const API_URL = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApi
 let token: string | null = localStorage.getItem('token');
 
 export const signInUser = async (email: string, password: string) => {
-  console.log('Login attempt with:', { email, password });
+  console.log('Login attempt for:', email);
   try {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });
-    console.log('Login response:', response.data);
+    console.log('Login succeeded for:', response.data?.user?.email);
     token = response.data.token;
     const user = response.data.user;
     localStorage.setItem('token', token);

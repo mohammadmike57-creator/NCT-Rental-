@@ -83,21 +83,21 @@ const handleShare = async (base64Data: string, filename: string) => {
 
 const FileActions: React.FC<{ fileData?: string; fileName?: string; }> = ({ fileData, fileName }) => {
     if (!fileData || !fileName) {
-        return <span className="text-gray-400">-</span>;
+        return <span className="text-slate-400">-</span>;
     }
 
     const showShare = 'share' in navigator && 'canShare' in navigator;
 
     return (
         <div className="flex items-center justify-center gap-2">
-            <a href={fileData} target="_blank" rel="noopener noreferrer" title={`View ${fileName}`} className="text-blue-600 hover:text-blue-800 p-1">
+            <a href={fileData} target="_blank" rel="noopener noreferrer" title={`View ${fileName}`} className="text-sky-600 hover:text-sky-800 p-1">
                 <DocumentTextIcon />
             </a>
-            <button onClick={() => handleDownload(fileData, fileName)} title={`Download ${fileName}`} className="text-green-600 hover:text-green-800 p-1">
+            <button onClick={() => handleDownload(fileData, fileName)} title={`Download ${fileName}`} className="text-emerald-600 hover:text-emerald-800 p-1">
                 <ExportIcon />
             </button>
             {showShare && (
-                 <button onClick={() => handleShare(fileData, fileName)} title={`Share ${fileName}`} className="text-purple-600 hover:text-purple-800 p-1">
+                 <button onClick={() => handleShare(fileData, fileName)} title={`Share ${fileName}`} className="text-emerald-600 hover:text-emerald-800 p-1">
                     <ShareIcon />
                 </button>
             )}
@@ -349,40 +349,40 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
 
   return (
     <div className="p-4 sm:p-6 bg-white">
-      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <h3 className="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
         <ShieldExclamationIcon /> Vehicle Damage Management
       </h3>
       
       {hasManagePermission && (
-          <form onSubmit={handleAddSubmit} className="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-6 space-y-4">
-            <h4 className="text-lg font-semibold text-gray-700">Add New Damage Report</h4>
+          <form onSubmit={handleAddSubmit} className="p-4 bg-slate-50 rounded-lg border border-slate-200 mb-6 space-y-4">
+            <h4 className="text-lg font-semibold text-slate-700">Add New Damage Report</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Booking ID</label>
-                    <input type="text" value={newDamageData.bookingId} onChange={e => handleInputChange('bookingId', e.target.value)} placeholder="Enter Booking ID to link" className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required/>
+                    <label className="block text-sm font-medium text-slate-700">Booking ID</label>
+                    <input type="text" value={newDamageData.bookingId} onChange={e => handleInputChange('bookingId', e.target.value)} placeholder="Enter Booking ID to link" className="w-full p-2 mt-1 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required/>
                  </div>
                  <div>
-                     <label className="block text-sm font-medium text-gray-700 invisible">Has Police Report</label>
+                     <label className="block text-sm font-medium text-slate-700 invisible">Has Police Report</label>
                      <div className="flex items-center mt-1 p-2 h-[42px]">
                         <input
                             type="checkbox"
                             id="hasPoliceReport"
                             checked={hasPoliceReport}
                             onChange={e => handleHasReportChange(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-secondary"
+                            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-secondary"
                         />
-                        <label htmlFor="hasPoliceReport" className="ml-2 text-sm font-medium text-gray-700">Incident involves a police report</label>
+                        <label htmlFor="hasPoliceReport" className="ml-2 text-sm font-medium text-slate-700">Incident involves a police report</label>
                     </div>
                  </div>
             </div>
             
             {foundReservation ? (
-                <div className="p-2 text-sm bg-green-100 border border-green-200 text-green-800 rounded-md">
+                <div className="p-2 text-sm bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-md">
                     <strong>Reservation Found:</strong> {foundReservation.personName} ({foundReservation.carModel}) - <strong>Vehicle Excess: {vehicleExcessJOD.toFixed(2)} JOD</strong>
                 </div>
             ) : newDamageData.bookingId ? (
-                 <div className="p-2 text-sm bg-red-100 border border-red-200 text-red-800 rounded-md">
+                 <div className="p-2 text-sm bg-rose-100 border border-rose-200 text-rose-800 rounded-md">
                     No reservation found with this Booking ID.
                 </div>
             ) : null}
@@ -392,27 +392,27 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                 <div className="space-y-4 pt-2 border-t">
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Police Report #</label>
-                            <input type="text" value={newDamageData.policeReportNumber} onChange={e => handleInputChange('policeReportNumber', e.target.value)} className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required={hasPoliceReport} />
+                            <label className="block text-sm font-medium text-slate-700">Police Report #</label>
+                            <input type="text" value={newDamageData.policeReportNumber} onChange={e => handleInputChange('policeReportNumber', e.target.value)} className="w-full p-2 mt-1 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required={hasPoliceReport} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Amount to Collect (Vehicle Excess)</label>
-                            <div className="w-full p-2 mt-1 bg-gray-200 border border-gray-300 rounded-md text-sm">
+                            <label className="block text-sm font-medium text-slate-700">Amount to Collect (Vehicle Excess)</label>
+                            <div className="w-full p-2 mt-1 bg-slate-200 border border-slate-300 rounded-md text-sm">
                                 {vehicleExcessJOD.toFixed(2)} JOD
                             </div>
                         </div>
                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Police Report Document</label>
+                            <label className="block text-sm font-medium text-slate-700">Police Report Document</label>
                             {newDamageData.policeReportFile ? (
                                 <div className="flex items-center gap-2 mt-1 p-2 bg-white border rounded-md">
                                     <DocumentTextIcon />
-                                    <span className="text-sm text-gray-600 truncate flex-grow" title={newDamageData.policeReportFilename}>{newDamageData.policeReportFilename}</span>
-                                    <button type="button" onClick={() => handleClearFile('policeReportFile')} className="text-red-500 hover:text-red-700 p-1"><TrashIcon /></button>
+                                    <span className="text-sm text-slate-600 truncate flex-grow" title={newDamageData.policeReportFilename}>{newDamageData.policeReportFilename}</span>
+                                    <button type="button" onClick={() => handleClearFile('policeReportFile')} className="text-rose-500 hover:text-rose-700 p-1"><TrashIcon /></button>
                                 </div>
                             ) : (
                                 <>
                                     <input type="file" id="report-upload" className="hidden" onChange={(e) => handleFileChange(e, 'policeReportFile')} accept="image/*,.pdf" />
-                                    <label htmlFor="report-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+                                    <label htmlFor="report-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium">
                                         <UploadIcon /> Select File
                                     </label>
                                 </>
@@ -424,21 +424,21 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                 <div className="space-y-4 pt-2 border-t">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Damage Repair Cost (JOD)</label>
-                            <input type="number" step="0.01" value={newDamageData.amount || ''} placeholder="0.00" onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)} className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" />
+                            <label className="block text-sm font-medium text-slate-700">Damage Repair Cost (JOD)</label>
+                            <input type="number" step="0.01" value={newDamageData.amount || ''} placeholder="0.00" onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)} className="w-full p-2 mt-1 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Repair Invoice</label>
+                            <label className="block text-sm font-medium text-slate-700">Repair Invoice</label>
                             {newDamageData.repairInvoice ? (
                                 <div className="flex items-center gap-2 mt-1 p-2 bg-white border rounded-md">
                                     <DocumentTextIcon />
-                                    <span className="text-sm text-gray-600 truncate flex-grow" title={newDamageData.repairInvoiceFilename}>{newDamageData.repairInvoiceFilename}</span>
-                                    <button type="button" onClick={() => handleClearFile('repairInvoice')} className="text-red-500 hover:text-red-700 p-1"><TrashIcon /></button>
+                                    <span className="text-sm text-slate-600 truncate flex-grow" title={newDamageData.repairInvoiceFilename}>{newDamageData.repairInvoiceFilename}</span>
+                                    <button type="button" onClick={() => handleClearFile('repairInvoice')} className="text-rose-500 hover:text-rose-700 p-1"><TrashIcon /></button>
                                 </div>
                             ) : (
                                 <>
                                     <input type="file" id="invoice-upload" className="hidden" onChange={(e) => handleFileChange(e, 'repairInvoice')} accept="image/*,.pdf" />
-                                    <label htmlFor="invoice-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+                                    <label htmlFor="invoice-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium">
                                         <UploadIcon /> Select File
                                     </label>
                                 </>
@@ -450,21 +450,21 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Damage Details</label>
-                    <textarea value={newDamageData.details} onChange={e => handleInputChange('details', e.target.value)} rows={3} placeholder="e.g., Large scratch on passenger door" className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required></textarea>
+                    <label className="block text-sm font-medium text-slate-700">Damage Details</label>
+                    <textarea value={newDamageData.details} onChange={e => handleInputChange('details', e.target.value)} rows={3} placeholder="e.g., Large scratch on passenger door" className="w-full p-2 mt-1 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required></textarea>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Car Damage Image</label>
+                    <label className="block text-sm font-medium text-slate-700">Car Damage Image</label>
                     {newDamageData.damageImage ? (
                         <div className="flex items-center gap-2 mt-1 p-2 bg-white border rounded-md">
                             <DocumentTextIcon />
-                            <span className="text-sm text-gray-600 truncate flex-grow" title={newDamageData.damageImageFilename}>{newDamageData.damageImageFilename}</span>
-                            <button type="button" onClick={() => handleClearFile('damageImage')} className="text-red-500 hover:text-red-700 p-1"><TrashIcon /></button>
+                            <span className="text-sm text-slate-600 truncate flex-grow" title={newDamageData.damageImageFilename}>{newDamageData.damageImageFilename}</span>
+                            <button type="button" onClick={() => handleClearFile('damageImage')} className="text-rose-500 hover:text-rose-700 p-1"><TrashIcon /></button>
                         </div>
                     ) : (
                         <>
                             <input type="file" id="damage-image-upload" className="hidden" onChange={(e) => handleFileChange(e, 'damageImage')} accept="image/*" />
-                            <label htmlFor="damage-image-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+                            <label htmlFor="damage-image-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium">
                                 <UploadIcon /> Select Image
                             </label>
                         </>
@@ -473,36 +473,36 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
             </div>
             
             <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-slate-700">
                   Collection Status
                 </label>
-                <p className="text-xs text-gray-500 mb-1">
+                <p className="text-xs text-slate-500 mb-1">
                   Applies to {hasPoliceReport ? 'Vehicle Excess Amount' : 'Repair Cost'}.
                 </p>
-                <select value={newDamageData.status} onChange={e => handleInputChange('status', e.target.value)} className="w-full md:w-1/3 p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary">
+                <select value={newDamageData.status} onChange={e => handleInputChange('status', e.target.value)} className="w-full md:w-1/3 p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary">
                     <option value={VehicleDamageStatus.NOT_COLLECTED}>Not Collected</option>
                     <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
                 </select>
             </div>
-            {validationError && <p className="text-sm text-red-600">{validationError}</p>}
+            {validationError && <p className="text-sm text-rose-600">{validationError}</p>}
             <div className="text-right">
-                <button type="submit" disabled={!foundReservation} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed">
+                <button type="submit" disabled={!foundReservation} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary text-sm font-medium disabled:bg-slate-400 disabled:cursor-not-allowed">
                     <PlusIcon /> Add Damage Report
                 </button>
             </div>
           </form>
       )}
       
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pt-6 border-t border-gray-200 mt-6">
-          <h4 className="text-lg font-semibold text-gray-700">Recorded Damages</h4>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pt-6 border-t border-slate-200 mt-6">
+          <h4 className="text-lg font-semibold text-slate-700">Recorded Damages</h4>
           <div className="flex items-center gap-4 mt-3 sm:mt-0">
               <div>
-                  <label htmlFor="damage-status-filter" className="text-sm font-medium text-gray-700 mr-2">Filter by status:</label>
+                  <label htmlFor="damage-status-filter" className="text-sm font-medium text-slate-700 mr-2">Filter by status:</label>
                   <select
                       id="damage-status-filter"
                       value={statusFilter}
                       onChange={e => setStatusFilter(e.target.value as VehicleDamageStatus | '')}
-                      className="p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
+                      className="p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
                   >
                       <option value="">All Statuses</option>
                       <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
@@ -512,12 +512,12 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
           </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>)}</tr>
+      <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
+            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{h}</th>)}</tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-slate-200">
             {filteredDamages.map(damage => {
               const res = findReservationByBookingId(damage.bookingId);
               const isEditing = editingId === damage.id;
@@ -526,16 +526,16 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
               const claimableAmount = hasReport ? (damage.policeReportAmount || 0) : damage.amount;
 
               return (
-                <tr key={damage.id} className={isEditing ? 'bg-yellow-50' : ''}>
+                <tr key={damage.id} className={isEditing ? 'bg-amber-50' : ''}>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">{damage.bookingId}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res?.personName || <span className="text-gray-400">N/A</span>}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res?.carModel || <span className="text-gray-400">N/A</span>}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res ? `${res.startDate} to ${res.endDate}` : <span className="text-gray-400">N/A</span>}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res?.personName || <span className="text-slate-400">N/A</span>}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res?.carModel || <span className="text-slate-400">N/A</span>}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res ? `${res.startDate} to ${res.endDate}` : <span className="text-slate-400">N/A</span>}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     {isEditing && !hasReport && hasManagePermission ? <input type="number" value={damage.amount || ''} placeholder="0.00" onChange={e => handleUpdateChange(damage.id, 'amount', parseFloat(e.target.value) || 0)} className="w-24 p-1 border rounded"/> : (hasReport ? 'N/A' : `${damage.amount.toFixed(2)} JOD`)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{isEditing && hasManagePermission ? <input type="text" value={damage.policeReportNumber || ''} onChange={e => handleUpdateChange(damage.id, 'policeReportNumber', e.target.value)} placeholder={!hasReport ? 'N/A' : 'Report #'} disabled={!hasReport} className="w-32 p-1 border rounded disabled:bg-gray-200" /> : damage.policeReportNumber || 'N/A'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{isEditing && hasManagePermission ? <input type="number" readOnly value={damage.policeReportAmount || 0} className="w-24 p-1 border rounded bg-gray-200"/> : (damage.policeReportAmount ? `${damage.policeReportAmount.toFixed(2)} JOD` : 'N/A')}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">{isEditing && hasManagePermission ? <input type="text" value={damage.policeReportNumber || ''} onChange={e => handleUpdateChange(damage.id, 'policeReportNumber', e.target.value)} placeholder={!hasReport ? 'N/A' : 'Report #'} disabled={!hasReport} className="w-32 p-1 border rounded disabled:bg-slate-200" /> : damage.policeReportNumber || 'N/A'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">{isEditing && hasManagePermission ? <input type="number" readOnly value={damage.policeReportAmount || 0} className="w-24 p-1 border rounded bg-slate-200"/> : (damage.policeReportAmount ? `${damage.policeReportAmount.toFixed(2)} JOD` : 'N/A')}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     {isEditing && hasManagePermission ? (
                         <select value={damage.status} onChange={e => handleUpdateChange(damage.id, 'status', e.target.value)} className="w-full p-1 border rounded">
@@ -543,7 +543,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                             <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
                         </select>
                     ) : (
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${claimableAmount > 0 ? (damage.status === VehicleDamageStatus.COLLECTED ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800') : 'bg-gray-100 text-gray-800'}`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${claimableAmount > 0 ? (damage.status === VehicleDamageStatus.COLLECTED ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800') : 'bg-slate-100 text-slate-800'}`}>
                             {claimableAmount > 0 ? damage.status.replace('_', ' ') : 'N/A'}
                         </span>
                     )}
@@ -556,11 +556,11 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                          <div>
                             {damage.damageImage ? (
                                 <div className="flex items-center justify-center gap-2">
-                                    <a href={damage.damageImage} target="_blank" rel="noopener noreferrer" title={damage.damageImageFilename} className="text-blue-600 p-1"><DocumentTextIcon /></a>
-                                    <button onClick={() => handleRemoveFile(damage.id, 'damageImage')} className="text-red-500 p-1" title="Remove Image"><TrashIcon /></button>
+                                    <a href={damage.damageImage} target="_blank" rel="noopener noreferrer" title={damage.damageImageFilename} className="text-sky-600 p-1"><DocumentTextIcon /></a>
+                                    <button onClick={() => handleRemoveFile(damage.id, 'damageImage')} className="text-rose-500 p-1" title="Remove Image"><TrashIcon /></button>
                                 </div>
                             ) : (
-                                <><input type="file" id={`edit-damage-image-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'damageImage', e)} accept="image/*"/><label htmlFor={`edit-damage-image-${damage.id}`} className="cursor-pointer text-blue-600 p-1" title="Upload Image"><UploadIcon /></label></>
+                                <><input type="file" id={`edit-damage-image-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'damageImage', e)} accept="image/*"/><label htmlFor={`edit-damage-image-${damage.id}`} className="cursor-pointer text-sky-600 p-1" title="Upload Image"><UploadIcon /></label></>
                             )}
                         </div>
                     ) : (
@@ -572,11 +572,11 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                          <div>
                             {damage.repairInvoice ? (
                                 <div className="flex items-center justify-center gap-2">
-                                    <a href={damage.repairInvoice} target="_blank" rel="noopener noreferrer" title={damage.repairInvoiceFilename} className="text-blue-600 p-1"><DocumentTextIcon /></a>
-                                    <button onClick={() => handleRemoveFile(damage.id, 'repairInvoice')} className="text-red-500 p-1" title="Remove Invoice"><TrashIcon /></button>
+                                    <a href={damage.repairInvoice} target="_blank" rel="noopener noreferrer" title={damage.repairInvoiceFilename} className="text-sky-600 p-1"><DocumentTextIcon /></a>
+                                    <button onClick={() => handleRemoveFile(damage.id, 'repairInvoice')} className="text-rose-500 p-1" title="Remove Invoice"><TrashIcon /></button>
                                 </div>
                             ) : (
-                                <><input type="file" id={`edit-invoice-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'repairInvoice', e)} accept="image/*,.pdf"/><label htmlFor={`edit-invoice-${damage.id}`} className="cursor-pointer text-blue-600 p-1" title="Upload Invoice"><UploadIcon /></label></>
+                                <><input type="file" id={`edit-invoice-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'repairInvoice', e)} accept="image/*,.pdf"/><label htmlFor={`edit-invoice-${damage.id}`} className="cursor-pointer text-sky-600 p-1" title="Upload Invoice"><UploadIcon /></label></>
                             )}
                         </div>
                     ) : (
@@ -588,11 +588,11 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                          <div>
                             {damage.policeReportFile ? (
                                 <div className="flex items-center justify-center gap-2">
-                                    <a href={damage.policeReportFile} target="_blank" rel="noopener noreferrer" title={damage.policeReportFilename} className="text-blue-600 p-1"><DocumentTextIcon /></a>
-                                    <button onClick={() => handleRemoveFile(damage.id, 'policeReportFile')} className="text-red-500 p-1" title="Remove Report"><TrashIcon /></button>
+                                    <a href={damage.policeReportFile} target="_blank" rel="noopener noreferrer" title={damage.policeReportFilename} className="text-sky-600 p-1"><DocumentTextIcon /></a>
+                                    <button onClick={() => handleRemoveFile(damage.id, 'policeReportFile')} className="text-rose-500 p-1" title="Remove Report"><TrashIcon /></button>
                                 </div>
                             ) : (
-                                <><input type="file" id={`edit-report-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'policeReportFile', e)} accept="image/*,.pdf"/><label htmlFor={`edit-report-${damage.id}`} className="cursor-pointer text-blue-600 p-1" title="Upload Report"><UploadIcon /></label></>
+                                <><input type="file" id={`edit-report-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'policeReportFile', e)} accept="image/*,.pdf"/><label htmlFor={`edit-report-${damage.id}`} className="cursor-pointer text-sky-600 p-1" title="Upload Report"><UploadIcon /></label></>
                             )}
                         </div>
                     ) : (
@@ -603,8 +603,8 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                     <div className="flex items-center justify-center gap-2">
                       {isEditing && hasManagePermission ? (
                         <>
-                          <button onClick={handleSaveEdit} className="text-green-600 hover:text-green-700" title="Save"><SaveIcon /></button>
-                          <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700" title="Cancel"><CancelIcon /></button>
+                          <button onClick={handleSaveEdit} className="text-emerald-600 hover:text-emerald-700" title="Save"><SaveIcon /></button>
+                          <button onClick={handleCancelEdit} className="text-slate-500 hover:text-slate-700" title="Cancel"><CancelIcon /></button>
                         </>
                       ) : (
                         <div className="flex items-center gap-3">
@@ -614,7 +614,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                                     <button 
                                         onClick={() => handleSendEmail('claim', damage, res!)}
                                         disabled={!canSendEmail}
-                                        className="flex items-center gap-1.5 px-2 py-1 bg-orange-500 text-white rounded-md text-xs hover:bg-orange-600 disabled:bg-gray-400"
+                                        className="flex items-center gap-1.5 px-2 py-1 bg-amber-500 text-white rounded-md text-xs hover:bg-amber-600 disabled:bg-slate-400"
                                         title={canSendEmail ? "Send claim email to renter" : "Renter email not found in voucher"}
                                     >
                                         <PaperAirplaneIcon /> Send Claim
@@ -623,7 +623,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                                     <button 
                                         onClick={() => handleSendEmail('receipt', damage, res!)}
                                         disabled={!canSendEmail}
-                                        className="flex items-center gap-1.5 px-2 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 disabled:bg-gray-400"
+                                        className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500 text-white rounded-md text-xs hover:bg-emerald-600 disabled:bg-slate-400"
                                         title={canSendEmail ? "Send receipt email to renter" : "Renter email not found in voucher"}
                                     >
                                         <PaperAirplaneIcon /> Send Receipt
@@ -633,8 +633,8 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                             )}
                              {hasManagePermission && (
                                 <div className="flex items-center border-l pl-2 ml-1">
-                                    <button onClick={() => handleEditClick(damage)} className="p-1 text-blue-500 hover:text-blue-700" title="Edit"><EditIcon /></button>
-                                    <button onClick={() => handleDeleteClick(damage.id)} className="p-1 text-red-500 hover:text-red-700" title="Delete"><TrashIcon /></button>
+                                    <button onClick={() => handleEditClick(damage)} className="p-1 text-sky-500 hover:text-sky-700" title="Edit"><EditIcon /></button>
+                                    <button onClick={() => handleDeleteClick(damage.id)} className="p-1 text-rose-500 hover:text-rose-700" title="Delete"><TrashIcon /></button>
                                 </div>
                             )}
                         </div>
@@ -646,7 +646,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
             })}
             {filteredDamages.length === 0 && (
                 <tr>
-                    <td colSpan={headers.length} className="text-center py-10 text-gray-500">
+                    <td colSpan={headers.length} className="text-center py-10 text-slate-500">
                         {damages.length > 0 ? 'No damages match the current filter.' : 'No vehicle damages have been recorded yet.'}
                     </td>
                 </tr>

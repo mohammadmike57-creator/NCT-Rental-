@@ -44,32 +44,32 @@ const ManageExpensesModal: React.FC<ManageExpensesModalProps> = ({ expense, onSa
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-2xl w-full max-w-lg">
         <header className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold">{expense ? 'Edit' : 'Add'} Expense</h2>
-          <button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><CloseIcon /></button>
+          <button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-slate-200"><CloseIcon /></button>
         </header>
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Date</label>
+              <label className="block text-sm font-medium text-slate-700">Date</label>
               <input type="date" value={localExpense.date} onChange={e => handleInputChange('date', e.target.value)} className="w-full p-2 mt-1 border rounded-md" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Amount (JOD)</label>
+              <label className="block text-sm font-medium text-slate-700">Amount (JOD)</label>
               <input type="number" step="0.01" value={localExpense.amount || ''} onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)} className="w-full p-2 mt-1 border rounded-md" required placeholder="0.00" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Category</label>
+            <label className="block text-sm font-medium text-slate-700">Category</label>
             <select value={localExpense.category} onChange={e => handleInputChange('category', e.target.value)} className="w-full p-2 mt-1 border rounded-md">
               {EXPENSE_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
+            <label className="block text-sm font-medium text-slate-700">Description</label>
             <textarea value={localExpense.description} onChange={e => handleInputChange('description', e.target.value)} rows={3} className="w-full p-2 mt-1 border rounded-md" required />
           </div>
         </div>
-        <footer className="p-4 bg-gray-50 border-t flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>
+        <footer className="p-4 bg-slate-50 border-t flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 rounded-md hover:bg-slate-300">Cancel</button>
           <button type="submit" className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary">Save Expense</button>
         </footer>
       </form>

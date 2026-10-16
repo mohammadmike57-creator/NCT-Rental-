@@ -91,24 +91,24 @@ const ChannelManagement: React.FC = () => {
 
   const getChannelTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      METASEARCH: 'bg-blue-100 text-blue-700 border-blue-200',
-      AGGREGATOR: 'bg-purple-100 text-purple-700 border-purple-200',
-      OTA: 'bg-green-100 text-green-700 border-green-200',
-      CORPORATE: 'bg-orange-100 text-orange-700 border-orange-200',
-      DIRECT: 'bg-gray-100 text-gray-700 border-gray-200'
+      METASEARCH: 'bg-sky-100 text-sky-700 border-sky-200',
+      AGGREGATOR: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+      OTA: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+      CORPORATE: 'bg-amber-100 text-amber-700 border-amber-200',
+      DIRECT: 'bg-slate-100 text-slate-700 border-slate-200'
     };
-    return colors[type] || 'bg-gray-100 text-gray-700';
+    return colors[type] || 'bg-slate-100 text-slate-700';
   };
 
   const getSyncStatusIcon = (status: string) => {
     if (status === 'SUCCESS') {
-      return <CheckCircleIcon className="w-5 h-5 text-green-500" />;
+      return <CheckCircleIcon className="w-5 h-5 text-emerald-500" />;
     } else if (status === 'FAILED') {
-      return <XCircleIcon className="w-5 h-5 text-red-500" />;
+      return <XCircleIcon className="w-5 h-5 text-rose-500" />;
     } else if (status === 'IN_PROGRESS') {
-      return <ClockIcon className="w-5 h-5 text-yellow-500 animate-spin" />;
+      return <ClockIcon className="w-5 h-5 text-amber-500 animate-spin" />;
     }
-    return <ClockIcon className="w-5 h-5 text-gray-400" />;
+    return <ClockIcon className="w-5 h-5 text-slate-400" />;
   };
 
   return (
@@ -117,10 +117,10 @@ const ChannelManagement: React.FC = () => {
       <div className="professional-card">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">
               Distribution Channel Management
             </h1>
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               Manage your connections to Skyscanner, DiscoverCars, Booking.com, and more
             </p>
           </div>
@@ -139,12 +139,12 @@ const ChannelManagement: React.FC = () => {
         <div className="professional-card">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Active Channels</p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-sm text-slate-600 mb-1">Active Channels</p>
+              <p className="text-3xl font-bold text-slate-900">
                 {channels.filter(c => c.isActive).length}
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-900">
               <GlobeAltIcon className="w-6 h-6 text-white" />
             </div>
           </div>
@@ -153,12 +153,12 @@ const ChannelManagement: React.FC = () => {
         <div className="professional-card">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Total Bookings</p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-sm text-slate-600 mb-1">Total Bookings</p>
+              <p className="text-3xl font-bold text-slate-900">
                 {channels.reduce((sum, c) => sum + c.totalBookings, 0).toLocaleString()}
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-900">
               <ChartBarIcon className="w-6 h-6 text-white" />
             </div>
           </div>
@@ -167,12 +167,12 @@ const ChannelManagement: React.FC = () => {
         <div className="professional-card">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
+              <p className="text-3xl font-bold text-slate-900">
                 ${channels.reduce((sum, c) => sum + c.totalRevenue, 0).toLocaleString()}
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-900">
               <span className="text-white text-2xl font-bold">$</span>
             </div>
           </div>
@@ -181,12 +181,12 @@ const ChannelManagement: React.FC = () => {
         <div className="professional-card">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Avg Commission</p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-sm text-slate-600 mb-1">Avg Commission</p>
+              <p className="text-3xl font-bold text-slate-900">
                 {(channels.reduce((sum, c) => sum + c.commissionValue, 0) / channels.length).toFixed(1)}%
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-900">
               <span className="text-white text-xl font-bold">%</span>
             </div>
           </div>
@@ -195,23 +195,23 @@ const ChannelManagement: React.FC = () => {
 
       {/* Channels List */}
       <div className="professional-card">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Connected Channels</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-6">Connected Channels</h2>
 
         <div className="space-y-4">
           {channels.map((channel) => (
             <div
               key={channel.id}
-              className="flex items-center justify-between p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200 border-2 border-transparent hover:border-blue-200"
+              className="flex items-center justify-between p-6 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all duration-200 border-2 border-transparent hover:border-sky-200"
             >
               {/* Channel Info */}
               <div className="flex items-center gap-6 flex-1">
                 <div className="w-16 h-16 rounded-xl bg-white shadow-md flex items-center justify-center">
-                  <GlobeAltIcon className="w-8 h-8 text-blue-600" />
+                  <GlobeAltIcon className="w-8 h-8 text-sky-600" />
                 </div>
 
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-bold text-gray-900">{channel.channelName}</h3>
+                    <h3 className="text-lg font-bold text-slate-900">{channel.channelName}</h3>
                     <span className={`badge-professional ${getChannelTypeColor(channel.channelType)}`}>
                       {channel.channelType}
                     </span>
@@ -224,28 +224,28 @@ const ChannelManagement: React.FC = () => {
 
                   <div className="grid grid-cols-4 gap-6">
                     <div>
-                      <p className="text-xs text-gray-500">Bookings</p>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-xs text-slate-500">Bookings</p>
+                      <p className="text-sm font-semibold text-slate-900">
                         {channel.totalBookings.toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Revenue</p>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-xs text-slate-500">Revenue</p>
+                      <p className="text-sm font-semibold text-slate-900">
                         ${channel.totalRevenue.toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Commission</p>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-xs text-slate-500">Commission</p>
+                      <p className="text-sm font-semibold text-slate-900">
                         {channel.commissionValue}%
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Last Sync</p>
+                      <p className="text-xs text-slate-500">Last Sync</p>
                       <div className="flex items-center gap-1">
                         {getSyncStatusIcon(channel.syncStatus)}
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-slate-600">
                           {new Date(channel.lastSyncAt).toLocaleTimeString()}
                         </p>
                       </div>
@@ -276,7 +276,7 @@ const ChannelManagement: React.FC = () => {
 
       {/* Supported Channels */}
       <div className="professional-card">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Supported Distribution Channels</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Supported Distribution Channels</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             'Skyscanner', 'DiscoverCars', 'Booking.com', 'Expedia',
@@ -285,10 +285,10 @@ const ChannelManagement: React.FC = () => {
           ].map((name) => (
             <div
               key={name}
-              className="p-4 bg-gray-50 rounded-xl text-center hover:bg-blue-50 transition-colors cursor-pointer border-2 border-transparent hover:border-blue-300"
+              className="p-4 bg-slate-50 rounded-xl text-center hover:bg-sky-50 transition-colors cursor-pointer border-2 border-transparent hover:border-sky-300"
             >
-              <GlobeAltIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-gray-700">{name}</p>
+              <GlobeAltIcon className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <p className="text-sm font-medium text-slate-700">{name}</p>
             </div>
           ))}
         </div>

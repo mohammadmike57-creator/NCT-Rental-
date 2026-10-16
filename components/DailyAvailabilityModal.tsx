@@ -21,13 +21,13 @@ const DailyAvailabilityModal: React.FC<DailyAvailabilityModalProps> = ({ date, a
       role="dialog"
     >
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-        <header className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">
+        <header className="flex items-center justify-between p-4 border-b border-slate-200">
+          <h2 className="text-xl font-semibold text-slate-800">
             Fleet Status for {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary rounded-full p-1"
+            className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary rounded-full p-1"
             aria-label="Close"
           >
             <CloseIcon />
@@ -39,20 +39,20 @@ const DailyAvailabilityModal: React.FC<DailyAvailabilityModalProps> = ({ date, a
               const reservation = assignments[vehicle.licensePlate];
               const isBooked = !!reservation;
               return (
-                <li key={vehicle.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                <li key={vehicle.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-md">
                   <div>
-                    <p className="font-semibold text-gray-800">{vehicle.modelName}</p>
-                    <p className="text-sm text-gray-500">{vehicle.licensePlate}</p>
+                    <p className="font-semibold text-slate-800">{vehicle.modelName}</p>
+                    <p className="text-sm text-slate-500">{vehicle.licensePlate}</p>
                   </div>
                   {isBooked ? (
                     <div className="text-right">
-                        <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                        <span className="px-3 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800">
                            Booked
                         </span>
-                        <p className="text-sm text-gray-600 mt-1">Renter: {reservation.personName}</p>
+                        <p className="text-sm text-slate-600 mt-1">Renter: {reservation.personName}</p>
                     </div>
                   ) : (
-                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
                       Available
                     </span>
                   )}

@@ -315,7 +315,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, year, month, companyDetails
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 text-right font-medium">{formatCurrency(res.subtotal)}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 text-right font-medium">{formatCurrency(res.tax)}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-base text-indigo-600 font-black text-right">{formatCurrency(res.total)}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-base text-emerald-600 font-black text-right">{formatCurrency(res.total)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -333,7 +333,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, year, month, companyDetails
                 </div>
                 <div className="flex justify-between items-center py-4 mt-3 border-t-2 border-slate-900">
                     <span className="text-xl font-black text-slate-900 uppercase tracking-tight">Grand Total:</span>
-                    <span className="text-2xl font-black text-indigo-600 tracking-tight">{formatCurrency(data.grandTotal)}</span>
+                    <span className="text-2xl font-black text-emerald-600 tracking-tight">{formatCurrency(data.grandTotal)}</span>
                 </div>
             </div>
         </div>
@@ -348,82 +348,82 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, year, month, companyDetails
     <div className="p-4 sm:p-6 bg-white rounded-lg shadow-md">
       {view === 'form' ? (
         <>
-          <div className="mb-6 pb-4 border-b border-gray-200">
-            <h3 className="text-2xl font-bold text-gray-800">Invoice for Prepaid Bookings</h3>
-            <p className="text-md text-gray-500">Select a source and date range to generate the invoice.</p>
+          <div className="mb-6 pb-4 border-b border-slate-200">
+            <h3 className="text-2xl font-bold text-slate-800">Invoice for Prepaid Bookings</h3>
+            <p className="text-md text-slate-500">Select a source and date range to generate the invoice.</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-slate-50 rounded-lg">
             <div>
-                <label htmlFor="invoice-source" className="block text-sm font-medium text-gray-700 mb-1">Booking Source</label>
-                <select id="invoice-source" value={selectedSourceId} onChange={e => setSelectedSourceId(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" disabled={prepaidSources.length === 0}>
+                <label htmlFor="invoice-source" className="block text-sm font-medium text-slate-700 mb-1">Booking Source</label>
+                <select id="invoice-source" value={selectedSourceId} onChange={e => setSelectedSourceId(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-sm" disabled={prepaidSources.length === 0}>
                     <option value="all">All Prepaid Sources</option>
                     {prepaidSources.map(source => <option key={source.id} value={source.id}>{source.name}</option>)}
                 </select>
             </div>
             <div>
-                <label htmlFor="invoice-start-date" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                <input type="date" id="invoice-start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                <label htmlFor="invoice-start-date" className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+                <input type="date" id="invoice-start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-sm" />
             </div>
             <div>
-                <label htmlFor="invoice-end-date" className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                <input type="date" id="invoice-end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                <label htmlFor="invoice-end-date" className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+                <input type="date" id="invoice-end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-sm" />
             </div>
           </div>
 
-          <h4 className="text-lg font-semibold text-gray-700 mb-2">Preview</h4>
+          <h4 className="text-lg font-semibold text-slate-700 mb-2">Preview</h4>
           {invoiceData && invoiceData.reservations.length > 0 ? (
             <div className="p-4 border rounded-lg"><InvoicePreview data={invoiceData} /></div>
           ) : (
-            <div className="text-center py-12 text-gray-500 border rounded-lg">
+            <div className="text-center py-12 text-slate-500 border rounded-lg">
                 {prepaidSources.length > 0 ? <p>No confirmed reservations found for the selected criteria.</p> : <p>No "Prepaid" sources configured.</p>}
             </div>
           )}
 
            <div className="mt-8 pt-4 border-t flex justify-end">
-                <button onClick={handleSubmit} disabled={!invoiceData || invoiceData.reservations.length === 0} className="px-6 py-3 bg-primary text-white font-semibold rounded-md hover:bg-secondary disabled:bg-gray-400">
+                <button onClick={handleSubmit} disabled={!invoiceData || invoiceData.reservations.length === 0} className="px-6 py-3 bg-primary text-white font-semibold rounded-md hover:bg-secondary disabled:bg-slate-400">
                   Generate & Finalize Invoice
                 </button>
             </div>
 
             <div className="mt-12">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Previously Generated Invoices</h3>
+                <h3 className="text-xl font-bold text-slate-800 mb-4">Previously Generated Invoices</h3>
                 <div className="space-y-3">
                     {invoices.length > 0 ? (
                         [...invoices].sort((a,b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()).map(inv => (
                             <button key={inv.id} onClick={() => handleViewPrevious(inv)} className="w-full flex justify-between items-center p-4 bg-white border rounded-lg hover:shadow-md transition-shadow text-left">
                                 <div>
                                     <p className="font-semibold text-primary">{inv.invoiceNumber}</p>
-                                    <p className="text-sm text-gray-600">{inv.billToName} | {inv.startDate} to {inv.endDate}</p>
-                                    <p className="text-xs text-gray-400">Generated on {new Date(inv.generatedAt).toLocaleString()}</p>
+                                    <p className="text-sm text-slate-600">{inv.billToName} | {inv.startDate} to {inv.endDate}</p>
+                                    <p className="text-xs text-slate-400">Generated on {new Date(inv.generatedAt).toLocaleString()}</p>
                                 </div>
-                                <div className="flex items-center gap-2 text-gray-500">
+                                <div className="flex items-center gap-2 text-slate-500">
                                     <span className="font-bold">{formatCurrency(inv.grandTotal)}</span>
                                     <ChevronRightIcon />
                                 </div>
                             </button>
                         ))
                     ) : (
-                        <p className="text-center text-gray-500 py-6">No invoices have been generated yet.</p>
+                        <p className="text-center text-slate-500 py-6">No invoices have been generated yet.</p>
                     )}
                 </div>
             </div>
         </>
       ) : generatedInvoiceData && (
          <div>
-            <div className="p-6 mb-6 bg-green-50 border-l-4 border-green-500 rounded-r-lg no-print">
-                <h3 className="text-xl font-bold text-green-800">Invoice Finalized!</h3>
-                <p className="text-green-700 mt-1">You can now download or email this invoice.</p>
+            <div className="p-6 mb-6 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg no-print">
+                <h3 className="text-xl font-bold text-emerald-800">Invoice Finalized!</h3>
+                <p className="text-emerald-700 mt-1">You can now download or email this invoice.</p>
             </div>
             <div className="flex justify-between items-center mb-6 pb-4 border-b no-print">
-                <button onClick={() => { setView('form'); setGeneratedInvoiceData(null); }} className="text-sm text-blue-600 hover:underline">
+                <button onClick={() => { setView('form'); setGeneratedInvoiceData(null); }} className="text-sm text-sky-600 hover:underline">
                     &larr; Create New or View History
                 </button>
                 <div className="flex items-center gap-2">
                     <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark text-sm font-medium">
                       <PdfIcon /> Download PDF
                     </button>
-                     <button onClick={handleDownloadCSV} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+                     <button onClick={handleDownloadCSV} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium">
                         <ExportIcon /> Download CSV
                     </button>
                     <button onClick={handleSendEmail} className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 text-sm font-medium">

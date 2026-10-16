@@ -5,7 +5,7 @@ import { reservationService } from './services/reservationService';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
-import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
+import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, SearchIcon, RefreshIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import Notifications from './components/Notifications';
 import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData } from './firebase/api';
@@ -159,7 +159,7 @@ const ConfirmationMessage: React.FC<{ message: string; onClose: () => void; }> =
     return () => clearTimeout(timer);
   }, [onClose]);
   return (
-    <div className="fixed bottom-5 right-5 bg-green-500 text-white py-3 px-6 rounded-lg shadow-lg z-50 animate-in slide-in-from-bottom-2 fade-in">
+    <div className="fixed bottom-5 right-5 bg-emerald-500 text-white py-3 px-6 rounded-lg shadow-lg z-50 animate-in slide-in-from-bottom-2 fade-in">
       <p>{message}</p>
     </div>
   );
@@ -180,18 +180,49 @@ interface SidebarLink {
     badge?: number;
 }
 
-const SidebarSection: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => {
-    const [isOpen, setIsOpen] = useState(true);
+const SIDEBAR_COLLAPSED_KEY = 'NCT_SIDEBAR_COLLAPSED';
+
+const readCollapsedSections = (): Record<string, boolean> => {
+    try {
+        return JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) || '{}');
+    } catch {
+        return {};
+    }
+};
+
+const SidebarSection: React.FC<{ title: string, forceOpen?: boolean, children: React.ReactNode }> = ({ title, forceOpen = false, children }) => {
+    const [isOpen, setIsOpen] = useState(() => !readCollapsedSections()[title]);
+
+    const toggle = () => {
+        const next = !isOpen;
+        setIsOpen(next);
+        try {
+            const collapsed = readCollapsedSections();
+            collapsed[title] = !next;
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(collapsed));
+        } catch {
+            // Collapse state is a convenience only
+        }
+    };
+
+    const expanded = isOpen || forceOpen;
     return (
         <div>
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-700/50 rounded-md">
-                {title}
-                <ChevronDownIcon className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <button
+                onClick={toggle}
+                aria-expanded={expanded}
+                className="group w-full flex justify-between items-center px-3 pt-3 pb-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-[0.08em] hover:text-slate-300 transition-colors"
+            >
+                <span>{title}</span>
+                <ChevronDownIcon className={`w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-transform duration-200 ${expanded ? '' : '-rotate-90'}`} />
             </button>
-            {isOpen && <div className="pl-3 pt-1 space-y-1">{children}</div>}
+            {expanded && <div className="space-y-0.5">{children}</div>}
         </div>
     );
 };
+
+const getInitials = (name?: string) =>
+    (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]!.toUpperCase()).join('');
 
 const hasPermission = (user: User | null, permission: UserPermission): boolean => {
     if (!user) return false;
@@ -248,6 +279,7 @@ export const App: React.FC = () => {
   const [mainView, setMainView] = useState('Home');
   const [newReservations, setNewReservations] = useState<Reservation[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [navQuery, setNavQuery] = useState('');
   const [isDesktopView, setIsDesktopView] = useState(window.innerWidth >= 1024);
 
   const [filters, setFilters] = useState<ReservationFilters>({
@@ -1734,129 +1766,172 @@ ${currentUser?.fullName}
     <div className="flex h-screen bg-slate-100">
       {isSidebarOpen && <div className="fixed inset-0 z-30 bg-black bg-opacity-50 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
       
-      <aside className={`absolute md:relative z-40 md:z-auto w-64 bg-slate-800 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full`}>
-         <div className="flex items-center justify-between p-4 border-b border-slate-700 h-16 flex-shrink-0">
-            <div className="flex items-center gap-2">
-                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-8 w-8" />
-                <h1 className="text-xl font-bold text-white font-serif-professional">NCT Rental</h1>
+      <aside className={`absolute md:relative z-40 md:z-auto w-64 bg-slate-900 text-white flex-shrink-0 border-r border-white/5 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full`}>
+         <div className="flex items-center justify-between px-4 h-16 flex-shrink-0 border-b border-white/5">
+            <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-xl bg-white/95 flex items-center justify-center shadow-sm ring-1 ring-white/10 flex-shrink-0">
+                    <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-7 w-7" />
+                </div>
+                <div className="min-w-0">
+                    <h1 className="text-[15px] font-semibold text-white leading-tight tracking-tight">NCT Rental</h1>
+                    <p className="text-[11px] text-slate-400 leading-tight truncate">{companyDetails.name || 'Management Console'}</p>
+                </div>
             </div>
-            <button className="text-slate-300 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)}><CloseIcon /></button>
+            <button className="text-slate-400 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu"><CloseIcon /></button>
          </div>
-        
+
+         <div className="px-3 pt-3 pb-1 flex-shrink-0">
+            <div className="relative">
+                <SearchIcon className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                    type="text"
+                    value={navQuery}
+                    onChange={(e) => setNavQuery(e.target.value)}
+                    placeholder="Search menu…"
+                    aria-label="Search menu"
+                    className="w-full h-9 pl-9 pr-8 rounded-lg bg-white/5 border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:bg-white/10 focus:border-emerald-500/40 transition-colors"
+                />
+                {navQuery && (
+                    <button onClick={() => setNavQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300" aria-label="Clear search">
+                        <CloseIcon className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+         </div>
+
          <div className="flex-1 overflow-y-auto flex flex-col">
-            <nav className="px-2 py-4 space-y-4 flex-1">
-                {Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
-                    const visibleLinks = links.filter(link => {
-                        if (link.name === 'Agreement') {
-                            return true;
-                        }
-                        if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) {
-                            return false;
-                        }
-                        return hasPermission(currentUser, link.permission)
-                    });
-                    if (sectionTitle === "Administration" && !hasPermission(currentUser, UserPermission.VIEW_ADMIN_PANEL)) return null;
-                    if(visibleLinks.length === 0) return null;
+            <nav className="px-3 pb-4 flex-1">
+                {(() => {
+                    const query = navQuery.trim().toLowerCase();
+                    const sections = Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
+                        if (sectionTitle === "Administration" && !hasPermission(currentUser, UserPermission.VIEW_ADMIN_PANEL)) return null;
+                        const visibleLinks = links.filter(link => {
+                            if (query && !link.name.toLowerCase().includes(query) && !sectionTitle.toLowerCase().includes(query)) return false;
+                            if (link.name === 'Agreement') return true;
+                            if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) return false;
+                            return hasPermission(currentUser, link.permission);
+                        });
+                        if (visibleLinks.length === 0) return null;
 
-                    return (
-                        <SidebarSection key={sectionTitle} title={sectionTitle}>
-                            {visibleLinks.map(({ name, icon: Icon, badge }) => (
-                                <a
-                                    key={name}
-                                    href="#"
-                                    onClick={(e) => { e.preventDefault(); handleNavigation(name); }}
-                                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${mainView === name ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                    <Icon />
-                                    <span>{name}</span>
-                                    </div>
-                                    {typeof badge === 'number' && badge > 0 && (
-                                    <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">{badge}</span>
-                                    )}
-                                </a>
-                            ))}
-                        </SidebarSection>
+                        return (
+                            <SidebarSection key={sectionTitle} title={sectionTitle} forceOpen={!!query}>
+                                {visibleLinks.map(({ name, icon: Icon, badge }) => {
+                                    const isActive = mainView === name;
+                                    return (
+                                        <a
+                                            key={name}
+                                            href="#"
+                                            onClick={(e) => { e.preventDefault(); handleNavigation(name); setNavQuery(''); }}
+                                            aria-current={isActive ? 'page' : undefined}
+                                            className={`group relative flex items-center justify-between gap-3 pl-3 pr-2.5 py-2 rounded-lg text-[13.5px] font-medium transition-colors ${isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
+                                        >
+                                            {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-emerald-400" />}
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                                                <span className="truncate">{name}</span>
+                                            </div>
+                                            {typeof badge === 'number' && badge > 0 && (
+                                                <span className="min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[11px] font-semibold text-white bg-rose-500 rounded-full">{badge > 99 ? '99+' : badge}</span>
+                                            )}
+                                        </a>
+                                    );
+                                })}
+                            </SidebarSection>
+                        );
+                    }).filter(Boolean);
+
+                    return sections.length > 0 ? sections : (
+                        <p className="px-3 py-6 text-sm text-slate-500 text-center">No menu items match “{navQuery}”.</p>
                     );
-                })}
+                })()}
             </nav>
+         </div>
 
-            <div className="p-4 border-t border-slate-700 flex-shrink-0">
+         <div className="p-3 border-t border-white/5 flex-shrink-0">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5">
+                <div className="h-9 w-9 rounded-full flex items-center justify-center text-[13px] font-semibold text-white flex-shrink-0 bg-slate-900">
+                    {getInitials(currentUser?.fullName)}
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white truncate">{currentUser?.fullName}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{currentUser?.position || currentUser?.email}</p>
+                </div>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1">
+                {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) ? (
+                    <button
+                        onClick={() => handleNavigation('My Profile')}
+                        title="My Profile"
+                        className={`flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium transition-colors ${mainView === 'My Profile' ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
+                    >
+                        <UserCircleIcon className="w-[18px] h-[18px]" />
+                        Profile
+                    </button>
+                ) : <div />}
                 {notificationPermission === 'denied' ? (
-                    <div className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-400 bg-slate-900/50 rounded-md cursor-not-allowed" title="Notifications are blocked in your browser settings.">
-                        <BellSlashIcon />
-                        <span>Notifications Blocked</span>
+                    <div title="Notifications are blocked in your browser settings." className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-slate-600 cursor-not-allowed">
+                        <BellSlashIcon className="w-[18px] h-[18px]" />
+                        Blocked
                     </div>
                 ) : isPushSubscribed ? (
-                    <button onClick={handleDisableNotifications} className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-300 bg-red-800/70 hover:bg-red-600 hover:text-white rounded-md transition-colors">
-                        <BellSlashIcon />
-                        <span>Disable Notifications</span>
+                    <button onClick={handleDisableNotifications} title="Disable notifications" className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-emerald-400 hover:bg-white/5 transition-colors">
+                        <BellIcon className="w-[18px] h-[18px]" />
+                        Alerts on
                     </button>
                 ) : (
-                    <button onClick={handleEnableNotifications} className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-300 bg-slate-700/50 hover:bg-secondary hover:text-white rounded-md transition-colors">
-                        <BellIcon />
-                        <span>Enable Notifications</span>
+                    <button onClick={handleEnableNotifications} title="Enable notifications" className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-slate-400 hover:bg-white/5 hover:text-slate-100 transition-colors">
+                        <BellSlashIcon className="w-[18px] h-[18px]" />
+                        Alerts off
                     </button>
                 )}
-                {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); handleNavigation('My Profile'); }}
-                        className={`flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium rounded-md transition-colors ${mainView === 'My Profile' ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
-                    >
-                        <UserCircleIcon />
-                        <span>My Profile</span>
-                    </a>
-                )}
-                <div className="px-3 py-2 rounded-md bg-slate-900/50">
-                    <p className="text-xs text-slate-400">Logged in as</p>
-                    <p className="text-sm font-semibold text-white">{currentUser?.fullName}</p>
-                </div>
-                <button onClick={handleLogout} className="flex items-center w-full gap-3 px-3 py-2.5 mt-3 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white rounded-md">
-                    <LogoutIcon />
-                    <span>Logout</span>
+                <button onClick={handleLogout} title="Log out" className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-medium text-slate-400 hover:bg-rose-500/10 hover:text-rose-300 transition-colors">
+                    <LogoutIcon className="w-[18px] h-[18px]" />
+                    Log out
                 </button>
             </div>
          </div>
       </aside>
       
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="flex items-center justify-between p-4 bg-white shadow-sm no-print h-16 flex-shrink-0">
-            <div className="flex items-center flex-1 gap-4 min-w-0">
-                <button className="text-slate-600 md:hidden" onClick={() => setIsSidebarOpen(true)}><MenuIcon /></button>
+        <header className="flex items-center justify-between px-4 sm:px-6 bg-white border-b border-slate-200 no-print h-16 flex-shrink-0">
+            <div className="flex items-center flex-1 gap-3 min-w-0">
+                <button className="p-1.5 -ml-1.5 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu"><MenuIcon /></button>
                 <div className="min-w-0">
-                    <h2 className="text-xl md:text-lg font-bold text-slate-800 truncate" title={mainView}>{mainView}</h2>
-                    <p className="text-xs text-slate-500 truncate md:hidden" title="UR-Drive Jordan">UR-Drive Jordan</p>
-                    <div className="hidden md:flex items-center gap-2">
-                         <p className="text-xs text-slate-500 truncate" title="UR-Drive Jordan">UR-Drive Jordan</p>
+                    <h2 className="text-lg font-semibold text-slate-900 truncate leading-tight" title={mainView}>{mainView}</h2>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
+                         <span className="truncate">{companyDetails.name || 'UR-Drive Jordan'}</span>
                          {saveStatus === 'saving' && (
-                             <span className="text-xs text-blue-600 font-medium animate-pulse flex items-center gap-1">
-                                 <div className="w-2 h-2 bg-blue-600 rounded-full"></div> Auto-saving...
+                             <span className="flex items-center gap-1.5 text-sky-700 whitespace-nowrap">
+                                 <span className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse" /> Saving…
                              </span>
                          )}
                          {saveStatus === 'error' && (
-                             <span className="text-xs text-red-600 font-medium flex items-center gap-1">
-                                 Save failed
+                             <span className="flex items-center gap-1.5 text-rose-600 font-medium whitespace-nowrap">
+                                 <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" /> Not saved
                              </span>
                          )}
                          {saveStatus === 'saved' && lastSaved && (
-                             <span className="text-xs text-green-600 font-medium flex items-center gap-1 transition-opacity duration-1000">
-                                 <CheckCircleIcon className="w-3 h-3"/> Auto-saved at {lastSaved}
+                             <span className="flex items-center gap-1 text-emerald-700 whitespace-nowrap">
+                                 <CheckCircleIcon className="w-3.5 h-3.5"/> Saved {lastSaved}
                              </span>
                          )}
-                        <button
-                          onClick={() => { console.log("Manual refresh triggered"); fetchAllData(); }}
-                          className="ml-4 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          ⟳ Refresh
-                        </button>
-                        <button
-                          onClick={() => { console.log("Manual save triggered"); executeAutoSave(); }}
-                          className="ml-2 px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                        >
-                          💾 Save All
-                        </button>
                     </div>
+                </div>
+                <div className="hidden lg:flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => fetchAllData()}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      title="Load the latest data from the server"
+                    >
+                      <RefreshIcon className="w-3.5 h-3.5" /> Refresh
+                    </button>
+                    <button
+                      onClick={() => executeAutoSave()}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      title="Save all changes now"
+                    >
+                      <SaveIcon className="w-3.5 h-3.5" /> Save now
+                    </button>
                 </div>
             </div>
             <div className="flex items-center gap-4">
@@ -1868,8 +1943,8 @@ ${currentUser?.fullName}
                     <InboxIcon className="w-6 h-6" />
                     {unreadCount > 0 && (
                         <span className="absolute top-1 right-1 flex w-3 h-3">
-                            <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-red-400"></span>
-                            <span className="relative inline-flex items-center justify-center w-3 h-3 text-white rounded-full bg-red-500 text-[8px]">{unreadCount}</span>
+                            <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-rose-400"></span>
+                            <span className="relative inline-flex items-center justify-center w-3 h-3 text-white rounded-full bg-rose-500 text-[8px]">{unreadCount}</span>
                         </span>
                     )}
                 </button>
@@ -1882,14 +1957,14 @@ ${currentUser?.fullName}
                                     <select
                                         value={selectedMonth}
                                         onChange={(e) => handleSetSelectedMonth(e.target.value)}
-                                        className="w-36 py-2 pl-3 pr-8 leading-tight text-gray-700 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
+                                        className="w-36 py-2 pl-3 pr-8 leading-tight text-slate-700 bg-white border border-slate-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
                                         aria-label="Select month"
                                     >
                                         {MONTHS.map(month => (
                                             <option key={month} value={month}>{month}</option>
                                         ))}
                                     </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 pointer-events-none">
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-700 pointer-events-none">
                                         <svg className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                                     </div>
                                 </div>
@@ -1904,17 +1979,17 @@ ${currentUser?.fullName}
         <div className="md:hidden flex items-center justify-between p-2 bg-slate-100 border-b border-slate-200">
             <div className="flex items-center gap-2">
                 {saveStatus === 'saving' && (
-                     <span className="text-xs text-blue-600 font-medium animate-pulse flex items-center gap-1">
-                         <div className="w-2 h-2 bg-blue-600 rounded-full"></div> Saving...
+                     <span className="text-xs text-sky-600 font-medium animate-pulse flex items-center gap-1">
+                         <div className="w-2 h-2 bg-sky-600 rounded-full"></div> Saving...
                      </span>
                  )}
                  {saveStatus === 'error' && (
-                     <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                     <span className="text-xs text-rose-600 font-medium flex items-center gap-1">
                          Error
                      </span>
                  )}
                  {saveStatus === 'saved' && lastSaved && (
-                     <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                     <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
                          <CheckCircleIcon className="w-3 h-3"/> Saved {lastSaved}
                      </span>
                  )}
@@ -1927,14 +2002,14 @@ ${currentUser?.fullName}
                             <select
                                 value={selectedMonth}
                                 onChange={(e) => handleSetSelectedMonth(e.target.value)}
-                                className="w-full py-1 pl-2 pr-7 text-sm leading-tight text-gray-700 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
+                                className="w-full py-1 pl-2 pr-7 text-sm leading-tight text-slate-700 bg-white border border-slate-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
                                 aria-label="Select month"
                             >
                                 {MONTHS.map(month => (
                                     <option key={month} value={month}>{month}</option>
                                 ))}
                             </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-1.5 text-gray-700 pointer-events-none">
+                            <div className="absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-700 pointer-events-none">
                                 <svg className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                             </div>
                         </div>
@@ -1949,8 +2024,8 @@ ${currentUser?.fullName}
               {currentViewHasAccess 
                 ? mainViews[mainView]?.component
                 : <div className="p-12 text-center bg-white rounded-lg shadow-md">
-                    <h2 className="text-xl font-bold text-red-600">Access Denied</h2>
-                    <p className="mt-2 text-gray-600">You do not have permission to view this page.</p>
+                    <h2 className="text-xl font-bold text-rose-600">Access Denied</h2>
+                    <p className="mt-2 text-slate-600">You do not have permission to view this page.</p>
                   </div>
               }
               </Suspense>
@@ -1984,7 +2059,7 @@ ${currentUser?.fullName}
             </button>
             <button
               onClick={() => setReservationToAddExtras(null)}
-              className="ml-2 text-gray-500"
+              className="ml-2 text-slate-500"
             >
               Cancel
             </button>

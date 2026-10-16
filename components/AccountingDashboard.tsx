@@ -22,10 +22,10 @@ interface AccountingDashboardProps {
 type FilterPeriod = 'this_month' | 'last_month' | 'this_year';
 
 const StatCard: React.FC<{ title: string, value: string, subtext?: string }> = ({ title, value, subtext }) => (
-    <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-        <h4 className="text-sm font-medium text-gray-500">{title}</h4>
-        <p className="text-2xl font-bold text-gray-800 mt-1">{value}</p>
-        {subtext && <p className="text-xs text-gray-500 mt-1">{subtext}</p>}
+    <div className="bg-white p-4 rounded-lg shadow border border-slate-200">
+        <h4 className="text-sm font-medium text-slate-500">{title}</h4>
+        <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
+        {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>}
     </div>
 );
 
@@ -175,8 +175,8 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
         return {
             labels: labels.map(l => l.substring(0, 3)),
             datasets: [
-                { label: 'Revenue', data: revenueData, color: '#3B82F6' },
-                { label: 'Expenses', data: expenseData, color: '#EF4444' }
+                { label: 'Revenue', data: revenueData, color: '#059669' },
+                { label: 'Expenses', data: expenseData, color: '#f43f5e' }
             ]
         };
     }, [allData, allExpensesWithPayroll]);
@@ -245,9 +245,9 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
     ];
 
     return (
-        <div className="p-4 sm:p-6 bg-gray-50/50">
+        <div className="p-4 sm:p-6 bg-slate-50/50">
             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-800">Accounting Dashboard</h3>
+                <h3 className="text-2xl font-bold text-slate-800">Accounting Dashboard</h3>
                 <Tabs 
                     tabs={filterTabs.map(t => t.name)}
                     selectedTab={filterTabs.find(t => t.key === filter)?.name || 'This Year'}
@@ -271,19 +271,19 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
                 <div className="lg:col-span-2">
                     <BarChart data={chartData} title={`Monthly Overview for ${new Date().getFullYear()}`} unit="JOD" unitPosition="before" />
                 </div>
-                <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Revenue Breakdown</h3>
+                <div className="bg-white p-4 rounded-lg shadow border border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-4">Revenue Breakdown</h3>
                     <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Rentals</span>
+                            <span className="text-sm text-slate-600">Rentals</span>
                             <span className="font-semibold">{formatCurrency(financialData.revenueFromRentals)}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Traffic Fines</span>
+                            <span className="text-sm text-slate-600">Traffic Fines</span>
                             <span className="font-semibold">{formatCurrency(financialData.revenueFromTickets)}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Damages</span>
+                            <span className="text-sm text-slate-600">Damages</span>
                             <span className="font-semibold">{formatCurrency(financialData.revenueFromDamages)}</span>
                         </div>
                         <div className="flex justify-between items-center pt-3 border-t-2">
@@ -294,30 +294,30 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <div className="bg-white p-4 rounded-lg shadow border border-slate-200">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-700">Expense Management</h3>
+                    <h3 className="text-lg font-semibold text-slate-700">Expense Management</h3>
                     <button onClick={() => handleActionAttempt('add')} className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm rounded-md hover:bg-secondary">
                         <PlusIcon /> Add Expense
                     </button>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-4 py-2 text-left font-medium text-gray-500">Date</th>
-                                <th className="px-4 py-2 text-left font-medium text-gray-500">Category</th>
-                                <th className="px-4 py-2 text-left font-medium text-gray-500">Description</th>
-                                <th className="px-4 py-2 text-right font-medium text-gray-500">Amount</th>
-                                <th className="px-4 py-2 text-center font-medium text-gray-500">Actions</th>
+                                <th className="px-4 py-2 text-left font-medium text-slate-500">Date</th>
+                                <th className="px-4 py-2 text-left font-medium text-slate-500">Category</th>
+                                <th className="px-4 py-2 text-left font-medium text-slate-500">Description</th>
+                                <th className="px-4 py-2 text-right font-medium text-slate-500">Amount</th>
+                                <th className="px-4 py-2 text-center font-medium text-slate-500">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white divide-y divide-slate-200">
                             {filteredExpenses.map(exp => (
                                 <tr key={exp.id}>
                                     <td className="px-4 py-2 whitespace-nowrap">{exp.date}</td>
                                     <td className="px-4 py-2 whitespace-nowrap">
-                                        <span className={`px-2 py-1 text-xs rounded-full ${exp.isRecurring ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                        <span className={`px-2 py-1 text-xs rounded-full ${exp.isRecurring ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'}`}>
                                             {exp.category}
                                         </span>
                                     </td>
@@ -326,8 +326,8 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
                                     <td className="px-4 py-2 text-center">
                                         {!exp.isRecurring && (
                                             <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => handleActionAttempt('edit', exp)} className="p-1 text-blue-600 hover:text-blue-800" title="Edit"><EditIcon /></button>
-                                                <button onClick={() => handleActionAttempt('delete', exp)} className="p-1 text-red-600 hover:text-red-800" title="Delete"><TrashIcon /></button>
+                                                <button onClick={() => handleActionAttempt('edit', exp)} className="p-1 text-sky-600 hover:text-sky-800" title="Edit"><EditIcon /></button>
+                                                <button onClick={() => handleActionAttempt('delete', exp)} className="p-1 text-rose-600 hover:text-rose-800" title="Delete"><TrashIcon /></button>
                                             </div>
                                         )}
                                     </td>
@@ -335,7 +335,7 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
                             ))}
                             {filteredExpenses.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-6 text-gray-500">No expenses recorded for this period.</td>
+                                    <td colSpan={5} className="text-center py-6 text-slate-500">No expenses recorded for this period.</td>
                                 </tr>
                             )}
                         </tbody>

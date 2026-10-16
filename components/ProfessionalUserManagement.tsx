@@ -311,9 +311,9 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
 
   const getStatusBadge = (status: UserStatus) => {
     const badges = {
-      [UserStatus.ACTIVE]: <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">Active</span>,
-      [UserStatus.INACTIVE]: <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-200">Inactive</span>,
-      [UserStatus.SUSPENDED]: <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 border border-red-200">Suspended</span>,
+      [UserStatus.ACTIVE]: <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">Active</span>,
+      [UserStatus.INACTIVE]: <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-800 border border-slate-200">Inactive</span>,
+      [UserStatus.SUSPENDED]: <span className="px-3 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800 border border-rose-200">Suspended</span>,
     };
     return badges[status] || badges[UserStatus.INACTIVE];
   };
@@ -331,7 +331,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
           return (
             <div key={group.title} className={`border-2 border-${group.color}-200 rounded-lg bg-${group.color}-50/50`}>
               <div
-                className={`px-4 py-3 bg-gradient-to-r from-${group.color}-100 to-${group.color}-50 cursor-pointer hover:from-${group.color}-200 hover:to-${group.color}-100 transition-colors flex items-center justify-between`}
+                className={`px-4 py-3 from-${group.color}-100 to-${group.color}-50 cursor-pointer hover:from-${group.color}-200 hover:to-${group.color}-100 transition-colors flex items-center justify-between bg-emerald-600 hover:bg-emerald-700`}
                 onClick={() => setExpandedPermissions({
                   ...expandedPermissions,
                   [group.title]: !expandedPermissions[group.title]
@@ -386,13 +386,13 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 p-6">
+    <div className="min-h-screen p-6 bg-slate-50">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center gap-3">
-              <UserIcon className="w-10 h-10 text-purple-600" />
+            <h1 className="text-4xl font-bold flex items-center gap-3 text-slate-900">
+              <UserIcon className="w-10 h-10 text-emerald-600" />
               User Management
             </h1>
             <p className="text-slate-600 mt-2">Comprehensive user access control and administration</p>
@@ -407,7 +407,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
             </button>
             <button
               onClick={() => setShowAddForm(true)}
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center gap-2 shadow-lg font-semibold"
+              className="px-6 py-2 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg font-semibold bg-emerald-600 hover:bg-emerald-700"
             >
               <PlusIcon className="w-5 h-5" />
               Add User
@@ -417,50 +417,50 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-purple-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-emerald-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Total Users</p>
                 <p className="text-3xl font-bold text-slate-800 mt-1">{userStats.total}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <UserIcon className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                <UserIcon className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-emerald-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Active Users</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{userStats.active}</p>
+                <p className="text-3xl font-bold text-emerald-600 mt-1">{userStats.active}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircleIcon className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                <CheckCircleIcon className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-red-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-rose-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Inactive/Suspended</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{userStats.inactive + userStats.suspended}</p>
+                <p className="text-3xl font-bold text-rose-600 mt-1">{userStats.inactive + userStats.suspended}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <LockClosedIcon className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center">
+                <LockClosedIcon className="w-6 h-6 text-rose-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-sky-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Avg. Salary (JOD)</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{userStats.avgSalary.toFixed(0)}</p>
+                <p className="text-2xl font-bold text-sky-600 mt-1">{userStats.avgSalary.toFixed(0)}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 font-bold text-lg">💵</span>
+              <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center">
+                <span className="text-sky-600 font-bold text-lg">💵</span>
               </div>
             </div>
           </div>
@@ -478,7 +478,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                 placeholder="Search users by name, email, username, position, national ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
               />
             </div>
           </div>
@@ -486,7 +486,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as UserStatus | 'all')}
-            className="px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all font-medium"
+            className="px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all font-medium"
           >
             <option value="all">All Status ({localUsers.length})</option>
             <option value={UserStatus.ACTIVE}>Active ({userStats.active})</option>
@@ -495,7 +495,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
           </select>
 
           <div className="text-sm text-slate-600 font-medium">
-            Showing <span className="font-bold text-purple-600">{filteredUsers.length}</span> of {localUsers.length} users
+            Showing <span className="font-bold text-emerald-600">{filteredUsers.length}</span> of {localUsers.length} users
           </div>
         </div>
       </div>
@@ -504,7 +504,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
+            <thead className="border-b-2 border-slate-200 bg-slate-50">
               <tr>
                 <th
                   className="px-4 py-4 text-left text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
@@ -581,14 +581,14 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                   const isEditing = editingId === user.id;
 
                   return (
-                    <tr key={user.id} className={`hover:bg-purple-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                    <tr key={user.id} className={`hover:bg-emerald-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
                       <td className="px-4 py-4">
                         {isEditing ? (
                           <input
                             type="text"
                             value={editForm.fullName || ''}
                             onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                            className="w-full px-3 py-1.5 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                            className="w-full px-3 py-1.5 border-2 border-emerald-300 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                           />
                         ) : (
                           <div>
@@ -605,7 +605,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                             type="email"
                             value={editForm.email || ''}
                             onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                            className="w-full px-3 py-1.5 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                            className="w-full px-3 py-1.5 border-2 border-emerald-300 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                           />
                         ) : (
                           <span className="text-slate-700">{user.email}</span>
@@ -620,7 +620,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                             type="text"
                             value={editForm.position || ''}
                             onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
-                            className="w-full px-3 py-1.5 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                            className="w-full px-3 py-1.5 border-2 border-emerald-300 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                           />
                         ) : (
                           <span className="text-slate-700">{user.position || 'N/A'}</span>
@@ -630,12 +630,12 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                         {isEditing ? (
                           <button
                             onClick={() => setExpandedPermissions({ [user.id]: !expandedPermissions[user.id] })}
-                            className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
+                            className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-semibold"
                           >
                             Edit Permissions ({editForm.permissions?.length || 0})
                           </button>
                         ) : (
-                          <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg text-xs font-semibold border border-purple-200">
+                          <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold border border-emerald-200">
                             {user.permissions?.length || 0} permissions
                           </span>
                         )}
@@ -645,7 +645,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                           <select
                             value={editForm.status || UserStatus.ACTIVE}
                             onChange={(e) => setEditForm({ ...editForm, status: e.target.value as UserStatus })}
-                            className="px-3 py-1.5 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                            className="px-3 py-1.5 border-2 border-emerald-300 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                           >
                             <option value={UserStatus.ACTIVE}>Active</option>
                             <option value={UserStatus.INACTIVE}>Inactive</option>
@@ -661,14 +661,14 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                             <>
                               <button
                                 onClick={handleSaveEdit}
-                                className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                                className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
                                 title="Save"
                               >
                                 <SaveIcon className="w-5 h-5" />
                               </button>
                               <button
                                 onClick={handleCancelEdit}
-                                className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
                                 title="Cancel"
                               >
                                 <CancelIcon className="w-5 h-5" />
@@ -678,7 +678,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                             <>
                               <button
                                 onClick={() => handleEdit(user)}
-                                className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                className="p-2 text-sky-600 hover:bg-sky-100 rounded-lg transition-colors"
                                 title="Edit"
                               >
                                 <EditIcon className="w-5 h-5" />
@@ -686,7 +686,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                               {currentUser?.id !== user.id && (
                                 <button
                                   onClick={() => handleDeleteUser(user.id)}
-                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
                                   title="Delete"
                                 >
                                   <TrashIcon className="w-5 h-5" />
@@ -712,7 +712,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
             <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm" onClick={() => setExpandedPermissions({})} />
 
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-5 flex items-center justify-between">
+              <div className="px-6 py-5 flex items-center justify-between bg-slate-900">
                 <h3 className="text-2xl font-bold text-white flex items-center gap-3">
                   <ShieldCheckIcon className="w-7 h-7" />
                   Edit Permissions
@@ -732,7 +732,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
               <div className="bg-slate-100 px-6 py-4 flex items-center justify-end gap-3">
                 <button
                   onClick={() => setExpandedPermissions({})}
-                  className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all font-semibold shadow-lg"
+                  className="px-6 py-2.5 text-white rounded-lg transition-all font-semibold shadow-lg bg-emerald-600 hover:bg-emerald-700"
                 >
                   Done
                 </button>
@@ -749,7 +749,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
             <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm" onClick={() => setShowAddForm(false)} />
 
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-5 flex items-center justify-between">
+              <div className="px-6 py-5 flex items-center justify-between bg-slate-900">
                 <h3 className="text-2xl font-bold text-white flex items-center gap-3">
                   <UserIcon className="w-7 h-7" />
                   Create New User
@@ -765,7 +765,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
               <div className="p-6 max-h-[calc(90vh-200px)] overflow-y-auto bg-slate-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="col-span-2">
-                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-purple-200">Basic Information</h4>
+                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-emerald-200">Basic Information</h4>
                   </div>
 
                   <div>
@@ -774,7 +774,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="text"
                       value={newUser.fullName || ''}
                       onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                       placeholder="John Doe"
                     />
                   </div>
@@ -785,7 +785,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="email"
                       value={newUser.email || ''}
                       onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                       placeholder="john.doe@company.com"
                     />
                   </div>
@@ -796,7 +796,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="text"
                       value={newUser.username || ''}
                       onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                       placeholder="johndoe"
                     />
                   </div>
@@ -807,7 +807,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="password"
                       value={newUser.password || ''}
                       onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                       placeholder="••••••••"
                     />
                   </div>
@@ -818,7 +818,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="text"
                       value={newUser.position || ''}
                       onChange={(e) => setNewUser({ ...newUser, position: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                       placeholder="Sales Manager"
                     />
                   </div>
@@ -829,7 +829,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="text"
                       value={newUser.nationalId || ''}
                       onChange={(e) => setNewUser({ ...newUser, nationalId: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                       placeholder="1234567890"
                     />
                   </div>
@@ -840,7 +840,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="date"
                       value={newUser.hireDate || ''}
                       onChange={(e) => setNewUser({ ...newUser, hireDate: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                     />
                   </div>
 
@@ -850,13 +850,13 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                       type="number"
                       value={newUser.baseSalaryJOD || 0}
                       onChange={(e) => setNewUser({ ...newUser, baseSalaryJOD: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                       min="0"
                     />
                   </div>
 
                   <div className="col-span-2 mt-4">
-                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-purple-200">Permissions & Access</h4>
+                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-emerald-200">Permissions & Access</h4>
                   </div>
 
                   <div className="col-span-2">
@@ -875,7 +875,7 @@ const ProfessionalUserManagement: React.FC<ProfessionalUserManagementProps> = ({
                 <button
                   onClick={handleAddUser}
                   disabled={isRegistering}
-                  className="px-8 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center gap-2 shadow-lg font-semibold disabled:opacity-50"
+                  className="px-8 py-2.5 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg font-semibold disabled:opacity-50 bg-emerald-600 hover:bg-emerald-700"
                 >
                   {isRegistering ? (
                     <>

@@ -57,17 +57,17 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, firebaseUser, on
 
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <MailIcon className="w-5 h-5 text-gray-500" />
+          <MailIcon className="w-5 h-5 text-slate-500" />
           <div>
-            <div className="text-sm text-gray-500">Email</div>
+            <div className="text-sm text-slate-500">Email</div>
             <div className="font-medium">{currentUser.email}</div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <KeyIcon className="w-5 h-5 text-gray-500" />
+          <KeyIcon className="w-5 h-5 text-slate-500" />
           <div>
-            <div className="text-sm text-gray-500">Role</div>
+            <div className="text-sm text-slate-500">Role</div>
             <div className="font-medium capitalize">
               {currentUser.permissions?.includes(UserPermission.VIEW_ADMIN_PANEL) ? 'Admin' : 'Staff'}
             </div>
@@ -78,41 +78,41 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, firebaseUser, on
           <h3 className="text-lg font-semibold mb-4">Change Password</h3>
           <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Current Password</label>
+              <label className="block text-sm font-medium text-slate-700">Current Password</label>
               <input
                 type="password"
                 value={passwordForm.current}
                 onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
                 required
-                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">New Password</label>
+              <label className="block text-sm font-medium text-slate-700">New Password</label>
               <input
                 type="password"
                 value={passwordForm.new}
                 onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
                 required
-                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+              <label className="block text-sm font-medium text-slate-700">Confirm New Password</label>
               <input
                 type="password"
                 value={passwordForm.confirm}
                 onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
                 required
-                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
-            {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-            {passwordSuccess && <p className="text-sm text-green-600">{passwordSuccess}</p>}
+            {passwordError && <p className="text-sm text-rose-600">{passwordError}</p>}
+            {passwordSuccess && <p className="text-sm text-emerald-600">{passwordSuccess}</p>}
             <button
               type="submit"
               disabled={isChangingPassword}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-600 disabled:opacity-50 transition-colors"
             >
               {isChangingPassword ? 'Updating...' : 'Update Password'}
             </button>

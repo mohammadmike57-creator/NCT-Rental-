@@ -36,8 +36,8 @@ const SecurityKeyModal: React.FC<SecurityKeyModalProps> = ({ onSuccess, onClose 
     >
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-2xl w-full max-w-sm">
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-800">Security Check</h3>
-          <p className="mt-2 text-sm text-gray-600">
+          <h3 className="text-lg font-semibold text-slate-800">Security Check</h3>
+          <p className="mt-2 text-sm text-slate-600">
             This action requires authorization. Please enter the security key to proceed.
           </p>
           <input
@@ -45,21 +45,21 @@ const SecurityKeyModal: React.FC<SecurityKeyModalProps> = ({ onSuccess, onClose 
             type="password"
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            className="mt-4 w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
+            className="mt-4 w-full p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
             placeholder="Enter security key"
             aria-describedby="key-error"
           />
           {error && (
-            <p id="key-error" className="mt-2 text-sm text-red-600" role="alert">
+            <p id="key-error" className="mt-2 text-sm text-rose-600" role="alert">
               {error}
             </p>
           )}
         </div>
-        <div className="flex justify-end gap-2 p-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+        <div className="flex justify-end gap-2 p-4 bg-slate-50 border-t border-slate-200 rounded-b-lg">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary text-sm font-medium"
+            className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary text-sm font-medium"
           >
             Cancel
           </button>

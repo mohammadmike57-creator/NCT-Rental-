@@ -10,6 +10,11 @@ import { API_URL } from '../firebase/api';
 
 const FIXED_ADDON = 250; // Fixed extra amount per month
 
+// Months whose franchise fee is waived, by year
+const WAIVED_FRANCHISE_MONTHS: Record<number, string[]> = {
+    2026: ['January', 'February', 'March', 'April', 'May'],
+};
+
 interface SummaryTableProps {
   allData: AppData;
   yearData: YearData;
@@ -20,61 +25,169 @@ interface SummaryTableProps {
   currentUser?: User | null;
 }
 
+type PaymentMethod = 'CARD' | 'BANK_TRANSFER' | 'CASH' | 'CHEQUE';
+
+const PAYMENT_METHODS: { id: PaymentMethod, label: string, hint: string }[] = [
+    { id: 'CARD', label: 'Card (Stripe)', hint: 'Pay online through Stripe Checkout' },
+    { id: 'BANK_TRANSFER', label: 'Bank transfer', hint: 'Record a transfer already received' },
+    { id: 'CASH', label: 'Cash', hint: 'Record a cash payment' },
+    { id: 'CHEQUE', label: 'Cheque', hint: 'Record a cheque payment' },
+];
+
+interface FranchisePaymentDetails {
+    amount: number;
+    currency: 'USD' | 'JOD';
+    method: PaymentMethod;
+    reference: string;
+    datePaid: string;
+    note: string;
+}
+
+const toUSD = (amount: number, currency: string) => currency === 'JOD' ? amount / USD_TO_JOD_RATE : amount;
+
+const formatMoney = (value: number, currency: string = 'USD') =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+
+const buildReferenceNote = (details: FranchisePaymentDetails) => {
+    const label = PAYMENT_METHODS.find(m => m.id === details.method)?.label || details.method;
+    return [label, details.reference.trim() && `Ref ${details.reference.trim()}`, details.note.trim()].filter(Boolean).join(' · ');
+};
+
+const localDateInputValue = (date: Date = new Date()) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 const PaymentEntryModal: React.FC<{
     month: string;
     year: number;
-    initialAmount: number;
+    feeUSD: number;
+    paidUSD: number;
+    revenueUSD: number;
+    commissionUSD: number;
     onClose: () => void;
-    onConfirm: (amount: number, currency: 'USD' | 'JOD') => void;
-}> = ({ month, year, initialAmount, onClose, onConfirm }) => {
-    const [amount, setAmount] = useState(initialAmount);
+    onConfirm: (details: FranchisePaymentDetails) => void;
+}> = ({ month, year, feeUSD, paidUSD, revenueUSD, commissionUSD, onClose, onConfirm }) => {
+    const balanceUSD = Math.max(0, feeUSD - paidUSD);
     const [currency, setCurrency] = useState<'USD' | 'JOD'>('USD');
+    const [amount, setAmount] = useState<string>(balanceUSD > 0 ? balanceUSD.toFixed(2) : '');
+    const [method, setMethod] = useState<PaymentMethod>('BANK_TRANSFER');
+    const [reference, setReference] = useState('');
+    const [datePaid, setDatePaid] = useState(localDateInputValue());
+    const [note, setNote] = useState('');
+    const [error, setError] = useState<string | null>(null);
+
+    const handleCurrencyChange = (next: 'USD' | 'JOD') => {
+        const value = parseFloat(amount);
+        if (!isNaN(value) && next !== currency) {
+            const converted = next === 'JOD' ? value * USD_TO_JOD_RATE : value / USD_TO_JOD_RATE;
+            setAmount(converted.toFixed(2));
+        }
+        setCurrency(next);
+    };
+
+    const amountValue = parseFloat(amount);
+    const amountUSD = isNaN(amountValue) ? 0 : toUSD(amountValue, currency);
+    const remainingAfter = Math.max(0, balanceUSD - amountUSD);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (amount <= 0) {
-            alert("Amount must be greater than zero.");
+        if (isNaN(amountValue) || amountValue <= 0) {
+            setError('Enter an amount greater than zero.');
             return;
         }
-        onConfirm(amount, currency);
+        if (method !== 'CARD' && !datePaid) {
+            setError('Enter the date the payment was received.');
+            return;
+        }
+        onConfirm({ amount: amountValue, currency, method, reference, datePaid, note });
     };
 
+    const inputClasses = 'w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500';
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" aria-modal="true">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
-                <header className="flex justify-between items-center p-4 border-b">
-                    <h3 className="text-lg font-semibold text-gray-800">Record Franchise Payment</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><CloseIcon className="w-5 h-5" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <header className="flex justify-between items-start px-6 pt-5 pb-4 border-b border-slate-100">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Record franchise payment</p>
+                        <h3 className="text-lg font-semibold text-slate-900 mt-0.5">{month} {year}</h3>
+                    </div>
+                    <button onClick={onClose} className="p-1.5 -mr-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100" aria-label="Close"><CloseIcon className="w-5 h-5" /></button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="text-sm text-gray-600 mb-4">
-                        Recording payment for <strong>{month} {year}</strong>.
+
+                <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+                    <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm">
+                        <div className="flex justify-between py-0.5 text-slate-600"><span>Confirmed revenue</span><span className="tabular-nums">{formatMoney(revenueUSD)}</span></div>
+                        <div className="flex justify-between py-0.5 text-slate-600"><span>Commission ({(COMMISSION_RATE * 100).toFixed(1)}%)</span><span className="tabular-nums">{formatMoney(commissionUSD)}</span></div>
+                        <div className="flex justify-between py-0.5 text-slate-600"><span>Fixed monthly fee</span><span className="tabular-nums">{formatMoney(FIXED_ADDON)}</span></div>
+                        <div className="flex justify-between pt-2 mt-2 border-t border-slate-200 font-semibold text-slate-900"><span>Total fee</span><span className="tabular-nums">{formatMoney(feeUSD)}</span></div>
+                        {paidUSD > 0 && (
+                            <div className="flex justify-between py-0.5 text-emerald-700"><span>Already paid</span><span className="tabular-nums">− {formatMoney(paidUSD)}</span></div>
+                        )}
+                        <div className="flex justify-between pt-1 font-semibold text-slate-900"><span>Balance due</span><span className="tabular-nums">{formatMoney(balanceUSD)}</span></div>
                     </div>
+
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Payment Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            value={amount} 
-                            onChange={e => setAmount(parseFloat(e.target.value))}
-                            className="w-full p-2 mt-1 border rounded-md focus:ring-primary focus:border-primary"
-                            required
-                        />
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Payment method</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {PAYMENT_METHODS.map(m => (
+                                <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => setMethod(m.id)}
+                                    className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${method === m.id ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' : 'border-slate-200 hover:border-slate-300'}`}
+                                >
+                                    <span className={`block font-medium ${method === m.id ? 'text-emerald-800' : 'text-slate-800'}`}>{m.label}</span>
+                                    <span className="block text-xs text-slate-500 mt-0.5">{m.hint}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2">
+                            <label htmlFor="fp-amount" className="block text-sm font-medium text-slate-700 mb-1">Amount</label>
+                            <input id="fp-amount" type="number" step="0.01" min="0" value={amount} onChange={e => { setAmount(e.target.value); setError(null); }} className={`${inputClasses} tabular-nums`} required />
+                        </div>
+                        <div>
+                            <label htmlFor="fp-currency" className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
+                            <select id="fp-currency" value={currency} onChange={e => handleCurrencyChange(e.target.value as 'USD' | 'JOD')} className={inputClasses}>
+                                <option value="USD">USD</option>
+                                <option value="JOD">JOD</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p className="-mt-3 text-xs text-slate-500">
+                        {currency === 'JOD' && amountUSD > 0 && <>≈ {formatMoney(amountUSD)} · </>}
+                        {amountUSD > 0 && (remainingAfter > 0.009 ? `${formatMoney(remainingAfter)} will remain outstanding` : 'Settles this month in full')}
+                    </p>
+
+                    {method !== 'CARD' && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="fp-date" className="block text-sm font-medium text-slate-700 mb-1">Date received</label>
+                                <input id="fp-date" type="date" value={datePaid} max={localDateInputValue()} onChange={e => setDatePaid(e.target.value)} className={inputClasses} required />
+                            </div>
+                            <div>
+                                <label htmlFor="fp-ref" className="block text-sm font-medium text-slate-700 mb-1">Reference no.</label>
+                                <input id="fp-ref" type="text" value={reference} onChange={e => setReference(e.target.value)} placeholder={method === 'CHEQUE' ? 'Cheque number' : 'Transfer / receipt no.'} className={inputClasses} />
+                            </div>
+                        </div>
+                    )}
+
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Currency</label>
-                        <select 
-                            value={currency} 
-                            onChange={e => setCurrency(e.target.value as 'USD' | 'JOD')}
-                            className="w-full p-2 mt-1 border rounded-md focus:ring-primary focus:border-primary"
-                        >
-                            <option value="USD">USD ($)</option>
-                            <option value="JOD">JOD (JD)</option>
-                        </select>
+                        <label htmlFor="fp-note" className="block text-sm font-medium text-slate-700 mb-1">Note <span className="font-normal text-slate-400">(optional)</span></label>
+                        <input id="fp-note" type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Paid by head office" className={inputClasses} />
                     </div>
-                    <div className="pt-4 flex justify-end gap-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 text-sm">Cancel</button>
-                        <button type="submit" className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary text-sm">Next: Authorize</button>
+
+                    {error && <p className="text-sm text-rose-600">{error}</p>}
+
+                    <div className="pt-1 flex justify-end gap-2">
+                        <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">Cancel</button>
+                        <button type="submit" className="h-10 px-5 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm">
+                            {method === 'CARD' ? 'Continue to Stripe' : 'Continue to authorize'}
+                        </button>
                     </div>
                 </form>
             </div>
@@ -174,31 +287,31 @@ const StripePaymentModal: React.FC<{
                     {!isSuccess ? (
                         <>
                             <div className="text-center mb-6">
-                                <h4 className="text-gray-500 text-sm uppercase tracking-wider font-semibold">Franchise Payment</h4>
-                                <p className="text-4xl font-bold text-gray-900 mt-2">{currency} {amount.toFixed(2)}</p>
-                                <p className="text-gray-500 text-sm mt-1">{month} {year}</p>
+                                <h4 className="text-slate-500 text-sm uppercase tracking-wider font-semibold">Franchise Payment</h4>
+                                <p className="text-4xl font-bold text-slate-900 mt-2">{currency} {amount.toFixed(2)}</p>
+                                <p className="text-slate-500 text-sm mt-1">{month} {year}</p>
                             </div>
 
                             <div className="space-y-6">
-                                <div className="bg-gray-50 border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center">
+                                <div className="bg-slate-50 border-2 border-dashed border-emerald-200 rounded-xl p-6 text-center">
                                     <div className="flex justify-center mb-4">
-                                        <div className="p-3 bg-indigo-100 rounded-full">
+                                        <div className="p-3 bg-emerald-100 rounded-full">
                                             <CreditCardIcon className="w-8 h-8 text-[#635bff]" />
                                         </div>
                                     </div>
                                     
                                     {isLoadingLink ? (
                                         <div className="flex flex-col items-center gap-2 py-4">
-                                            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                            <p className="text-xs text-gray-500">Generating secure payment link...</p>
+                                            <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="text-xs text-slate-500">Generating secure payment link...</p>
                                         </div>
                                     ) : fetchError ? (
                                         <div className="mb-4">
-                                            <p className="text-xs text-red-600 font-bold mb-2">{fetchError}</p>
-                                            <p className="text-[10px] text-gray-500">Using backup payment gateway.</p>
+                                            <p className="text-xs text-rose-600 font-bold mb-2">{fetchError}</p>
+                                            <p className="text-[10px] text-slate-500">Using backup payment gateway.</p>
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-gray-600 mb-4 font-medium">To complete the payment, click the secure link below to open Stripe Checkout:</p>
+                                        <p className="text-sm text-slate-600 mb-4 font-medium">To complete the payment, click the secure link below to open Stripe Checkout:</p>
                                     )}
                                     
                                     <button 
@@ -211,7 +324,7 @@ const StripePaymentModal: React.FC<{
                                             }
                                         }}
                                         className={`inline-flex items-center gap-2 px-8 py-3 rounded-full font-bold shadow-lg transition-all transform hover:scale-105 ${
-                                            isLoadingLink ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#635bff] text-white hover:bg-[#534bb3]'
+                                            isLoadingLink ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#635bff] text-white hover:bg-[#534bb3]'
                                         }`}
                                     >
                                         <CreditCardIcon className="w-5 h-5" />
@@ -223,24 +336,24 @@ const StripePaymentModal: React.FC<{
                                     <button 
                                         onClick={handleConfirm}
                                         disabled={isProcessing}
-                                        className="w-full py-3 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition-all shadow flex items-center justify-center gap-2"
+                                        className="w-full py-3 bg-emerald-600 text-white rounded-md font-semibold hover:bg-emerald-700 transition-all shadow flex items-center justify-center gap-2"
                                     >
                                         {isProcessing ? "Confirming..." : "I have completed the payment"}
                                     </button>
                                 )}
                                 
-                                <p className="text-center text-[10px] text-gray-400">
+                                <p className="text-center text-[10px] text-slate-400">
                                     Secure payment powered by Stripe
                                 </p>
                             </div>
                         </>
                     ) : (
                         <div className="text-center py-10">
-                            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 scale-110">
+                            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 scale-110">
                                 <CheckCircleIcon className="w-12 h-12" />
                             </div>
-                            <h4 className="text-2xl font-bold text-gray-900">Payment Confirmed</h4>
-                            <p className="text-gray-500 mt-2">The franchise fee has been recorded as paid.</p>
+                            <h4 className="text-2xl font-bold text-slate-900">Payment Confirmed</h4>
+                            <p className="text-slate-500 mt-2">The franchise fee has been recorded as paid.</p>
                         </div>
                     )}
                 </div>
@@ -249,220 +362,399 @@ const StripePaymentModal: React.FC<{
     );
 };
 
+type FranchiseStatus = 'PAID' | 'PARTIAL' | 'OVERDUE' | 'DUE' | 'ACCRUING' | 'UPCOMING' | 'WAIVED';
+
+interface FranchiseRow {
+    month: string;
+    totalRevenue: number;
+    commission: number;
+    totalFee: number;
+    isWaived: boolean;
+}
+
+const FRANCHISE_STATUS_STYLES: Record<FranchiseStatus, { label: string, pill: string, dot: string }> = {
+    PAID: { label: 'Paid', pill: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20', dot: 'bg-emerald-500' },
+    PARTIAL: { label: 'Part paid', pill: 'bg-amber-50 text-amber-700 ring-amber-600/20', dot: 'bg-amber-500' },
+    OVERDUE: { label: 'Overdue', pill: 'bg-rose-50 text-rose-700 ring-rose-600/20', dot: 'bg-rose-500' },
+    DUE: { label: 'Due', pill: 'bg-amber-50 text-amber-700 ring-amber-600/20', dot: 'bg-amber-500' },
+    ACCRUING: { label: 'In progress', pill: 'bg-sky-50 text-sky-700 ring-sky-600/20', dot: 'bg-sky-500' },
+    UPCOMING: { label: 'Upcoming', pill: 'bg-slate-50 text-slate-500 ring-slate-500/20', dot: 'bg-slate-300' },
+    WAIVED: { label: 'Waived', pill: 'bg-slate-100 text-slate-600 ring-slate-500/20', dot: 'bg-slate-400' },
+};
+
+const getFranchiseDeadline = (monthStr: string, year: number) => {
+    const deadline = new Date(year, MONTHS.indexOf(monthStr) + 1, 5);
+    deadline.setHours(23, 59, 59, 999);
+    return deadline;
+};
+
+const formatShortDate = (date: Date | string) =>
+    new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
 const FranchisePaymentTracker: React.FC<{
-    summary: any[];
+    summary: FranchiseRow[];
     payments: FranchisePayment[];
     year: number;
-    onPay: (month: string, amount: number, currency: 'USD' | 'JOD') => void;
-    onDelete: (month: string) => void;
+    companyName: string;
+    onRecord: (month: string, details: FranchisePaymentDetails) => void;
+    onDeletePayment: (paymentId: string) => void;
     canManage: boolean;
-}> = ({ summary, payments, year, onPay, onDelete, canManage }) => {
-    const [paymentModalData, setPaymentModalData] = useState<{month: string, amount: number} | null>(null);
-    const [stripeModalData, setStripeModalData] = useState<{month: string, amount: number, currency: 'USD' | 'JOD'} | null>(null);
-    const [pendingPayment, setPendingPayment] = useState<{month: string, amount: number, currency: 'USD' | 'JOD'} | null>(null);
-    const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-    const [loadingLink, setLoadingLink] = useState<string | null>(null);
+}> = ({ summary, payments, year, companyName, onRecord, onDeletePayment, canManage }) => {
+    const [view, setView] = useState<'cards' | 'ledger'>('cards');
+    const [paymentModalMonth, setPaymentModalMonth] = useState<string | null>(null);
+    const [stripeModalData, setStripeModalData] = useState<{ month: string, details: FranchisePaymentDetails } | null>(null);
+    const [pendingPayment, setPendingPayment] = useState<{ month: string, details: FranchisePaymentDetails } | null>(null);
 
-    const handleCardClick = (totalFee: number, month: string) => {
-        console.log(`[SUMMARY LOG] Month card clicked: ${month}, totalFee: ${totalFee}, canManage: ${canManage}`);
-        if (canManage) {
-            setPaymentModalData({ month, amount: totalFee });
+    const rows = useMemo(() => {
+        const today = new Date();
+        return summary.map(row => {
+            const monthIndex = MONTHS.indexOf(row.month);
+            const monthStart = new Date(year, monthIndex, 1);
+            const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+            const deadline = getFranchiseDeadline(row.month, year);
+            const monthPayments = payments
+                .filter(p => p.year === year && p.month === row.month)
+                .sort((a, b) => new Date(a.datePaid).getTime() - new Date(b.datePaid).getTime());
+            const paidUSD = monthPayments.reduce((sum, p) => sum + toUSD(p.amount, p.currency), 0);
+            const balance = Math.max(0, row.totalFee - paidUSD);
+            const isSettled = monthPayments.length > 0 && balance < 0.01;
+
+            let status: FranchiseStatus;
+            if (row.isWaived && !isSettled) status = 'WAIVED';
+            else if (isSettled) status = 'PAID';
+            else if (today < monthStart) status = 'UPCOMING';
+            else if (today <= monthEnd) status = 'ACCRUING';
+            else if (paidUSD > 0) status = 'PARTIAL';
+            else if (today > deadline) status = 'OVERDUE';
+            else status = 'DUE';
+
+            const isPastDeadline = today > deadline && balance >= 0.01 && !row.isWaived && today > monthEnd;
+            const daysOverdue = isPastDeadline ? Math.floor((today.getTime() - deadline.getTime()) / 86400000) + 1 : 0;
+
+            return { ...row, monthPayments, paidUSD, balance, status, deadline, isPastDeadline, daysOverdue, monthEnd };
+        });
+    }, [summary, payments, year]);
+
+    const totals = useMemo(() => {
+        const billable = rows.filter(r => !r.isWaived && ['PAID', 'PARTIAL', 'OVERDUE', 'DUE'].includes(r.status));
+        const feesBilled = billable.reduce((s, r) => s + r.totalFee, 0);
+        const collected = rows.reduce((s, r) => s + r.paidUSD, 0);
+        // Payments applied to billed fees, capped per month so overpayments don't inflate progress
+        const collectedApplied = billable.reduce((s, r) => s + Math.min(r.paidUSD, r.totalFee), 0);
+        const outstanding = billable.reduce((s, r) => s + r.balance, 0);
+        const overdueRows = rows.filter(r => r.isPastDeadline);
+        const overdue = overdueRows.reduce((s, r) => s + r.balance, 0);
+        const accruing = rows.find(r => r.status === 'ACCRUING');
+        const nextDue = rows.find(r => r.status === 'DUE' || (r.status === 'PARTIAL' && !r.isPastDeadline));
+        const oldestOverdue = overdueRows[0];
+        const waivedCount = rows.filter(r => r.status === 'WAIVED').length;
+        const collectionRate = feesBilled > 0 ? (collectedApplied / feesBilled) * 100 : 100;
+        return { feesBilled, collected, collectedApplied, outstanding, overdue, overdueCount: overdueRows.length, accruing, nextDue, oldestOverdue, waivedCount, collectionRate };
+    }, [rows]);
+
+    const modalRow = rows.find(r => r.month === paymentModalMonth);
+
+    const handleDetailsConfirmed = (details: FranchisePaymentDetails) => {
+        if (!paymentModalMonth) return;
+        if (details.method === 'CARD') {
+            setStripeModalData({ month: paymentModalMonth, details });
         } else {
-            console.warn('[SUMMARY LOG] User lacks permission to manage franchise payments.');
-            alert("You do not have permission to record payments. Please contact an administrator.");
+            setPendingPayment({ month: paymentModalMonth, details });
         }
-    };
-
-    const handlePayClick = (month: string, amount: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setPaymentModalData({ month, amount });
-    };
-
-    const handlePaymentDetailsConfirmed = (amount: number, currency: 'USD' | 'JOD') => {
-        if (paymentModalData) {
-            setStripeModalData({ month: paymentModalData.month, amount, currency });
-            setPaymentModalData(null);
-        }
+        setPaymentModalMonth(null);
     };
 
     const handleStripeSuccess = () => {
         if (stripeModalData) {
-            setPendingPayment({ ...stripeModalData });
+            setPendingPayment({ month: stripeModalData.month, details: { ...stripeModalData.details, datePaid: localDateInputValue() } });
             setStripeModalData(null);
-            setIsKeyModalOpen(true);
         }
     };
 
     const handleKeySuccess = () => {
-        if (pendingPayment) {
-            onPay(pendingPayment.month, pendingPayment.amount, pendingPayment.currency);
-            setPendingPayment(null);
-        }
-        setIsKeyModalOpen(false);
+        if (pendingPayment) onRecord(pendingPayment.month, pendingPayment.details);
+        setPendingPayment(null);
     };
 
-    const getDeadlineDate = (monthStr: string, currentYear: number) => {
-        const monthIndex = MONTHS.indexOf(monthStr);
-        let deadlineYear = currentYear;
-        let deadlineMonth = monthIndex + 1;
-        
-        if (deadlineMonth > 11) {
-            deadlineMonth = 0;
-            deadlineYear++;
+    const handleRemovePayment = (payment: FranchisePayment, month: string) => {
+        if (confirm(`Remove the ${formatMoney(payment.amount, payment.currency)} payment recorded for ${month} ${year}?`)) {
+            onDeletePayment(payment.id);
         }
-        
-        const deadline = new Date(deadlineYear, deadlineMonth, 5);
-        deadline.setHours(23, 59, 59, 999);
-        return deadline;
     };
-    
-    const statusInfo = {
-        PAID: { text: 'Paid', icon: <CheckCircleIcon className="w-4 h-4" />, badgeClasses: 'bg-green-100 text-green-800', cardClasses: 'border-green-300 bg-white' },
-        OVERDUE: { text: 'Overdue', icon: <ClockIcon className="w-4 h-4" />, badgeClasses: 'bg-red-100 text-red-800', cardClasses: 'border-red-300 bg-white' },
-        DUE: { text: 'Due', icon: <ClockIcon className="w-4 h-4" />, badgeClasses: 'bg-orange-100 text-orange-800', cardClasses: 'border-orange-300 bg-white' },
-        UPCOMING: { text: 'Upcoming', icon: null, badgeClasses: 'bg-gray-100 text-gray-500', cardClasses: 'border-gray-200 bg-white' },
+
+    const handleExportStatement = () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        doc.setFontSize(16);
+        doc.text(companyName || 'NCT Rental', 14, 18);
+        doc.setFontSize(12);
+        doc.text(`Franchise Fee Statement — ${year}`, 14, 26);
+        doc.setFontSize(9);
+        doc.setTextColor(110);
+        doc.text(`Fee = ${(COMMISSION_RATE * 100).toFixed(1)}% of confirmed revenue + ${formatMoney(FIXED_ADDON)} fixed monthly fee, due by the 5th of the following month.`, 14, 32);
+        doc.text(`Generated ${new Date().toLocaleString()}`, pageWidth - 14, 18, { align: 'right' });
+
+        (doc as any).autoTable({
+            startY: 38,
+            head: [['Month', 'Revenue', 'Commission', 'Fixed fee', 'Total fee', 'Paid', 'Balance', 'Status']],
+            body: rows.map(r => [
+                r.month,
+                formatMoney(r.totalRevenue),
+                formatMoney(r.commission),
+                r.isWaived ? '—' : formatMoney(FIXED_ADDON),
+                r.isWaived ? 'Waived' : formatMoney(r.totalFee),
+                r.paidUSD > 0 ? formatMoney(r.paidUSD) : '—',
+                r.isWaived || r.status === 'UPCOMING' ? '—' : formatMoney(r.balance),
+                FRANCHISE_STATUS_STYLES[r.status].label + (r.daysOverdue ? ` (${r.daysOverdue}d)` : ''),
+            ]),
+            foot: [['Total', '', '', '', formatMoney(totals.feesBilled), formatMoney(totals.collected), formatMoney(totals.outstanding), '']],
+            theme: 'grid',
+            styles: { fontSize: 8.5 },
+            headStyles: { fillColor: [15, 23, 42] },
+            footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
+            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
+        });
+        doc.save(`franchise_statement_${year}.pdf`);
     };
+
+    const StatusPill: React.FC<{ status: FranchiseStatus }> = ({ status }) => {
+        const s = FRANCHISE_STATUS_STYLES[status];
+        return (
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap flex-shrink-0 ring-1 ring-inset ${s.pill}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />{s.label}
+            </span>
+        );
+    };
+
+    const dueLine = (r: typeof rows[number]) => {
+        switch (r.status) {
+            case 'WAIVED': return 'Fee waived for this period';
+            case 'PAID': return r.monthPayments.length ? `Settled ${formatShortDate(r.monthPayments[r.monthPayments.length - 1].datePaid)}` : 'Settled';
+            case 'UPCOMING': return `Due ${formatShortDate(r.deadline)}`;
+            case 'ACCRUING': return `Month closes ${formatShortDate(r.monthEnd)} · due ${formatShortDate(r.deadline)}`;
+            default: return r.isPastDeadline ? `${r.daysOverdue} day${r.daysOverdue === 1 ? '' : 's'} overdue · was due ${formatShortDate(r.deadline)}` : `Due ${formatShortDate(r.deadline)}`;
+        }
+    };
+
+    const canRecord = (r: typeof rows[number]) => canManage && !r.isWaived && r.balance >= 0.01 && r.status !== 'UPCOMING';
+
+    const kpis = [
+        { label: 'Fees billed', value: formatMoney(totals.feesBilled), sub: `${rows.filter(r => !r.isWaived && ['PAID', 'PARTIAL', 'OVERDUE', 'DUE'].includes(r.status)).length} closed months${totals.waivedCount ? ` · ${totals.waivedCount} waived` : ''}`, tone: 'text-slate-900' },
+        { label: 'Collected', value: formatMoney(totals.collected), sub: `${totals.collectionRate.toFixed(0)}% collection rate`, tone: 'text-emerald-700' },
+        { label: 'Outstanding', value: formatMoney(totals.outstanding), sub: totals.nextDue ? `Next: ${totals.nextDue.month}, due ${formatShortDate(totals.nextDue.deadline)}` : totals.outstanding > 0 ? 'All past its deadline' : 'Nothing awaiting payment', tone: totals.outstanding > 0 ? 'text-amber-700' : 'text-slate-900' },
+        { label: 'Overdue', value: formatMoney(totals.overdue), sub: totals.overdueCount ? `${totals.overdueCount} month${totals.overdueCount === 1 ? '' : 's'} past deadline` : 'No overdue months', tone: totals.overdue > 0 ? 'text-rose-700' : 'text-slate-900' },
+    ];
 
     return (
-        <div className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {summary.map(row => {
-                    const payment = payments.find(p => p.year === year && p.month === row.month);
-                    const isPaid = !!payment;
-                    
-                    const today = new Date();
-                    const deadline = getDeadlineDate(row.month, year);
-                    const monthEnd = new Date(year, MONTHS.indexOf(row.month) + 1, 0);
-                    monthEnd.setHours(23,59,59,999);
-                    
-                    const isPastMonthEnd = today > monthEnd;
+        <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {kpis.map(k => (
+                    <div key={k.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{k.label}</p>
+                        <p className={`mt-1.5 text-xl sm:text-2xl font-semibold tabular-nums ${k.tone}`}>{k.value}</p>
+                        <p className="mt-1 text-xs text-slate-500 truncate">{k.sub}</p>
+                    </div>
+                ))}
+            </div>
 
-                    const getStatus = () => {
-                        if (isPaid) return 'PAID';
-                        if (isPastMonthEnd && today > deadline) return 'OVERDUE';
-                        if (isPastMonthEnd && today <= deadline) return 'DUE';
-                        return 'UPCOMING';
-                    };
-                    
-                    const status = getStatus();
-                    const currentStatusInfo = statusInfo[status];
-                    const deadlineDate = getDeadlineDate(row.month, year);
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="font-medium text-slate-700">Collection progress {year}</span>
+                    <span className="text-slate-500 tabular-nums">{formatMoney(totals.collectedApplied)} of {formatMoney(totals.feesBilled)} billed</span>
+                </div>
+                <div className="mt-2 h-2.5 rounded-full bg-slate-100 overflow-hidden flex">
+                    <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, totals.collectionRate)}%` }} />
+                    {totals.feesBilled > 0 && (
+                        <div className="h-full bg-rose-400" style={{ width: `${(totals.overdue / totals.feesBilled) * 100}%` }} />
+                    )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" />Collected</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400" />Overdue</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-200" />Due, not yet late</span>
+                    {totals.accruing && <span>· {totals.accruing.month} is accruing ({formatMoney(totals.accruing.totalFee)} so far)</span>}
+                </div>
+            </div>
 
-                    // Special handling for January, February, and March 2026: show only "Paid" without any amount
-                    const isSpecialPaid = year === 2026 && (['January', 'February', 'March', 'April', 'May'].includes(row.month)) && isPaid;
+            {totals.overdueCount > 0 ? (
+                <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                    <ClockIcon className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                        <p className="font-semibold text-rose-900">{formatMoney(totals.overdue)} overdue across {totals.overdueCount} month{totals.overdueCount === 1 ? '' : 's'}</p>
+                        <p className="text-rose-700 mt-0.5">Oldest: {totals.oldestOverdue!.month} — {totals.oldestOverdue!.daysOverdue} days past its {formatShortDate(totals.oldestOverdue!.deadline)} deadline.</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <CheckCircleIcon className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-emerald-900"><span className="font-semibold">No overdue franchise fees.</span> {totals.nextDue ? `${totals.nextDue.month} is due by ${formatShortDate(totals.nextDue.deadline)}.` : 'All closed months are settled.'}</p>
+                </div>
+            )}
 
-                    return (
-                        <div 
-                            key={row.month} 
-                            className={`rounded-xl shadow-sm border ${currentStatusInfo.cardClasses} flex flex-col transition-all hover:shadow-lg hover:-translate-y-1 ${!isSpecialPaid ? 'cursor-pointer' : ''} ${loadingLink === row.month ? 'opacity-50 pointer-events-none' : ''}`}
-                            onClick={() => !isSpecialPaid && handleCardClick(row.totalFee, row.month)}
-                        >
-                            <div className="p-4 flex justify-between items-center border-b">
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800">{row.month}</h4>
-                                    {status !== 'PAID' && status !== 'UPCOMING' && (
-                                        <p className="text-xs text-slate-500 font-medium mt-1">
-                                            Deadline: {deadlineDate.toLocaleDateString()}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-slate-500">
+                    Fee = <span className="font-medium text-slate-700">{(COMMISSION_RATE * 100).toFixed(1)}%</span> of confirmed revenue + <span className="font-medium text-slate-700">{formatMoney(FIXED_ADDON)}</span> fixed, due by the 5th of the following month.
+                </p>
+                <div className="flex items-center gap-2">
+                    <div className="inline-flex p-0.5 rounded-lg bg-slate-100" role="tablist" aria-label="View">
+                        {(['cards', 'ledger'] as const).map(v => (
+                            <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`px-3 h-8 rounded-md text-sm font-medium transition-colors ${view === v ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                {v === 'cards' ? 'Cards' : 'Ledger'}
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={handleExportStatement} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        <PdfIcon className="w-4 h-4" /> Statement PDF
+                    </button>
+                </div>
+            </div>
+
+            {view === 'cards' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {rows.map(r => {
+                        const paidPct = r.totalFee > 0 ? Math.min(100, (r.paidUSD / r.totalFee) * 100) : 0;
+                        const muted = r.status === 'UPCOMING' || r.status === 'WAIVED';
+                        return (
+                            <div key={r.month} className={`flex flex-col rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md ${r.isPastDeadline ? 'border-rose-200' : 'border-slate-200'}`}>
+                                <div className="px-5 pt-4 flex items-start justify-between gap-2">
+                                    <div>
+                                        <h4 className="text-base font-semibold text-slate-900">{r.month} <span className="font-normal text-slate-400">{year}</span></h4>
+                                        <p className={`text-xs mt-0.5 ${r.isPastDeadline ? 'text-rose-600 font-medium' : 'text-slate-500'}`}>{dueLine(r)}</p>
+                                    </div>
+                                    <StatusPill status={r.status} />
+                                </div>
+
+                                <div className="px-5 pt-3">
+                                    <p className={`text-2xl font-semibold tabular-nums ${muted ? 'text-slate-400' : 'text-slate-900'}`}>
+                                        {r.isWaived ? formatMoney(0) : formatMoney(r.totalFee)}
+                                    </p>
+                                    <p className="text-xs text-slate-500">{r.status === 'ACCRUING' ? 'Fee so far this month' : r.isWaived ? 'Franchise fee (waived)' : 'Franchise fee'}</p>
+                                </div>
+
+                                <dl className="px-5 pt-3 pb-4 space-y-1.5 text-sm">
+                                    <div className="flex justify-between"><dt className="text-slate-500">Confirmed revenue</dt><dd className="tabular-nums text-slate-700">{formatMoney(r.totalRevenue)}</dd></div>
+                                    <div className="flex justify-between"><dt className="text-slate-500">Commission {(COMMISSION_RATE * 100).toFixed(1)}%</dt><dd className="tabular-nums text-slate-700">{formatMoney(r.commission)}</dd></div>
+                                    <div className="flex justify-between"><dt className="text-slate-500">Fixed fee</dt><dd className="tabular-nums text-slate-700">{r.isWaived ? '—' : formatMoney(FIXED_ADDON)}</dd></div>
+                                </dl>
+
+                                {!r.isWaived && r.status !== 'UPCOMING' && (
+                                    <div className="px-5 pb-4">
+                                        <div className="flex justify-between text-xs text-slate-500 mb-1">
+                                            <span>Paid {formatMoney(r.paidUSD)}</span>
+                                            <span>{r.balance >= 0.01 ? `${formatMoney(r.balance)} left` : 'Fully paid'}</span>
+                                        </div>
+                                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                            <div className={`h-full rounded-full ${paidPct >= 99.9 ? 'bg-emerald-500' : r.isPastDeadline ? 'bg-rose-400' : 'bg-amber-400'}`} style={{ width: `${paidPct}%` }} />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="mt-auto border-t border-slate-100 bg-slate-50/60 rounded-b-xl px-5 py-3 space-y-2">
+                                    {r.monthPayments.map(p => (
+                                        <div key={p.id} className="flex items-start justify-between gap-2 text-xs">
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-slate-800 tabular-nums">{formatMoney(p.amount, p.currency)} <span className="font-normal text-slate-500">· {formatShortDate(p.datePaid)}</span></p>
+                                                <p className="text-slate-500 truncate" title={p.referenceNote}>{p.referenceNote || 'Payment'}{p.paidBy ? ` · ${p.paidBy}` : ''}</p>
+                                            </div>
+                                            {canManage && (
+                                                <button onClick={() => handleRemovePayment(p, r.month)} className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Remove this payment" aria-label="Remove this payment">
+                                                    <CloseIcon className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {canRecord(r) ? (
+                                        <button onClick={() => setPaymentModalMonth(r.month)} className={`w-full h-9 rounded-lg text-sm font-semibold transition-colors inline-flex items-center justify-center gap-2 ${r.isPastDeadline ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>
+                                            <CurrencyDollarIcon className="w-4 h-4" />
+                                            {r.paidUSD > 0 ? `Record remaining ${formatMoney(r.balance)}` : r.status === 'ACCRUING' ? 'Record early payment' : 'Record payment'}
+                                        </button>
+                                    ) : r.monthPayments.length === 0 && (
+                                        <p className="text-xs text-slate-400 text-center py-1.5">
+                                            {r.isWaived ? 'No payment required' : r.status === 'UPCOMING' ? 'Opens when the month starts' : 'No payment recorded'}
                                         </p>
                                     )}
                                 </div>
-                                <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1.5 ${currentStatusInfo.badgeClasses}`}>
-                                    {currentStatusInfo.icon} {currentStatusInfo.text}
-                                </span>
                             </div>
-                            
-                            {!isSpecialPaid ? (
-                                <>
-                                    <div className="p-4 space-y-3 flex-grow">
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-sm text-slate-500">Total Revenue</span>
-                                            <span className="font-medium text-slate-700">${row.totalRevenue.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-sm text-slate-500">7.5% Commission</span>
-                                            <span className="font-medium text-slate-700">${row.commission.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-baseline border-t pt-2 mt-1">
-                                            <span className="text-sm font-semibold text-slate-800">Total Franchise Fee</span>
-                                            <span className="font-bold text-xl text-primary">${row.totalFee.toFixed(2)}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 bg-slate-50 rounded-b-xl mt-auto">
-                                        {isPaid && payment ? (
-                                            <div className="flex justify-between items-end">
-                                                <div className="text-xs text-green-800 space-y-1">
-                                                    <p><strong>Paid Amount:</strong> {payment.currency} {payment.amount.toFixed(2)}</p>
-                                                    <p><strong>On:</strong> {new Date(payment.datePaid).toLocaleDateString()}</p>
-                                                </div>
-                                                {canManage && (
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); if(confirm('Are you sure you want to mark this month as UNPAID?')) onDelete(row.month); }}
-                                                        className="text-red-600 hover:text-red-800 text-xs font-semibold p-1"
-                                                        title="Mark as Unpaid"
-                                                    >
-                                                        Mark Unpaid
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ) : canManage ? (
-                                            <button 
-                                                onClick={(e) => handlePayClick(row.month, row.totalFee, e)}
-                                                className="w-full py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-secondary transition-colors shadow-sm flex items-center justify-center gap-2"
-                                            >
-                                               <CurrencyDollarIcon className="w-4 h-4"/> Record Payment
-                                            </button>
-                                        ) : (
-                                            <div className="text-center text-xs text-slate-500 font-medium h-9 flex items-center justify-center">
-                                                {status === 'UPCOMING' ? 'Payment pending' : 'No payment recorded'}
-                                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <table className="min-w-full text-sm">
+                        <thead>
+                            <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                                <th className="px-4 py-3">Month</th>
+                                <th className="px-4 py-3 text-right">Revenue</th>
+                                <th className="px-4 py-3 text-right">Commission</th>
+                                <th className="px-4 py-3 text-right">Fixed</th>
+                                <th className="px-4 py-3 text-right">Total fee</th>
+                                <th className="px-4 py-3 text-right">Paid</th>
+                                <th className="px-4 py-3 text-right">Balance</th>
+                                <th className="px-4 py-3">Status</th>
+                                <th className="px-4 py-3">Due</th>
+                                <th className="px-4 py-3" />
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {rows.map(r => (
+                                <tr key={r.month} className={r.isPastDeadline ? 'bg-rose-50/40' : 'hover:bg-slate-50/60'}>
+                                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{r.month}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-slate-600">{formatMoney(r.totalRevenue)}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-slate-600">{formatMoney(r.commission)}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-slate-600">{r.isWaived ? '—' : formatMoney(FIXED_ADDON)}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">{r.isWaived ? '—' : formatMoney(r.totalFee)}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-emerald-700">{r.paidUSD > 0 ? formatMoney(r.paidUSD) : '—'}</td>
+                                    <td className={`px-4 py-3 text-right tabular-nums ${r.isPastDeadline ? 'text-rose-700 font-semibold' : 'text-slate-700'}`}>{r.isWaived || r.status === 'UPCOMING' ? '—' : formatMoney(r.balance)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap"><StatusPill status={r.status} /></td>
+                                    <td className={`px-4 py-3 whitespace-nowrap text-xs ${r.isPastDeadline ? 'text-rose-600 font-medium' : 'text-slate-500'}`}>{r.isWaived ? '—' : r.isPastDeadline ? `${r.daysOverdue}d late` : formatShortDate(r.deadline)}</td>
+                                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                                        {canRecord(r) && (
+                                            <button onClick={() => setPaymentModalMonth(r.month)} className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">Record</button>
                                         )}
-                                    </div>
-                                </>
-                            ) : (
-                                // Special paid card: just show a simple "Paid" message with correct date
-                                <div className="p-4 flex flex-col items-center justify-center flex-grow relative">
-                                    <CheckCircleIcon className="w-12 h-12 text-green-600 mb-2" />
-                                    <p className="text-green-800 font-semibold">Payment Completed</p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Paid on {payment ? new Date(payment.datePaid).toLocaleDateString() : ''}
-                                    </p>
-                                    {canManage && (
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); if(confirm('Are you sure you want to mark this month as UNPAID?')) onDelete(row.month); }}
-                                            className="absolute bottom-2 right-2 text-red-600 hover:text-red-800 text-xs font-semibold p-1"
-                                            title="Mark as Unpaid"
-                                        >
-                                            Mark Unpaid
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-             {paymentModalData && (
-                 <PaymentEntryModal 
-                    month={paymentModalData.month}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr className="bg-slate-50 font-semibold text-slate-900">
+                                <td className="px-4 py-3">Total</td>
+                                <td className="px-4 py-3 text-right tabular-nums">{formatMoney(rows.reduce((s, r) => s + r.totalRevenue, 0))}</td>
+                                <td className="px-4 py-3 text-right tabular-nums">{formatMoney(rows.reduce((s, r) => s + r.commission, 0))}</td>
+                                <td className="px-4 py-3" />
+                                <td className="px-4 py-3 text-right tabular-nums">{formatMoney(totals.feesBilled)}</td>
+                                <td className="px-4 py-3 text-right tabular-nums text-emerald-700">{formatMoney(totals.collected)}</td>
+                                <td className="px-4 py-3 text-right tabular-nums">{formatMoney(totals.outstanding)}</td>
+                                <td className="px-4 py-3" colSpan={3} />
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            )}
+
+            {modalRow && (
+                <PaymentEntryModal
+                    month={modalRow.month}
                     year={year}
-                    initialAmount={paymentModalData.amount}
-                    onClose={() => setPaymentModalData(null)}
-                    onConfirm={handlePaymentDetailsConfirmed}
-                 />
-             )}
-             {stripeModalData && (
-                 <StripePaymentModal 
+                    feeUSD={modalRow.totalFee}
+                    paidUSD={modalRow.paidUSD}
+                    revenueUSD={modalRow.totalRevenue}
+                    commissionUSD={modalRow.commission}
+                    onClose={() => setPaymentModalMonth(null)}
+                    onConfirm={handleDetailsConfirmed}
+                />
+            )}
+            {stripeModalData && (
+                <StripePaymentModal
                     month={stripeModalData.month}
                     year={year}
-                    amount={stripeModalData.amount}
-                    currency={stripeModalData.currency}
+                    amount={stripeModalData.details.amount}
+                    currency={stripeModalData.details.currency}
                     onClose={() => setStripeModalData(null)}
                     onConfirm={handleStripeSuccess}
-                 />
-             )}
-             {isKeyModalOpen && (
-                <SecurityKeyModal onSuccess={handleKeySuccess} onClose={() => setIsKeyModalOpen(false)} />
+                />
+            )}
+            {pendingPayment && (
+                <SecurityKeyModal onSuccess={handleKeySuccess} onClose={() => setPendingPayment(null)} />
             )}
         </div>
     );
@@ -528,40 +820,41 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency }).format(value);
   };
 
-  const handlePayFranchise = (month: string, amount: number, currency: 'USD' | 'JOD') => {
+  const handleRecordFranchisePayment = (month: string, details: FranchisePaymentDetails) => {
       if (!onUpdateFranchisePayment) return;
+
+      // Noon local time keeps the chosen calendar day stable across time zones
+      const [y, m, d] = details.datePaid.split('-').map(Number);
+      const datePaid = y && m && d ? new Date(y, m - 1, d, 12).toISOString() : new Date().toISOString();
 
       const newPayment: FranchisePayment = {
           id: `fp-${year}-${month}-${Date.now()}`,
           year,
           month,
-          amount,
-          currency,
-          datePaid: new Date().toISOString(),
+          amount: details.amount,
+          currency: details.currency,
+          datePaid,
           paidBy: currentUser?.fullName || 'Unknown',
-          referenceNote: `Franchise Fee for ${month} ${year}`
+          referenceNote: buildReferenceNote(details)
       };
-      
+
       onUpdateFranchisePayment([...franchisePayments, newPayment]);
   };
 
-  const handleDeleteFranchisePayment = (month: string) => {
+  const handleDeleteFranchisePayment = (paymentId: string) => {
       if (!onUpdateFranchisePayment) return;
-      onUpdateFranchisePayment(franchisePayments.filter(p => !(p.year === year && p.month === month)));
+      onUpdateFranchisePayment(franchisePayments.filter(p => p.id !== paymentId));
   };
 
-  // Prepare data for FranchisePaymentTracker: includes totalRevenue, commission, and totalFee = commission + FIXED_ADDON
-  // For January, February, and March 2026, set totalFee = 0 (not shown) but they will be auto-paid.
-  const franchiseSummary = summary.map(s => {
-      let totalFee = s.commissionUSD + FIXED_ADDON;
-      if (year === 2026 && (['January', 'February', 'March', 'April', 'May'].includes(s.month))) {
-          totalFee = 0; // Not shown
-      }
+  // Franchise fee = commission + FIXED_ADDON, always in USD. Waived periods carry no fee.
+  const franchiseSummary: FranchiseRow[] = summary.map(s => {
+      const isWaived = (WAIVED_FRANCHISE_MONTHS[year] || []).includes(s.month);
       return {
           month: s.month,
           totalRevenue: s.totalRevenueUSD,
           commission: s.commissionUSD,
-          totalFee: totalFee
+          totalFee: isWaived ? 0 : s.commissionUSD + FIXED_ADDON,
+          isWaived
       };
   });
 
@@ -616,9 +909,9 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   const SummaryRow: React.FC<{label: string, value: string | number}> = ({ label, value }) => (
-    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className="font-semibold text-gray-800">{value}</span>
+    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+        <span className="text-sm text-slate-500">{label}</span>
+        <span className="font-semibold text-slate-800">{value}</span>
     </div>
   );
 
@@ -626,29 +919,29 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     <div className="p-4 sm:p-6">
        <div className="flex flex-col sm:flex-row justify-between items-start mb-6">
         <div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-1">Yearly Summary for {year}</h3>
-          <p className="text-md text-gray-500">Commission is calculated at ${(COMMISSION_RATE * 100).toFixed(1)}% on the total revenue.</p>
+          <h3 className="text-2xl font-bold text-slate-800 mb-1">Yearly Summary for {year}</h3>
+          <p className="text-md text-slate-500">Commission is calculated at {(COMMISSION_RATE * 100).toFixed(1)}% on the total revenue.</p>
         </div>
         <div className="flex items-center gap-4 mt-4 sm:mt-0">
              {activeTab === 'Summary' && (
                 <>
-                    <div className="flex bg-gray-200 rounded-lg p-1">
+                    <div className="flex bg-slate-200 rounded-lg p-1">
                         <button
                             onClick={() => setCurrency('USD')}
-                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'USD' ? 'bg-white text-primary shadow' : 'text-gray-600'}`}
+                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'USD' ? 'bg-white text-primary shadow' : 'text-slate-600'}`}
                         >
                             USD
                         </button>
                         <button
                             onClick={() => setCurrency('JOD')}
-                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'JOD' ? 'bg-white text-primary shadow' : 'text-gray-600'}`}
+                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'JOD' ? 'bg-white text-primary shadow' : 'text-slate-600'}`}
                         >
                             JOD
                         </button>
                     </div>
                     <button 
                     onClick={handleExportPDF} 
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-md hover:bg-rose-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-600 text-sm font-medium"
                     >
                     <PdfIcon />
                     <span className="hidden sm:inline">Export PDF</span>
@@ -669,35 +962,35 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
       {activeTab === 'Summary' ? (
           isDesktopView ? (
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Reservations</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Confirmed Reservations</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Revenue ({currency})</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Commission ({currency})</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Month</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Reservations</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Confirmed Reservations</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Revenue ({currency})</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Commission ({currency})</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-slate-200">
                     {summary.map((row, index) => (
-                      <tr key={row.month} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.month}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{row.totalReservations}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{row.confirmedReservations}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(row.totalRevenue)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(row.commission)}</td>
+                      <tr key={row.month} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{row.month}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{row.totalReservations}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{row.confirmedReservations}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{formatCurrency(row.totalRevenue)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{formatCurrency(row.commission)}</td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-100">
+                  <tfoot className="bg-slate-100">
                       <tr>
-                          <th scope="row" className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase">Grand Total</th>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.totalReservations}</td>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.confirmedReservations}</td>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.totalRevenue)}</td>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.commission)}</td>
+                          <th scope="row" className="px-6 py-3 text-left text-sm font-bold text-slate-700 uppercase">Grand Total</th>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{grandTotal.totalReservations}</td>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{grandTotal.confirmedReservations}</td>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{formatCurrency(grandTotal.totalRevenue)}</td>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{formatCurrency(grandTotal.commission)}</td>
                       </tr>
                   </tfoot>
                 </table>
@@ -705,7 +998,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
           ) : (
             <div className="space-y-4">
                 {summary.map(row => (
-                    <div key={row.month} className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                    <div key={row.month} className="bg-white p-4 rounded-lg shadow border border-slate-200">
                         <h4 className="font-bold text-lg mb-2 text-primary">{row.month}</h4>
                         <SummaryRow label="Total Reservations" value={row.totalReservations} />
                         <SummaryRow label="Confirmed" value={row.confirmedReservations} />
@@ -723,22 +1016,15 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
             </div>
           )
       ) : (
-          <div>
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-                  <h4 className="text-blue-800 font-bold">Franchise Fee Management</h4>
-                  <p className="text-blue-700 text-sm mt-1">
-                      Total franchise fee = 7.5% commission + $250 fixed fee per month.
-                  </p>
-              </div>
-              <FranchisePaymentTracker 
-                summary={franchiseSummary} 
-                payments={franchisePayments} 
-                year={year} 
-                onPay={handlePayFranchise}
-                onDelete={handleDeleteFranchisePayment}
-                canManage={canManageFinancials}
-              />
-          </div>
+          <FranchisePaymentTracker
+            summary={franchiseSummary}
+            payments={franchisePayments}
+            year={year}
+            companyName={companyDetails.name}
+            onRecord={handleRecordFranchisePayment}
+            onDeletePayment={handleDeleteFranchisePayment}
+            canManage={canManageFinancials}
+          />
       )}
     </div>
   );

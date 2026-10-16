@@ -29,11 +29,11 @@ export interface DailyAssignments {
 const StatCard: React.FC<{ title: string; value: string | number; subtitle: string; color: string; icon: React.ReactNode }> = ({ title, value, subtitle, color, icon }) => (
     <div className={`bg-white p-5 rounded-xl shadow-sm border-l-4 ${color} flex items-center justify-between transition-all hover:shadow-md hover:-translate-y-0.5`}>
         <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{title}</p>
-            <p className="text-3xl font-extrabold text-gray-800 tracking-tight">{value}</p>
-            <p className="text-xs font-medium text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{title}</p>
+            <p className="text-3xl font-extrabold text-slate-800 tracking-tight">{value}</p>
+            <p className="text-xs font-medium text-slate-500 mt-1">{subtitle}</p>
         </div>
-        <div className={`p-3 rounded-lg bg-gray-50 text-gray-400 border border-gray-100`}>
+        <div className={`p-3 rounded-lg bg-slate-50 text-slate-400 border border-slate-100`}>
             {icon}
         </div>
     </div>
@@ -166,46 +166,46 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
   };
   
   return (
-    <div className="p-4 sm:p-6 bg-gray-50/50 min-h-screen">
+    <div className="p-4 sm:p-6 bg-slate-50/50 min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b pb-4">
           <div>
-              <h3 className="text-2xl font-bold text-gray-800">Fleet Dashboard</h3>
-              <p className="text-sm text-gray-500 mt-1">Real-time inventory tracking for {currentMonth} {year}</p>
+              <h3 className="text-2xl font-bold text-slate-800">Fleet Dashboard</h3>
+              <p className="text-sm text-slate-500 mt-1">Real-time inventory tracking for {currentMonth} {year}</p>
           </div>
           
-          <div className="flex flex-wrap items-center gap-3 bg-white p-1.5 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex flex-wrap items-center gap-3 bg-white p-1.5 rounded-lg shadow-sm border border-slate-200">
                <div className="relative">
                    <select 
                     value={currentMonth}
                     onChange={e => onMonthChange(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors"
                    >
                      {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
                    </select>
-                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                </div>
-               <div className="h-6 w-px bg-gray-300"></div>
+               <div className="h-6 w-px bg-slate-300"></div>
                <div className="relative">
                    <select 
                     value={year}
                     onChange={e => onYearChange(parseInt(e.target.value))}
-                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors"
                    >
                      {INITIAL_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                    </select>
-                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                </div>
-               <div className="h-6 w-px bg-gray-300"></div>
+               <div className="h-6 w-px bg-slate-300"></div>
                <div className="relative">
                    <select 
                     value={categoryFilter}
                     onChange={e => setCategoryFilter(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors"
                    >
                      <option value="">All Categories</option>
                      {CAR_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                    </select>
-                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                </div>
           </div>
       </div>
@@ -216,28 +216,28 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
             title="Total Fleet" 
             value={stats.total} 
             subtitle={categoryFilter ? `${categoryFilter} Vehicles` : "Active Inventory"}
-            color="border-blue-500" 
+            color="border-sky-500" 
             icon={<CarIcon className="w-6 h-6"/>} 
           />
           <StatCard 
             title="Rented on Selected Date" 
             value={stats.rented} 
             subtitle={`${stats.utilization}% Utilization`}
-            color="border-orange-500" 
+            color="border-amber-500" 
             icon={<ClockIcon className="w-6 h-6"/>} 
           />
           <StatCard 
             title="Available on Selected Date" 
             value={stats.available} 
             subtitle="Ready for booking"
-            color="border-green-500" 
+            color="border-emerald-500" 
             icon={<CheckCircleIcon className="w-6 h-6"/>} 
           />
           <StatCard 
             title="Utilization Rate" 
             value={`${stats.utilization}%`} 
             subtitle="Fleet efficiency"
-            color={stats.utilization > 80 ? "border-indigo-500" : "border-gray-400"} 
+            color={stats.utilization > 80 ? "border-emerald-500" : "border-slate-400"} 
             icon={<ChartPieIcon className="w-6 h-6"/>} 
           />
       </div>
@@ -258,7 +258,7 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
         />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[500px]">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
         {activeView === 'calendar' && (
             <FleetCalendarView 
             year={year}
@@ -278,18 +278,18 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
         )}
         {activeView === 'tracker' && (
             <div className="p-6">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 bg-slate-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 bg-slate-50 p-4 rounded-lg">
                     <div className="flex items-center gap-4">
-                         <label htmlFor="tracker-date" className="text-sm font-bold text-gray-700">Check Status For:</label>
+                         <label htmlFor="tracker-date" className="text-sm font-bold text-slate-700">Check Status For:</label>
                          <input
                             type="date"
                             id="tracker-date"
                             value={trackerDate}
                             onChange={(e) => setTrackerDate(e.target.value)}
-                            className="p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary shadow-sm font-medium text-gray-700"
+                            className="p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary shadow-sm font-medium text-slate-700"
                         />
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-slate-500">
                         Showing fleet status for specific day
                     </div>
                 </div>

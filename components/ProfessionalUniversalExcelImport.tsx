@@ -762,11 +762,11 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
   const renderUploadStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 bg-slate-900">
           <UploadIcon className="w-10 h-10 text-white" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Universal Excel Import</h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">Universal Excel Import</h2>
+        <p className="text-slate-600 max-w-2xl mx-auto">
           Upload any Excel file and our AI will automatically detect and map your columns.
           Supports Excel (.xlsx, .xls), CSV, and multiple languages.
         </p>
@@ -775,20 +775,20 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
       <div
         className={`border-3 border-dashed rounded-2xl p-12 text-center transition-all ${
           dragActive
-            ? 'border-blue-500 bg-blue-50 scale-105'
-            : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+            ? 'border-sky-500 bg-sky-50 scale-105'
+            : 'border-slate-300 hover:border-sky-400 hover:bg-slate-50'
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
-        <DocumentIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <p className="text-xl font-semibold text-gray-700 mb-2">
+        <DocumentIcon className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+        <p className="text-xl font-semibold text-slate-700 mb-2">
           Drag & Drop your file here
         </p>
-        <p className="text-gray-500 mb-6">or</p>
-        <label className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 cursor-pointer transition-all transform hover:scale-105 shadow-lg">
+        <p className="text-slate-500 mb-6">or</p>
+        <label className="inline-flex items-center px-6 py-3 text-white rounded-lg cursor-pointer transition-all transform hover:scale-105 shadow-lg bg-emerald-600 hover:bg-emerald-700">
           <UploadIcon className="w-5 h-5 mr-2" />
           Browse Files
           <input
@@ -798,20 +798,20 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
             onChange={handleFileChange}
           />
         </label>
-        <p className="text-sm text-gray-500 mt-4">
+        <p className="text-sm text-slate-500 mt-4">
           Supported formats: Excel (.xlsx, .xls), CSV (.csv)
         </p>
       </div>
 
       {isProcessing && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center justify-between text-sm text-slate-600">
             <span>Processing file...</span>
             <span>{progress}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300 rounded-full"
+              className="h-full transition-all duration-300 rounded-full bg-slate-900"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -823,8 +823,8 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
   const renderSheetSelectStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Sheet</h2>
-        <p className="text-gray-600">Your file contains multiple sheets. Please select one to import.</p>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Select Sheet</h2>
+        <p className="text-slate-600">Your file contains multiple sheets. Please select one to import.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -832,21 +832,21 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
           <button
             key={index}
             onClick={() => selectSheet(sheet)}
-            className="p-6 border-2 border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
+            className="p-6 border-2 border-slate-300 rounded-xl hover:border-sky-500 hover:bg-sky-50 transition-all text-left group"
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-semibold text-lg text-gray-900 group-hover:text-blue-600 mb-2">
+                <h3 className="font-semibold text-lg text-slate-900 group-hover:text-sky-600 mb-2">
                   {sheet.name}
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600">
                   {sheet.dataRows} data rows
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Header at row {sheet.headerRow + 1}
                 </p>
               </div>
-              <DocumentIcon className="w-8 h-8 text-gray-400 group-hover:text-blue-500" />
+              <DocumentIcon className="w-8 h-8 text-slate-400 group-hover:text-sky-500" />
             </div>
           </button>
         ))}
@@ -863,22 +863,22 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Column Mapping</h2>
-            <p className="text-gray-600">
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Column Mapping</h2>
+            <p className="text-slate-600">
               AI has automatically mapped {mappedCount} of {mappings.length} columns
             </p>
           </div>
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowTemplates(!showTemplates)}
-              className="px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 transition-all flex items-center space-x-2"
+              className="px-4 py-2 bg-white border-2 border-slate-300 rounded-lg hover:border-sky-500 transition-all flex items-center space-x-2"
             >
               <DocumentIcon className="w-5 h-5" />
               <span>Templates</span>
             </button>
             <button
               onClick={saveTemplate}
-              className="px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 transition-all flex items-center space-x-2"
+              className="px-4 py-2 bg-white border-2 border-slate-300 rounded-lg hover:border-sky-500 transition-all flex items-center space-x-2"
             >
               <DownloadIcon className="w-5 h-5" />
               <span>Save Template</span>
@@ -887,32 +887,32 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-            <div className="text-2xl font-bold text-blue-700">{mappedCount}/{mappings.length}</div>
-            <div className="text-sm text-blue-600">Columns Mapped</div>
+          <div className="p-4 rounded-xl border border-sky-200 bg-slate-50">
+            <div className="text-2xl font-bold text-sky-700">{mappedCount}/{mappings.length}</div>
+            <div className="text-sm text-sky-600">Columns Mapped</div>
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
-            <div className="text-2xl font-bold text-green-700">{highConfidenceCount}</div>
-            <div className="text-sm text-green-600">High Confidence</div>
+          <div className="p-4 rounded-xl border border-emerald-200 bg-slate-50">
+            <div className="text-2xl font-bold text-emerald-700">{highConfidenceCount}</div>
+            <div className="text-sm text-emerald-600">High Confidence</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-            <div className="text-2xl font-bold text-purple-700">{Math.round(avgConfidence)}%</div>
-            <div className="text-sm text-purple-600">Avg. Confidence</div>
+          <div className="p-4 rounded-xl border border-emerald-200 bg-slate-50">
+            <div className="text-2xl font-bold text-emerald-700">{Math.round(avgConfidence)}%</div>
+            <div className="text-sm text-emerald-600">Avg. Confidence</div>
           </div>
         </div>
 
         {showTemplates && savedTemplates.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Saved Templates</h3>
+          <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
+            <h3 className="font-semibold text-slate-900 mb-3">Saved Templates</h3>
             <div className="space-y-2">
               {savedTemplates.map((template, index) => (
                 <button
                   key={index}
                   onClick={() => loadTemplate(template)}
-                  className="w-full p-3 bg-white rounded-lg hover:bg-blue-100 text-left transition-all"
+                  className="w-full p-3 bg-white rounded-lg hover:bg-sky-100 text-left transition-all"
                 >
-                  <div className="font-medium text-gray-900">{template.name}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="font-medium text-slate-900">{template.name}</div>
+                  <div className="text-xs text-slate-500">
                     {Object.keys(template.mappings).length} mappings • {new Date(template.dateCreated).toLocaleDateString()}
                   </div>
                 </button>
@@ -921,36 +921,36 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
           </div>
         )}
 
-        <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden">
+        <div className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
           <div className="max-h-96 overflow-y-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="bg-slate-50 sticky top-0">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Source Column</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Data Type</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Sample Values</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Maps To</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Confidence</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Source Column</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Data Type</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Sample Values</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Maps To</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Confidence</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-200">
                 {mappings.map((mapping, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <tr key={index} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">
                       {mapping.sourceColumn}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        mapping.dataType === 'email' ? 'bg-blue-100 text-blue-700' :
-                        mapping.dataType === 'phone' ? 'bg-green-100 text-green-700' :
-                        mapping.dataType === 'date' ? 'bg-purple-100 text-purple-700' :
-                        mapping.dataType === 'number' ? 'bg-orange-100 text-orange-700' :
-                        'bg-gray-100 text-gray-700'
+                        mapping.dataType === 'email' ? 'bg-sky-100 text-sky-700' :
+                        mapping.dataType === 'phone' ? 'bg-emerald-100 text-emerald-700' :
+                        mapping.dataType === 'date' ? 'bg-emerald-100 text-emerald-700' :
+                        mapping.dataType === 'number' ? 'bg-amber-100 text-amber-700' :
+                        'bg-slate-100 text-slate-700'
                       }`}>
                         {mapping.dataType}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-slate-600">
                       {mapping.sampleValues.slice(0, 2).map(v => String(v).substring(0, 20)).join(', ')}
                       {mapping.sampleValues.length > 2 && '...'}
                     </td>
@@ -958,7 +958,7 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
                       <select
                         value={mapping.targetField || ''}
                         onChange={(e) => updateMapping(index, e.target.value as keyof Reservation || null)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm"
                       >
                         <option value="">-- Do Not Import --</option>
                         <option value="customerName">Customer Name</option>
@@ -975,17 +975,17 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
                           <div
                             className={`h-full rounded-full ${
-                              mapping.confidence >= 80 ? 'bg-green-500' :
-                              mapping.confidence >= 60 ? 'bg-yellow-500' :
-                              'bg-red-500'
+                              mapping.confidence >= 80 ? 'bg-emerald-500' :
+                              mapping.confidence >= 60 ? 'bg-amber-500' :
+                              'bg-rose-500'
                             }`}
                             style={{ width: `${mapping.confidence}%` }}
                           />
                         </div>
-                        <span className="text-sm font-medium text-gray-700 w-10 text-right">
+                        <span className="text-sm font-medium text-slate-700 w-10 text-right">
                           {mapping.confidence}%
                         </span>
                       </div>
@@ -1000,14 +1000,14 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
         <div className="flex justify-between">
           <button
             onClick={() => setStep('upload')}
-            className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+            className="px-6 py-3 border-2 border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
           >
             Back
           </button>
           <button
             onClick={validateData}
             disabled={mappedCount === 0}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center space-x-2"
+            className="px-6 py-3 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
           >
             <MagicIcon className="w-5 h-5" />
             <span>Validate Data</span>
@@ -1029,48 +1029,48 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Data Validation Results</h2>
-          <p className="text-gray-600">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Data Validation Results</h2>
+          <p className="text-slate-600">
             Review the validation results before importing
           </p>
         </div>
 
         <div className="grid grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
-            <div className="text-3xl font-bold text-blue-700">{importStats.totalRows}</div>
-            <div className="text-sm text-blue-600 mt-1">Total Rows</div>
+          <div className="p-6 rounded-xl border border-sky-200 bg-slate-50">
+            <div className="text-3xl font-bold text-sky-700">{importStats.totalRows}</div>
+            <div className="text-sm text-sky-600 mt-1">Total Rows</div>
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
-            <div className="text-3xl font-bold text-green-700">{importStats.validRows}</div>
-            <div className="text-sm text-green-600 mt-1">Valid Rows</div>
+          <div className="p-6 rounded-xl border border-emerald-200 bg-slate-50">
+            <div className="text-3xl font-bold text-emerald-700">{importStats.validRows}</div>
+            <div className="text-sm text-emerald-600 mt-1">Valid Rows</div>
           </div>
-          <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-xl border border-red-200">
-            <div className="text-3xl font-bold text-red-700">{importStats.errorRows}</div>
-            <div className="text-sm text-red-600 mt-1">Error Rows</div>
+          <div className="p-6 rounded-xl border border-rose-200 bg-slate-50">
+            <div className="text-3xl font-bold text-rose-700">{importStats.errorRows}</div>
+            <div className="text-sm text-rose-600 mt-1">Error Rows</div>
           </div>
-          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-xl border border-yellow-200">
-            <div className="text-3xl font-bold text-yellow-700">{importStats.warningRows}</div>
-            <div className="text-sm text-yellow-600 mt-1">Warning Rows</div>
+          <div className="p-6 rounded-xl border border-amber-200 bg-slate-50">
+            <div className="text-3xl font-bold text-amber-700">{importStats.warningRows}</div>
+            <div className="text-sm text-amber-600 mt-1">Warning Rows</div>
           </div>
         </div>
 
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
+        <div className="bg-white border-2 border-slate-200 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Data Quality Score</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Data Quality Score</h3>
             <span className={`text-3xl font-bold ${
-              importStats.qualityScore >= 90 ? 'text-green-600' :
-              importStats.qualityScore >= 70 ? 'text-yellow-600' :
-              'text-red-600'
+              importStats.qualityScore >= 90 ? 'text-emerald-600' :
+              importStats.qualityScore >= 70 ? 'text-amber-600' :
+              'text-rose-600'
             }`}>
               {importStats.qualityScore}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+          <div className="w-full bg-slate-200 rounded-full h-4 overflow-hidden">
             <div
               className={`h-full rounded-full ${
-                importStats.qualityScore >= 90 ? 'bg-green-500' :
-                importStats.qualityScore >= 70 ? 'bg-yellow-500' :
-                'bg-red-500'
+                importStats.qualityScore >= 90 ? 'bg-emerald-500' :
+                importStats.qualityScore >= 70 ? 'bg-amber-500' :
+                'bg-rose-500'
               }`}
               style={{ width: `${importStats.qualityScore}%` }}
             />
@@ -1078,41 +1078,41 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
         </div>
 
         {validationErrors.length > 0 && (
-          <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden">
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">
                 Validation Issues ({validationErrors.length})
               </h3>
             </div>
             <div className="max-h-96 overflow-y-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 sticky top-0">
+                <thead className="bg-slate-50 sticky top-0">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Row</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Column</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Value</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Error</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Severity</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Row</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Column</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Value</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Error</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Severity</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-200">
                   {validationErrors.slice(0, 100).map((error, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    <tr key={index} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-sm font-medium text-slate-900">
                         {error.row}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
+                      <td className="px-4 py-3 text-sm text-slate-700">
                         {error.column}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-slate-600">
                         {String(error.value).substring(0, 30)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
+                      <td className="px-4 py-3 text-sm text-slate-700">
                         {error.error}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          error.severity === 'error' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                          error.severity === 'error' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
                         }`}>
                           {error.severity === 'error' ? <AlertIcon className="w-3 h-3 mr-1" /> : null}
                           {error.severity}
@@ -1123,7 +1123,7 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
                 </tbody>
               </table>
               {validationErrors.length > 100 && (
-                <div className="px-4 py-3 text-sm text-gray-600 text-center bg-gray-50">
+                <div className="px-4 py-3 text-sm text-slate-600 text-center bg-slate-50">
                   Showing first 100 of {validationErrors.length} issues
                 </div>
               )}
@@ -1134,7 +1134,7 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
         <div className="flex justify-between">
           <button
             onClick={() => setStep('map')}
-            className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+            className="px-6 py-3 border-2 border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
           >
             Back to Mapping
           </button>
@@ -1142,7 +1142,7 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
             {importStats.validRows > 0 && (
               <button
                 onClick={generatePreview}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center space-x-2"
+                className="px-6 py-3 text-white rounded-lg transition-all flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
               >
                 <span>Preview Import ({importStats.validRows} rows)</span>
               </button>
@@ -1156,48 +1156,48 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
   const renderPreviewStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Import Preview</h2>
-        <p className="text-gray-600">
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Import Preview</h2>
+        <p className="text-slate-600">
           Review the first 10 records before importing
         </p>
       </div>
 
-      <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Customer</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Start Date</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">End Date</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Vehicle</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rate</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Customer</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Email</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Phone</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Start Date</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">End Date</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Vehicle</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Rate</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-200">
               {previewData.map((reservation, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                <tr key={index} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 text-sm font-medium text-slate-900">
                     {reservation.customerName || '-'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-slate-700">
                     {reservation.email || '-'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-slate-700">
                     {reservation.phone || '-'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-slate-700">
                     {reservation.startDate || '-'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-slate-700">
                     {reservation.endDate || '-'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-slate-700">
                     {reservation.vehicleType || '-'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-slate-700">
                     {reservation.dailyRate ? `$${reservation.dailyRate}` : '-'}
                   </td>
                 </tr>
@@ -1207,12 +1207,12 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
         <div className="flex items-start space-x-3">
-          <CheckCircleIcon className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+          <CheckCircleIcon className="w-6 h-6 text-sky-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-semibold text-blue-900 mb-1">Ready to Import</h3>
-            <p className="text-sm text-blue-700">
+            <h3 className="font-semibold text-sky-900 mb-1">Ready to Import</h3>
+            <p className="text-sm text-sky-700">
               {importStats?.validRows} valid rows will be imported. Rows with errors will be skipped.
             </p>
           </div>
@@ -1222,13 +1222,13 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
       <div className="flex justify-between">
         <button
           onClick={() => setStep('validate')}
-          className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+          className="px-6 py-3 border-2 border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
         >
           Back
         </button>
         <button
           onClick={executeImport}
-          className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all flex items-center space-x-2 shadow-lg"
+          className="px-6 py-3 text-white rounded-lg transition-all flex items-center space-x-2 shadow-lg bg-emerald-600 hover:bg-emerald-700"
         >
           <CheckCircleIcon className="w-5 h-5" />
           <span>Import {importStats?.validRows} Reservations</span>
@@ -1239,7 +1239,7 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
 
   const renderImportStep = () => (
     <div className="space-y-6 text-center">
-      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-blue-600 mb-4 animate-pulse">
+      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 animate-pulse bg-slate-900">
         {isProcessing ? (
           <RefreshIcon className="w-10 h-10 text-white animate-spin" />
         ) : (
@@ -1247,11 +1247,11 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
         )}
       </div>
 
-      <h2 className="text-3xl font-bold text-gray-900">
+      <h2 className="text-3xl font-bold text-slate-900">
         {isProcessing ? 'Importing Data...' : 'Import Complete!'}
       </h2>
 
-      <p className="text-gray-600 max-w-md mx-auto">
+      <p className="text-slate-600 max-w-md mx-auto">
         {isProcessing
           ? 'Please wait while we import your reservations into the system.'
           : `Successfully imported ${importStats?.validRows} reservations.`}
@@ -1259,13 +1259,13 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
 
       {isProcessing && (
         <div className="space-y-3 max-w-md mx-auto">
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center justify-between text-sm text-slate-600">
             <span>Progress</span>
             <span>{progress}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-green-500 to-blue-600 transition-all duration-300 rounded-full"
+              className="h-full transition-all duration-300 rounded-full bg-slate-900"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -1287,13 +1287,13 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
               setImportStats(null);
               setPreviewData([]);
             }}
-            className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+            className="px-6 py-3 border-2 border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
           >
             Import Another File
           </button>
           <button
             onClick={onClose}
-            className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all"
+            className="px-6 py-3 text-white rounded-lg transition-all bg-emerald-600 hover:bg-emerald-700"
           >
             Done
           </button>
@@ -1309,12 +1309,12 @@ const ProfessionalUniversalExcelImport: React.FC<ProfessionalUniversalExcelImpor
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 px-6 py-4 flex items-center justify-between z-10 bg-slate-900">
           <div className="flex items-center space-x-3">
             <MagicIcon className="w-6 h-6 text-white" />
             <h1 className="text-xl font-bold text-white">Universal Excel Import</h1>
             {step !== 'upload' && (
-              <span className="text-sm text-blue-100">
+              <span className="text-sm text-sky-100">
                 Step {
                   step === 'sheet-select' ? '2' :
                   step === 'map' ? '3' :

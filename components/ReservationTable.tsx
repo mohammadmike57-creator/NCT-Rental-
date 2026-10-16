@@ -27,7 +27,8 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   EditIcon,
-  ShieldExclamationIcon
+  ShieldExclamationIcon,
+  TrashIcon
 } from './icons';
 
 // Modal component (with animation)
@@ -59,11 +60,11 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
           aria-hidden="true"
         ></div>
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div className={`inline-block align-bottom bg-white rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full ${animationClass}`}>
+        <div className={`inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full ${animationClass}`}>
           <div className="bg-white">
-            <div className="flex justify-between items-center px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+            <div className="flex justify-between items-center px-8 py-6 border-b border-slate-100 bg-slate-50">
               <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight" id="modal-title">{title}</h3>
+                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight" id="modal-title">{title}</h3>
                 <p className="text-xs text-slate-500 font-medium mt-1">Please fill in the details below</p>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors group">
@@ -472,11 +473,11 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   };
   const getStatusColor = (status: ReservationStatus) => {
     switch(status) {
-      case ReservationStatus.CONFIRMED: return 'bg-green-100 text-green-800';
-      case ReservationStatus.COMPLETED: return 'bg-blue-100 text-blue-800';
-      case ReservationStatus.CANCELLED: return 'bg-red-100 text-red-800';
-      case 'NO_SHOW': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case ReservationStatus.CONFIRMED: return 'bg-emerald-100 text-emerald-800';
+      case ReservationStatus.COMPLETED: return 'bg-sky-100 text-sky-800';
+      case ReservationStatus.CANCELLED: return 'bg-rose-100 text-rose-800';
+      case 'NO_SHOW': return 'bg-amber-100 text-amber-800';
+      default: return 'bg-slate-100 text-slate-800';
     }
   };
 
@@ -487,36 +488,28 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   return (
     <>
-      <div className="bg-white rounded-[3rem] shadow-xl border border-slate-200 overflow-hidden mb-12">
-        <div className="p-10 bg-white border-b border-slate-100">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-10">
-            <h2 className="text-4xl font-black text-slate-900 tracking-tighter">
-              {isAgreementView ? (
-                <span className="flex items-center gap-6">
-                  <div className="p-5 bg-indigo-50 rounded-[2rem] shadow-lg shadow-indigo-100 border border-indigo-100">
-                    <DocumentReportIcon className="w-10 h-10 text-indigo-600" />
-                  </div>
-                  Agreement • {selectedMonth} {selectedYear}
-                </span>
-              ) : (
-                <span className="flex items-center gap-6">
-                   <div className="p-5 bg-emerald-50 rounded-[2rem] shadow-lg shadow-emerald-100 border border-emerald-100">
-                    <CalendarIcon className="w-10 h-10 text-emerald-600" />
-                  </div>
-                  {selectedMonth} {selectedYear}
-                </span>
-              )}
-            </h2>
-            
-            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-4 w-full lg:w-auto">
-              <div className="relative flex-1 sm:flex-none sm:min-w-[320px]">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+        <div className="px-5 py-4 bg-white border-b border-slate-100">
+          <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                {isAgreementView ? <DocumentReportIcon className="w-5 h-5" /> : <CalendarIcon className="w-5 h-5" />}
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold text-slate-900 truncate">{isAgreementView ? 'Agreements' : 'Reservations'} · {selectedMonth} {selectedYear}</h2>
+                <p className="text-sm text-slate-500">{filteredReservations.length} booking{filteredReservations.length === 1 ? '' : 's'} shown</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center lg:justify-end gap-2 w-full lg:w-auto">
+              <div className="relative flex-1 sm:flex-none sm:min-w-[280px]">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search by ID or name..."
                   value={localBookingIdSearch}
                   onChange={handleSearchChange}
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm font-medium text-slate-700"
+                  className="w-full h-9 pl-9 pr-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none text-sm text-slate-700"
                 />
               </div>
 
@@ -525,7 +518,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   <select
                     value={getAgreementStatusFilter()}
                     onChange={handleAgreementStatusFilterChange}
-                    className="pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm font-bold text-slate-700 appearance-none cursor-pointer"
+                    className="h-9 pl-3 pr-9 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none text-sm text-slate-700 appearance-none cursor-pointer"
                   >
                     <option value="all">All Statuses</option>
                     <option value="pending">Pending</option>
@@ -533,7 +526,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     <option value="closed">Closed</option>
                     <option value="submitted">Submitted</option>
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                     <ChevronDownIcon className="w-4 h-4" />
                   </div>
                 </div>
@@ -543,18 +536,18 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <button
                   onClick={handleExportCSV}
                   disabled={filteredReservations.length === 0}
-                  className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 group hover:border-indigo-200"
+                  className="h-9 w-9 inline-flex items-center justify-center bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-50 group"
                   title="Export to CSV"
                 >
-                  <ExportIcon className="w-5 h-5 group-hover:text-indigo-600 transition-colors" />
+                  <ExportIcon className="w-4 h-4 group-hover:text-slate-900" />
                 </button>
                 <button
                   onClick={handleExportExcel}
                   disabled={filteredReservations.length === 0}
-                  className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 group hover:border-emerald-200"
+                  className="h-9 w-9 inline-flex items-center justify-center bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-50 group"
                   title="Export to Excel"
                 >
-                  <PdfIcon className="w-5 h-5 group-hover:text-emerald-600 transition-colors" />
+                  <PdfIcon className="w-4 h-4 group-hover:text-slate-900" />
                 </button>
               </div>
 
@@ -562,26 +555,26 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <button
                   onClick={() => onDeleteMonth(selectedYear, selectedMonth)}
                   disabled={allDisplayReservations.length === 0}
-                  className="p-3.5 bg-white border border-rose-100 text-rose-500 rounded-2xl hover:bg-rose-50 transition-all shadow-sm disabled:opacity-50 group"
+                  className="h-9 w-9 inline-flex items-center justify-center bg-white border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-50 disabled:opacity-50"
                   title={`Delete all reservations for ${selectedMonth} ${selectedYear}`}
                 >
-                  <CloseIcon className="w-5 h-5" />
+                  <TrashIcon className="w-4 h-4" />
                 </button>
               )}
 
               <button
                 onClick={openAddModal}
-                className="px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:shadow-xl hover:shadow-indigo-200 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-3 shadow-lg shadow-indigo-100"
+                className="h-9 px-3.5 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700"
               >
-                <PlusCircleIcon className="w-5 h-5" />
-                <span>New Reservation</span>
+                <PlusCircleIcon className="w-4 h-4" />
+                <span>New reservation</span>
               </button>
             </div>
           </div>
         </div>
 
         {filteredReservations.length === 0 && (
-          <div className="p-8 text-center text-gray-500">No reservations match your search.</div>
+          <div className="p-8 text-center text-slate-500">No reservations match your search.</div>
         )}
 
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
@@ -597,14 +590,14 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             return (
               <div
                 key={res.id}
-                className={`group relative bg-white rounded-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col h-full overflow-hidden border ${
-                  isDuplicate ? 'border-red-300 ring-2 ring-red-50' : 'border-slate-200 shadow-md'
-                } hover:shadow-xl hover:shadow-indigo-100/40`}
+                className={`group relative bg-white rounded-xl transition-shadow hover:shadow-md flex flex-col h-full overflow-hidden border ${
+                  isDuplicate ? 'border-rose-300 ring-2 ring-rose-50' : 'border-slate-200'
+                } shadow-sm`}
               >
                 {/* Status-based Accent line */}
                 <div className={`h-2 w-full ${
                   res.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500' :
-                  res.status === ReservationStatus.COMPLETED ? 'bg-indigo-500' :
+                  res.status === ReservationStatus.COMPLETED ? 'bg-slate-400' :
                   res.status === ReservationStatus.CANCELLED ? 'bg-rose-500' :
                   'bg-amber-500'
                 }`} />
@@ -620,26 +613,26 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   <div className="flex justify-between items-start mb-5">
                     <div className="flex-1 min-w-0">
                       <h3 
-                        className="text-xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight leading-tight mb-1" 
+                        className="text-xl font-semibold text-slate-900 truncate cursor-pointer hover:text-emerald-600 transition-colors tracking-tight leading-tight mb-1" 
                         title={res.personName}
                         onClick={() => setDetailsModalReservation(res)}
                       >
                         {res.personName}
                       </h3>
                       <div className="flex items-center gap-3 flex-wrap">
-                        <span className="flex items-center text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
+                        <span className="flex items-center text-[11px] text-slate-500 font-semibold uppercase tracking-wide bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
                            <HashtagIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
                            {res.bookingId || 'NO-ID'}
                         </span>
                         {res.source && (
-                          <span className="flex items-center text-[11px] text-indigo-600 font-black uppercase tracking-[0.2em] bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-100">
+                          <span className="flex items-center text-[11px] text-emerald-600 font-semibold uppercase tracking-wide bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100">
                              <GlobeAltIcon className="w-3.5 h-3.5 mr-1.5" />
                              {getSourceName(res.source)}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm backdrop-blur-sm transition-all duration-500 group-hover:scale-105 ${statusColor}`}>
+                    <div className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold uppercase tracking-wider border shadow-sm backdrop-blur-sm transition-all duration-500  ${statusColor}`}>
                       {res.status}
                     </div>
                   </div>
@@ -647,17 +640,17 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   {/* Badges row */}
                   <div className="flex gap-2 mb-5 flex-wrap">
                     {voucherSubmitted && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-lg shadow-emerald-200/40 border border-emerald-400">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-emerald-500 text-white shadow-sm border border-emerald-400">
                         <CheckCircleIcon className="w-3.5 h-3.5" /> Agreement Signed
                       </span>
                     )}
                     {dropOffCompleted && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-lg shadow-slate-300 border border-slate-700">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-slate-900 text-white shadow-sm border border-slate-700">
                         <CheckCircleIcon className="w-3.5 h-3.5" /> Closed Case
                       </span>
                     )}
                     {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-200/40 border border-amber-300">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider text-white shadow-sm border border-amber-300 bg-slate-900">
                         <ShieldExclamationIcon className="w-3.5 h-3.5" /> Action Required
                       </span>
                     )}
@@ -666,58 +659,58 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   <div className="space-y-4">
                     {/* Vehicle & Contact Section */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
-                        <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-600">
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-emerald-100 group-hover:shadow-md transition-all duration-500">
+                        <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-emerald-600">
                            <CarIcon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Vehicle Type</p>
-                          <p className="text-sm font-black text-slate-800 truncate">{res.carModel || '—'}</p>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Vehicle Type</p>
+                          <p className="text-sm font-semibold text-slate-800 truncate">{res.carModel || '—'}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-emerald-100 group-hover:shadow-md transition-all duration-500">
                         <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-emerald-600">
                            <PhoneIcon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Contact Info</p>
-                          <p className="text-sm font-black text-slate-800 truncate">{res.contactNumber || '—'}</p>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Contact Info</p>
+                          <p className="text-sm font-semibold text-slate-800 truncate">{res.contactNumber || '—'}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Timeline-style Dates & Location */}
-                    <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-300/50 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-500">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full blur-[40px] -mr-16 -mt-16" />
+                    <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-sm relative overflow-hidden group-hover:bg-emerald-950 transition-all duration-500">
+                      <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[40px] -mr-16 -mt-16" />
                       
                       <div className="flex items-center gap-3 mb-5 relative z-10">
                         <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/5">
                           {res.locationName?.includes('Airport') || res.locationName?.includes('AMM') ? (
                             <AirplaneIcon className="w-4 h-4 text-sky-300" />
                           ) : (
-                            <MapPinIcon className="w-4 h-4 text-indigo-300" />
+                            <MapPinIcon className="w-4 h-4 text-emerald-300" />
                           )}
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-slate-100 truncate">{res.locationName || 'Location N/A'}</span>
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-100 truncate">{res.locationName || 'Location N/A'}</span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-6 relative z-10">
                         <div className="relative pl-4 border-l-2 border-emerald-500/40">
-                          <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <p className="text-[11px] text-emerald-400 font-bold uppercase tracking-wide mb-2 flex items-center gap-1.5">
                              Pickup
                           </p>
                           <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold tracking-tight">{formatDateOnly(res.startDate)}</p>
+                            <p className="text-[11px] font-bold tracking-tight">{formatDateOnly(res.startDate)}</p>
                             <p className="text-sm font-light text-emerald-50/70">{res.startDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
                           </div>
                         </div>
                         <div className="relative pl-4 border-l-2 border-rose-500/40">
-                          <p className="text-[9px] text-rose-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <p className="text-[11px] text-rose-400 font-bold uppercase tracking-wide mb-2 flex items-center gap-1.5">
                              Return
                           </p>
                           <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold tracking-tight">{formatDateOnly(res.endDate)}</p>
+                            <p className="text-[11px] font-bold tracking-tight">{formatDateOnly(res.endDate)}</p>
                             <p className="text-sm font-light text-rose-50/70">{res.endDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
                           </div>
                         </div>
@@ -730,28 +723,28 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <div className="px-6 py-5 bg-slate-50 border-t border-slate-200 flex flex-col gap-4">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                       <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-700">
+                       <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-emerald-700">
                           <CurrencyDollarIcon className="w-5 h-5" />
                        </div>
                        <div>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Total Amount</p>
-                          <p className="text-2xl font-black text-slate-900 tracking-tight">${res.amount?.toFixed(2)}</p>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Total Amount</p>
+                          <p className="text-2xl font-semibold text-slate-900 tracking-tight">${res.amount?.toFixed(2)}</p>
                        </div>
                     </div>
                     
                     <div className="flex gap-2">
                       {canViewVoucherActions && (
-                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Rental Agreement">
+                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200" title="Rental Agreement">
                           <DocumentReportIcon className="w-5 h-5" />
                         </button>
                       )}
                       {canViewVoucherActions && (
-                        <button onClick={() => onShowReceipt(res)} className="p-2.5 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Receipt">
+                        <button onClick={() => onShowReceipt(res)} className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200" title="Receipt">
                           <CurrencyDollarIcon className="w-5 h-5" />
                         </button>
                       )}
                       {!dropOffCompleted && res.status === ReservationStatus.CONFIRMED && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND) && (
-                        <button onClick={() => onExtend(res)} className="p-2.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Extend Rental">
+                        <button onClick={() => onExtend(res)} className="p-2.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200" title="Extend Rental">
                           <ClockIcon className="w-5 h-5" />
                         </button>
                       )}
@@ -759,7 +752,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   </div>
 
                   {res.notes && (
-                    <div className="text-[10px] text-slate-500 italic bg-white/50 p-2 rounded-xl border border-slate-100 truncate" title={res.notes}>
+                    <div className="text-[11px] text-slate-500 italic bg-white/50 p-2 rounded-xl border border-slate-100 truncate" title={res.notes}>
                       <span className="font-bold not-italic mr-1">Notes:</span> {res.notes}
                     </div>
                   )}
@@ -768,7 +761,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && (
                       <button 
                         onClick={() => openEditModal(res)} 
-                        className="flex-1 py-2.5 px-4 rounded-2xl border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                        className="flex-1 py-2.5 px-4 rounded-2xl border border-slate-200 bg-white text-[11px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all flex items-center justify-center gap-2 shadow-sm"
                       >
                         <EditIcon className="w-3.5 h-3.5" />
                         Edit
@@ -777,7 +770,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     {canUpgrade && (
                       <button 
                         onClick={() => openUpgradeModal(res)} 
-                        className="flex-1 py-2.5 px-4 rounded-2xl border border-orange-100 bg-orange-50 text-[10px] font-black uppercase tracking-widest text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                        className="flex-1 py-2.5 px-4 rounded-2xl border border-amber-100 bg-amber-50 text-[11px] font-semibold uppercase tracking-wide text-amber-600 hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all flex items-center justify-center gap-2 shadow-sm"
                       >
                         <CarIcon className="w-3.5 h-3.5" />
                         Upgrade
@@ -785,12 +778,12 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     )}
                     <div className="flex gap-1.5 ml-1">
                       {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && (
-                        <button onClick={() => onShare(res)} className="p-2.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all border border-transparent hover:border-indigo-100 active:scale-95" title="Share">
+                        <button onClick={() => onShare(res)} className="p-2.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-2xl transition-all border border-transparent hover:border-emerald-100" title="Share">
                           <ShareIcon className="w-5 h-5" />
                         </button>
                       )}
                       {!voucherSubmitted && !dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
-                        <button onClick={() => onDelete(res.id, isNew, reservationYear, reservationMonth)} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all border border-transparent hover:border-rose-100 active:scale-95" title="Delete">
+                        <button onClick={() => onDelete(res.id, isNew, reservationYear, reservationMonth)} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all border border-transparent hover:border-rose-100" title="Delete">
                           <CloseIcon className="w-5 h-5" />
                         </button>
                       )}
@@ -807,7 +800,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         {detailsModalReservation && (
           <div className="space-y-6 text-sm">
             {/* Professional High-End Header */}
-            <div className="bg-gradient-to-br from-[#004d40] via-[#00695c] to-[#00796b] -mx-6 -mt-5 px-6 py-8 text-white relative overflow-hidden shadow-xl">
+            <div className="-mx-6 -mt-5 px-6 py-8 text-white relative overflow-hidden shadow-xl bg-slate-900">
               <div className="absolute top-0 right-0 w-64 h-64 -mr-16 -mt-16 bg-white/5 rounded-full blur-[80px]"></div>
               
               <div className="relative flex justify-between items-start">
@@ -816,7 +809,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     <UserIcon className="w-8 h-8 text-emerald-300" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight drop-shadow-md bg-clip-text text-transparent bg-gradient-to-b from-white to-emerald-100">{detailsModalReservation.personName}</h2>
+                    <h2 className="text-2xl font-semibold tracking-tight text-white">{detailsModalReservation.personName}</h2>
                     <div className="flex items-center text-emerald-100/70 mt-2 bg-white/5 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10 w-fit">
                       <PhoneIcon className="w-3.5 h-3.5 mr-2 text-emerald-400" />
                       <span className="text-xs font-bold tracking-wide">{detailsModalReservation.contactNumber || 'No contact provided'}</span>
@@ -824,10 +817,10 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-3">
-                  <span className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full backdrop-blur-lg border shadow-md ${
+                  <span className={`px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide rounded-full backdrop-blur-lg border shadow-md ${
                     detailsModalReservation.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/40' :
-                    detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-blue-500/30 text-blue-300 border-blue-500/40' :
-                    detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-red-500/30 text-red-300 border-red-500/40' :
+                    detailsModalReservation.status === ReservationStatus.COMPLETED ? 'bg-sky-500/30 text-sky-300 border-sky-500/40' :
+                    detailsModalReservation.status === ReservationStatus.CANCELLED ? 'bg-rose-500/30 text-rose-300 border-rose-500/40' :
                     'bg-amber-500/30 text-amber-300 border-amber-500/40'
                   }`}>
                     {detailsModalReservation.status}
@@ -835,7 +828,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
                     <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 shadow-sm group cursor-help">
                       <AirplaneIcon className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[9px] font-bold uppercase tracking-tight">VIP Airport</span>
+                      <span className="text-[11px] font-bold uppercase tracking-tight">VIP Airport</span>
                     </div>
                   )}
                 </div>
@@ -846,41 +839,41 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               {/* Customer & Vehicle Information */}
               <div className="space-y-6">
                 <section>
-                  <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center">
+                  <h4 className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide mb-3 flex items-center">
                     <IdentificationIcon className="w-3.5 h-3.5 mr-1.5" />
                     Reservation Identity
                   </h4>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden text-xs">
-                    <div className="p-3 flex justify-between items-center border-b border-gray-50">
-                      <span className="text-gray-400 font-medium">Booking ID</span>
-                      <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-0.5 rounded">{detailsModalReservation.bookingId}</span>
+                  <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden text-xs">
+                    <div className="p-3 flex justify-between items-center border-b border-slate-50">
+                      <span className="text-slate-400 font-medium">Booking ID</span>
+                      <span className="font-mono font-bold text-slate-900 bg-slate-50 px-2 py-0.5 rounded">{detailsModalReservation.bookingId}</span>
                     </div>
-                    <div className="p-4 flex justify-between items-center border-b border-gray-50">
-                      <span className="text-gray-400 font-medium">Platform</span>
-                      <div className="flex items-center font-bold text-indigo-700">
+                    <div className="p-4 flex justify-between items-center border-b border-slate-50">
+                      <span className="text-slate-400 font-medium">Platform</span>
+                      <div className="flex items-center font-bold text-emerald-700">
                         <GlobeAltIcon className="w-4 h-4 mr-2" />
                         {getSourceName(detailsModalReservation.source || '')}
                       </div>
                     </div>
                     <div className="p-4 flex justify-between items-center">
-                      <span className="text-gray-400 font-medium">Created On</span>
-                      <span className="font-semibold text-gray-700">{formatDateOnly(detailsModalReservation.bookingDate || detailsModalReservation.startDate)}</span>
+                      <span className="text-slate-400 font-medium">Created On</span>
+                      <span className="font-semibold text-slate-700">{formatDateOnly(detailsModalReservation.bookingDate || detailsModalReservation.startDate)}</span>
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center">
+                  <h4 className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide mb-3 flex items-center">
                     <CarIcon className="w-3.5 h-3.5 mr-1.5" />
                     Vehicle Selection
                   </h4>
-                  <div className="bg-indigo-50/30 rounded-xl border border-indigo-100 p-4 flex items-center gap-4 text-xs">
-                    <div className="bg-white p-2 rounded-lg shadow-sm border border-indigo-50">
-                      <CarIcon className="w-6 h-6 text-indigo-600" />
+                  <div className="bg-emerald-50/30 rounded-xl border border-emerald-100 p-4 flex items-center gap-4 text-xs">
+                    <div className="bg-white p-2 rounded-lg shadow-sm border border-emerald-50">
+                      <CarIcon className="w-6 h-6 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider">Assigned Model</p>
-                      <p className="text-base font-black text-gray-900 leading-tight mt-0.5">{detailsModalReservation.carModel}</p>
+                      <p className="text-[11px] text-emerald-400 font-bold uppercase tracking-wider">Assigned Model</p>
+                      <p className="text-base font-semibold text-slate-900 leading-tight mt-0.5">{detailsModalReservation.carModel}</p>
                     </div>
                   </div>
                 </section>
@@ -889,58 +882,58 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               {/* Schedule & Location */}
               <div className="space-y-6">
                 <section>
-                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                  <h4 className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide mb-4 flex items-center">
                     <ClockIcon className="w-4 h-4 mr-2" />
                     Itinerary Details
                   </h4>
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-5">
                     <div className="flex items-start gap-4">
-                      <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+                      <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
                         {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) ? <AirplaneIcon className="w-5 h-5" /> : <MapPinIcon className="w-5 h-5" />}
                       </div>
                       <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Service Location</p>
-                        <p className="text-sm font-bold text-gray-900">{detailsModalReservation.locationName || 'Main Office'}</p>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Service Location</p>
+                        <p className="text-sm font-bold text-slate-900">{detailsModalReservation.locationName || 'Main Office'}</p>
                         {(detailsModalReservation.locationName?.includes('Airport') || detailsModalReservation.locationName?.includes('AMM')) && (
-                          <span className="mt-1 inline-flex text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-blue-100">Premium Airport Hub</span>
+                          <span className="mt-1 inline-flex text-[11px] font-semibold text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded uppercase tracking-wide border border-sky-100">Premium Airport Hub</span>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
                       <div>
-                        <div className="flex items-center gap-1.5 mb-1.5 text-indigo-500">
+                        <div className="flex items-center gap-1.5 mb-1.5 text-emerald-500">
                           <AirplaneLandingIcon className="w-4 h-4" />
-                          <span className="text-[9px] font-black uppercase tracking-widest">Pickup</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-wide">Pickup</span>
                         </div>
-                        <p className="text-xs font-bold text-gray-900">{formatDate(detailsModalReservation.startDate)}</p>
+                        <p className="text-xs font-bold text-slate-900">{formatDate(detailsModalReservation.startDate)}</p>
                       </div>
                       <div>
-                        <div className="flex items-center gap-1.5 mb-1.5 text-indigo-500">
+                        <div className="flex items-center gap-1.5 mb-1.5 text-emerald-500">
                           <AirplaneTakeoffIcon className="w-4 h-4" />
-                          <span className="text-[9px] font-black uppercase tracking-widest">Drop-off</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-wide">Drop-off</span>
                         </div>
-                        <p className="text-xs font-bold text-gray-900">{formatDate(detailsModalReservation.endDate)}</p>
+                        <p className="text-xs font-bold text-slate-900">{formatDate(detailsModalReservation.endDate)}</p>
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Duration</span>
-                      <span className="text-sm font-black text-indigo-600">{getDuration(detailsModalReservation.startDate, detailsModalReservation.endDate)} DAYS</span>
+                    <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Duration</span>
+                      <span className="text-sm font-semibold text-emerald-600">{getDuration(detailsModalReservation.startDate, detailsModalReservation.endDate)} DAYS</span>
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                  <h4 className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide mb-4 flex items-center">
                     <CurrencyDollarIcon className="w-4 h-4 mr-2" />
                     Financial Overview
                   </h4>
-                  <div className="bg-gradient-to-br from-green-500 to-emerald-700 rounded-2xl p-6 text-white shadow-lg shadow-emerald-200/50">
+                  <div className="rounded-2xl p-6 text-white shadow-sm bg-slate-900">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest mb-1">Estimated Total</p>
-                        <p className="text-3xl font-black tracking-tighter">${detailsModalReservation.amount?.toFixed(2)}</p>
+                        <p className="text-[11px] font-bold text-emerald-100 uppercase tracking-wide mb-1">Estimated Total</p>
+                        <p className="text-3xl font-semibold tracking-wide">${detailsModalReservation.amount?.toFixed(2)}</p>
                       </div>
                       <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm border border-white/20">
                         <CheckCircleIcon className="w-5 h-5 text-white" />
@@ -954,7 +947,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             {/* Extras Section */}
             {detailsModalReservation.selectedExtras && detailsModalReservation.selectedExtras.length > 0 && (
               <div className="px-2">
-                <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-[0.15em] mb-4 flex items-center">
+                <h4 className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide mb-4 flex items-center">
                   <PlusCircleIcon className="w-4 h-4 mr-2" />
                   Additional Services
                 </h4>
@@ -962,7 +955,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   {detailsModalReservation.selectedExtras.map((extraId, idx) => {
                     const extra = availableExtras.find(e => e.id === extraId);
                     return (
-                      <span key={idx} className="bg-white px-4 py-2 rounded-xl border border-gray-100 text-xs font-bold text-gray-700 shadow-sm hover:shadow-md transition-shadow">
+                      <span key={idx} className="bg-white px-4 py-2 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 shadow-sm hover:shadow-md transition-shadow">
                         {extra ? extra.name : extraId}
                       </span>
                     );
@@ -978,7 +971,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   <div className="absolute top-0 right-0 p-2 text-amber-100 rotate-12">
                     <DocumentReportIcon className="w-12 h-12" />
                   </div>
-                  <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-[0.15em] mb-3 flex items-center">
+                  <h4 className="text-[11px] font-semibold text-amber-600 uppercase tracking-wide mb-3 flex items-center">
                     <DocumentReportIcon className="w-4 h-4 mr-2" />
                     Reservation Notes
                   </h4>
@@ -1000,13 +993,13 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           <div className="flex gap-3 w-full sm:w-auto">
             <button 
               onClick={() => setIsModalOpen(false)} 
-              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all active:scale-95"
+              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
             >
               Cancel
             </button>
             <button 
               onClick={handleSave} 
-              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all hover:-translate-y-0.5 active:scale-95"
+              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl text-white font-bold text-sm shadow-sm transition-all bg-emerald-600 hover:bg-emerald-700"
             >
               {modalMode === 'add' ? 'Create Reservation' : 'Save Changes'}
             </button>
@@ -1017,21 +1010,21 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           {/* Section: Customer Information */}
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <UserIcon className="w-4 h-4 text-indigo-600" />
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <UserIcon className="w-4 h-4 text-emerald-600" />
               </div>
-              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Customer Information</h4>
+              <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Customer Information</h4>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Renter Name <span className="text-rose-500">*</span></label>
                 <div className="relative group">
-                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                   <input 
                     type="text" 
                     value={formData.personName || ''} 
                     onChange={(e) => handleChange('personName', e.target.value)} 
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-medium text-slate-700"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
                     placeholder="John Doe"
                   />
                 </div>
@@ -1039,12 +1032,12 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Contact Number</label>
                 <div className="relative group">
-                  <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                   <input 
                     type="text" 
                     value={formData.contactNumber || ''} 
                     onChange={(e) => handleChange('contactNumber', e.target.value)} 
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-medium text-slate-700"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
                     placeholder="+1 234 567 890"
                   />
                 </div>
@@ -1058,7 +1051,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               <div className="p-2 bg-amber-50 rounded-lg">
                 <HashtagIcon className="w-4 h-4 text-amber-600" />
               </div>
-              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Booking Details</h4>
+              <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Booking Details</h4>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               <div className="space-y-1.5">
@@ -1109,7 +1102,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               <div className="p-2 bg-emerald-50 rounded-lg">
                 <CarIcon className="w-4 h-4 text-emerald-600" />
               </div>
-              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Vehicle & Logistics</h4>
+              <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Vehicle & Logistics</h4>
             </div>
             <div className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -1177,7 +1170,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <div className="p-2 bg-rose-50 rounded-lg">
                   <CurrencyDollarIcon className="w-4 h-4 text-rose-600" />
                 </div>
-                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Financials & Status</h4>
+                <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Financials & Status</h4>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -1219,25 +1212,25 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-indigo-50 rounded-lg">
-                  <PlusCircleIcon className="w-4 h-4 text-indigo-600" />
+                <div className="p-2 bg-emerald-50 rounded-lg">
+                  <PlusCircleIcon className="w-4 h-4 text-emerald-600" />
                 </div>
-                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Additional Services</h4>
+                <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Additional Services</h4>
               </div>
-              <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar">
+              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar">
                 {availableExtras.map(extra => (
                   <label 
                     key={extra.id} 
                     className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
                       (formData.selectedExtras || []).includes(extra.id) 
-                        ? 'bg-white border-indigo-200 shadow-sm' 
+                        ? 'bg-white border-emerald-200 shadow-sm' 
                         : 'bg-transparent border-transparent hover:bg-white/50'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
                         (formData.selectedExtras || []).includes(extra.id) 
-                          ? 'bg-indigo-600 border-indigo-600' 
+                          ? 'bg-emerald-600 border-emerald-600' 
                           : 'bg-white border-slate-200'
                       }`}>
                         {(formData.selectedExtras || []).includes(extra.id) && <CheckCircleIcon className="w-3.5 h-3.5 text-white" />}
@@ -1248,7 +1241,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                         {extra.name}
                       </span>
                     </div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-lg">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-lg">
                       ${extra.pricePerDay}/day
                     </span>
                     <input 
@@ -1264,14 +1257,14 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           </section>
 
           {/* Price Summary Card */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden">
+          <div className="rounded-2xl p-8 text-white shadow-xl relative overflow-hidden bg-slate-900">
             <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
               <CurrencyDollarIcon className="w-24 h-24" />
             </div>
             <div className="flex flex-col sm:flex-row justify-between items-center gap-6 relative z-10">
               <div className="flex items-center gap-6">
                 <div className="text-center sm:text-left">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Duration</p>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Total Duration</p>
                   <div className="flex items-center justify-center sm:justify-start gap-2">
                     <ClockIcon className="w-4 h-4 text-emerald-400" />
                     <span className="text-xl font-bold">{durationDays.toFixed(1)} <span className="text-sm font-medium text-slate-400">Days</span></span>
@@ -1279,13 +1272,13 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 </div>
                 <div className="w-px h-10 bg-slate-700 hidden sm:block"></div>
                 <div className="text-center sm:text-left">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Base Amount</p>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Base Amount</p>
                   <p className="text-xl font-bold">${formData.amount?.toFixed(2)}</p>
                 </div>
               </div>
               <div className="text-center sm:text-right">
-                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Estimated Total</p>
-                <p className="text-5xl font-black tracking-tighter">${calculatedTotal.toFixed(2)}</p>
+                <p className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wide mb-2">Estimated Total</p>
+                <p className="text-5xl font-semibold tracking-wide">${calculatedTotal.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -1307,7 +1300,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             <button 
               onClick={handleUpgradeSave} 
               disabled={!selectedCarId}
-              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm shadow-lg shadow-orange-200 hover:shadow-orange-300 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
+              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl text-white font-bold text-sm shadow-sm transition-all disabled:opacity-50 disabled:translate-y-0 bg-emerald-600 hover:bg-emerald-700"
             >
               Confirm Upgrade
             </button>
@@ -1316,14 +1309,14 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       >
         {upgradeReservation && (
           <div className="space-y-6">
-            <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100 flex items-start gap-4">
+            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex items-start gap-4">
               <div className="p-2 bg-white rounded-xl shadow-sm">
-                <CarIcon className="w-5 h-5 text-orange-600" />
+                <CarIcon className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">Current Vehicle</p>
-                <p className="text-sm font-bold text-orange-900">{upgradeReservation.carModel}</p>
-                <p className="text-xs text-orange-700 font-medium">Renter: {upgradeReservation.personName}</p>
+                <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-wide mb-1">Current Vehicle</p>
+                <p className="text-sm font-bold text-amber-900">{upgradeReservation.carModel}</p>
+                <p className="text-xs text-amber-700 font-medium">Renter: {upgradeReservation.personName}</p>
               </div>
             </div>
 
@@ -1331,11 +1324,11 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Select New Vehicle</label>
                 <div className="relative group">
-                  <CarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                  <CarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
                   <select 
                     value={selectedCarId} 
                     onChange={(e) => setSelectedCarId(e.target.value)} 
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all outline-none font-medium text-slate-700 appearance-none"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-medium text-slate-700 appearance-none"
                   >
                     <option value="">Choose a car from fleet</option>
                     {fleet.map(car => (
@@ -1348,7 +1341,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-                    useCustomRate ? 'bg-orange-600 border-orange-600' : 'bg-white border-slate-200'
+                    useCustomRate ? 'bg-amber-600 border-amber-600' : 'bg-white border-slate-200'
                   }`}>
                     {useCustomRate && <CheckCircleIcon className="w-3.5 h-3.5 text-white" />}
                   </div>
@@ -1365,12 +1358,12 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   <div className="space-y-1.5 animate-modal-enter">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Custom Daily Rate ($)</label>
                     <div className="relative">
-                      <CurrencyDollarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500" />
+                      <CurrencyDollarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
                       <input 
                         type="number" 
                         value={customRate || ''} 
                         onChange={(e) => setCustomRate(parseFloat(e.target.value) || 0)} 
-                        className="w-full pl-11 pr-4 py-3 bg-white border border-orange-100 rounded-xl focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all outline-none font-bold text-slate-700"
+                        className="w-full pl-11 pr-4 py-3 bg-white border border-amber-100 rounded-xl focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-bold text-slate-700"
                         placeholder="0.00"
                         min="0" 
                         step="0.01" 

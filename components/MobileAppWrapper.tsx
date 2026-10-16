@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname } from '../utils/navigation';
 import MobileNavigation from './MobileNavigation';
 import PWAInstallPrompt from './PWAInstallPrompt';
 import { registerServiceWorker } from '../utils/pwaRegister';
@@ -83,7 +83,7 @@ export default function MobileAppWrapper({ children, currentUser }: MobileAppWra
   };
 
   return (
-    <div className="mobile-app-wrapper min-h-screen bg-gray-50">
+    <div className="mobile-app-wrapper min-h-screen bg-slate-50">
       {/* Mobile Navigation */}
       {deviceInfo.isMobile && <MobileNavigation currentUser={currentUser} />}
 
@@ -98,17 +98,17 @@ export default function MobileAppWrapper({ children, currentUser }: MobileAppWra
       {/* Update Notification */}
       {showUpdateNotification && (
         <div className="fixed top-20 left-4 right-4 z-50 animate-slide-down">
-          <div className="bg-blue-600 text-white rounded-lg shadow-lg p-4">
+          <div className="bg-sky-600 text-white rounded-lg shadow-lg p-4">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h3 className="text-sm font-semibold mb-1">Update Available</h3>
-                <p className="text-xs text-blue-100">
+                <p className="text-xs text-sky-100">
                   A new version is ready. Refresh to update.
                 </p>
               </div>
               <button
                 onClick={() => setShowUpdateNotification(false)}
-                className="ml-3 p-1 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                className="ml-3 p-1 text-white hover:bg-emerald-600 rounded-lg transition-colors"
               >
                 <svg
                   className="w-5 h-5"
@@ -127,7 +127,7 @@ export default function MobileAppWrapper({ children, currentUser }: MobileAppWra
             </div>
             <button
               onClick={handleUpdateApp}
-              className="mt-3 w-full px-4 py-2 bg-white text-blue-600 text-sm font-medium rounded-lg active:bg-blue-50 transition-colors touch-manipulation"
+              className="mt-3 w-full px-4 py-2 bg-white text-sky-600 text-sm font-medium rounded-lg active:bg-sky-50 transition-colors touch-manipulation"
             >
               Refresh Now
             </button>
@@ -138,11 +138,11 @@ export default function MobileAppWrapper({ children, currentUser }: MobileAppWra
       {/* Offline Notification */}
       {showOfflineNotification && (
         <div className="fixed top-20 left-4 right-4 z-50 animate-slide-down">
-          <div className="bg-gray-900 text-white rounded-lg shadow-lg p-4 backdrop-blur-lg bg-opacity-90">
+          <div className="bg-slate-900 text-white rounded-lg shadow-lg p-4 backdrop-blur-lg bg-opacity-90">
             <div className="flex items-center space-x-3">
               <div className="flex-shrink-0">
                 <svg
-                  className="w-6 h-6 text-yellow-400"
+                  className="w-6 h-6 text-amber-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -157,7 +157,7 @@ export default function MobileAppWrapper({ children, currentUser }: MobileAppWra
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold">You're Offline</h3>
-                <p className="text-xs text-gray-300 mt-0.5">
+                <p className="text-xs text-slate-300 mt-0.5">
                   Some features may be limited
                 </p>
               </div>
@@ -169,10 +169,10 @@ export default function MobileAppWrapper({ children, currentUser }: MobileAppWra
       {/* Online Status Indicator */}
       {!isOnline && (
         <div className="fixed bottom-20 left-4 right-4 z-40">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-              <p className="text-sm text-yellow-800 font-medium">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+              <p className="text-sm text-amber-800 font-medium">
                 Working in offline mode
               </p>
             </div>
@@ -199,8 +199,8 @@ function RouteChangeIndicator({ pathname }: { pathname: string }) {
   if (!isChanging) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-blue-600 animate-pulse">
-      <div className="h-full bg-blue-400 animate-slide-right" />
+    <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-sky-600 animate-pulse">
+      <div className="h-full bg-sky-400 animate-slide-right" />
     </div>
   );
 }

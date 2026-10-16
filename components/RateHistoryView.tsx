@@ -40,7 +40,7 @@ const RateHistoryView: React.FC<RateHistoryViewProps> = ({ history }) => {
                     return (
                         <div key={submission.id} className="relative pl-8 pb-8 last:pb-0 group">
                             {/* Timeline Dot */}
-                            <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 transition-all ${index === 0 ? 'bg-green-500 border-green-100 ring-4 ring-green-50' : 'bg-white border-slate-300 group-hover:border-primary'}`}></div>
+                            <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 transition-all ${index === 0 ? 'bg-emerald-500 border-emerald-100 ring-4 ring-emerald-50' : 'bg-white border-slate-300 group-hover:border-primary'}`}></div>
                             
                             <div className={`bg-white rounded-lg border transition-all duration-200 overflow-hidden ${isExpanded ? 'shadow-md border-primary/30 ring-1 ring-primary/10' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}>
                                 <button
@@ -50,7 +50,7 @@ const RateHistoryView: React.FC<RateHistoryViewProps> = ({ history }) => {
                                     <div>
                                         <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
                                             {index === 0 ? 'Latest Publish' : 'Archived Update'}
-                                            {index === 0 && <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] uppercase tracking-wide rounded font-bold">Live</span>}
+                                            {index === 0 && <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] uppercase tracking-wide rounded font-bold">Live</span>}
                                         </p>
                                         <p className="text-xs text-slate-500 mt-1 font-mono">{date.toLocaleDateString()} • {date.toLocaleTimeString()}</p>
                                     </div>
@@ -98,7 +98,7 @@ const RateHistoryView: React.FC<RateHistoryViewProps> = ({ history }) => {
                                                                                         {tier.fromDay}
                                                                                         {tier.toDay === Infinity || tier.toDay === null ? '+' : `-${tier.toDay}`} days
                                                                                     </span>
-                                                                                    <span className="px-2 py-1 font-bold text-green-700">
+                                                                                    <span className="px-2 py-1 font-bold text-emerald-700">
                                                                                         {tier.dailyPrice !== null ? `$${Number(tier.dailyPrice).toFixed(2)}` : 'N/A'}
                                                                                     </span>
                                                                                 </div>

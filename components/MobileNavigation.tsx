@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from '../utils/navigation';
 import {
   HomeIcon,
   CalendarIcon,
@@ -89,18 +89,18 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
   return (
     <>
       {/* Top App Bar */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 safe-area-top">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200 safe-area-top">
         <div className="flex items-center justify-between px-4 h-14">
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsDrawerOpen(true)}
-              className="p-2 -ml-2 text-gray-700 active:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+              className="p-2 -ml-2 text-slate-700 active:bg-slate-100 rounded-lg transition-colors touch-manipulation"
               aria-label="Open menu"
             >
               <Bars3Icon className="w-6 h-6" />
             </button>
-            <h1 className="text-lg font-bold text-gray-900">NCT Rental</h1>
+            <h1 className="text-lg font-bold text-slate-900">NCT Rental</h1>
           </div>
 
           {/* Right Actions */}
@@ -108,7 +108,7 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
             {/* Search */}
             <button
               onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-              className="p-2 text-gray-700 active:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+              className="p-2 text-slate-700 active:bg-slate-100 rounded-lg transition-colors touch-manipulation"
               aria-label="Search"
             >
               <MagnifyingGlassIcon className="w-6 h-6" />
@@ -116,12 +116,12 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
 
             {/* Notifications */}
             <button
-              className="relative p-2 text-gray-700 active:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+              className="relative p-2 text-slate-700 active:bg-slate-100 rounded-lg transition-colors touch-manipulation"
               aria-label="Notifications"
             >
               <BellIcon className="w-6 h-6" />
               {notifications > 0 && (
-                <span className="absolute top-1 right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                <span className="absolute top-1 right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-rose-500 rounded-full">
                   {notifications}
                 </span>
               )}
@@ -129,7 +129,7 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
 
             {/* Profile */}
             <button
-              className="p-1 active:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+              className="p-1 active:bg-slate-100 rounded-lg transition-colors touch-manipulation"
               aria-label="Profile"
             >
               {currentUser?.avatar ? (
@@ -139,7 +139,7 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
                   className="w-8 h-8 rounded-full"
                 />
               ) : (
-                <UserCircleIcon className="w-8 h-8 text-gray-700" />
+                <UserCircleIcon className="w-8 h-8 text-slate-700" />
               )}
             </button>
           </div>
@@ -153,13 +153,13 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
         >
           <form onSubmit={handleSearch} className="px-4 pb-3">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search reservations, vehicles, customers..."
-                className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 autoFocus={isSearchExpanded}
               />
             </div>
@@ -186,11 +186,11 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
           }`}
         >
           {/* Drawer Header */}
-          <div className="flex items-center justify-between px-4 h-14 border-b border-gray-200 safe-area-top">
-            <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
+          <div className="flex items-center justify-between px-4 h-14 border-b border-slate-200 safe-area-top">
+            <h2 className="text-lg font-semibold text-slate-900">Menu</h2>
             <button
               onClick={() => setIsDrawerOpen(false)}
-              className="p-2 -mr-2 text-gray-700 active:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+              className="p-2 -mr-2 text-slate-700 active:bg-slate-100 rounded-lg transition-colors touch-manipulation"
               aria-label="Close menu"
             >
               <XMarkIcon className="w-6 h-6" />
@@ -199,7 +199,7 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
 
           {/* User Profile Section */}
           {currentUser && (
-            <div className="px-4 py-4 bg-gradient-to-r from-blue-600 to-blue-700">
+            <div className="px-4 py-4 bg-slate-900">
               <div className="flex items-center space-x-3">
                 {currentUser.avatar ? (
                   <img
@@ -209,15 +209,15 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
                   />
                 ) : (
                   <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                    <UserCircleIcon className="w-10 h-10 text-blue-600" />
+                    <UserCircleIcon className="w-10 h-10 text-sky-600" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">
                     {currentUser.name}
                   </p>
-                  <p className="text-xs text-blue-100 truncate">{currentUser.email}</p>
-                  <p className="text-xs text-blue-200 mt-0.5">{currentUser.role}</p>
+                  <p className="text-xs text-sky-100 truncate">{currentUser.email}</p>
+                  <p className="text-xs text-sky-200 mt-0.5">{currentUser.role}</p>
                 </div>
               </div>
             </div>
@@ -233,21 +233,21 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
                   onClick={() => handleNavigation(item.href)}
                   className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors touch-manipulation ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700'
-                      : 'text-gray-700 active:bg-gray-50'
+                      ? 'bg-sky-50 text-sky-700 border-l-4 border-sky-700'
+                      : 'text-slate-700 active:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     <item.icon className="w-6 h-6" />
                     <span>{item.name}</span>
                   </div>
-                  <ChevronRightIcon className="w-5 h-5 text-gray-400" />
+                  <ChevronRightIcon className="w-5 h-5 text-slate-400" />
                 </button>
               );
             })}
 
             {/* Divider */}
-            <div className="my-2 border-t border-gray-200" />
+            <div className="my-2 border-t border-slate-200" />
 
             {/* Logout */}
             <button
@@ -255,7 +255,7 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
                 console.log('Logout');
                 // Implement logout
               }}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-red-600 active:bg-red-50 transition-colors touch-manipulation"
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-rose-600 active:bg-rose-50 transition-colors touch-manipulation"
             >
               <div className="flex items-center space-x-3">
                 <ArrowRightOnRectangleIcon className="w-6 h-6" />
@@ -267,7 +267,7 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
       </div>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 safe-area-bottom">
         <div className="grid grid-cols-4 h-16">
           {bottomNavItems.map((item) => {
             const isActive = pathname === item.href;
@@ -276,7 +276,7 @@ export default function MobileNavigation({ currentUser }: MobileNavigationProps)
                 key={item.name}
                 onClick={() => item.action ? item.action() : handleNavigation(item.href)}
                 className={`flex flex-col items-center justify-center space-y-1 transition-colors touch-manipulation ${
-                  isActive ? 'text-blue-700' : 'text-gray-600 active:text-blue-600'
+                  isActive ? 'text-sky-700' : 'text-slate-600 active:text-sky-600'
                 }`}
                 aria-label={item.name}
               >

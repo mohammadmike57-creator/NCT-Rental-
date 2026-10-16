@@ -423,10 +423,10 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
   const getSeverityColor = (severity?: string) => {
     switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-50';
-      case 'error': return 'text-red-500 bg-red-50';
-      case 'warning': return 'text-yellow-600 bg-yellow-50';
-      default: return 'text-blue-600 bg-blue-50';
+      case 'critical': return 'text-rose-600 bg-rose-50';
+      case 'error': return 'text-rose-500 bg-rose-50';
+      case 'warning': return 'text-amber-600 bg-amber-50';
+      default: return 'text-sky-600 bg-sky-50';
     }
   };
 
@@ -444,9 +444,9 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 text-white shadow-2xl">
+      <div className="text-white shadow-2xl bg-slate-900">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -455,14 +455,14 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Administration Dashboard</h1>
-                <p className="text-blue-100 mt-1">System Control Center</p>
+                <p className="text-sky-100 mt-1">System Control Center</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <div className="text-sm text-blue-100">System Status</div>
+                <div className="text-sm text-sky-100">System Status</div>
                 <div className="flex items-center space-x-2 mt-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
                   <span className="font-semibold">Operational</span>
                 </div>
               </div>
@@ -474,9 +474,9 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
       {/* Notification */}
       {showNotification && (
         <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl transform transition-all duration-300 ${
-          showNotification.type === 'success' ? 'bg-green-500' :
-          showNotification.type === 'error' ? 'bg-red-500' :
-          'bg-yellow-500'
+          showNotification.type === 'success' ? 'bg-emerald-500' :
+          showNotification.type === 'error' ? 'bg-rose-500' :
+          'bg-amber-500'
         } text-white`}>
           <div className="flex items-center space-x-3">
             {showNotification.type === 'success' && <CheckCircleIcon className="w-6 h-6" />}
@@ -505,8 +505,8 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex-1 flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'text-white shadow-lg bg-slate-900'
+                  : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <tab.icon className="w-5 h-5" />
@@ -521,8 +521,8 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
             {/* Critical Alerts */}
             {criticalAlerts.length > 0 && (
               <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <BellIcon className="w-6 h-6 mr-2 text-red-500" />
+                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                  <BellIcon className="w-6 h-6 mr-2 text-rose-500" />
                   Critical Alerts
                 </h2>
                 <div className="space-y-3">
@@ -530,12 +530,12 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                     <div
                       key={index}
                       className={`flex items-center space-x-3 p-4 rounded-xl ${
-                        alert.type === 'error' ? 'bg-red-50 border-l-4 border-red-500' :
-                        'bg-yellow-50 border-l-4 border-yellow-500'
+                        alert.type === 'error' ? 'bg-rose-50 border-l-4 border-rose-500' :
+                        'bg-amber-50 border-l-4 border-amber-500'
                       }`}
                     >
-                      <AlertIcon className={`w-6 h-6 ${alert.type === 'error' ? 'text-red-500' : 'text-yellow-500'}`} />
-                      <span className="font-medium text-gray-800">{alert.message}</span>
+                      <AlertIcon className={`w-6 h-6 ${alert.type === 'error' ? 'text-rose-500' : 'text-amber-500'}`} />
+                      <span className="font-medium text-slate-800">{alert.message}</span>
                     </div>
                   ))}
                 </div>
@@ -544,63 +544,63 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
             {/* System Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
+              <div className="rounded-2xl shadow-lg p-6 text-white bg-slate-900">
                 <div className="flex items-center justify-between mb-4">
                   <UsersIcon className="w-8 h-8 opacity-80" />
                   <div className="text-3xl font-bold">{systemMetrics.totalUsers}</div>
                 </div>
-                <div className="text-blue-100">Total Users</div>
-                <div className="mt-2 text-sm text-blue-200">
+                <div className="text-sky-100">Total Users</div>
+                <div className="mt-2 text-sm text-sky-200">
                   {users.filter(u => u.status === 'active').length} active
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white">
+              <div className="rounded-2xl shadow-lg p-6 text-white bg-slate-900">
                 <div className="flex items-center justify-between mb-4">
                   <ClockIcon className="w-8 h-8 opacity-80" />
                   <div className="text-3xl font-bold">{systemMetrics.activeSessions}</div>
                 </div>
-                <div className="text-green-100">Active Sessions</div>
-                <div className="mt-2 text-sm text-green-200">Real-time monitoring</div>
+                <div className="text-emerald-100">Active Sessions</div>
+                <div className="mt-2 text-sm text-emerald-200">Real-time monitoring</div>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
+              <div className="rounded-2xl shadow-lg p-6 text-white bg-slate-900">
                 <div className="flex items-center justify-between mb-4">
                   <ServerIcon className="w-8 h-8 opacity-80" />
                   <div className="text-3xl font-bold">{systemMetrics.systemUptime}</div>
                 </div>
-                <div className="text-purple-100">System Uptime</div>
-                <div className="mt-2 text-sm text-purple-200">Last 30 days</div>
+                <div className="text-emerald-100">System Uptime</div>
+                <div className="mt-2 text-sm text-emerald-200">Last 30 days</div>
               </div>
 
-              <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl shadow-lg p-6 text-white">
+              <div className="rounded-2xl shadow-lg p-6 text-white bg-slate-900">
                 <div className="flex items-center justify-between mb-4">
                   <DatabaseIcon className="w-8 h-8 opacity-80" />
                   <div className="text-3xl font-bold">{systemMetrics.databaseSize}</div>
                 </div>
-                <div className="text-orange-100">Database Size</div>
-                <div className="mt-2 text-sm text-orange-200">Growing 0.2GB/month</div>
+                <div className="text-amber-100">Database Size</div>
+                <div className="mt-2 text-sm text-amber-200">Growing 0.2GB/month</div>
               </div>
             </div>
 
             {/* Performance Indicators */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <ChartBarIcon className="w-6 h-6 mr-2 text-indigo-600" />
+              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <ChartBarIcon className="w-6 h-6 mr-2 text-emerald-600" />
                 Real-time Performance
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">CPU Usage</span>
-                    <span className="text-sm font-bold text-gray-800">{systemMetrics.cpuUsage}%</span>
+                    <span className="text-sm font-medium text-slate-600">CPU Usage</span>
+                    <span className="text-sm font-bold text-slate-800">{systemMetrics.cpuUsage}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="w-full bg-slate-200 rounded-full h-3">
                     <div
                       className={`h-3 rounded-full transition-all duration-500 ${
-                        systemMetrics.cpuUsage > 80 ? 'bg-red-500' :
-                        systemMetrics.cpuUsage > 60 ? 'bg-yellow-500' :
-                        'bg-green-500'
+                        systemMetrics.cpuUsage > 80 ? 'bg-rose-500' :
+                        systemMetrics.cpuUsage > 60 ? 'bg-amber-500' :
+                        'bg-emerald-500'
                       }`}
                       style={{ width: `${systemMetrics.cpuUsage}%` }}
                     ></div>
@@ -609,15 +609,15 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Memory Usage</span>
-                    <span className="text-sm font-bold text-gray-800">{systemMetrics.memoryUsage}%</span>
+                    <span className="text-sm font-medium text-slate-600">Memory Usage</span>
+                    <span className="text-sm font-bold text-slate-800">{systemMetrics.memoryUsage}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="w-full bg-slate-200 rounded-full h-3">
                     <div
                       className={`h-3 rounded-full transition-all duration-500 ${
-                        systemMetrics.memoryUsage > 80 ? 'bg-red-500' :
-                        systemMetrics.memoryUsage > 60 ? 'bg-yellow-500' :
-                        'bg-green-500'
+                        systemMetrics.memoryUsage > 80 ? 'bg-rose-500' :
+                        systemMetrics.memoryUsage > 60 ? 'bg-amber-500' :
+                        'bg-emerald-500'
                       }`}
                       style={{ width: `${systemMetrics.memoryUsage}%` }}
                     ></div>
@@ -626,15 +626,15 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Disk Usage</span>
-                    <span className="text-sm font-bold text-gray-800">{systemMetrics.diskUsage}%</span>
+                    <span className="text-sm font-medium text-slate-600">Disk Usage</span>
+                    <span className="text-sm font-bold text-slate-800">{systemMetrics.diskUsage}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="w-full bg-slate-200 rounded-full h-3">
                     <div
                       className={`h-3 rounded-full transition-all duration-500 ${
-                        systemMetrics.diskUsage > 80 ? 'bg-red-500' :
-                        systemMetrics.diskUsage > 60 ? 'bg-yellow-500' :
-                        'bg-green-500'
+                        systemMetrics.diskUsage > 80 ? 'bg-rose-500' :
+                        systemMetrics.diskUsage > 60 ? 'bg-amber-500' :
+                        'bg-emerald-500'
                       }`}
                       style={{ width: `${systemMetrics.diskUsage}%` }}
                     ></div>
@@ -642,15 +642,15 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                 </div>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mt-6 pt-6 border-t border-slate-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm text-gray-600">API Response Time</div>
-                    <div className="text-2xl font-bold text-gray-800 mt-1">{systemMetrics.apiResponseTime}ms</div>
+                    <div className="text-sm text-slate-600">API Response Time</div>
+                    <div className="text-2xl font-bold text-slate-800 mt-1">{systemMetrics.apiResponseTime}ms</div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <CheckCircleIcon className="w-6 h-6 text-green-500" />
-                    <span className="text-sm font-medium text-green-600">Healthy</span>
+                    <CheckCircleIcon className="w-6 h-6 text-emerald-500" />
+                    <span className="text-sm font-medium text-emerald-600">Healthy</span>
                   </div>
                 </div>
               </div>
@@ -658,8 +658,8 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
             {/* Quick Actions */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <CogIcon className="w-6 h-6 mr-2 text-indigo-600" />
+              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <CogIcon className="w-6 h-6 mr-2 text-emerald-600" />
                 Quick Actions
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -687,26 +687,26 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
             {/* Recent Activity */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <ClockIcon className="w-6 h-6 mr-2 text-indigo-600" />
+              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <ClockIcon className="w-6 h-6 mr-2 text-emerald-600" />
                 Recent System Activities
               </h2>
               <div className="space-y-3">
                 {recentActivities.map((activity) => (
                   <div
                     key={activity.id}
-                    className="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-200"
+                    className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all duration-200"
                   >
                     <div className="flex items-center space-x-4">
                       <div className={`p-2 rounded-lg ${getSeverityColor(activity.severity)}`}>
                         {getActionTypeIcon(activity.actionType)}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-800">{activity.action}</div>
-                        <div className="text-sm text-gray-600">{activity.userName} - {activity.details}</div>
+                        <div className="font-medium text-slate-800">{activity.action}</div>
+                        <div className="text-sm text-slate-600">{activity.userName} - {activity.details}</div>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-500">{activity.timeAgo}</div>
+                    <div className="text-sm text-slate-500">{activity.timeAgo}</div>
                   </div>
                 ))}
               </div>
@@ -714,26 +714,26 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
             {/* Fleet Status */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <CarIcon className="w-6 h-6 mr-2 text-indigo-600" />
+              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <CarIcon className="w-6 h-6 mr-2 text-emerald-600" />
                 Fleet Status
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-xl">
-                  <div className="text-3xl font-bold text-blue-600">{fleet.totalVehicles}</div>
-                  <div className="text-sm text-gray-600 mt-1">Total Vehicles</div>
+                <div className="text-center p-4 bg-sky-50 rounded-xl">
+                  <div className="text-3xl font-bold text-sky-600">{fleet.totalVehicles}</div>
+                  <div className="text-sm text-slate-600 mt-1">Total Vehicles</div>
                 </div>
-                <div className="text-center p-4 bg-green-50 rounded-xl">
-                  <div className="text-3xl font-bold text-green-600">{fleet.availableVehicles}</div>
-                  <div className="text-sm text-gray-600 mt-1">Available</div>
+                <div className="text-center p-4 bg-emerald-50 rounded-xl">
+                  <div className="text-3xl font-bold text-emerald-600">{fleet.availableVehicles}</div>
+                  <div className="text-sm text-slate-600 mt-1">Available</div>
                 </div>
-                <div className="text-center p-4 bg-orange-50 rounded-xl">
-                  <div className="text-3xl font-bold text-orange-600">{fleet.rentedVehicles}</div>
-                  <div className="text-sm text-gray-600 mt-1">Rented</div>
+                <div className="text-center p-4 bg-amber-50 rounded-xl">
+                  <div className="text-3xl font-bold text-amber-600">{fleet.rentedVehicles}</div>
+                  <div className="text-sm text-slate-600 mt-1">Rented</div>
                 </div>
-                <div className="text-center p-4 bg-red-50 rounded-xl">
-                  <div className="text-3xl font-bold text-red-600">{fleet.maintenanceVehicles}</div>
-                  <div className="text-sm text-gray-600 mt-1">Maintenance</div>
+                <div className="text-center p-4 bg-rose-50 rounded-xl">
+                  <div className="text-3xl font-bold text-rose-600">{fleet.maintenanceVehicles}</div>
+                  <div className="text-sm text-slate-600 mt-1">Maintenance</div>
                 </div>
               </div>
             </div>
@@ -744,26 +744,26 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
         {activeTab === 'company' && (
           <div className="space-y-8">
             <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-8 flex items-center">
-                <CogIcon className="w-7 h-7 mr-3 text-indigo-600" />
+              <h2 className="text-2xl font-bold text-slate-800 mb-8 flex items-center">
+                <CogIcon className="w-7 h-7 mr-3 text-emerald-600" />
                 Company Information
               </h2>
 
               {/* Logo Upload */}
-              <div className="mb-8 pb-8 border-b border-gray-200">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Company Logo</label>
+              <div className="mb-8 pb-8 border-b border-slate-200">
+                <label className="block text-sm font-semibold text-slate-700 mb-3">Company Logo</label>
                 <div className="flex items-center space-x-6">
                   {logoPreview ? (
-                    <div className="w-32 h-32 rounded-xl border-2 border-gray-200 overflow-hidden bg-white shadow-lg">
+                    <div className="w-32 h-32 rounded-xl border-2 border-slate-200 overflow-hidden bg-white shadow-lg">
                       <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
                     </div>
                   ) : (
-                    <div className="w-32 h-32 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
-                      <UploadIcon className="w-8 h-8 text-gray-400" />
+                    <div className="w-32 h-32 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center bg-slate-50">
+                      <UploadIcon className="w-8 h-8 text-slate-400" />
                     </div>
                   )}
                   <div>
-                    <label className="cursor-pointer bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors inline-flex items-center space-x-2">
+                    <label className="cursor-pointer bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition-colors inline-flex items-center space-x-2">
                       <UploadIcon className="w-5 h-5" />
                       <span>Upload Logo</span>
                       <input
@@ -773,7 +773,7 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                         className="hidden"
                       />
                     </label>
-                    <p className="text-sm text-gray-500 mt-2">PNG, JPG up to 2MB</p>
+                    <p className="text-sm text-slate-500 mt-2">PNG, JPG up to 2MB</p>
                   </div>
                 </div>
               </div>
@@ -782,100 +782,100 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('general')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">General Information</span>
-                  <span className="text-gray-500">{expandedSections.has('general') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">General Information</span>
+                  <span className="text-slate-500">{expandedSections.has('general') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('general') && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Company Name</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.name}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, name: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
                       <input
                         type="email"
                         value={editedCompanyDetails.email}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, email: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Phone</label>
                       <input
                         type="tel"
                         value={editedCompanyDetails.phone}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, phone: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Website</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Website</label>
                       <input
                         type="url"
                         value={editedCompanyDetails.website || ''}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, website: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.address}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, address: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">City</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.city || ''}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, city: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">State/Province</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">State/Province</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.state || ''}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, state: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">ZIP/Postal Code</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">ZIP/Postal Code</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.zipCode || ''}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, zipCode: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Country</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Country</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.country || ''}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, country: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -886,30 +886,30 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('tax')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">Tax Configuration</span>
-                  <span className="text-gray-500">{expandedSections.has('tax') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">Tax Configuration</span>
+                  <span className="text-slate-500">{expandedSections.has('tax') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('tax') && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tax ID</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Tax ID</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.taxId || ''}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, taxId: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">VAT Number</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">VAT Number</label>
                       <input
                         type="text"
                         value={editedCompanyDetails.vatNumber || ''}
                         onChange={(e) => setEditedCompanyDetails({ ...editedCompanyDetails, vatNumber: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -919,7 +919,7 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="flex justify-end mt-8">
                 <button
                   onClick={handleSaveCompanyDetails}
-                  className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-blue-700 transition-all shadow-lg flex items-center space-x-2"
+                  className="text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
                 >
                   <SaveIcon className="w-5 h-5" />
                   <span>Save Company Details</span>
@@ -933,8 +933,8 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
         {activeTab === 'financial' && (
           <div className="space-y-8">
             <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-8 flex items-center">
-                <CreditCardIcon className="w-7 h-7 mr-3 text-indigo-600" />
+              <h2 className="text-2xl font-bold text-slate-800 mb-8 flex items-center">
+                <CreditCardIcon className="w-7 h-7 mr-3 text-emerald-600" />
                 Financial Configuration
               </h2>
 
@@ -942,64 +942,64 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('payment')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">Payment Gateway Settings</span>
-                  <span className="text-gray-500">{expandedSections.has('payment') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">Payment Gateway Settings</span>
+                  <span className="text-slate-500">{expandedSections.has('payment') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('payment') && (
                   <div className="mt-4 space-y-6">
-                    <div className="p-6 bg-blue-50 rounded-xl border border-blue-200">
-                      <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
-                        <CreditCardIcon className="w-5 h-5 mr-2 text-blue-600" />
+                    <div className="p-6 bg-sky-50 rounded-xl border border-sky-200">
+                      <h3 className="font-semibold text-slate-800 mb-4 flex items-center">
+                        <CreditCardIcon className="w-5 h-5 mr-2 text-sky-600" />
                         Stripe Configuration
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Public Key</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Public Key</label>
                           <input
                             type="text"
                             value={financialSettings.stripePublicKey}
                             onChange={(e) => setFinancialSettings({ ...financialSettings, stripePublicKey: e.target.value })}
                             placeholder="pk_live_..."
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Secret Key</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Secret Key</label>
                           <input
                             type="password"
                             value={financialSettings.stripeSecretKey}
                             onChange={(e) => setFinancialSettings({ ...financialSettings, stripeSecretKey: e.target.value })}
                             placeholder="sk_live_..."
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-6 bg-purple-50 rounded-xl border border-purple-200">
-                      <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
-                        <CreditCardIcon className="w-5 h-5 mr-2 text-purple-600" />
+                    <div className="p-6 bg-emerald-50 rounded-xl border border-emerald-200">
+                      <h3 className="font-semibold text-slate-800 mb-4 flex items-center">
+                        <CreditCardIcon className="w-5 h-5 mr-2 text-emerald-600" />
                         PayPal Configuration
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Client ID</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Client ID</label>
                           <input
                             type="text"
                             value={financialSettings.paypalClientId}
                             onChange={(e) => setFinancialSettings({ ...financialSettings, paypalClientId: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Secret</label>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">Secret</label>
                           <input
                             type="password"
                             value={financialSettings.paypalSecret}
                             onChange={(e) => setFinancialSettings({ ...financialSettings, paypalSecret: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                           />
                         </div>
                       </div>
@@ -1012,78 +1012,78 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('pricing')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">Pricing & Policies</span>
-                  <span className="text-gray-500">{expandedSections.has('pricing') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">Pricing & Policies</span>
+                  <span className="text-slate-500">{expandedSections.has('pricing') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('pricing') && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Commission Rate (%)</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Commission Rate (%)</label>
                       <input
                         type="number"
                         value={financialSettings.commissionRate}
                         onChange={(e) => setFinancialSettings({ ...financialSettings, commissionRate: Number(e.target.value) })}
                         min="0"
                         max="100"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Late Fee (per day)</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Late Fee (per day)</label>
                       <input
                         type="number"
                         value={financialSettings.lateFeePerDay}
                         onChange={(e) => setFinancialSettings({ ...financialSettings, lateFeePerDay: Number(e.target.value) })}
                         min="0"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Cancellation Fee</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Cancellation Fee</label>
                       <input
                         type="number"
                         value={financialSettings.cancellationFee}
                         onChange={(e) => setFinancialSettings({ ...financialSettings, cancellationFee: Number(e.target.value) })}
                         min="0"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Security Deposit (%)</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Security Deposit (%)</label>
                       <input
                         type="number"
                         value={financialSettings.depositPercentage}
                         onChange={(e) => setFinancialSettings({ ...financialSettings, depositPercentage: Number(e.target.value) })}
                         min="0"
                         max="100"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Invoice Prefix</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Invoice Prefix</label>
                       <input
                         type="text"
                         value={financialSettings.invoicePrefix}
                         onChange={(e) => setFinancialSettings({ ...financialSettings, invoicePrefix: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
-                    <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-xl">
                       <input
                         type="checkbox"
                         id="requireApproval"
                         checked={financialSettings.requireApproval}
                         onChange={(e) => setFinancialSettings({ ...financialSettings, requireApproval: e.target.checked })}
-                        className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                        className="w-5 h-5 text-emerald-600 rounded focus:ring-2 focus:ring-emerald-500"
                       />
-                      <label htmlFor="requireApproval" className="font-medium text-gray-700">
+                      <label htmlFor="requireApproval" className="font-medium text-slate-700">
                         Require Payment Approval
                       </label>
                     </div>
@@ -1094,7 +1094,7 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="flex justify-end mt-8">
                 <button
                   onClick={handleSaveFinancialSettings}
-                  className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-blue-700 transition-all shadow-lg flex items-center space-x-2"
+                  className="text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
                 >
                   <SaveIcon className="w-5 h-5" />
                   <span>Save Financial Settings</span>
@@ -1108,8 +1108,8 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
         {activeTab === 'system' && (
           <div className="space-y-8">
             <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-8 flex items-center">
-                <ServerIcon className="w-7 h-7 mr-3 text-indigo-600" />
+              <h2 className="text-2xl font-bold text-slate-800 mb-8 flex items-center">
+                <ServerIcon className="w-7 h-7 mr-3 text-emerald-600" />
                 System Configuration
               </h2>
 
@@ -1117,40 +1117,40 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('database')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">Database Configuration</span>
-                  <span className="text-gray-500">{expandedSections.has('database') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">Database Configuration</span>
+                  <span className="text-slate-500">{expandedSections.has('database') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('database') && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Host</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Host</label>
                       <input
                         type="text"
                         value={sysSettings.databaseHost}
                         onChange={(e) => setSysSettings({ ...sysSettings, databaseHost: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Port</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Port</label>
                       <input
                         type="text"
                         value={sysSettings.databasePort}
                         onChange={(e) => setSysSettings({ ...sysSettings, databasePort: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Database Name</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Database Name</label>
                       <input
                         type="text"
                         value={sysSettings.databaseName}
                         onChange={(e) => setSysSettings({ ...sysSettings, databaseName: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -1161,50 +1161,50 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('email')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">Email Server (SMTP)</span>
-                  <span className="text-gray-500">{expandedSections.has('email') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">Email Server (SMTP)</span>
+                  <span className="text-slate-500">{expandedSections.has('email') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('email') && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">SMTP Host</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">SMTP Host</label>
                       <input
                         type="text"
                         value={sysSettings.smtpHost}
                         onChange={(e) => setSysSettings({ ...sysSettings, smtpHost: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">SMTP Port</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">SMTP Port</label>
                       <input
                         type="text"
                         value={sysSettings.smtpPort}
                         onChange={(e) => setSysSettings({ ...sysSettings, smtpPort: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">SMTP User</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">SMTP User</label>
                       <input
                         type="email"
                         value={sysSettings.smtpUser}
                         onChange={(e) => setSysSettings({ ...sysSettings, smtpUser: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">SMTP Password</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">SMTP Password</label>
                       <input
                         type="password"
                         value={sysSettings.smtpPassword}
                         onChange={(e) => setSysSettings({ ...sysSettings, smtpPassword: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -1215,44 +1215,44 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('security')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">Security Settings</span>
-                  <span className="text-gray-500">{expandedSections.has('security') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">Security Settings</span>
+                  <span className="text-slate-500">{expandedSections.has('security') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('security') && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-xl">
                       <input
                         type="checkbox"
                         id="enable2FA"
                         checked={sysSettings.enable2FA}
                         onChange={(e) => setSysSettings({ ...sysSettings, enable2FA: e.target.checked })}
-                        className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                        className="w-5 h-5 text-emerald-600 rounded focus:ring-2 focus:ring-emerald-500"
                       />
-                      <label htmlFor="enable2FA" className="font-medium text-gray-700">
+                      <label htmlFor="enable2FA" className="font-medium text-slate-700">
                         Enable Two-Factor Authentication
                       </label>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Session Timeout (minutes)</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Session Timeout (minutes)</label>
                       <input
                         type="number"
                         value={sysSettings.sessionTimeout}
                         onChange={(e) => setSysSettings({ ...sysSettings, sessionTimeout: Number(e.target.value) })}
                         min="5"
                         max="120"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Logging Level</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Logging Level</label>
                       <select
                         value={sysSettings.loggingLevel}
                         onChange={(e) => setSysSettings({ ...sysSettings, loggingLevel: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       >
                         <option value="debug">Debug</option>
                         <option value="info">Info</option>
@@ -1262,13 +1262,13 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Data Retention (days)</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Data Retention (days)</label>
                       <input
                         type="number"
                         value={sysSettings.dataRetentionDays}
                         onChange={(e) => setSysSettings({ ...sysSettings, dataRetentionDays: Number(e.target.value) })}
                         min="30"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -1279,19 +1279,19 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="mb-6">
                 <button
                   onClick={() => toggleSection('backup')}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-800">Backup & Maintenance</span>
-                  <span className="text-gray-500">{expandedSections.has('backup') ? '−' : '+'}</span>
+                  <span className="font-semibold text-slate-800">Backup & Maintenance</span>
+                  <span className="text-slate-500">{expandedSections.has('backup') ? '−' : '+'}</span>
                 </button>
                 {expandedSections.has('backup') && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Backup Schedule</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Backup Schedule</label>
                       <select
                         value={sysSettings.backupSchedule}
                         onChange={(e) => setSysSettings({ ...sysSettings, backupSchedule: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       >
                         <option value="hourly">Hourly</option>
                         <option value="daily">Daily</option>
@@ -1301,12 +1301,12 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">API Base URL</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">API Base URL</label>
                       <input
                         type="url"
                         value={sysSettings.apiBaseUrl}
                         onChange={(e) => setSysSettings({ ...sysSettings, apiBaseUrl: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -1316,7 +1316,7 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               <div className="flex justify-end mt-8">
                 <button
                   onClick={handleSaveSystemSettings}
-                  className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-blue-700 transition-all shadow-lg flex items-center space-x-2"
+                  className="text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
                 >
                   <SaveIcon className="w-5 h-5" />
                   <span>Save System Settings</span>
@@ -1331,13 +1331,13 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
           <div className="space-y-8">
             <div className="bg-white rounded-2xl shadow-lg p-8">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                  <ClockIcon className="w-7 h-7 mr-3 text-indigo-600" />
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center">
+                  <ClockIcon className="w-7 h-7 mr-3 text-emerald-600" />
                   Activity Log
                 </h2>
                 <button
                   onClick={handleExportLogs}
-                  className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all shadow-lg flex items-center space-x-2"
+                  className="text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
                 >
                   <DownloadIcon className="w-5 h-5" />
                   <span>Export Logs</span>
@@ -1345,13 +1345,13 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               </div>
 
               {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-6 bg-gray-50 rounded-xl">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-6 bg-slate-50 rounded-xl">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Action Type</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Action Type</label>
                   <select
                     value={logFilters.actionType}
                     onChange={(e) => setLogFilters({ ...logFilters, actionType: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   >
                     <option value="all">All Actions</option>
                     <option value="login">Login</option>
@@ -1366,11 +1366,11 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Date Range</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Date Range</label>
                   <select
                     value={logFilters.dateRange}
                     onChange={(e) => setLogFilters({ ...logFilters, dateRange: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   >
                     <option value="today">Today</option>
                     <option value="week">Last 7 Days</option>
@@ -1380,13 +1380,13 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Search</label>
                   <input
                     type="text"
                     value={logFilters.searchTerm}
                     onChange={(e) => setLogFilters({ ...logFilters, searchTerm: e.target.value })}
                     placeholder="Search user, action, details..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -1394,7 +1394,7 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
               {/* Activity Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+                  <thead className="text-white bg-slate-900">
                     <tr>
                       <th className="px-6 py-4 text-left text-sm font-semibold rounded-tl-xl">Timestamp</th>
                       <th className="px-6 py-4 text-left text-sm font-semibold">User</th>
@@ -1405,25 +1405,25 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
                       <th className="px-6 py-4 text-left text-sm font-semibold rounded-tr-xl">Severity</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-200">
                     {filteredActivityLog.slice(0, 50).map((log, index) => (
                       <tr
                         key={log.id}
-                        className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                        className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
                       >
-                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
                           {new Date(log.timestamp).toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-800">{log.userName}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-800">{log.userName}</td>
                         <td className="px-6 py-4 text-sm">
                           <div className="flex items-center space-x-2">
                             {getActionTypeIcon(log.actionType)}
-                            <span className="text-gray-700 capitalize">{log.actionType}</span>
+                            <span className="text-slate-700 capitalize">{log.actionType}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-800">{log.action}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{log.details}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{log.ipAddress || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-800">{log.action}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600 max-w-xs truncate">{log.details}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{log.ipAddress || 'N/A'}</td>
                         <td className="px-6 py-4 text-sm">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getSeverityColor(log.severity)}`}>
                             {(log.severity || 'info').toUpperCase()}
@@ -1437,13 +1437,13 @@ const ProfessionalAdministrationDashboard: React.FC<ProfessionalAdministrationDa
 
               {filteredActivityLog.length === 0 && (
                 <div className="text-center py-12">
-                  <ClockIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">No activity logs found</p>
+                  <ClockIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500 font-medium">No activity logs found</p>
                 </div>
               )}
 
               {filteredActivityLog.length > 50 && (
-                <div className="mt-6 text-center text-sm text-gray-500">
+                <div className="mt-6 text-center text-sm text-slate-500">
                   Showing 50 of {filteredActivityLog.length} entries
                 </div>
               )}
