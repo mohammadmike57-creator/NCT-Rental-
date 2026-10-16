@@ -453,18 +453,32 @@ export interface RatePlanSubmission {
   id: string;
   submittedAt: string; // ISO date string
   ratePlans: RatePlan[];
+  // Optional publish metadata (older submissions may not have these)
+  version?: number;
+  publishedBy?: string;
+  note?: string;
+  currency?: string;
+  checksum?: string; // fingerprint of the rate sheet XML that was published
+  warningCount?: number;
 }
+
+export type ChannelEnvironment = 'test' | 'production';
+export type ChannelStatus = 'active' | 'testing' | 'paused';
 
 export interface AggregatorConnectionDetails {
     apiUrl: string;
     username: string;
     apiKey: string;
+    environment?: ChannelEnvironment;
+    timeoutSeconds?: number;
 }
 
 export interface AggregatorExtra {
     id: string; // Links to AvailableExtra id
     name: string;
     price: number;
+    otaEquipType?: string; // OTA equipment code the partner expects (EquipType)
+    maxPerRental?: number; // Optional cap on the rental charge, 0 / undefined = no cap
 }
 
 export interface Aggregator {
@@ -475,6 +489,14 @@ export interface Aggregator {
     ratePlanHistory: RatePlanSubmission[];
     extras: AggregatorExtra[];
     termsAndConditions: string;
+    // Channel manager settings (optional for backward compatibility)
+    channelCode?: string;        // Short partner code, e.g. BKG
+    vendorCode?: string;         // Our supplier code at the partner, e.g. NCT
+    locationCode?: string;       // Pick-up location code sent in XML, e.g. AMM
+    currency?: string;           // ISO 4217, defaults to USD
+    status?: ChannelStatus;
+    commissionPercent?: number;
+    contactEmail?: string;
 }
 
 export interface StopSale {

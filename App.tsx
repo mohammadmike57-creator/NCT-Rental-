@@ -1496,6 +1496,7 @@ ${currentUser?.fullName}
             stopSales={stopSales}
             onUpdateStopSales={setStopSales}
             showConfirmation={showConfirmation}
+            currentUserName={currentUser?.fullName || currentUser?.username}
         />
     ), permission: UserPermission.VIEW_AGGREGATOR_SETUP },
     'User & Staff Management': { component: (

@@ -7,9 +7,10 @@ interface ManagePeriodModalProps {
     onSave: (updatedPlan: RatePlan) => void;
     onClose: () => void;
     fleet: Fleet;
+    currency?: string;
 }
 
-const ManagePeriodModal: React.FC<ManagePeriodModalProps> = ({ plan, onSave, onClose, fleet }) => {
+const ManagePeriodModal: React.FC<ManagePeriodModalProps> = ({ plan, onSave, onClose, fleet, currency = 'USD' }) => {
     const [localPlan, setLocalPlan] = useState<RatePlan>(() => {
         const planCopy = JSON.parse(JSON.stringify(plan));
         planCopy.sippRates = planCopy.sippRates || [];
@@ -167,8 +168,8 @@ const ManagePeriodModal: React.FC<ManagePeriodModalProps> = ({ plan, onSave, onC
                                                 <span className="text-center">-</span>
                                                 <input type="number" value={tier.toDay === Infinity || tier.toDay === null ? '' : tier.toDay} onChange={e => {const val = parseInt(e.target.value); const valueToSet = e.target.value === '' ? null : (isNaN(val) ? null : val); handleTierChange(sippRate.id, tier.id, tierIndex, 'toDay', valueToSet);}} className="w-full p-1 border rounded-md text-sm text-center" placeholder="∞" />
                                                 <div className="relative">
-                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
-                                                    <input type="number" step="0.01" value={tier.dailyPrice ?? ''} onChange={e => {const val = parseFloat(e.target.value); handleTierChange(sippRate.id, tier.id, tierIndex, 'dailyPrice', isNaN(val) ? null : val);}} className="w-full p-1 border rounded-md text-sm pl-7" placeholder="Daily Price" />
+                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-[10px] font-semibold text-gray-500">{currency}</span>
+                                                    <input type="number" step="0.01" value={tier.dailyPrice ?? ''} onChange={e => {const val = parseFloat(e.target.value); handleTierChange(sippRate.id, tier.id, tierIndex, 'dailyPrice', isNaN(val) ? null : val);}} className="w-full p-1 border rounded-md text-sm pl-10" placeholder="Daily Price" />
                                                 </div>
                                                 <button onClick={() => handleDeleteTier(sippRate.id, tier.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon className="h-4 w-4"/></button>
                                             </div>

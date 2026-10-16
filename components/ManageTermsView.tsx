@@ -21,7 +21,7 @@ const ManageTermsView: React.FC<ManageTermsViewProps> = ({ terms, onUpdate }) =>
             placeholder="Enter policy text here..."
             style={{ minHeight: '400px' }}
         />
-        <p className="text-xs text-right text-slate-400 mt-2">Markdown supported</p>
+        <p className="text-xs text-right text-slate-400 mt-2">{(terms || '').length} characters · included in the rate sheet XML as plain text</p>
     </div>
   );
 };

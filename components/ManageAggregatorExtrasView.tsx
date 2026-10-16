@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Aggregator, AggregatorExtra, AvailableExtra } from '../types';
 import { PlusIcon, TrashIcon } from './icons';
+import { channelCurrency, formatMoney } from '../services/channelManager';
 
 interface ManageAggregatorExtrasViewProps {
     aggregator: Aggregator;
@@ -13,6 +14,7 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
     const [selectedExtraId, setSelectedExtraId] = useState('');
     
     const aggregatorExtras = aggregator.extras || [];
+    const currency = channelCurrency(aggregator);
 
     const availableOptions = globalExtras.filter(
         globalExtra => !aggregatorExtras.some(aggExtra => aggExtra.id === globalExtra.id)
@@ -44,6 +46,10 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
         onUpdate({ ...aggregator, extras: updatedExtras });
     };
 
+    const handleUpdateField = (extraId: string, patch: Partial<AggregatorExtra>) => {
+        onUpdate({ ...aggregator, extras: aggregatorExtras.map(e => (e.id === extraId ? { ...e, ...patch } : e)) });
+    };
+
     const handleDeleteExtra = (extraId: string) => {
         const updatedExtras = aggregatorExtras.filter(e => e.id !== extraId);
         onUpdate({ ...aggregator, extras: updatedExtras });
@@ -53,7 +59,7 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
         <div className="max-w-3xl">
              <div className="mb-6">
                  <h3 className="text-lg font-bold text-slate-800">Mapped Extras</h3>
-                 <p className="text-sm text-slate-500">Define which extras are available on this channel and their specific pricing.</p>
+                 <p className="text-sm text-slate-500">Extras sold on this channel, their daily price in {currency}, and the OTA equipment code the partner expects.</p>
             </div>
             
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6 flex flex-col sm:flex-row items-end gap-4">
@@ -67,7 +73,7 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
                         >
                             <option value="">Select from global list...</option>
                             {availableOptions.map(opt => (
-                                <option key={opt.id} value={opt.id}>{opt.name} (Default: ${opt.defaultDailyPrice})</option>
+                                <option key={opt.id} value={opt.id}>{opt.name} (default {formatMoney(opt.defaultDailyPrice, currency)})</option>
                             ))}
                         </select>
                     </div>
@@ -80,17 +86,42 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
             <div className="space-y-3">
                 {aggregatorExtras.map(extra => (
                     <div key={extra.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-primary/30 transition-colors gap-3">
-                        <p className="font-semibold text-slate-700">{extra.name}</p>
+                        <div className="min-w-0">
+                            <p className="font-semibold text-slate-700">{extra.name}</p>
+                            <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                                <label className="flex items-center gap-1.5 text-[11px] text-slate-400 uppercase font-medium">
+                                    OTA code
+                                    <input
+                                        type="text"
+                                        value={extra.otaEquipType || ''}
+                                        onChange={e => handleUpdateField(extra.id, { otaEquipType: e.target.value.trim() || undefined })}
+                                        placeholder={extra.id}
+                                        className="w-24 p-1 border border-slate-300 rounded text-xs font-mono normal-case text-slate-700"
+                                    />
+                                </label>
+                                <label className="flex items-center gap-1.5 text-[11px] text-slate-400 uppercase font-medium">
+                                    Max / rental
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={extra.maxPerRental ?? ''}
+                                        onChange={e => { const v = parseFloat(e.target.value); handleUpdateField(extra.id, { maxPerRental: v > 0 ? v : undefined }); }}
+                                        placeholder="no cap"
+                                        className="w-20 p-1 border border-slate-300 rounded text-xs text-right normal-case text-slate-700"
+                                    />
+                                </label>
+                            </div>
+                        </div>
                         <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
                              <div className="flex items-center gap-2">
-                                <label className="text-xs font-medium text-slate-400 uppercase">Price</label>
+                                <label className="text-xs font-medium text-slate-400 uppercase">Per day</label>
                                 <div className="relative w-32">
-                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 font-medium">$</span>
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-[10px] text-slate-400 font-semibold">{currency}</span>
                                     <input
                                         type="number"
                                         value={extra.price}
                                         onChange={e => handleUpdatePrice(extra.id, parseFloat(e.target.value) || 0)}
-                                        className="w-full p-1.5 pl-7 border border-slate-300 rounded-md text-sm text-right font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        className="w-full p-1.5 pl-10 border border-slate-300 rounded-md text-sm text-right font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                     />
                                 </div>
                             </div>
