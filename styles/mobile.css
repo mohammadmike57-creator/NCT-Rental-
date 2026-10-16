@@ -1,0 +1,647 @@
+/**
+ * Mobile-First Styles for NCT Rental
+ * Optimized for iOS and Android devices
+ */
+
+/* ============================================================================
+   CSS Variables for Mobile
+   ============================================================================ */
+:root {
+  /* Safe Area Insets */
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+
+  /* Touch Target Sizes */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+
+  /* Mobile Navigation Heights */
+  --top-bar-height: 56px;
+  --bottom-nav-height: 64px;
+
+  /* iOS Specific */
+  --ios-blue: #007AFF;
+  --ios-gray-bg: #F2F2F7;
+  --ios-border: #C6C6C8;
+
+  /* Android Specific */
+  --android-blue: #2196F3;
+  --android-elevation-1: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --android-elevation-2: 0 4px 8px rgba(0, 0, 0, 0.2);
+  --android-elevation-3: 0 8px 16px rgba(0, 0, 0, 0.2);
+
+  /* Animation Durations */
+  --animation-fast: 150ms;
+  --animation-normal: 250ms;
+  --animation-slow: 350ms;
+
+  /* Easing Functions */
+  --ease-ios: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-android: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================================
+   Reset and Base Styles
+   ============================================================================ */
+
+/* Prevent iOS zoom on focus */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="search"],
+input[type="password"],
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* Remove iOS input shadow */
+input,
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Smooth scrolling for mobile */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  /* Prevent pull-to-refresh on iOS */
+  overscroll-behavior-y: contain;
+  /* Prevent text selection on long press */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Remove tap highlight */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection for readable content */
+p, h1, h2, h3, h4, h5, h6, span, li, a {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Prevent text selection for interactive elements */
+button, a, input[type="submit"], input[type="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ============================================================================
+   Touch Interactions
+   ============================================================================ */
+
+/* Minimum touch target size */
+.touch-target,
+button,
+a,
+input[type="checkbox"],
+input[type="radio"] {
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+}
+
+/* Touch manipulation for better scrolling */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Active state for touchable elements */
+.touch-active:active {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+/* Remove default button styles for mobile */
+button {
+  border: none;
+  outline: none;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* ============================================================================
+   Safe Area Support
+   ============================================================================ */
+
+.safe-area-top {
+  padding-top: var(--sat);
+}
+
+.safe-area-right {
+  padding-right: var(--sar);
+}
+
+.safe-area-bottom {
+  padding-bottom: var(--sab);
+}
+
+.safe-area-left {
+  padding-left: var(--sal);
+}
+
+.safe-area-inset {
+  padding-top: var(--sat);
+  padding-right: var(--sar);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+}
+
+/* ============================================================================
+   iOS Specific Styles
+   ============================================================================ */
+
+/* iOS-style card */
+.ios-card {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* iOS-style list */
+.ios-list {
+  background: #ffffff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ios-list-item {
+  padding: 12px 16px;
+  border-bottom: 0.5px solid #c6c6c8;
+  background: #ffffff;
+  transition: background-color var(--animation-fast) var(--ease-ios);
+}
+
+.ios-list-item:active {
+  background-color: #f2f2f7;
+}
+
+.ios-list-item:last-child {
+  border-bottom: none;
+}
+
+/* iOS-style button */
+.ios-button {
+  padding: 12px 24px;
+  border-radius: 10px;
+  background: var(--ios-blue);
+  color: white;
+  font-weight: 600;
+  font-size: 17px;
+  transition: opacity var(--animation-fast) var(--ease-ios);
+}
+
+.ios-button:active {
+  opacity: 0.7;
+}
+
+/* iOS-style switch */
+.ios-switch {
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  background: #c6c6c8;
+  position: relative;
+  transition: background-color var(--animation-normal) var(--ease-ios);
+}
+
+.ios-switch.active {
+  background: #34c759;
+}
+
+.ios-switch::after {
+  content: '';
+  position: absolute;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform var(--animation-normal) var(--ease-ios);
+}
+
+.ios-switch.active::after {
+  transform: translateX(20px);
+}
+
+/* ============================================================================
+   Android Specific Styles
+   ============================================================================ */
+
+/* Android Material Design elevation */
+.android-elevation-1 {
+  box-shadow: var(--android-elevation-1);
+}
+
+.android-elevation-2 {
+  box-shadow: var(--android-elevation-2);
+}
+
+.android-elevation-3 {
+  box-shadow: var(--android-elevation-3);
+}
+
+/* Android-style card */
+.android-card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: var(--android-elevation-1);
+}
+
+/* Android-style button */
+.android-button {
+  padding: 12px 24px;
+  border-radius: 4px;
+  background: var(--android-blue);
+  color: white;
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: box-shadow var(--animation-normal) var(--ease-android);
+}
+
+.android-button:active {
+  box-shadow: var(--android-elevation-2);
+}
+
+/* Android ripple effect */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width var(--animation-normal) var(--ease-android),
+              height var(--animation-normal) var(--ease-android);
+}
+
+.ripple:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* ============================================================================
+   Mobile Navigation
+   ============================================================================ */
+
+/* Top bar */
+.mobile-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--top-bar-height) + var(--sat));
+  padding-top: var(--sat);
+  background: #ffffff;
+  border-bottom: 1px solid #e5e5ea;
+  z-index: 1000;
+}
+
+/* Bottom navigation */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--bottom-nav-height) + var(--sab));
+  padding-bottom: var(--sab);
+  background: #ffffff;
+  border-top: 1px solid #e5e5ea;
+  z-index: 1000;
+}
+
+/* Drawer menu */
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 80vw;
+  max-width: 320px;
+  background: #ffffff;
+  transform: translateX(-100%);
+  transition: transform var(--animation-normal) var(--ease-ios);
+  z-index: 2000;
+}
+
+.mobile-drawer.open {
+  transform: translateX(0);
+}
+
+.mobile-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--animation-normal) var(--ease-ios);
+  z-index: 1999;
+}
+
+.mobile-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============================================================================
+   Mobile Components
+   ============================================================================ */
+
+/* Bottom sheet */
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  transform: translateY(100%);
+  transition: transform var(--animation-normal) var(--ease-ios);
+  z-index: 2000;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bottom-sheet.open {
+  transform: translateY(0);
+}
+
+.bottom-sheet-handle {
+  width: 36px;
+  height: 5px;
+  background: #c6c6c8;
+  border-radius: 3px;
+  margin: 12px auto;
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: calc(var(--bottom-nav-height) + var(--sab) + 16px);
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--ios-blue);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+  transition: transform var(--animation-fast) var(--ease-ios);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* Pull to refresh */
+.pull-to-refresh {
+  position: relative;
+}
+
+.pull-to-refresh-indicator {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: top var(--animation-fast) var(--ease-ios);
+}
+
+.pull-to-refresh.pulling .pull-to-refresh-indicator {
+  top: 10px;
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: calc(var(--bottom-nav-height) + var(--sab) + 16px);
+  left: 16px;
+  right: 16px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 12px;
+  transform: translateY(calc(100% + 32px));
+  transition: transform var(--animation-normal) var(--ease-ios);
+  z-index: 9999;
+  backdrop-filter: blur(10px);
+}
+
+.toast.show {
+  transform: translateY(0);
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================================================
+   Scrollbar Customization
+   ============================================================================ */
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Thin scrollbar for touch devices */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+/* ============================================================================
+   Performance Optimizations
+   ============================================================================ */
+
+/* GPU acceleration */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Prevent layout shift */
+.prevent-shift {
+  contain: layout;
+}
+
+/* Content visibility for long lists */
+.lazy-render {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* ============================================================================
+   Mobile Animations
+   ============================================================================ */
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+   Media Queries
+   ============================================================================ */
+
+/* Small phones */
+@media (max-width: 374px) {
+  :root {
+    --top-bar-height: 52px;
+    --bottom-nav-height: 60px;
+  }
+}
+
+/* Tablets */
+@media (min-width: 768px) {
+  :root {
+    --top-bar-height: 64px;
+  }
+}
+
+/* Landscape orientation */
+@media (orientation: landscape) {
+  .mobile-drawer {
+    max-width: 280px;
+  }
+
+  .bottom-sheet {
+    max-height: 70vh;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ios-gray-bg: #1C1C1E;
+    --ios-border: #38383A;
+  }
+
+  .ios-card,
+  .android-card,
+  .mobile-top-bar,
+  .mobile-bottom-nav,
+  .mobile-drawer,
+  .bottom-sheet {
+    background: #1C1C1E;
+    color: #ffffff;
+  }
+
+  .ios-list-item {
+    background: #2C2C2E;
+    border-bottom-color: #38383A;
+  }
+
+  .ios-list-item:active {
+    background-color: #3A3A3C;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

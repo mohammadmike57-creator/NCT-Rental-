@@ -219,15 +219,15 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
   ];
 
   return (
-    <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-gray-50 min-h-screen">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-8 text-white">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 text-white">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
               Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening'}, {currentUser?.fullName || 'User'}!
             </h1>
-            <p className="text-blue-100 text-lg">
+            <p className="text-blue-100 text-sm sm:text-base lg:text-lg">
               {currentTime.toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
@@ -236,9 +236,9 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
               })}
             </p>
           </div>
-          <div className="text-right">
-            <div className="text-5xl font-bold">{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-            <div className="text-blue-200 mt-1">Live Dashboard</div>
+          <div className="text-left sm:text-right">
+            <div className="text-3xl sm:text-4xl lg:text-5xl font-bold">{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="text-blue-200 mt-1 text-sm sm:text-base">Live Dashboard</div>
           </div>
         </div>
       </div>
@@ -246,19 +246,21 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
       {/* Alerts Section */}
       {kpis.overdueReturns > 0 && (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow">
-          <div className="flex items-center">
-            <ExclamationTriangleIcon className="h-6 w-6 text-red-500 mr-3" />
-            <div>
-              <h3 className="text-red-800 font-semibold">
-                {kpis.overdueReturns} Overdue Return{kpis.overdueReturns !== 1 ? 's' : ''}
-              </h3>
-              <p className="text-red-600 text-sm">
-                Immediate attention required. Click to view details.
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start flex-1">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-500 mr-3 flex-shrink-0" />
+              <div>
+                <h3 className="text-red-800 font-semibold text-sm sm:text-base">
+                  {kpis.overdueReturns} Overdue Return{kpis.overdueReturns !== 1 ? 's' : ''}
+                </h3>
+                <p className="text-red-600 text-xs sm:text-sm">
+                  Immediate attention required. Click to view details.
+                </p>
+              </div>
             </div>
             <button
               onClick={() => onNavigate('reservations', { filter: 'overdue' })}
-              className="ml-auto bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+              className="w-full sm:w-auto bg-red-500 text-white px-4 py-3 sm:py-2 rounded-lg hover:bg-red-600 transition-colors text-sm sm:text-base min-h-[44px] sm:min-h-0"
             >
               View Now
             </button>
@@ -267,7 +269,7 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
       )}
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statsCards.map((card, index) => {
           const Icon = card.icon;
           const colorClasses = {
@@ -283,23 +285,23 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
             <div
               key={index}
               onClick={card.onClick}
-              className="bg-white rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all transform hover:-translate-y-1"
+              className="bg-white rounded-xl shadow-lg p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all transform hover:-translate-y-1 active:scale-95"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${colorClasses[card.color]} p-3 rounded-lg`}>
-                  <Icon className="h-6 w-6 text-white" />
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className={`${colorClasses[card.color]} p-2 sm:p-3 rounded-lg`}>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 {card.trend !== undefined && card.trend !== 0 && (
                   <div className={`flex items-center ${card.trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {card.trend > 0 ? <ArrowUpIcon className="h-4 w-4" /> : <ArrowDownIcon className="h-4 w-4" />}
-                    <span className="text-sm font-semibold ml-1">{Math.abs(card.trend)}</span>
+                    {card.trend > 0 ? <ArrowUpIcon className="h-3 w-3 sm:h-4 sm:w-4" /> : <ArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
+                    <span className="text-xs sm:text-sm font-semibold ml-1">{Math.abs(card.trend)}</span>
                   </div>
                 )}
               </div>
-              <h3 className="text-gray-500 text-sm font-medium mb-1">{card.title}</h3>
-              <div className="text-3xl font-bold text-gray-800">{card.value}</div>
+              <h3 className="text-gray-500 text-xs sm:text-sm font-medium mb-1">{card.title}</h3>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-800">{card.value}</div>
               {card.subtitle && (
-                <p className="text-gray-400 text-sm mt-1">{card.subtitle}</p>
+                <p className="text-gray-400 text-xs sm:text-sm mt-1">{card.subtitle}</p>
               )}
             </div>
           );
@@ -307,7 +309,7 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
       </div>
 
       {/* Revenue & Performance Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {revenueCards.map((card, index) => {
           const Icon = card.icon;
           const colorClasses = {
@@ -320,21 +322,21 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
           return (
             <div
               key={index}
-              className={`bg-gradient-to-br ${colorClasses[card.color]} rounded-xl shadow-lg p-6 text-white`}
+              className={`bg-gradient-to-br ${colorClasses[card.color]} rounded-xl shadow-lg p-4 sm:p-6 text-white`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <Icon className="h-8 w-8 opacity-80" />
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <Icon className="h-6 w-6 sm:h-8 sm:w-8 opacity-80" />
                 {card.trend !== undefined && card.trend !== 0 && (
-                  <div className="flex items-center bg-white bg-opacity-20 px-3 py-1 rounded-full">
-                    {card.trend > 0 ? <ArrowUpIcon className="h-4 w-4" /> : <ArrowDownIcon className="h-4 w-4" />}
-                    <span className="text-sm font-semibold ml-1">{Math.abs(card.trend).toFixed(1)}%</span>
+                  <div className="flex items-center bg-white bg-opacity-20 px-2 sm:px-3 py-1 rounded-full">
+                    {card.trend > 0 ? <ArrowUpIcon className="h-3 w-3 sm:h-4 sm:w-4" /> : <ArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
+                    <span className="text-xs sm:text-sm font-semibold ml-1">{Math.abs(card.trend).toFixed(1)}%</span>
                   </div>
                 )}
               </div>
-              <h3 className="text-white text-opacity-90 text-sm font-medium mb-2">{card.title}</h3>
-              <div className="text-3xl font-bold mb-1">{card.value}</div>
+              <h3 className="text-white text-opacity-90 text-xs sm:text-sm font-medium mb-2">{card.title}</h3>
+              <div className="text-2xl sm:text-3xl font-bold mb-1">{card.value}</div>
               {card.subtitle && (
-                <p className="text-white text-opacity-75 text-sm">{card.subtitle}</p>
+                <p className="text-white text-opacity-75 text-xs sm:text-sm">{card.subtitle}</p>
               )}
             </div>
           );
@@ -342,55 +344,55 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <button
             onClick={() => onNavigate('reservations', { action: 'new' })}
-            className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            className="flex flex-col items-center p-3 sm:p-4 bg-blue-50 rounded-lg hover:bg-blue-100 active:bg-blue-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <CalendarIcon className="h-8 w-8 text-blue-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700">New Reservation</span>
+            <CalendarIcon className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">New Reservation</span>
           </button>
           <button
             onClick={() => onNavigate('reservations-today')}
-            className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+            className="flex flex-col items-center p-3 sm:p-4 bg-green-50 rounded-lg hover:bg-green-100 active:bg-green-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <ClockIcon className="h-8 w-8 text-green-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700">Today's Activity</span>
+            <ClockIcon className="h-7 w-7 sm:h-8 sm:w-8 text-green-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">Today's Activity</span>
           </button>
           <button
             onClick={() => onNavigate('invoice')}
-            className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+            className="flex flex-col items-center p-3 sm:p-4 bg-purple-50 rounded-lg hover:bg-purple-100 active:bg-purple-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <DocumentTextIcon className="h-8 w-8 text-purple-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700">Generate Invoice</span>
+            <DocumentTextIcon className="h-7 w-7 sm:h-8 sm:w-8 text-purple-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">Generate Invoice</span>
           </button>
           <button
             onClick={() => onNavigate('fleet-balance')}
-            className="flex flex-col items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+            className="flex flex-col items-center p-3 sm:p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 active:bg-indigo-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <ChartBarIcon className="h-8 w-8 text-indigo-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700">Fleet Analytics</span>
+            <ChartBarIcon className="h-7 w-7 sm:h-8 sm:w-8 text-indigo-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">Fleet Analytics</span>
           </button>
         </div>
       </div>
 
       {/* Upcoming Activity */}
       {kpis.upcomingReservations > 0 && (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Upcoming This Week</h2>
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800">Upcoming This Week</h2>
             <button
               onClick={() => onNavigate('reservations', { filter: 'upcoming' })}
-              className="text-blue-600 hover:text-blue-700 font-semibold text-sm"
+              className="text-blue-600 hover:text-blue-700 font-semibold text-sm self-start sm:self-auto min-h-[44px] sm:min-h-0 flex items-center"
             >
               View All →
             </button>
           </div>
           <div className="flex items-center text-gray-600">
-            <UserGroupIcon className="h-5 w-5 mr-2" />
-            <span>{kpis.upcomingReservations} reservation{kpis.upcomingReservations !== 1 ? 's' : ''} scheduled for the next 7 days</span>
+            <UserGroupIcon className="h-5 w-5 mr-2 flex-shrink-0" />
+            <span className="text-sm sm:text-base">{kpis.upcomingReservations} reservation{kpis.upcomingReservations !== 1 ? 's' : ''} scheduled for the next 7 days</span>
           </div>
         </div>
       )}
