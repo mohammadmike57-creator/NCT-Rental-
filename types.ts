@@ -263,6 +263,7 @@ export interface Reservation {
   lateReturnFee?: LateReturnFee;
 
   authNumber?: string;
+  finalAmountCharged?: number;
   cardNumber?: string;
   cardExpiry?: string;
 

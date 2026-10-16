@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission } from '../types';
 import { MONTHS } from '../constants';
+import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { 
   DocumentReportIcon, 
   ShareIcon, 
@@ -184,6 +185,8 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const [customRate, setCustomRate] = useState<number | null>(null);
   const [useCustomRate, setUseCustomRate] = useState(false);
   const [localBookingIdSearch, setLocalBookingIdSearch] = useState('');
+  const [stageTab, setStageTab] = useState<'all' | 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled'>('all');
+  const [sortKey, setSortKey] = useState<'pickup' | 'return' | 'name' | 'amount'>('pickup');
 
   // Ref to prevent closing modal on same tick
   const modalOpenTime = useRef(0);
@@ -480,327 +483,314 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     }
   };
 
-  // DEBUG: Log upgrade permission for each reservation
-  const upgradePermission = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE);
-  const canViewVoucherActions = isAgreementView || hasPermission(UserPermission.ACTION_RESERVATIONS_VIEW_VOUCHER);
-  console.log('Upgrade permission for user:', upgradePermission, currentUser?.email);
+  const upgradePermission = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE);
+  const canViewVoucherActions = isAgreementView || hasPermission(UserPermission.ACTION_VOUCHER_MANAGE);
+
+  // ---- Rental lifecycle -------------------------------------------------
+  type Stage = 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled';
+  const stageOf = (res: Reservation): Stage => {
+    if (res.status === ReservationStatus.CANCELLED || res.status === ('NO_SHOW' as ReservationStatus)) return 'cancelled';
+    if (res.dropOffCompleted) return 'closed';
+    if (res.voucherSubmitted) return 'onrent';
+    if (res.status === ReservationStatus.PENDING) return 'pending';
+    return 'ready';
+  };
+  const STAGE_META: Record<Stage, { label: string; dot: string; chip: string }> = {
+    ready: { label: 'Awaiting pickup', dot: 'bg-sky-500', chip: 'bg-sky-50 text-sky-700 ring-sky-200' },
+    onrent: { label: 'On rent', dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+    closed: { label: 'Closed', dot: 'bg-slate-400', chip: 'bg-slate-100 text-slate-600 ring-slate-200' },
+    pending: { label: 'Pending', dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700 ring-amber-200' },
+    cancelled: { label: 'Cancelled', dot: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700 ring-rose-200' },
+  };
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const alertOf = (res: Reservation): { label: string; cls: string } | null => {
+    const stage = stageOf(res);
+    const pickupDay = (res.startDate || '').slice(0, 10);
+    if (stage === 'ready' && pickupDay === todayKey) return { label: 'Pickup today', cls: 'bg-sky-600 text-white' };
+    if (stage === 'ready' && pickupDay && pickupDay < todayKey) return { label: 'Pickup overdue', cls: 'bg-amber-500 text-white' };
+    if (stage === 'onrent' && res.endDate && new Date(res.endDate).getTime() < Date.now()) return { label: 'Return overdue', cls: 'bg-rose-600 text-white' };
+    if (stage === 'onrent' && (res.endDate || '').slice(0, 10) === todayKey) return { label: 'Returns today', cls: 'bg-emerald-600 text-white' };
+    return null;
+  };
+  const rentalDaysOf = (res: Reservation) => {
+    if (!res.startDate || !res.endDate) return 0;
+    return Math.max(1, Math.ceil((new Date(res.endDate).getTime() - new Date(res.startDate).getTime()) / 86400000));
+  };
+  const timeOf = (iso?: string) => (iso && iso.includes('T') ? iso.split('T')[1].slice(0, 5) : '');
+  const shortDate = (iso?: string) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  };
+  const initials = (name?: string) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('');
+  const money = (n?: number) => `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const stageCounts = useMemo(() => {
+    const c: Record<string, number> = { all: filteredReservations.length, ready: 0, onrent: 0, closed: 0, pending: 0, cancelled: 0 };
+    filteredReservations.forEach(r => { c[stageOf(r)]++; });
+    return c;
+  }, [filteredReservations]);
+
+  const visibleReservations = useMemo(() => {
+    const list = stageTab === 'all' ? filteredReservations : filteredReservations.filter(r => stageOf(r) === stageTab);
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case 'return': return (a.endDate || '').localeCompare(b.endDate || '');
+        case 'name': return (a.personName || '').localeCompare(b.personName || '');
+        case 'amount': return (b.amount || 0) - (a.amount || 0);
+        default: return (a.startDate || '').localeCompare(b.startDate || '');
+      }
+    });
+    return sorted;
+  }, [filteredReservations, stageTab, sortKey]);
+
+  const revenue = filteredReservations.filter(r => stageOf(r) !== 'cancelled').reduce((s, r) => s + (r.amount || 0), 0);
+  const actionToday = filteredReservations.filter(r => alertOf(r) !== null).length;
+
+  const TABS: { key: 'all' | Stage; label: string }[] = isAgreementView
+    ? [{ key: 'all', label: 'All' }, { key: 'ready', label: 'To check out' }, { key: 'onrent', label: 'Open' }, { key: 'closed', label: 'Closed' }]
+    : [{ key: 'all', label: 'All' }, { key: 'ready', label: 'Awaiting pickup' }, { key: 'onrent', label: 'On rent' }, { key: 'closed', label: 'Closed' }, { key: 'pending', label: 'Pending' }, { key: 'cancelled', label: 'Cancelled' }];
+
+  const PrimaryAction: React.FC<{ res: Reservation; full?: boolean }> = ({ res, full }) => {
+    if (!canViewVoucherActions) return null;
+    const { year: y, month: m } = getReservationPeriod(res);
+    const stage = stageOf(res);
+    const cfg = stage === 'ready' ? { label: 'Check out', cls: 'bg-slate-900 text-white hover:bg-slate-800' }
+      : stage === 'onrent' ? { label: 'Check in', cls: 'bg-emerald-600 text-white hover:bg-emerald-700' }
+      : stage === 'closed' ? { label: 'Agreement', cls: 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50' }
+      : null;
+    if (!cfg) return null;
+    return (
+      <button onClick={() => onShowRentalVoucher(res, y, m)} className={`${full ? 'flex-1' : ''} inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${cfg.cls}`}>
+        <DocumentReportIcon className="w-4 h-4" /> {cfg.label}
+      </button>
+    );
+  };
+
+  const IconAction: React.FC<{ title: string; onClick: () => void; tone?: string; children: React.ReactNode }> = ({ title, onClick, tone = 'hover:text-slate-900 hover:bg-slate-100', children }) => (
+    <button onClick={onClick} title={title} aria-label={title} className={`p-1.5 rounded-lg text-slate-400 transition-colors ${tone}`}>{children}</button>
+  );
+
+  const RowActions: React.FC<{ res: Reservation }> = ({ res }) => {
+    const { year: y, month: m } = getReservationPeriod(res);
+    const stage = stageOf(res);
+    return (
+      <div className="flex items-center gap-0.5">
+        {canViewVoucherActions && <IconAction title="Receipt" onClick={() => onShowReceipt(res)}><CurrencyDollarIcon className="w-4 h-4" /></IconAction>}
+        {stage === 'onrent' && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND) && (
+          <IconAction title="Extend rental" onClick={() => onExtend(res)} tone="hover:text-amber-700 hover:bg-amber-50"><ClockIcon className="w-4 h-4" /></IconAction>
+        )}
+        {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && <IconAction title="Edit" onClick={() => openEditModal(res)}><EditIcon className="w-4 h-4" /></IconAction>}
+        {upgradePermission && stage !== 'closed' && stage !== 'cancelled' && (
+          <IconAction title="Upgrade vehicle" onClick={() => openUpgradeModal(res)} tone="hover:text-orange-700 hover:bg-orange-50"><CarIcon className="w-4 h-4" /></IconAction>
+        )}
+        {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && <IconAction title="Share" onClick={() => onShare(res)}><ShareIcon className="w-4 h-4" /></IconAction>}
+        {!res.voucherSubmitted && !res.dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
+          <IconAction title="Delete" onClick={() => onDelete(res.id, res.isNew, y, m)} tone="hover:text-rose-700 hover:bg-rose-50"><CloseIcon className="w-4 h-4" /></IconAction>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
-      <div className="bg-white rounded-[3rem] shadow-xl border border-slate-200 overflow-hidden mb-12">
-        <div className="p-10 bg-white border-b border-slate-100">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-10">
-            <h2 className="text-4xl font-black text-slate-900 tracking-tighter">
-              {isAgreementView ? (
-                <span className="flex items-center gap-6">
-                  <div className="p-5 bg-indigo-50 rounded-[2rem] shadow-lg shadow-indigo-100 border border-indigo-100">
-                    <DocumentReportIcon className="w-10 h-10 text-indigo-600" />
-                  </div>
-                  Agreement • {selectedMonth} {selectedYear}
-                </span>
-              ) : (
-                <span className="flex items-center gap-6">
-                   <div className="p-5 bg-emerald-50 rounded-[2rem] shadow-lg shadow-emerald-100 border border-emerald-100">
-                    <CalendarIcon className="w-10 h-10 text-emerald-600" />
-                  </div>
-                  {selectedMonth} {selectedYear}
-                </span>
-              )}
-            </h2>
-            
-            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-4 w-full lg:w-auto">
-              <div className="relative flex-1 sm:flex-none sm:min-w-[320px]">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by ID or name..."
-                  value={localBookingIdSearch}
-                  onChange={handleSearchChange}
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm font-medium text-slate-700"
-                />
+      <div className="space-y-5 mb-10">
+        {/* Header */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <div className="p-5 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isAgreementView ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                {isAgreementView ? <DocumentReportIcon className="w-6 h-6" /> : <CalendarIcon className="w-6 h-6" />}
               </div>
-
-              {isAgreementView && (
-                <div className="relative">
-                  <select
-                    value={getAgreementStatusFilter()}
-                    onChange={handleAgreementStatusFilterChange}
-                    className="pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm font-bold text-slate-700 appearance-none cursor-pointer"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="open">Open</option>
-                    <option value="closed">Closed</option>
-                    <option value="submitted">Submitted</option>
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDownIcon className="w-4 h-4" />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={handleExportCSV}
-                  disabled={filteredReservations.length === 0}
-                  className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 group hover:border-indigo-200"
-                  title="Export to CSV"
-                >
-                  <ExportIcon className="w-5 h-5 group-hover:text-indigo-600 transition-colors" />
-                </button>
-                <button
-                  onClick={handleExportExcel}
-                  disabled={filteredReservations.length === 0}
-                  className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 group hover:border-emerald-200"
-                  title="Export to Excel"
-                >
-                  <PdfIcon className="w-5 h-5 group-hover:text-emerald-600 transition-colors" />
-                </button>
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{isAgreementView ? 'Rental agreements' : 'Reservations'}</h2>
+                <p className="text-sm text-slate-500">{selectedMonth} {selectedYear} · {filteredReservations.length} booking{filteredReservations.length === 1 ? '' : 's'}</p>
               </div>
-
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[220px] sm:flex-none sm:w-72">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input type="text" placeholder="Search name or booking ID" value={localBookingIdSearch} onChange={handleSearchChange}
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+              </div>
+              <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)} aria-label="Sort"
+                className="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                <option value="pickup">Sort: pickup date</option>
+                <option value="return">Sort: return date</option>
+                <option value="name">Sort: customer</option>
+                <option value="amount">Sort: amount</option>
+              </select>
+              <button onClick={handleExportCSV} disabled={filteredReservations.length === 0} title="Export CSV" className="p-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-slate-800 disabled:opacity-40"><ExportIcon className="w-4 h-4" /></button>
+              <button onClick={handleExportExcel} disabled={filteredReservations.length === 0} title="Export Excel" className="p-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-slate-800 disabled:opacity-40"><PdfIcon className="w-4 h-4" /></button>
               {(currentUser?.email === 'nadeenalnahas@gmail.com' || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin') && (
-                <button
-                  onClick={() => onDeleteMonth(selectedYear, selectedMonth)}
-                  disabled={allDisplayReservations.length === 0}
-                  className="p-3.5 bg-white border border-rose-100 text-rose-500 rounded-2xl hover:bg-rose-50 transition-all shadow-sm disabled:opacity-50 group"
-                  title={`Delete all reservations for ${selectedMonth} ${selectedYear}`}
-                >
-                  <CloseIcon className="w-5 h-5" />
-                </button>
+                <button onClick={() => onDeleteMonth(selectedYear, selectedMonth)} disabled={allDisplayReservations.length === 0} title={`Delete all reservations for ${selectedMonth} ${selectedYear}`}
+                  className="p-2.5 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 disabled:opacity-40"><CloseIcon className="w-4 h-4" /></button>
               )}
-
-              <button
-                onClick={openAddModal}
-                className="px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:shadow-xl hover:shadow-indigo-200 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-3 shadow-lg shadow-indigo-100"
-              >
-                <PlusCircleIcon className="w-5 h-5" />
-                <span>New Reservation</span>
+              <button onClick={openAddModal} className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm">
+                <PlusCircleIcon className="w-4 h-4" /> New reservation
               </button>
             </div>
           </div>
-        </div>
 
-        {filteredReservations.length === 0 && (
-          <div className="p-8 text-center text-gray-500">No reservations match your search.</div>
-        )}
-
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
-          {filteredReservations.map((res) => {
-            const isNew = res.isNew;
-            const voucherSubmitted = res.voucherSubmitted;
-            const dropOffCompleted = res.dropOffCompleted;
-            const { year: reservationYear, month: reservationMonth } = getReservationPeriod(res);
-            const isDuplicate = duplicateBookingIds.has(res.bookingId?.trim());
-            const statusColor = getStatusColor(res.status);
-            const canUpgrade = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE);
-
-            return (
-              <div
-                key={res.id}
-                className={`group relative bg-white rounded-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col h-full overflow-hidden border ${
-                  isDuplicate ? 'border-red-300 ring-2 ring-red-50' : 'border-slate-200 shadow-md'
-                } hover:shadow-xl hover:shadow-indigo-100/40`}
-              >
-                {/* Status-based Accent line */}
-                <div className={`h-2 w-full ${
-                  res.status === ReservationStatus.CONFIRMED ? 'bg-emerald-500' :
-                  res.status === ReservationStatus.COMPLETED ? 'bg-indigo-500' :
-                  res.status === ReservationStatus.CANCELLED ? 'bg-rose-500' :
-                  'bg-amber-500'
-                }`} />
-
-                <div className="p-6 flex-1 flex flex-col relative">
-                  {/* Decorative Background for Airport */}
-                  {(res.locationName?.includes('Airport') || res.locationName?.includes('AMM')) && (
-                    <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-500 pointer-events-none">
-                      <AirplaneIcon className="w-32 h-32 transform rotate-12" />
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-start mb-5">
-                    <div className="flex-1 min-w-0">
-                      <h3 
-                        className="text-xl font-black text-slate-900 truncate cursor-pointer hover:text-indigo-600 transition-colors tracking-tight leading-tight mb-1" 
-                        title={res.personName}
-                        onClick={() => setDetailsModalReservation(res)}
-                      >
-                        {res.personName}
-                      </h3>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="flex items-center text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
-                           <HashtagIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
-                           {res.bookingId || 'NO-ID'}
-                        </span>
-                        {res.source && (
-                          <span className="flex items-center text-[11px] text-indigo-600 font-black uppercase tracking-[0.2em] bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-100">
-                             <GlobeAltIcon className="w-3.5 h-3.5 mr-1.5" />
-                             {getSourceName(res.source)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm backdrop-blur-sm transition-all duration-500 group-hover:scale-105 ${statusColor}`}>
-                      {res.status}
-                    </div>
-                  </div>
-
-                  {/* Badges row */}
-                  <div className="flex gap-2 mb-5 flex-wrap">
-                    {voucherSubmitted && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-lg shadow-emerald-200/40 border border-emerald-400">
-                        <CheckCircleIcon className="w-3.5 h-3.5" /> Agreement Signed
-                      </span>
-                    )}
-                    {dropOffCompleted && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-lg shadow-slate-300 border border-slate-700">
-                        <CheckCircleIcon className="w-3.5 h-3.5" /> Closed Case
-                      </span>
-                    )}
-                    {!voucherSubmitted && !dropOffCompleted && res.status === ReservationStatus.CONFIRMED && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-200/40 border border-amber-300">
-                        <ShieldExclamationIcon className="w-3.5 h-3.5" /> Action Required
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Vehicle & Contact Section */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
-                        <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-600">
-                           <CarIcon className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Vehicle Type</p>
-                          <p className="text-sm font-black text-slate-800 truncate">{res.carModel || '—'}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/50 group-hover:bg-white group-hover:border-indigo-100 group-hover:shadow-md transition-all duration-500">
-                        <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-emerald-600">
-                           <PhoneIcon className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Contact Info</p>
-                          <p className="text-sm font-black text-slate-800 truncate">{res.contactNumber || '—'}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Timeline-style Dates & Location */}
-                    <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-300/50 relative overflow-hidden group-hover:bg-indigo-950 transition-all duration-500">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full blur-[40px] -mr-16 -mt-16" />
-                      
-                      <div className="flex items-center gap-3 mb-5 relative z-10">
-                        <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/5">
-                          {res.locationName?.includes('Airport') || res.locationName?.includes('AMM') ? (
-                            <AirplaneIcon className="w-4 h-4 text-sky-300" />
-                          ) : (
-                            <MapPinIcon className="w-4 h-4 text-indigo-300" />
-                          )}
-                        </div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-slate-100 truncate">{res.locationName || 'Location N/A'}</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-6 relative z-10">
-                        <div className="relative pl-4 border-l-2 border-emerald-500/40">
-                          <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                             Pickup
-                          </p>
-                          <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold tracking-tight">{formatDateOnly(res.startDate)}</p>
-                            <p className="text-sm font-light text-emerald-50/70">{res.startDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
-                          </div>
-                        </div>
-                        <div className="relative pl-4 border-l-2 border-rose-500/40">
-                          <p className="text-[9px] text-rose-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                             Return
-                          </p>
-                          <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold tracking-tight">{formatDateOnly(res.endDate)}</p>
-                            <p className="text-sm font-light text-rose-50/70">{res.endDate?.split('T')[1]?.substring(0, 5) || '00:00'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Section */}
-                <div className="px-6 py-5 bg-slate-50 border-t border-slate-200 flex flex-col gap-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                       <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-100 text-indigo-700">
-                          <CurrencyDollarIcon className="w-5 h-5" />
-                       </div>
-                       <div>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none mb-1">Total Amount</p>
-                          <p className="text-2xl font-black text-slate-900 tracking-tight">${res.amount?.toFixed(2)}</p>
-                       </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      {canViewVoucherActions && (
-                        <button onClick={() => onShowRentalVoucher(res, reservationYear, reservationMonth)} className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Rental Agreement">
-                          <DocumentReportIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                      {canViewVoucherActions && (
-                        <button onClick={() => onShowReceipt(res)} className="p-2.5 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Receipt">
-                          <CurrencyDollarIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                      {!dropOffCompleted && res.status === ReservationStatus.CONFIRMED && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND) && (
-                        <button onClick={() => onExtend(res)} className="p-2.5 text-amber-600 hover:bg-amber-600 hover:text-white rounded-xl transition-all shadow-sm bg-white border border-slate-200 active:scale-95" title="Extend Rental">
-                          <ClockIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {res.notes && (
-                    <div className="text-[10px] text-slate-500 italic bg-white/50 p-2 rounded-xl border border-slate-100 truncate" title={res.notes}>
-                      <span className="font-bold not-italic mr-1">Notes:</span> {res.notes}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                    {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && (
-                      <button 
-                        onClick={() => openEditModal(res)} 
-                        className="flex-1 py-2.5 px-4 rounded-2xl border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
-                      >
-                        <EditIcon className="w-3.5 h-3.5" />
-                        Edit
-                      </button>
-                    )}
-                    {canUpgrade && (
-                      <button 
-                        onClick={() => openUpgradeModal(res)} 
-                        className="flex-1 py-2.5 px-4 rounded-2xl border border-orange-100 bg-orange-50 text-[10px] font-black uppercase tracking-widest text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
-                      >
-                        <CarIcon className="w-3.5 h-3.5" />
-                        Upgrade
-                      </button>
-                    )}
-                    <div className="flex gap-1.5 ml-1">
-                      {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && (
-                        <button onClick={() => onShare(res)} className="p-2.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all border border-transparent hover:border-indigo-100 active:scale-95" title="Share">
-                          <ShareIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                      {!voucherSubmitted && !dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
-                        <button onClick={() => onDelete(res.id, isNew, reservationYear, reservationMonth)} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all border border-transparent hover:border-rose-100 active:scale-95" title="Delete">
-                          <CloseIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
+            {[
+              { label: 'Bookings', value: filteredReservations.length, sub: `${stageCounts.cancelled} cancelled` },
+              { label: 'On rent now', value: stageCounts.onrent, sub: `${stageCounts.ready} awaiting pickup` },
+              { label: 'Needs attention', value: actionToday, sub: 'due today or overdue', warn: actionToday > 0 },
+              { label: 'Revenue', value: money(revenue), sub: 'excluding cancellations' },
+            ].map(k => (
+              <div key={k.label} className="px-5 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
+                <p className={`mt-1 text-2xl font-bold tabular-nums ${k.warn ? 'text-amber-600' : 'text-slate-900'}`}>{k.value}</p>
+                <p className="text-xs text-slate-400">{k.sub}</p>
               </div>
-            );
-          })}
+            ))}
+          </div>
+
+          {/* Stage tabs */}
+          <div className="px-3 sm:px-5 border-t border-slate-100 flex gap-1 overflow-x-auto no-scrollbar">
+            {TABS.map(t => (
+              <button key={t.key} onClick={() => setStageTab(t.key)}
+                className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${stageTab === t.key ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                {t.label}
+                <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[11px] tabular-nums ${stageTab === t.key ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{stageCounts[t.key] ?? 0}</span>
+              </button>
+            ))}
+          </div>
         </div>
+
+        {visibleReservations.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-16 text-center">
+            <CalendarIcon className="w-10 h-10 mx-auto text-slate-300" />
+            <p className="mt-3 font-semibold text-slate-700">No reservations here</p>
+            <p className="text-sm text-slate-500">Try another tab, clear the search, or create a new reservation.</p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden lg:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                    <th className="text-left font-semibold px-5 py-3">Customer</th>
+                    <th className="text-left font-semibold px-4 py-3">Vehicle</th>
+                    <th className="text-left font-semibold px-4 py-3">Pickup</th>
+                    <th className="text-left font-semibold px-4 py-3">Return</th>
+                    <th className="text-left font-semibold px-4 py-3">Status</th>
+                    <th className="text-right font-semibold px-4 py-3">Amount</th>
+                    <th className="text-right font-semibold px-5 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {visibleReservations.map(res => {
+                    const stage = stageOf(res);
+                    const alert = alertOf(res);
+                    const kind = vehicleKind(res.carModel, fleet);
+                    const isDuplicate = duplicateBookingIds.has(res.bookingId?.trim());
+                    return (
+                      <tr key={res.id} className={`group hover:bg-slate-50/70 ${isDuplicate ? 'bg-rose-50/40' : ''}`}>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs font-bold flex items-center justify-center shrink-0">{initials(res.personName)}</div>
+                            <div className="min-w-0">
+                              <button onClick={() => setDetailsModalReservation(res)} className="font-semibold text-slate-900 hover:text-indigo-600 truncate max-w-[14rem] block text-left">{res.personName || 'Unnamed'}</button>
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                <span className="font-mono">{res.bookingId || 'NO-ID'}</span>
+                                {res.source && <><span className="text-slate-300">·</span><span className="truncate max-w-[8rem]">{getSourceName(res.source)}</span></>}
+                                {isDuplicate && <span className="ml-1 px-1.5 rounded bg-rose-100 text-rose-700 font-semibold">duplicate</span>}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <VehicleArt kind={kind} className="w-14 h-8 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium text-slate-800 truncate max-w-[10rem]">{res.carModel || '—'}</p>
+                              <p className="text-xs text-slate-400">{res.licensePlate || vehicleKindLabel[kind]}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="font-medium text-slate-800">{shortDate(res.startDate)} <span className="text-slate-400 font-normal">{timeOf(res.startDate)}</span></p>
+                          <p className="text-xs text-slate-400 truncate max-w-[9rem]">{res.locationName || '—'}</p>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="font-medium text-slate-800">{shortDate(res.endDate)} <span className="text-slate-400 font-normal">{timeOf(res.endDate)}</span></p>
+                          <p className="text-xs text-slate-400">{rentalDaysOf(res)} day{rentalDaysOf(res) === 1 ? '' : 's'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col items-start gap-1">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${STAGE_META[stage].chip}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${STAGE_META[stage].dot}`} />{STAGE_META[stage].label}
+                            </span>
+                            {alert && <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${alert.cls}`}>{alert.label}</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">{money(res.amount)}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <RowActions res={res} />
+                            <PrimaryAction res={res} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile / tablet cards */}
+            <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+              {visibleReservations.map(res => {
+                const stage = stageOf(res);
+                const alert = alertOf(res);
+                const kind = vehicleKind(res.carModel, fleet);
+                return (
+                  <div key={res.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <button onClick={() => setDetailsModalReservation(res)} className="min-w-0 text-left">
+                          <p className="font-semibold text-slate-900 truncate">{res.personName || 'Unnamed'}</p>
+                          <p className="text-xs text-slate-500 font-mono">{res.bookingId || 'NO-ID'}{res.source ? ` · ${getSourceName(res.source)}` : ''}</p>
+                        </button>
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset shrink-0 ${STAGE_META[stage].chip}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${STAGE_META[stage].dot}`} />{STAGE_META[stage].label}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center gap-3">
+                        <VehicleArt kind={kind} className="w-16 h-9 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{res.carModel || '—'}</p>
+                          <p className="text-xs text-slate-400">{res.licensePlate || vehicleKindLabel[kind]}</p>
+                        </div>
+                        <p className="ml-auto text-lg font-bold text-slate-900 tabular-nums">{money(res.amount)}</p>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                          <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px]">Pickup</p>
+                          <p className="font-medium text-slate-800">{shortDate(res.startDate)} {timeOf(res.startDate)}</p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                          <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px]">Return · {rentalDaysOf(res)}d</p>
+                          <p className="font-medium text-slate-800">{shortDate(res.endDate)} {timeOf(res.endDate)}</p>
+                        </div>
+                      </div>
+                      {alert && <p className={`mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${alert.cls}`}>{alert.label}</p>}
+                    </div>
+                    <div className="px-3 py-2 border-t border-slate-100 bg-slate-50/60 flex items-center gap-2">
+                      <RowActions res={res} />
+                      <div className="ml-auto"><PrimaryAction res={res} /></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       <Modal isOpen={!!detailsModalReservation} onClose={() => setDetailsModalReservation(null)} title="Reservation Preview">

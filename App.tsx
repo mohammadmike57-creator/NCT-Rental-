@@ -186,7 +186,7 @@ const SidebarSection: React.FC<{ title: string, children: React.ReactNode }> = (
         <div>
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-700/50 rounded-md">
                 {title}
-                <ChevronDownIcon className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDownIcon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             {isOpen && <div className="pl-3 pt-1 space-y-1">{children}</div>}
         </div>
@@ -1416,6 +1416,7 @@ ${currentUser?.fullName}
             currentUser={currentUser!}
             allData={{reservations, fleet, sources, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years}}
             onNavigate={handleNavigation}
+            onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
         />
     ), permission: UserPermission.VIEW_HOME_DASHBOARD },
     'Reservations': { component: renderReservationView(false), permission: UserPermission.VIEW_RESERVATIONS },

@@ -2,7 +2,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 
 interface SignaturePadProps {
-    title: string;
+    title?: string;
     signature?: string;
     onSave: (dataUrl: string) => void;
     onClear: () => void;
@@ -128,10 +128,15 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ title, signature, onSave, o
 
     return (
         <div>
-            <p className="text-sm font-semibold text-gray-700 mb-1">{title}</p>
-            <div className="relative w-full h-40 border-2 border-dashed rounded-md bg-gray-50 touch-none">
+            {title && <p className="text-sm font-semibold text-slate-700 mb-1">{title}</p>}
+            <div className={`relative w-full h-36 rounded-xl border touch-none overflow-hidden ${disabled ? 'border-slate-200 bg-slate-50' : 'border-slate-300 bg-white'}`}>
+                {!showImage && !disabled && !hasSigned && (
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-300 select-none">Sign here</span>
+                )}
+                <span className="pointer-events-none absolute left-4 right-4 bottom-8 border-b border-dashed border-slate-300" />
+                <span className="pointer-events-none absolute left-4 bottom-9 text-slate-400 text-sm">✕</span>
                 {showImage ? (
-                    <img src={signature} alt="signature" className="w-full h-full object-contain" />
+                    <img src={signature} alt="signature" className="relative w-full h-full object-contain" />
                 ) : (
                     <canvas
                         ref={canvasRef}
@@ -142,19 +147,19 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ title, signature, onSave, o
                         onTouchStart={startDrawing}
                         onTouchMove={draw}
                         onTouchEnd={stopDrawing}
-                        className="w-full h-full"
+                        className="relative w-full h-full"
                     />
                 )}
             </div>
              {!disabled && (
-                <div className="mt-2 text-right">
+                <div className="mt-1.5 flex justify-end">
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="text-sm text-blue-600 hover:underline disabled:text-gray-400"
+                        className="text-xs font-semibold text-slate-500 hover:text-rose-600 disabled:text-slate-300"
                         disabled={!signature && !hasSigned}
                     >
-                        Clear
+                        Clear signature
                     </button>
                 </div>
             )}
