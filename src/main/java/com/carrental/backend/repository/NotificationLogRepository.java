@@ -26,13 +26,13 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
 
     Page<NotificationLog> findByTypeAndStatus(
             NotificationTemplate.NotificationType type,
-            String status,
+            NotificationLog.NotificationStatus status,
             Pageable pageable
     );
 
     long countByTypeAndStatusAndSentAtBetween(
             NotificationTemplate.NotificationType type,
-            String status,
+            NotificationLog.NotificationStatus status,
             LocalDateTime startDate,
             LocalDateTime endDate
     );

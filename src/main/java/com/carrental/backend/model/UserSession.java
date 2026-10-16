@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_sessions", indexes = {
-    @Index(name = "idx_user_id", columnList = "user_id"),
+    @Index(name = "idx_session_user_id", columnList = "user_id"),
     @Index(name = "idx_session_token", columnList = "session_token"),
-    @Index(name = "idx_expires_at", columnList = "expires_at")
+    @Index(name = "idx_session_expires_at", columnList = "expires_at")
 })
 @Data
 @NoArgsConstructor

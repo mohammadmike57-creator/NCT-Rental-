@@ -11,11 +11,11 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "channel_reservations", indexes = {
-    @Index(name = "idx_channel_confirmation", columnList = "channelConfirmationNumber"),
-    @Index(name = "idx_internal_confirmation", columnList = "internalConfirmationNumber"),
-    @Index(name = "idx_channel_id", columnList = "channel_id"),
-    @Index(name = "idx_reservation_status", columnList = "reservationStatus"),
-    @Index(name = "idx_pickup_date", columnList = "pickupDate")
+    @Index(name = "idx_cres_channel_confirmation", columnList = "channelConfirmationNumber"),
+    @Index(name = "idx_cres_internal_confirmation", columnList = "internalConfirmationNumber"),
+    @Index(name = "idx_cres_channel_id", columnList = "channel_id"),
+    @Index(name = "idx_cres_reservation_status", columnList = "reservationStatus"),
+    @Index(name = "idx_cres_pickup_date", columnList = "pickupDate")
 })
 public class ChannelReservation {
 
@@ -88,7 +88,9 @@ public class ChannelReservation {
 
     // Pricing information
     private String rateCode;
-    private String ratePlanId;
+
+    @Column(name = "external_rate_plan_id")
+    private String ratePlanId; // the partner's own rate plan code from the XML
 
     @ManyToOne
     @JoinColumn(name = "rate_plan_id")

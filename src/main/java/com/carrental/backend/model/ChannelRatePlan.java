@@ -11,9 +11,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "channel_rate_plans", indexes = {
-    @Index(name = "idx_channel_id", columnList = "channel_id"),
-    @Index(name = "idx_vehicle_category", columnList = "vehicle_category"),
-    @Index(name = "idx_date_range", columnList = "start_date,end_date")
+    @Index(name = "idx_crp_channel_id", columnList = "channel_id"),
+    @Index(name = "idx_crp_vehicle_category", columnList = "vehicle_category"),
+    @Index(name = "idx_crp_date_range", columnList = "start_date,end_date")
 })
 @Data
 @NoArgsConstructor

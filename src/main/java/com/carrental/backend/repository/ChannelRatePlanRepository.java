@@ -4,6 +4,7 @@ import com.carrental.backend.model.ChannelRatePlan;
 import com.carrental.backend.model.DistributionChannel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -27,4 +28,13 @@ public interface ChannelRatePlanRepository extends JpaRepository<ChannelRatePlan
 
     @Query("SELECT r FROM ChannelRatePlan r WHERE r.channel = :channel AND :date BETWEEN r.startDate AND r.endDate")
     List<ChannelRatePlan> findRatePlansForDateRange(DistributionChannel channel, LocalDate date);
+
+    /** Active plans of a channel that overlap the given period. */
+    @Query("SELECT r FROM ChannelRatePlan r WHERE r.channel.id = :channelId AND r.isActive = true " +
+           "AND r.startDate <= :endDate AND r.endDate >= :startDate ORDER BY r.startDate")
+    List<ChannelRatePlan> findByChannelIdAndDateRange(
+        @Param("channelId") String channelId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
 }

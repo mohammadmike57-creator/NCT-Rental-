@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -119,9 +120,7 @@ public class FleetBalanceService {
 
         // Calculate total rental days
         long totalRentalDays = reservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED ||
-                        r.getStatus() == ReservationStatus.ACTIVE ||
-                        r.getStatus() == ReservationStatus.COMPLETED)
+            .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED)
             .mapToLong(r -> ChronoUnit.DAYS.between(r.getStartDate(), r.getEndDate()))
             .sum();
 
@@ -232,8 +231,7 @@ public class FleetBalanceService {
 
         // Total revenue
         double totalRevenue = reservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED ||
-                        r.getStatus() == ReservationStatus.COMPLETED)
+            .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED)
             .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
             .sum();
         revenue.put("totalRevenue", round(totalRevenue, 2));

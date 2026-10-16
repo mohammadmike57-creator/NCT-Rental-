@@ -106,13 +106,13 @@ public class ProfessionalSummaryService {
 
         // Active Reservations
         long activeReservations = allReservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.ACTIVE)
+            .filter(this::isActive)
             .count();
         kpis.put("activeReservations", activeReservations);
 
         // Completed Reservations
         long completedReservations = allReservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.COMPLETED)
+            .filter(this::isCompleted)
             .count();
         kpis.put("completedReservations", completedReservations);
 
@@ -185,11 +185,11 @@ public class ProfessionalSummaryService {
         // Revenue Breakdown
         Map<String, Double> revenueBreakdown = new HashMap<>();
         revenueBreakdown.put("completed", reservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.COMPLETED)
+            .filter(this::isCompleted)
             .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
             .sum());
         revenueBreakdown.put("active", reservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.ACTIVE)
+            .filter(this::isActive)
             .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
             .sum());
         revenueBreakdown.put("pending", reservations.stream()
@@ -324,7 +324,7 @@ public class ProfessionalSummaryService {
 
         // Customer Satisfaction (based on completion rate)
         long completed = reservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.COMPLETED)
+            .filter(this::isCompleted)
             .count();
         double satisfactionScore = reservations.isEmpty() ? 0 : (completed * 100.0) / reservations.size();
         analytics.put("completionRate", round(satisfactionScore, 2));
@@ -362,14 +362,14 @@ public class ProfessionalSummaryService {
         // Payment Collection Rate
         List<Payment> payments = paymentRepository.findAll();
         long successfulPayments = payments.stream()
-            .filter(p -> "succeeded".equalsIgnoreCase(p.getStatus()))
+            .filter(p -> p.getStatus() == Payment.PaymentStatus.SUCCEEDED)
             .count();
         double collectionRate = payments.isEmpty() ? 0 : (successfulPayments * 100.0) / payments.size();
         metrics.put("paymentCollectionRate", round(collectionRate, 2));
 
         // Outstanding Payments
         double outstanding = reservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED || r.getStatus() == ReservationStatus.ACTIVE)
+            .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED && !isCompleted(r))
             .filter(r -> r.getAmount() != null)
             .mapToDouble(r -> r.getAmount() - (r.getBaseAmount() != null ? r.getBaseAmount() : 0))
             .sum();
@@ -724,7 +724,7 @@ public class ProfessionalSummaryService {
     private double calculateOperationalHealthScore(LocalDate startDate, LocalDate endDate) {
         List<Reservation> reservations = reservationRepository.findByDateRange(startDate, endDate);
         long completed = reservations.stream()
-            .filter(r -> r.getStatus() == ReservationStatus.COMPLETED)
+            .filter(this::isCompleted)
             .count();
 
         return reservations.isEmpty() ? 0 : (completed * 100.0) / reservations.size();
@@ -781,5 +781,15 @@ public class ProfessionalSummaryService {
         return BigDecimal.valueOf(value)
             .setScale(places, RoundingMode.HALF_UP)
             .doubleValue();
+    }
+
+    /** A rental is active once the car has been picked up and until it is returned. */
+    private boolean isActive(Reservation r) {
+        return r.getStatus() == ReservationStatus.CONFIRMED && r.getPickupDateTime() != null && !isCompleted(r);
+    }
+
+    /** A rental is completed when the drop-off has been recorded. */
+    private boolean isCompleted(Reservation r) {
+        return Boolean.TRUE.equals(r.getDropOffCompleted());
     }
 }

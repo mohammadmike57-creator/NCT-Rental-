@@ -320,9 +320,9 @@ public class ProfessionalEmailService {
             EmailVariables variables = new EmailVariables()
                 .put("customerName", reservation.getPersonName())
                 .put("bookingId", reservation.getBookingId())
-                .put("carModel", reservation.getCarModel())
-                .put("pickupDate", reservation.getPickupDate())
-                .put("dropoffDate", reservation.getDropoffDate())
+                .put("carModel", carModelOf(reservation))
+                .put("pickupDate", dateOf(reservation.getStartDate()))
+                .put("dropoffDate", dateOf(reservation.getEndDate()))
                 .put("amount", String.format("%.2f JOD", reservation.getAmount()))
                 .put("pickupLocation", reservation.getLocationName() != null ? reservation.getLocationName() : "")
                 .put("companyName", companyName)
@@ -364,9 +364,9 @@ public class ProfessionalEmailService {
             EmailVariables variables = new EmailVariables()
                 .put("customerName", reservation.getPersonName())
                 .put("bookingId", reservation.getBookingId())
-                .put("carModel", reservation.getCarModel())
-                .put("pickupDate", reservation.getPickupDate())
-                .put("dropoffDate", reservation.getDropoffDate())
+                .put("carModel", carModelOf(reservation))
+                .put("pickupDate", dateOf(reservation.getStartDate()))
+                .put("dropoffDate", dateOf(reservation.getEndDate()))
                 .put("amount", String.format("%.2f JOD", reservation.getAmount()))
                 .put("pickupLocation", reservation.getLocationName() != null ? reservation.getLocationName() : "");
 
@@ -427,8 +427,8 @@ public class ProfessionalEmailService {
             EmailVariables variables = new EmailVariables()
                 .put("customerName", reservation.getPersonName())
                 .put("bookingId", reservation.getBookingId())
-                .put("carModel", reservation.getCarModel())
-                .put("pickupDate", reservation.getPickupDate())
+                .put("carModel", carModelOf(reservation))
+                .put("pickupDate", dateOf(reservation.getStartDate()))
                 .put("pickupLocation", reservation.getLocationName() != null ? reservation.getLocationName() : "")
                 .put("hoursBefore", String.valueOf(hoursBefore));
 
@@ -456,7 +456,7 @@ public class ProfessionalEmailService {
             EmailVariables variables = new EmailVariables()
                 .put("customerName", reservation.getPersonName())
                 .put("bookingId", reservation.getBookingId())
-                .put("carModel", reservation.getCarModel());
+                .put("carModel", carModelOf(reservation));
 
             List<EmailAttachment> attachments = new ArrayList<>();
             if (invoicePdf != null) {
@@ -660,8 +660,12 @@ public class ProfessionalEmailService {
         });
 
         MimeMessage message = new MimeMessage(session);
-        message.setFrom(new InternetAddress(fromEmail, fromName));
-        message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(job.to));
+        try {
+            message.setFrom(new InternetAddress(fromEmail, fromName, "UTF-8"));
+        } catch (java.io.UnsupportedEncodingException e) {
+            message.setFrom(new InternetAddress(fromEmail));
+        }
+        message.setRecipients(javax.mail.Message.RecipientType.TO, InternetAddress.parse(job.to));
         message.setSubject(job.subject);
 
         if (job.attachments.isEmpty()) {
@@ -856,10 +860,12 @@ public class ProfessionalEmailService {
     private void logEmail(String to, String subject, String status, String errorMessage, Map<String, String> metadata) {
         try {
             NotificationLog log = new NotificationLog();
-            log.setType(NotificationLog.NotificationType.EMAIL);
+            log.setType(NotificationTemplate.NotificationType.EMAIL);
             log.setRecipient(to);
             log.setSubject(subject);
-            log.setStatus(status);
+            log.setStatus(status != null && status.toUpperCase().startsWith("SENT")
+                ? NotificationLog.NotificationStatus.SENT
+                : NotificationLog.NotificationStatus.FAILED);
             log.setErrorMessage(errorMessage);
             log.setMetadata(metadata != null ? metadata.toString() : "");
             log.setSentAt(LocalDateTime.now());
@@ -923,5 +929,16 @@ public class ProfessionalEmailService {
     public void clearFailedJobs() {
         failedJobs.clear();
         logger.info("Failed jobs cleared");
+    }
+
+    private static String carModelOf(Reservation reservation) {
+        if (reservation.getAssignedVehicle() != null && reservation.getAssignedVehicle().getModelName() != null) {
+            return reservation.getAssignedVehicle().getModelName();
+        }
+        return reservation.getReservationVehicle() != null ? reservation.getReservationVehicle() : "";
+    }
+
+    private static String dateOf(java.time.LocalDate date) {
+        return date == null ? "" : date.toString();
     }
 }

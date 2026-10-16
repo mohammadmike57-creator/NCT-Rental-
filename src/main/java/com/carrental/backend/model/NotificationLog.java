@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notification_logs", indexes = {
-    @Index(name = "idx_user_id", columnList = "user_id"),
-    @Index(name = "idx_status", columnList = "status"),
-    @Index(name = "idx_created_at", columnList = "created_at")
+    @Index(name = "idx_notif_user_id", columnList = "user_id"),
+    @Index(name = "idx_notif_status", columnList = "status"),
+    @Index(name = "idx_notif_created_at", columnList = "created_at")
 })
 @Data
 @NoArgsConstructor
@@ -53,6 +53,9 @@ public class NotificationLog {
 
     @Column(name = "error_message", length = 500)
     private String errorMessage;
+
+    @Column(length = 2000)
+    private String metadata;
 
     @Column(name = "retry_count")
     private int retryCount = 0;

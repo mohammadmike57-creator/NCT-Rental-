@@ -11,9 +11,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "rental_agreements", indexes = {
-    @Index(name = "idx_reservation_id", columnList = "reservation_id"),
+    @Index(name = "idx_agreement_reservation_id", columnList = "reservation_id"),
     @Index(name = "idx_agreement_number", columnList = "agreement_number"),
-    @Index(name = "idx_customer_email", columnList = "customer_email")
+    @Index(name = "idx_agreement_customer_email", columnList = "customer_email")
 })
 @Data
 @NoArgsConstructor

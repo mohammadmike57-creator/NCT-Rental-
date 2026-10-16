@@ -498,14 +498,20 @@ public class ProfessionalEmailController {
             Page<NotificationLog> logs;
 
             if (status != null) {
+                NotificationLog.NotificationStatus statusFilter;
+                try {
+                    statusFilter = NotificationLog.NotificationStatus.valueOf(status.trim().toUpperCase());
+                } catch (IllegalArgumentException ex) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Unknown status: " + status));
+                }
                 logs = logRepository.findByTypeAndStatus(
-                    NotificationLog.NotificationType.EMAIL,
-                    status,
+                    NotificationTemplate.NotificationType.EMAIL,
+                    statusFilter,
                     pageRequest
                 );
             } else {
                 logs = logRepository.findByType(
-                    NotificationLog.NotificationType.EMAIL,
+                    NotificationTemplate.NotificationType.EMAIL,
                     pageRequest
                 );
             }
@@ -545,22 +551,22 @@ public class ProfessionalEmailController {
             }
 
             long totalSent = logRepository.countByTypeAndStatusAndSentAtBetween(
-                NotificationLog.NotificationType.EMAIL,
-                "SENT",
+                NotificationTemplate.NotificationType.EMAIL,
+                NotificationLog.NotificationStatus.SENT,
                 startDate,
                 endDate
             );
 
             long totalFailed = logRepository.countByTypeAndStatusAndSentAtBetween(
-                NotificationLog.NotificationType.EMAIL,
-                "FAILED",
+                NotificationTemplate.NotificationType.EMAIL,
+                NotificationLog.NotificationStatus.FAILED,
                 startDate,
                 endDate
             );
 
             long totalPending = logRepository.countByTypeAndStatusAndSentAtBetween(
-                NotificationLog.NotificationType.EMAIL,
-                "PENDING",
+                NotificationTemplate.NotificationType.EMAIL,
+                NotificationLog.NotificationStatus.PENDING,
                 startDate,
                 endDate
             );

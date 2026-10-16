@@ -1,3 +1,8 @@
+# NOT LOADED BY THE APPLICATION. Reference only: this file used to live in
+# src/main/resources and activated the "production" profile by default, which
+# pointed the datasource at ${DB_HOST} and required libraries the project does
+# not include. Runtime configuration lives in src/main/resources/application.properties.
+
 # ========================================
 # NCT Rental System - Production Configuration
 # ========================================

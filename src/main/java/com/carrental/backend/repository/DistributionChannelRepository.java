@@ -15,6 +15,8 @@ public interface DistributionChannelRepository extends JpaRepository<Distributio
 
     Optional<DistributionChannel> findByChannelName(String channelName);
 
+    Optional<DistributionChannel> findByChannelCode(String channelCode);
+
     List<DistributionChannel> findByChannelType(DistributionChannel.ChannelType channelType);
 
     @Query("SELECT d FROM DistributionChannel d WHERE d.isActive = true AND d.autoSyncInventory = true")

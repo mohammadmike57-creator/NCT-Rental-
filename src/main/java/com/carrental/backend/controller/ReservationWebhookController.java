@@ -1,6 +1,7 @@
 package com.carrental.backend.controller;
 
 import com.carrental.backend.service.ChannelReservationService;
+import com.carrental.backend.service.XmlReservationParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,9 @@ public class ReservationWebhookController {
 
     @Autowired
     private ChannelReservationService channelReservationService;
+
+    @Autowired
+    private XmlReservationParser xmlParser;
 
     /**
      * Receive new reservation from external channel

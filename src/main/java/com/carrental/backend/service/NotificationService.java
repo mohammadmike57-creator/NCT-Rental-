@@ -93,6 +93,29 @@ public class NotificationService {
     }
 
     /**
+     * Send an email built from an inline subject/body (no stored template).
+     * Placeholders such as {{name}} in the body are replaced from {@code variables}.
+     */
+    @Async
+    public void sendNotification(String recipient, String subject, String bodyTemplate, Map<String, String> variables) {
+        if (!notificationsEnabled) {
+            logger.info("Notifications disabled, skipping");
+            return;
+        }
+        try {
+            NotificationLog log = new NotificationLog();
+            log.setRecipient(recipient);
+            log.setType(NotificationTemplate.NotificationType.EMAIL);
+            log.setSubject(replacePlaceholders(subject, variables));
+            log.setBody(replacePlaceholders(bodyTemplate, variables));
+            log.setStatus(NotificationLog.NotificationStatus.PENDING);
+            sendEmail(recipient, log.getSubject(), log.getBody(), log);
+        } catch (Exception e) {
+            logger.error("Failed to send notification", e);
+        }
+    }
+
+    /**
      * Send email notification
      */
     private void sendEmail(String recipient, String subject, String body, NotificationLog log) {

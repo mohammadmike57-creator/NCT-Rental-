@@ -21,6 +21,9 @@ public class DistributionChannel {
     @Column(name = "channel_name", nullable = false)
     private String channelName; // e.g., "Skyscanner", "DiscoverCars", "Booking.com"
 
+    @Column(name = "channel_code", length = 50)
+    private String channelCode; // short partner code used in inbound XML, e.g. "BKG"
+
     @Column(name = "channel_type", nullable = false)
     @Enumerated(EnumType.STRING)
     private ChannelType channelType;

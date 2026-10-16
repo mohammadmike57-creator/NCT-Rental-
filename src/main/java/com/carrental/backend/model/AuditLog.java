@@ -9,10 +9,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "audit_logs", indexes = {
-    @Index(name = "idx_user_id", columnList = "user_id"),
-    @Index(name = "idx_timestamp", columnList = "timestamp"),
-    @Index(name = "idx_action_type", columnList = "action_type"),
-    @Index(name = "idx_entity_type", columnList = "entity_type")
+    @Index(name = "idx_audit_user_id", columnList = "user_id"),
+    @Index(name = "idx_audit_timestamp", columnList = "timestamp"),
+    @Index(name = "idx_audit_action_type", columnList = "action_type"),
+    @Index(name = "idx_audit_entity_type", columnList = "entity_type")
 })
 @Data
 @NoArgsConstructor
@@ -104,7 +104,13 @@ public class AuditLog {
         PERMISSION_CHANGED,
         SESSION_TERMINATED,
         API_KEY_CREATED,
-        API_KEY_REVOKED
+        API_KEY_REVOKED,
+        // Generic actions used by AuditLogService for any entity type
+        CREATE,
+        UPDATE,
+        DELETE,
+        API_CALL,
+        SECURITY_EVENT
     }
 
     public enum EntityType {
@@ -124,6 +130,7 @@ public class AuditLog {
     public enum Status {
         SUCCESS,
         FAILED,
-        PARTIAL
+        PARTIAL,
+        WARNING
     }
 }
