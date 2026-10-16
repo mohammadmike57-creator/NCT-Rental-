@@ -159,6 +159,10 @@ export const validateChannel = (agg: Aggregator, fleet: Fleet, today: string = t
   if (!conn.apiKey) push('warning', 'Connection', 'API key / secret is not set.');
   if (!agg.vendorCode) push('info', 'Connection', 'Supplier (vendor) code not set — "NCT" will be used in XML.');
   if (!agg.locationCode) push('info', 'Connection', 'Location code not set — "AMM" will be used in XML.');
+  if (!agg.feedKeyHash) {
+    // Without a push endpoint the partner has no way to get rates at all.
+    push(conn.apiUrl ? 'info' : 'warning', 'Connection', 'No partner feed key — the partner cannot pull rates over XML.');
+  }
 
   // Rate periods
   const plans = [...(agg.currentRatePlans || [])].sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -577,3 +581,39 @@ export const fromPrice = (plan: RatePlan, sippCode: string): number | null => {
   const prices = (rate.tiers || []).map(t => Number(t.dailyPrice)).filter(n => n > 0);
   return prices.length ? Math.min(...prices) : null;
 };
+
+// ---------------------------------------------------------------------------
+// Partner access (inbound XML API served by the backend under /ota/v1)
+// ---------------------------------------------------------------------------
+
+/** Code used in partner URLs — the channel code when set, else the internal id (matches the server). */
+export const partnerUrlCode = (agg: Aggregator) => agg.channelCode || agg.id;
+
+export const partnerEndpoints = (apiBase: string, agg: Aggregator) => {
+  const base = `${apiBase.replace(/\/$/, '')}/ota/v1/${encodeURIComponent(partnerUrlCode(agg))}`;
+  return {
+    availRate: `${base}/OTA_VehAvailRate`,
+    rateSheet: `${base}/ratesheet`,
+    ping: `${base}/ping`,
+  };
+};
+
+/** 32 random bytes, base64url — shown to staff once and never stored in clear. */
+export const generateFeedKey = (): string => {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return `nct_${btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+};
+
+export const sha256Hex = async (text: string): Promise<string> => {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+/** The channel as partners see it: rates from the last published version, not the draft. */
+export const publishedView = (agg: Aggregator): Aggregator => ({
+  ...agg,
+  currentRatePlans: (agg.ratePlanHistory || [])[0]?.ratePlans || [],
+});

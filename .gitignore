@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 # car-rental-backend-java/
 # car-rental-backend-nodejs/
+
+# Maven build output
+target/

@@ -3,7 +3,7 @@ import { Aggregator, Fleet, StopSale } from '../types';
 import { CodeBracketIcon, DownloadIcon, CheckCircleIcon, AlertIcon } from './icons';
 import {
   buildQuote, channelCurrency, checkWellFormed, fingerprint, formatMoney, generateRateSheetXml,
-  generateVehAvailRateXml, rentalDays, todayIso,
+  generateVehAvailRateXml, publishedView, rentalDays, submissionVersion, todayIso,
 } from '../services/channelManager';
 
 interface XMLPreviewViewProps {
@@ -72,8 +72,11 @@ const STATUS_CLS: Record<string, string> = {
   Closed: 'bg-red-50 text-red-700 border-red-200',
 };
 
-const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ aggregator, fleet, stopSales }) => {
+const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ aggregator: channel, fleet, stopSales }) => {
   const [type, setType] = useState<MessageType>('availrate');
+  const hasPublished = (channel.ratePlanHistory || []).length > 0;
+  const [source, setSource] = useState<'published' | 'draft'>(hasPublished ? 'published' : 'draft');
+  const aggregator = useMemo(() => (source === 'published' ? publishedView(channel) : channel), [source, channel]);
   const [pickUp, setPickUp] = useState(defaultPickUp);
   const [dropOff, setDropOff] = useState(() => plusDays(defaultPickUp(), 3));
   const [extraIds, setExtraIds] = useState<string[]>([]);
@@ -87,9 +90,9 @@ const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ aggregator, fleet, stop
   const xml = useMemo(() => (
     type === 'availrate'
       ? generateVehAvailRateXml(aggregator, fleet, stopSales, request)
-      : generateRateSheetXml(aggregator, stopSales, fleet)
+      : generateRateSheetXml(aggregator, stopSales, fleet, source === 'published' ? { version: submissionVersion(channel, 0) } : {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [type, aggregator, fleet, stopSales, pickUp, dropOff, extraIds.join(',')]);
+  ), [type, aggregator, channel, source, fleet, stopSales, pickUp, dropOff, extraIds.join(',')]);
 
   const quote = useMemo(
     () => (type === 'availrate' ? buildQuote(aggregator, fleet, stopSales, request) : []),
@@ -129,14 +132,24 @@ const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ aggregator, fleet, stop
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><CodeBracketIcon /> XML feed</h3>
-          <p className="text-sm text-slate-500">Exactly what {aggregator.name} receives, generated live from the current settings.</p>
+          <p className="text-sm text-slate-500">
+            {source === 'published'
+              ? <>Exactly what {aggregator.name} receives: published version v{submissionVersion(channel, 0)}.</>
+              : <>Preview of the current draft rates — partners keep receiving the published version until you publish.</>}
+          </p>
         </div>
+        <div className="flex flex-wrap gap-2 self-start">
+        <select value={source} onChange={e => setSource(e.target.value as 'published' | 'draft')} className="px-3 py-1.5 text-sm font-semibold border border-slate-300 rounded-lg bg-white text-slate-700">
+          <option value="published" disabled={!hasPublished}>Published rates{hasPublished ? ` (v${submissionVersion(channel, 0)})` : ' (none)'}</option>
+          <option value="draft">Current draft</option>
+        </select>
         <div className="inline-flex p-1 bg-slate-100 rounded-lg self-start">
           {(Object.keys(MESSAGE_INFO) as MessageType[]).map(t => (
             <button key={t} onClick={() => setType(t)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${type === t ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>
               {MESSAGE_INFO[t].title}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

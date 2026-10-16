@@ -9,6 +9,8 @@ import ManageStopSaleView from './ManageStopSaleView';
 import XMLPreviewView from './XMLPreviewView';
 import RateHistoryView from './RateHistoryView';
 import ChannelOverviewView from './ChannelOverviewView';
+import ChannelDeliveryLogView from './ChannelDeliveryLogView';
+import { saveAllData, deliverChannelRates } from '../firebase/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso } from '../services/channelManager';
 
 interface AggregatorSetupViewProps {
@@ -64,6 +66,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const [newChannelCode, setNewChannelCode] = useState('');
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
   const [showStopSale, setShowStopSale] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [deliveryRefresh, setDeliveryRefresh] = useState(0);
 
   const selectedAggregator = aggregators.find(agg => agg.id === selectedAggregatorId) || aggregators[0];
 
@@ -122,6 +126,36 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
 
   const handleUpdateAggregator = (updated: Aggregator) => {
     onUpdateAggregators(aggregators.map(a => (a.id === updated.id ? updated : a)));
+  };
+
+  const sendRates = async (agg: Aggregator) => {
+    setSending(true);
+    try {
+      const result = await deliverChannelRates(agg.id);
+      showConfirmation(result.success
+        ? `Rates v${result.version} delivered to ${agg.name} (HTTP ${result.httpStatus}).`
+        : `Delivery to ${agg.name} failed: ${result.error || 'unknown error'}. See the delivery log.`);
+    } catch (e: any) {
+      showConfirmation(`Could not reach the server to deliver rates to ${agg.name}.`);
+    } finally {
+      setSending(false);
+      setDeliveryRefresh(n => n + 1);
+    }
+  };
+
+  /** Publish = persist the new version first (the server reads saved state), then push if the partner has an endpoint. */
+  const handlePublished = async (updated: Aggregator) => {
+    const list = aggregators.map(a => (a.id === updated.id ? updated : a));
+    onUpdateAggregators(list);
+    try {
+      await saveAllData({ aggregators: list });
+    } catch {
+      showConfirmation(`Version saved locally but could not be stored on the server yet; it will sync automatically. Delivery to ${updated.name} was not attempted.`);
+      return;
+    }
+    if (updated.connectionDetails?.apiUrl && channelStatus(updated) !== 'paused') {
+      await sendRates(updated);
+    }
   };
 
   const selectChannel = (id: string) => {
@@ -294,12 +328,23 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                         stopSales={stopSales}
                         showConfirmation={showConfirmation}
                         currentUserName={currentUserName}
+                        onPublished={handlePublished}
                       />
                     )}
                     {activeTab === 'Publish History' && (
-                      <div className="bg-white p-4 sm:p-8 rounded-xl shadow-sm border border-slate-200">
-                        <RateHistoryView aggregator={selectedAggregator} />
-                      </div>
+                      <>
+                        <div className="bg-white p-4 sm:p-8 rounded-xl shadow-sm border border-slate-200">
+                          <ChannelDeliveryLogView
+                            aggregator={selectedAggregator}
+                            refreshKey={deliveryRefresh}
+                            sending={sending}
+                            onSend={() => sendRates(selectedAggregator)}
+                          />
+                        </div>
+                        <div className="bg-white p-4 sm:p-8 rounded-xl shadow-sm border border-slate-200">
+                          <RateHistoryView aggregator={selectedAggregator} />
+                        </div>
+                      </>
                     )}
                     {activeTab === 'Extras' && (
                       <div className="bg-white p-4 sm:p-8 rounded-xl shadow-sm border border-slate-200">

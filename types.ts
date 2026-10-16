@@ -497,6 +497,10 @@ export interface Aggregator {
     status?: ChannelStatus;
     commissionPercent?: number;
     contactEmail?: string;
+    // Inbound partner access: only the SHA-256 hash of the feed key is stored
+    feedKeyHash?: string;
+    feedKeyHint?: string;      // last 4 characters, for identification
+    feedKeyCreatedAt?: string;
 }
 
 export interface StopSale {

@@ -15,6 +15,8 @@ interface ManageRatePlansViewProps {
   stopSales?: StopSale[];
   showConfirmation: (message: string) => void;
   currentUserName?: string;
+  /** Called instead of onUpdateAggregator when a version is published, so the parent can save and deliver it. */
+  onPublished?: (updatedAggregator: Aggregator) => void | Promise<void>;
 }
 
 const periodState = (plan: RatePlan, today: string) => {
@@ -24,7 +26,7 @@ const periodState = (plan: RatePlan, today: string) => {
 };
 
 const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
-  aggregator, onUpdateAggregator, fleet, stopSales = [], showConfirmation, currentUserName,
+  aggregator, onUpdateAggregator, fleet, stopSales = [], showConfirmation, currentUserName, onPublished,
 }) => {
   const [editingPlan, setEditingPlan] = useState<RatePlan | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -95,10 +97,16 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
       checksum: fingerprint(xml),
       warningCount: validation.warnings,
     };
-    onUpdateAggregator({ ...aggregator, ratePlanHistory: [submission, ...(aggregator.ratePlanHistory || [])] });
+    const updated = { ...aggregator, ratePlanHistory: [submission, ...(aggregator.ratePlanHistory || [])] };
     setPublishOpen(false);
     setNote('');
-    showConfirmation(`Version ${version} published for ${aggregator.name}. The server will deliver it on the next sync.`);
+    if (onPublished) {
+      showConfirmation(`Version ${version} published for ${aggregator.name}.`);
+      onPublished(updated);
+    } else {
+      onUpdateAggregator(updated);
+      showConfirmation(`Version ${version} published for ${aggregator.name}.`);
+    }
   };
 
   return (

@@ -6,8 +6,28 @@ export const API_URL = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApi
 
 let token: string | null = localStorage.getItem('token');
 
+// When the server rejects our login token (expired, or the user was removed),
+// clear the session and return to the login screen instead of failing silently.
+let sessionExpiredHandled = false;
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    const status = error?.response?.status;
+    const url: string = error?.config?.url || '';
+    const isLoginCall = url.includes('/auth/');
+    if (status === 401 && !isLoginCall && url.startsWith(API_URL) && localStorage.getItem('token') && !sessionExpiredHandled) {
+      sessionExpiredHandled = true;
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
+const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+
 export const signInUser = async (email: string, password: string) => {
-  console.log('Login attempt with:', { email, password });
   try {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });
     console.log('Login response:', response.data);
@@ -74,3 +94,36 @@ export const saveAllData = async (data: Partial<AllData>): Promise<void> => {
 };
 export const registerUser = async (email: string, password: string) => { console.error('registerUser not implemented'); return null; };
 export const sendPasswordReset = async (email: string) => { console.error('sendPasswordReset not implemented'); return null; };
+
+// --- Channel manager (OTA XML) ----------------------------------------------
+
+export interface ChannelDeliveryLog {
+  id: number;
+  channelId: string;
+  channelName?: string;
+  direction: 'OUTBOUND' | 'INBOUND';
+  messageType: string;
+  version?: number;
+  httpStatus?: number;
+  success: boolean;
+  durationMs: number;
+  requestBytes: number;
+  error?: string;
+  responseSnippet?: string;
+  actor?: string;
+  createdAt: string;
+}
+
+/** Asks the server to push the last published rate sheet to the partner's endpoint. */
+export const deliverChannelRates = async (channelId: string): Promise<ChannelDeliveryLog> => {
+  const response = await axios.post(`${API_URL}/api/channels/${encodeURIComponent(channelId)}/deliver`, null, { headers: authHeaders() });
+  return response.data;
+};
+
+export const fetchChannelDeliveries = async (channelId: string, limit = 50): Promise<ChannelDeliveryLog[]> => {
+  const response = await axios.get(`${API_URL}/api/channels/${encodeURIComponent(channelId)}/deliveries`, {
+    params: { limit },
+    headers: authHeaders(),
+  });
+  return response.data;
+};

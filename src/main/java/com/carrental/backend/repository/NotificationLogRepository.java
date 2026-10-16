@@ -1,6 +1,7 @@
 package com.carrental.backend.repository;
 
 import com.carrental.backend.model.NotificationLog;
+import com.carrental.backend.model.NotificationTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,16 +22,16 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
             LocalDateTime threshold
     );
 
-    Page<NotificationLog> findByType(NotificationLog.NotificationType type, Pageable pageable);
+    Page<NotificationLog> findByType(NotificationTemplate.NotificationType type, Pageable pageable);
 
     Page<NotificationLog> findByTypeAndStatus(
-            NotificationLog.NotificationType type,
+            NotificationTemplate.NotificationType type,
             String status,
             Pageable pageable
     );
 
     long countByTypeAndStatusAndSentAtBetween(
-            NotificationLog.NotificationType type,
+            NotificationTemplate.NotificationType type,
             String status,
             LocalDateTime startDate,
             LocalDateTime endDate

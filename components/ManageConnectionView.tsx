@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Aggregator, AggregatorConnectionDetails, ChannelStatus } from '../types';
 import { SaveIcon, LockClosedIcon, EyeIcon, CheckCircleIcon, AlertIcon } from './icons';
-import { SUPPORTED_CURRENCIES, validateChannel } from '../services/channelManager';
+import { SUPPORTED_CURRENCIES, validateChannel, generateFeedKey, sha256Hex, partnerEndpoints } from '../services/channelManager';
+import { API_URL } from '../firebase/api';
 
 interface ManageConnectionViewProps {
   aggregator: Aggregator;
@@ -59,10 +60,13 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
   const [draft, setDraft] = useState<Draft>(() => toDraft(aggregator));
   const [showKey, setShowKey] = useState(false);
   const [checkResult, setCheckResult] = useState<string[] | null>(null);
+  const [newKey, setNewKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(toDraft(aggregator));
     setCheckResult(null);
+    setNewKey(null);
   }, [aggregator.id]);
 
   const setConn = <K extends keyof AggregatorConnectionDetails>(field: K, value: AggregatorConnectionDetails[K]) =>
@@ -100,6 +104,35 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
     }
     onUpdate(updated);
     showConfirmation?.(`Connection settings for ${aggregator.name} saved.`);
+  };
+
+  const endpoints = partnerEndpoints(API_URL, aggregator);
+
+  const copy = async (label: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(label);
+      setTimeout(() => setCopied(null), 1500);
+    } catch { /* clipboard unavailable */ }
+  };
+
+  const handleGenerateKey = async () => {
+    if (aggregator.feedKeyHash && !window.confirm(`Replace the feed key for ${aggregator.name}? The partner's current key stops working immediately.`)) return;
+    try {
+      const key = generateFeedKey();
+      const hash = await sha256Hex(key);
+      onUpdate({ ...aggregator, feedKeyHash: hash, feedKeyHint: key.slice(-4), feedKeyCreatedAt: new Date().toISOString() });
+      setNewKey(key);
+      showConfirmation?.(`New feed key created for ${aggregator.name}. Copy it now — it will not be shown again.`);
+    } catch {
+      setCheckResult(['Could not create a key: this browser requires a secure (HTTPS) connection for key generation.']);
+    }
+  };
+
+  const handleRevokeKey = () => {
+    if (!window.confirm(`Revoke the feed key for ${aggregator.name}? The partner will no longer be able to pull rates.`)) return;
+    onUpdate({ ...aggregator, feedKeyHash: undefined, feedKeyHint: undefined, feedKeyCreatedAt: undefined });
+    setNewKey(null);
   };
 
   return (
@@ -187,6 +220,52 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
             <input type="number" min={5} max={120} value={draft.connection.timeoutSeconds ?? 30} onChange={e => setConn('timeoutSeconds', Math.max(5, Math.min(120, parseInt(e.target.value) || 30)))} className={inputCls} />
           </div>
         </div>
+      </Section>
+
+      <Section title="Partner access (inbound XML)" subtitle="The partner calls these addresses with its feed key to get your published rates.">
+        <div className="space-y-2">
+          {([
+            ['Availability & rates (OTA_VehAvailRateRQ → RS)', 'POST', endpoints.availRate],
+            ['Rate sheet', 'GET', endpoints.rateSheet],
+            ['Connectivity check', 'GET', endpoints.ping],
+          ] as [string, string, string][]).map(([label, method, url]) => (
+            <div key={url} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+              <span className="text-xs text-slate-500 sm:w-64 shrink-0">{label}</span>
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{method}</span>
+                <code className="text-xs font-mono text-slate-800 truncate flex-1" title={url}>{url}</code>
+                <button onClick={() => copy(url, url)} className="text-xs font-semibold text-primary hover:underline shrink-0">{copied === url ? 'Copied ✓' : 'Copy'}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-lg border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-800">Feed key</p>
+            <p className="text-xs text-slate-500">
+              {aggregator.feedKeyHash
+                ? <>Active key ending in <span className="font-mono font-semibold">…{aggregator.feedKeyHint}</span>{aggregator.feedKeyCreatedAt && <> · created {new Date(aggregator.feedKeyCreatedAt).toLocaleDateString()}</>}. Sent as <span className="font-mono">Authorization: Bearer &lt;key&gt;</span> or <span className="font-mono">X-Api-Key</span>.</>
+                : 'No key yet — partner requests are refused until you create one.'}
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {aggregator.feedKeyHash && (
+              <button onClick={handleRevokeKey} className="px-3 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50">Revoke</button>
+            )}
+            <button onClick={handleGenerateKey} className="px-3 py-2 text-sm font-semibold text-white bg-slate-800 rounded-lg hover:bg-slate-900">
+              {aggregator.feedKeyHash ? 'Rotate key' : 'Create key'}
+            </button>
+          </div>
+        </div>
+        {newKey && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-900">Copy this key now and send it to the partner securely. It will not be shown again.</p>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="flex-1 min-w-0 break-all text-xs font-mono bg-white border border-amber-200 rounded px-2 py-1.5 text-slate-800">{newKey}</code>
+              <button onClick={() => copy('key', newKey)} className="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded hover:bg-amber-700 shrink-0">{copied === 'key' ? 'Copied ✓' : 'Copy'}</button>
+            </div>
+          </div>
+        )}
       </Section>
 
       <Section title="XML identifiers & commercial terms" subtitle="Values written into every XML message for this channel.">
