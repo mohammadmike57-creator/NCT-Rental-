@@ -193,12 +193,12 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <header className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Extend Rental Agreement</h2>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><CloseIcon /></button>
+          <h2 className="text-xl font-semibold text-slate-800">Extend Rental Agreement</h2>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200"><CloseIcon /></button>
         </header>
         <div className="p-6 overflow-y-auto space-y-6">
-          <div className="p-4 bg-gray-50 rounded-lg border">
-            <h3 className="font-semibold text-gray-700 mb-2">Current Reservation</h3>
+          <div className="p-4 bg-slate-50 rounded-lg border">
+            <h3 className="font-semibold text-slate-700 mb-2">Current Reservation</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-2"><UserIcon/> <span>{reservation.personName}</span></div>
                 <div className="flex items-center gap-2"><CarIcon/> <span>{reservation.carModel}</span></div>
@@ -207,49 +207,49 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
           </div>
           
           {hasOutstandingTickets && (
-            <div className="p-3 bg-red-100 border-l-4 border-red-500 text-red-700 text-sm rounded-r-md">
+            <div className="p-3 bg-rose-100 border-l-4 border-rose-500 text-rose-700 text-sm rounded-r-md">
                 <p><strong className="font-semibold flex items-center gap-1"><ShieldExclamationIcon /> Outstanding Balance:</strong> This customer has a due amount of <strong>{formatCurrency(totalTicketAmountDue, 'JOD')}</strong> for traffic tickets. Please inform them.</p>
             </div>
            )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label htmlFor="new-end-date" className="block text-sm font-medium text-gray-700 mb-1">New Return Date & Time</label>
+                <label htmlFor="new-end-date" className="block text-sm font-medium text-slate-700 mb-1">New Return Date & Time</label>
                 <input
                 type="datetime-local"
                 id="new-end-date"
                 value={newEndDate}
                 min={reservation.endDate}
                 onChange={e => setNewEndDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
+                className="w-full p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
                 />
             </div>
              <div>
-                <label htmlFor="customer-email" className="block text-sm font-medium text-gray-700 mb-1">Customer Email {paymentMethod === 'payLater' && <span className="text-gray-400 font-normal">(Optional)</span>}</label>
+                <label htmlFor="customer-email" className="block text-sm font-medium text-slate-700 mb-1">Customer Email {paymentMethod === 'payLater' && <span className="text-slate-400 font-normal">(Optional)</span>}</label>
                  <div className="relative">
-                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none"><MailIcon/></span>
+                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 pointer-events-none"><MailIcon/></span>
                     <input
                         id="customer-email"
                         type="email"
                         value={customerEmail}
                         onChange={e => setCustomerEmail(e.target.value)}
                         placeholder={paymentMethod === 'payNow' ? "Required for invoice" : "Optional for confirmation"}
-                        className="w-full p-2 pl-9 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
+                        className="w-full p-2 pl-9 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
                     />
                  </div>
             </div>
           </div>
           
            <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Extension Rate</label>
+            <label className="block text-sm font-medium text-slate-700">Extension Rate</label>
             <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
                 <label className="flex items-center cursor-pointer">
                     <input type="radio" value="original" name="rateOption" checked={rateOption === 'original'} onChange={() => setRateOption('original')} className="h-4 w-4 text-primary focus:ring-secondary" />
-                    <span className="ml-2 text-sm text-gray-700">Original Rate ({formatCurrency(dailyRate)}/day)</span>
+                    <span className="ml-2 text-sm text-slate-700">Original Rate ({formatCurrency(dailyRate)}/day)</span>
                 </label>
                 <label className="flex items-center cursor-pointer">
                     <input type="radio" value="custom" name="rateOption" checked={rateOption === 'custom'} onChange={() => setRateOption('custom')} className="h-4 w-4 text-primary focus:ring-secondary" />
-                    <span className="ml-2 text-sm text-gray-700">Custom Rate</span>
+                    <span className="ml-2 text-sm text-slate-700">Custom Rate</span>
                 </label>
             </div>
             {rateOption === 'custom' && (
@@ -261,7 +261,7 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
                         step="0.01"
                         value={customRate || ''}
                         onChange={e => setCustomRate(parseFloat(e.target.value) || 0)}
-                        className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                        className="w-full p-2 border border-slate-300 rounded-md text-sm"
                         placeholder="Enter custom daily rate"
                     />
                 </div>
@@ -269,64 +269,64 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
           </div>
           
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Include Extras in Extension</h3>
+            <h3 className="text-sm font-medium text-slate-700 mb-2">Include Extras in Extension</h3>
             {(reservation.extras && reservation.extras.length > 0) ? (
-                <div className="space-y-2 p-3 bg-gray-50 border rounded-md">
+                <div className="space-y-2 p-3 bg-slate-50 border rounded-md">
                     {reservation.extras.map(extra => (
                         <label key={extra.name} className="flex items-center">
                             <input 
                                 type="checkbox"
                                 checked={!!selectedExtras[extra.name]}
                                 onChange={() => handleExtraToggle(extra.name)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-secondary"
+                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-secondary"
                             />
-                            <span className="ml-2 text-sm text-gray-700">{extra.name} ({extra.isComplementary ? 'Free' : `${formatCurrency(extra.dailyPrice)}/day`})</span>
+                            <span className="ml-2 text-sm text-slate-700">{extra.name} ({extra.isComplementary ? 'Free' : `${formatCurrency(extra.dailyPrice)}/day`})</span>
                         </label>
                     ))}
                 </div>
             ) : (
-                <p className="text-sm text-gray-500">No extras on original rental.</p>
+                <p className="text-sm text-slate-500">No extras on original rental.</p>
             )}
           </div>
           
            <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Payment for Extension</label>
-            <div className="flex items-center gap-x-6 gap-y-2 flex-wrap p-3 bg-gray-50 border rounded-md">
+            <label className="block text-sm font-medium text-slate-700">Payment for Extension</label>
+            <div className="flex items-center gap-x-6 gap-y-2 flex-wrap p-3 bg-slate-50 border rounded-md">
                 <label className="flex items-center cursor-pointer">
                     <input type="radio" value="payLater" name="paymentMethod" checked={paymentMethod === 'payLater'} onChange={() => setPaymentMethod('payLater')} className="h-4 w-4 text-primary focus:ring-secondary" />
-                    <span className="ml-2 text-sm text-gray-700">Pay at End of Rental</span>
+                    <span className="ml-2 text-sm text-slate-700">Pay at End of Rental</span>
                 </label>
                 <label className="flex items-center cursor-pointer">
                     <input type="radio" value="payNow" name="paymentMethod" checked={paymentMethod === 'payNow'} onChange={() => setPaymentMethod('payNow')} className="h-4 w-4 text-primary focus:ring-secondary" />
-                    <span className="ml-2 text-sm text-gray-700">Pay Now</span>
+                    <span className="ml-2 text-sm text-slate-700">Pay Now</span>
                 </label>
             </div>
           </div>
           
           {extensionDays > 0 && (
-             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
-                <h3 className="font-semibold text-gray-700">Extension Summary</h3>
+             <div className="p-4 bg-sky-50 rounded-lg border border-sky-200 space-y-2">
+                <h3 className="font-semibold text-slate-700">Extension Summary</h3>
                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Rental Extension ({extensionDays} days @ {formatCurrency(rateToUse)}/day):</span>
+                    <span className="text-slate-600">Rental Extension ({extensionDays} days @ {formatCurrency(rateToUse)}/day):</span>
                     <span className="font-medium">{formatCurrency(extensionDays * rateToUse)}</span>
                 </div>
                 {(reservation.extras || [])
                     .filter(extra => selectedExtras[extra.name] && !extra.isComplementary)
                     .map(extra => (
                         <div className="flex justify-between items-center text-sm" key={extra.name}>
-                            <span className="text-gray-600 pl-2">- {extra.name}:</span>
+                            <span className="text-slate-600 pl-2">- {extra.name}:</span>
                             <span className="font-medium">{formatCurrency(extra.dailyPrice * extensionDays)}</span>
                         </div>
                     ))
                 }
                  <div className="flex justify-between items-center pt-2 mt-2 border-t text-base">
-                    <span className="font-semibold text-gray-800">Total for Extension:</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(totalExtensionCost)}</span>
+                    <span className="font-semibold text-slate-800">Total for Extension:</span>
+                    <span className="font-bold text-slate-900">{formatCurrency(totalExtensionCost)}</span>
                 </div>
             </div>
           )}
           
-           <div className="p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 text-sm rounded-r-md">
+           <div className="p-3 bg-amber-100 border-l-4 border-amber-500 text-amber-700 text-sm rounded-r-md">
                 <h4 className="font-semibold mb-1">Payment Information</h4>
                 {paymentMethod === 'payLater' ? (
                     <p>The total cost for this extension will be added to the final rental bill and is due upon the vehicle's return on the new end date.</p>
@@ -336,12 +336,12 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
             </div>
 
         </div>
-        <footer className="p-4 bg-gray-50 border-t flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>
+        <footer className="p-4 bg-slate-50 border-t flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 bg-slate-200 rounded-md hover:bg-slate-300">Cancel</button>
           <button
             onClick={handleConfirm}
             disabled={extensionDays <= 0 || isConfirming}
-            className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-gray-400"
+            className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-slate-400"
           >
             {isConfirming ? 'Confirming...' : (paymentMethod === 'payLater' && !customerEmail ? 'Confirm Extension' : 'Confirm & Email Customer')}
           </button>

@@ -18,9 +18,9 @@ const ExpiryAlertModal: React.FC<ExpiryAlertModalProps> = ({ alerts, onClose }) 
   if (alerts.length === 0) return null;
 
   const alertStyles = {
-    warning: 'bg-yellow-100 border-yellow-500 text-yellow-800',
-    error: 'bg-red-100 border-red-500 text-red-800',
-    info: 'bg-blue-100 border-blue-500 text-blue-800',
+    warning: 'bg-amber-100 border-amber-500 text-amber-800',
+    error: 'bg-rose-100 border-rose-500 text-rose-800',
+    info: 'bg-sky-100 border-sky-500 text-sky-800',
   };
 
   return (
@@ -29,9 +29,9 @@ const ExpiryAlertModal: React.FC<ExpiryAlertModalProps> = ({ alerts, onClose }) 
         <header className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-3">
             <ShieldExclamationIcon />
-            <h2 className="text-xl font-semibold text-gray-800">Important System Alerts</h2>
+            <h2 className="text-xl font-semibold text-slate-800">Important System Alerts</h2>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200" aria-label="Close alerts">
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200" aria-label="Close alerts">
             <CloseIcon />
           </button>
         </header>
@@ -49,7 +49,7 @@ const ExpiryAlertModal: React.FC<ExpiryAlertModalProps> = ({ alerts, onClose }) 
             </div>
           ))}
         </div>
-        <footer className="p-4 bg-gray-50 border-t flex justify-end">
+        <footer className="p-4 bg-slate-50 border-t flex justify-end">
           <button onClick={onClose} className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary">
             Acknowledge & Close
           </button>

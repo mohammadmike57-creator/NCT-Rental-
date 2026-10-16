@@ -17,19 +17,19 @@ interface NotificationsProps {
 
 const notificationStyles = {
   warning: {
-    container: 'bg-yellow-100 border-yellow-500 text-yellow-700',
+    container: 'bg-amber-100 border-amber-500 text-amber-700',
     title: 'Registration Alert',
-    dismiss: 'text-yellow-500 hover:text-yellow-700 hover:bg-yellow-200 focus:ring-yellow-500',
+    dismiss: 'text-amber-500 hover:text-amber-700 hover:bg-amber-200 focus:ring-amber-500',
   },
   error: {
-    container: 'bg-red-100 border-red-500 text-red-700',
+    container: 'bg-rose-100 border-rose-500 text-rose-700',
     title: 'Alert',
-    dismiss: 'text-red-500 hover:text-red-700 hover:bg-red-200 focus:ring-red-500',
+    dismiss: 'text-rose-500 hover:text-rose-700 hover:bg-rose-200 focus:ring-rose-500',
   },
   info: {
-    container: 'bg-blue-100 border-blue-500 text-blue-700',
+    container: 'bg-sky-100 border-sky-500 text-sky-700',
     title: 'Reminder',
-    dismiss: 'text-blue-500 hover:text-blue-700 hover:bg-blue-200 focus:ring-blue-500',
+    dismiss: 'text-sky-500 hover:text-sky-700 hover:bg-sky-200 focus:ring-sky-500',
   }
 };
 

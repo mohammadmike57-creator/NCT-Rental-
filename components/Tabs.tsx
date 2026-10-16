@@ -15,7 +15,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, selectedTab, onSelectTab, variant = '
   const getPillStateClasses = (tab: string) => {
       return selectedTab === tab
         ? "bg-primary text-white shadow"
-        : "text-gray-600 hover:bg-gray-200";
+        : "text-slate-600 hover:bg-slate-200";
   };
   
   const getUnderlineBaseClasses = () => "font-medium transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-secondary pb-2 border-b-2";
@@ -23,7 +23,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, selectedTab, onSelectTab, variant = '
   const getUnderlineStateClasses = (tab: string) => {
     return selectedTab === tab
         ? "border-primary text-primary"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700";
+        : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700";
   };
 
 
@@ -44,7 +44,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, selectedTab, onSelectTab, variant = '
   }
 
   return (
-    <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+    <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg">
       {tabs.map(tab => (
         <button
           key={tab}

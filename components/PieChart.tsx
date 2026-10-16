@@ -20,9 +20,9 @@ const PieChart: React.FC<PieChartProps> = ({ data, title }) => {
 
   if (!hasData || total === 0) {
     return (
-      <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200 h-full flex flex-col items-center justify-center">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">{title}</h3>
-        <p className="text-gray-500">No data to display.</p>
+      <div className="p-6 bg-white rounded-lg shadow-md border border-slate-200 h-full flex flex-col items-center justify-center">
+        <h3 className="text-lg font-semibold text-slate-700 mb-4">{title}</h3>
+        <p className="text-slate-500">No data to display.</p>
       </div>
     );
   }
@@ -48,8 +48,8 @@ const PieChart: React.FC<PieChartProps> = ({ data, title }) => {
   });
   
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200 h-full flex flex-col">
-      <h3 className="text-lg font-semibold text-gray-700 mb-4">{title}</h3>
+    <div className="p-6 bg-white rounded-lg shadow-md border border-slate-200 h-full flex flex-col">
+      <h3 className="text-lg font-semibold text-slate-700 mb-4">{title}</h3>
       <div className="flex-grow flex flex-col md:flex-row items-center justify-center gap-6">
         <div className="relative w-48 h-48 flex-shrink-0">
           <svg viewBox="0 0 200 200" className="transform -rotate-90">
@@ -79,8 +79,8 @@ const PieChart: React.FC<PieChartProps> = ({ data, title }) => {
           </svg>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
-                <p className="text-xs text-gray-500">Total</p>
-                <p className="text-2xl font-bold text-gray-800">{total.toLocaleString()}</p>
+                <p className="text-xs text-slate-500">Total</p>
+                <p className="text-2xl font-bold text-slate-800">{total.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -89,7 +89,7 @@ const PieChart: React.FC<PieChartProps> = ({ data, title }) => {
             {slices.map((slice, i) => (
               <li 
                 key={i} 
-                className={`flex items-center justify-between p-1 rounded-md transition-colors ${hoveredSlice === i ? 'bg-gray-100' : ''}`}
+                className={`flex items-center justify-between p-1 rounded-md transition-colors ${hoveredSlice === i ? 'bg-slate-100' : ''}`}
                 onMouseEnter={() => setHoveredSlice(i)}
                 onMouseLeave={() => setHoveredSlice(null)}
               >

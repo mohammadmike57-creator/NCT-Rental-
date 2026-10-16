@@ -71,19 +71,19 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
 
     return (
         <div>
-            <div className="flex items-center justify-end gap-4 p-2 bg-gray-50 border-b text-xs text-gray-600">
+            <div className="flex items-center justify-end gap-4 p-2 bg-slate-50 border-b text-xs text-slate-600">
                 <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-blue-500 rounded-sm"></span> Rented
+                    <span className="w-3 h-3 bg-sky-500 rounded-sm"></span> Rented
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="w-0.5 h-4 bg-red-500"></span> Today
+                    <span className="w-0.5 h-4 bg-rose-500"></span> Today
                 </div>
             </div>
             <div className="overflow-x-auto bg-white relative">
-                <div className="grid sticky top-0 z-20 bg-gray-50 border-b border-gray-200 min-w-[1500px]" style={{ gridTemplateColumns: `150px repeat(${daysInMonth}, minmax(40px, 1fr))` }}>
-                    <div className="font-bold text-xs uppercase text-gray-500 p-3 border-r border-gray-200 flex items-center bg-gray-50 z-30 sticky left-0 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Vehicle</div>
+                <div className="grid sticky top-0 z-20 bg-slate-50 border-b border-slate-200 min-w-[1500px]" style={{ gridTemplateColumns: `150px repeat(${daysInMonth}, minmax(40px, 1fr))` }}>
+                    <div className="font-bold text-xs uppercase text-slate-500 p-3 border-r border-slate-200 flex items-center bg-slate-50 z-30 sticky left-0 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Vehicle</div>
                     {headerDays.map(day => (
-                        <div key={day} className={`font-semibold text-xs text-center p-2 border-r border-gray-100 flex flex-col justify-center ${day === currentDay && isCurrentMonth ? 'bg-red-50 text-red-600' : 'text-gray-600'}`}>
+                        <div key={day} className={`font-semibold text-xs text-center p-2 border-r border-slate-100 flex flex-col justify-center ${day === currentDay && isCurrentMonth ? 'bg-rose-50 text-rose-600' : 'text-slate-600'}`}>
                             <span>{day}</span>
                             <span className="text-[9px] font-normal opacity-70">
                                 {new Date(year, monthIndex, day).toLocaleDateString('en-US', { weekday: 'narrow' })}
@@ -95,26 +95,26 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
                     
                     {/* Today Marker Line - Placed absolutely over the grid */}
                     {isCurrentMonth && (
-                        <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 shadow-[0_0_8px_rgba(239,68,68,0.4)] pointer-events-none"
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-rose-500 z-10 shadow-[0_0_8px_rgba(239,68,68,0.4)] pointer-events-none"
                             style={{
                                 gridColumnStart: currentDay + 1, // +1 because first col is names
                                 left: '-1px', // Center on the grid line
                                 height: '100%'
                             }}
                         >
-                            <div className="absolute -top-1 -left-[3px] w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                            <div className="absolute -top-1 -left-[3px] w-2 h-2 bg-rose-500 rounded-full animate-pulse"></div>
                         </div>
                     )}
 
                     {sortedFleet.map((vehicle, index) => (
                         <React.Fragment key={vehicle.id}>
-                            <div className={`px-3 py-3 border-r border-gray-200 text-sm border-b border-gray-100 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] ${index % 2 ? 'bg-gray-50' : 'bg-white'}`}>
-                                <p className="font-bold text-gray-800 truncate" title={vehicle.modelName}>{vehicle.modelName}</p>
-                                <p className="text-[10px] text-gray-500 font-mono mt-0.5">{vehicle.licensePlate}</p>
+                            <div className={`px-3 py-3 border-r border-slate-200 text-sm border-b border-slate-100 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] ${index % 2 ? 'bg-slate-50' : 'bg-white'}`}>
+                                <p className="font-bold text-slate-800 truncate" title={vehicle.modelName}>{vehicle.modelName}</p>
+                                <p className="text-[10px] text-slate-500 font-mono mt-0.5">{vehicle.licensePlate}</p>
                             </div>
-                            <div className={`col-span-1 grid border-b border-gray-100 relative ${index % 2 ? 'bg-gray-50' : 'bg-white'}`} style={{ gridTemplateColumns: `repeat(${daysInMonth}, 1fr)`, gridColumn: `2 / -1` }}>
+                            <div className={`col-span-1 grid border-b border-slate-100 relative ${index % 2 ? 'bg-slate-50' : 'bg-white'}`} style={{ gridTemplateColumns: `repeat(${daysInMonth}, 1fr)`, gridColumn: `2 / -1` }}>
                                 {Array.from({ length: daysInMonth }).map((_, dayIndex) => (
-                                    <div key={dayIndex} className="border-r border-gray-100 h-full"></div>
+                                    <div key={dayIndex} className="border-r border-slate-100 h-full"></div>
                                 ))}
                                 
                                 {/* Reservation bars */}
@@ -126,7 +126,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
                                         title={`Renter: ${res.personName}\nBooking ID: ${res.bookingId}\nDates: ${res.startDate} - ${res.endDate}`}
                                     >
                                         {/* Gradient Background */}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-90"></div>
+                                        <div className="absolute inset-0 opacity-90 bg-slate-900"></div>
                                         <span className="relative z-10 truncate font-medium text-white/90 drop-shadow-sm">{res.personName}</span>
                                     </div>
                                 ))}

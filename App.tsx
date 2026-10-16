@@ -5,7 +5,7 @@ import { reservationService } from './services/reservationService';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
-import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, SearchIcon } from './components/icons';
+import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, SearchIcon, RefreshIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import Notifications from './components/Notifications';
 import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData } from './firebase/api';
@@ -159,7 +159,7 @@ const ConfirmationMessage: React.FC<{ message: string; onClose: () => void; }> =
     return () => clearTimeout(timer);
   }, [onClose]);
   return (
-    <div className="fixed bottom-5 right-5 bg-green-500 text-white py-3 px-6 rounded-lg shadow-lg z-50 animate-in slide-in-from-bottom-2 fade-in">
+    <div className="fixed bottom-5 right-5 bg-emerald-500 text-white py-3 px-6 rounded-lg shadow-lg z-50 animate-in slide-in-from-bottom-2 fade-in">
       <p>{message}</p>
     </div>
   );
@@ -1849,7 +1849,7 @@ ${currentUser?.fullName}
 
          <div className="p-3 border-t border-white/5 flex-shrink-0">
             <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-[13px] font-semibold text-white flex-shrink-0">
+                <div className="h-9 w-9 rounded-full flex items-center justify-center text-[13px] font-semibold text-white flex-shrink-0 bg-slate-900">
                     {getInitials(currentUser?.fullName)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1893,42 +1893,45 @@ ${currentUser?.fullName}
       </aside>
       
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="flex items-center justify-between p-4 bg-white shadow-sm no-print h-16 flex-shrink-0">
-            <div className="flex items-center flex-1 gap-4 min-w-0">
-                <button className="text-slate-600 md:hidden" onClick={() => setIsSidebarOpen(true)}><MenuIcon /></button>
+        <header className="flex items-center justify-between px-4 sm:px-6 bg-white border-b border-slate-200 no-print h-16 flex-shrink-0">
+            <div className="flex items-center flex-1 gap-3 min-w-0">
+                <button className="p-1.5 -ml-1.5 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu"><MenuIcon /></button>
                 <div className="min-w-0">
-                    <h2 className="text-xl md:text-lg font-bold text-slate-800 truncate" title={mainView}>{mainView}</h2>
-                    <p className="text-xs text-slate-500 truncate md:hidden" title="UR-Drive Jordan">UR-Drive Jordan</p>
-                    <div className="hidden md:flex items-center gap-2">
-                         <p className="text-xs text-slate-500 truncate" title="UR-Drive Jordan">UR-Drive Jordan</p>
+                    <h2 className="text-lg font-semibold text-slate-900 truncate leading-tight" title={mainView}>{mainView}</h2>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
+                         <span className="truncate">{companyDetails.name || 'UR-Drive Jordan'}</span>
                          {saveStatus === 'saving' && (
-                             <span className="text-xs text-blue-600 font-medium animate-pulse flex items-center gap-1">
-                                 <div className="w-2 h-2 bg-blue-600 rounded-full"></div> Auto-saving...
+                             <span className="flex items-center gap-1.5 text-sky-700 whitespace-nowrap">
+                                 <span className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse" /> Saving…
                              </span>
                          )}
                          {saveStatus === 'error' && (
-                             <span className="text-xs text-red-600 font-medium flex items-center gap-1">
-                                 Save failed
+                             <span className="flex items-center gap-1.5 text-rose-600 font-medium whitespace-nowrap">
+                                 <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" /> Not saved
                              </span>
                          )}
                          {saveStatus === 'saved' && lastSaved && (
-                             <span className="text-xs text-green-600 font-medium flex items-center gap-1 transition-opacity duration-1000">
-                                 <CheckCircleIcon className="w-3 h-3"/> Auto-saved at {lastSaved}
+                             <span className="flex items-center gap-1 text-emerald-700 whitespace-nowrap">
+                                 <CheckCircleIcon className="w-3.5 h-3.5"/> Saved {lastSaved}
                              </span>
                          )}
-                        <button
-                          onClick={() => { console.log("Manual refresh triggered"); fetchAllData(); }}
-                          className="ml-4 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          ⟳ Refresh
-                        </button>
-                        <button
-                          onClick={() => { console.log("Manual save triggered"); executeAutoSave(); }}
-                          className="ml-2 px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                        >
-                          💾 Save All
-                        </button>
                     </div>
+                </div>
+                <div className="hidden lg:flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => fetchAllData()}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      title="Load the latest data from the server"
+                    >
+                      <RefreshIcon className="w-3.5 h-3.5" /> Refresh
+                    </button>
+                    <button
+                      onClick={() => executeAutoSave()}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      title="Save all changes now"
+                    >
+                      <SaveIcon className="w-3.5 h-3.5" /> Save now
+                    </button>
                 </div>
             </div>
             <div className="flex items-center gap-4">
@@ -1940,8 +1943,8 @@ ${currentUser?.fullName}
                     <InboxIcon className="w-6 h-6" />
                     {unreadCount > 0 && (
                         <span className="absolute top-1 right-1 flex w-3 h-3">
-                            <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-red-400"></span>
-                            <span className="relative inline-flex items-center justify-center w-3 h-3 text-white rounded-full bg-red-500 text-[8px]">{unreadCount}</span>
+                            <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-rose-400"></span>
+                            <span className="relative inline-flex items-center justify-center w-3 h-3 text-white rounded-full bg-rose-500 text-[8px]">{unreadCount}</span>
                         </span>
                     )}
                 </button>
@@ -1954,14 +1957,14 @@ ${currentUser?.fullName}
                                     <select
                                         value={selectedMonth}
                                         onChange={(e) => handleSetSelectedMonth(e.target.value)}
-                                        className="w-36 py-2 pl-3 pr-8 leading-tight text-gray-700 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
+                                        className="w-36 py-2 pl-3 pr-8 leading-tight text-slate-700 bg-white border border-slate-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
                                         aria-label="Select month"
                                     >
                                         {MONTHS.map(month => (
                                             <option key={month} value={month}>{month}</option>
                                         ))}
                                     </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 pointer-events-none">
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-700 pointer-events-none">
                                         <svg className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                                     </div>
                                 </div>
@@ -1976,17 +1979,17 @@ ${currentUser?.fullName}
         <div className="md:hidden flex items-center justify-between p-2 bg-slate-100 border-b border-slate-200">
             <div className="flex items-center gap-2">
                 {saveStatus === 'saving' && (
-                     <span className="text-xs text-blue-600 font-medium animate-pulse flex items-center gap-1">
-                         <div className="w-2 h-2 bg-blue-600 rounded-full"></div> Saving...
+                     <span className="text-xs text-sky-600 font-medium animate-pulse flex items-center gap-1">
+                         <div className="w-2 h-2 bg-sky-600 rounded-full"></div> Saving...
                      </span>
                  )}
                  {saveStatus === 'error' && (
-                     <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                     <span className="text-xs text-rose-600 font-medium flex items-center gap-1">
                          Error
                      </span>
                  )}
                  {saveStatus === 'saved' && lastSaved && (
-                     <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                     <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
                          <CheckCircleIcon className="w-3 h-3"/> Saved {lastSaved}
                      </span>
                  )}
@@ -1999,14 +2002,14 @@ ${currentUser?.fullName}
                             <select
                                 value={selectedMonth}
                                 onChange={(e) => handleSetSelectedMonth(e.target.value)}
-                                className="w-full py-1 pl-2 pr-7 text-sm leading-tight text-gray-700 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
+                                className="w-full py-1 pl-2 pr-7 text-sm leading-tight text-slate-700 bg-white border border-slate-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
                                 aria-label="Select month"
                             >
                                 {MONTHS.map(month => (
                                     <option key={month} value={month}>{month}</option>
                                 ))}
                             </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-1.5 text-gray-700 pointer-events-none">
+                            <div className="absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-700 pointer-events-none">
                                 <svg className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                             </div>
                         </div>
@@ -2021,8 +2024,8 @@ ${currentUser?.fullName}
               {currentViewHasAccess 
                 ? mainViews[mainView]?.component
                 : <div className="p-12 text-center bg-white rounded-lg shadow-md">
-                    <h2 className="text-xl font-bold text-red-600">Access Denied</h2>
-                    <p className="mt-2 text-gray-600">You do not have permission to view this page.</p>
+                    <h2 className="text-xl font-bold text-rose-600">Access Denied</h2>
+                    <p className="mt-2 text-slate-600">You do not have permission to view this page.</p>
                   </div>
               }
               </Suspense>
@@ -2056,7 +2059,7 @@ ${currentUser?.fullName}
             </button>
             <button
               onClick={() => setReservationToAddExtras(null)}
-              className="ml-2 text-gray-500"
+              className="ml-2 text-slate-500"
             >
               Cancel
             </button>

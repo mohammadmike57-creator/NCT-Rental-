@@ -130,23 +130,23 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
     if (diff < 0) {
       return {
         text: `${hours}h ${minutes}m overdue`,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-300'
+        color: 'text-rose-600',
+        bgColor: 'bg-rose-50',
+        borderColor: 'border-rose-300'
       };
     } else if (diff < 3600000) { // Less than 1 hour
       return {
         text: `${minutes}m`,
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-50',
-        borderColor: 'border-orange-300'
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50',
+        borderColor: 'border-amber-300'
       };
     } else {
       return {
         text: `${hours}h ${minutes}m`,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-300'
+        color: 'text-sky-600',
+        bgColor: 'bg-sky-50',
+        borderColor: 'border-sky-300'
       };
     }
   };
@@ -156,14 +156,14 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
     const isOverdue = new Date(reservation.startDate) < currentTime && !reservation.voucherSubmitted;
 
     return (
-      <div className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${isOverdue ? 'border-red-500' : 'border-blue-500'} hover:shadow-lg transition-all`}>
+      <div className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${isOverdue ? 'border-rose-500' : 'border-sky-500'} hover:shadow-lg transition-all`}>
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-lg font-bold text-gray-800">{reservation.personName}</h3>
-              {isOverdue && <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />}
+              <h3 className="text-lg font-bold text-slate-800">{reservation.personName}</h3>
+              {isOverdue && <ExclamationTriangleIcon className="h-5 w-5 text-rose-500" />}
             </div>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-slate-600 space-y-1">
               <div className="flex items-center gap-2">
                 <PhoneIcon className="h-4 w-4" />
                 {reservation.contactNumber}
@@ -180,19 +180,19 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
           </div>
           <div className={`px-3 py-2 rounded-lg ${timeStatus.bgColor} ${timeStatus.borderColor} border text-center`}>
             <div className={`text-xs font-semibold ${timeStatus.color}`}>{timeStatus.text}</div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-slate-500 mt-1">
               {isOverdue ? 'Late' : 'Until pickup'}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+        <div className="flex items-center justify-between pt-4 border-t border-slate-200">
           <div>
-            <div className="text-sm text-gray-500">Amount</div>
-            <div className="text-lg font-bold text-gray-900">${reservation.amount?.toFixed(2) || '0.00'}</div>
+            <div className="text-sm text-slate-500">Amount</div>
+            <div className="text-lg font-bold text-slate-900">${reservation.amount?.toFixed(2) || '0.00'}</div>
           </div>
           {reservation.voucherSubmitted ? (
-            <div className="flex items-center gap-2 text-green-600">
+            <div className="flex items-center gap-2 text-emerald-600">
               <CheckCircleIcon className="h-5 w-5" />
               <span className="font-semibold">Checked Out</span>
             </div>
@@ -201,8 +201,8 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
               onClick={() => onStartRental(reservation)}
               className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
                 isOverdue
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-600 text-white'
               }`}
             >
               Start Rental
@@ -218,14 +218,14 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
     const isOverdue = new Date(reservation.endDate) < currentTime;
 
     return (
-      <div className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${isOverdue ? 'border-red-500' : 'border-green-500'} hover:shadow-lg transition-all`}>
+      <div className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${isOverdue ? 'border-rose-500' : 'border-emerald-500'} hover:shadow-lg transition-all`}>
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-lg font-bold text-gray-800">{reservation.personName}</h3>
-              {isOverdue && <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />}
+              <h3 className="text-lg font-bold text-slate-800">{reservation.personName}</h3>
+              {isOverdue && <ExclamationTriangleIcon className="h-5 w-5 text-rose-500" />}
             </div>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-slate-600 space-y-1">
               <div className="flex items-center gap-2">
                 <PhoneIcon className="h-4 w-4" />
                 {reservation.contactNumber}
@@ -243,29 +243,29 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
           </div>
           <div className={`px-3 py-2 rounded-lg ${timeStatus.bgColor} ${timeStatus.borderColor} border text-center`}>
             <div className={`text-xs font-semibold ${timeStatus.color}`}>{timeStatus.text}</div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-slate-500 mt-1">
               {isOverdue ? 'Overdue' : 'Until return'}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+        <div className="flex items-center justify-between pt-4 border-t border-slate-200">
           <div className="flex gap-4">
             <div>
-              <div className="text-xs text-gray-500">Out KM</div>
-              <div className="font-semibold text-gray-900">{reservation.pickupKmOut || 'N/A'}</div>
+              <div className="text-xs text-slate-500">Out KM</div>
+              <div className="font-semibold text-slate-900">{reservation.pickupKmOut || 'N/A'}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">Fuel</div>
-              <div className="font-semibold text-gray-900">{reservation.pickupFuelLevel || 'N/A'}</div>
+              <div className="text-xs text-slate-500">Fuel</div>
+              <div className="font-semibold text-slate-900">{reservation.pickupFuelLevel || 'N/A'}</div>
             </div>
           </div>
           <button
             onClick={() => onCompleteReturn(reservation)}
             className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
               isOverdue
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-green-600 hover:bg-green-700 text-white'
+                ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
           >
             Complete Return
@@ -276,13 +276,13 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-slate-50 min-h-screen">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-8 text-white mb-6">
+      <div className="rounded-xl shadow-lg p-8 text-white mb-6 bg-slate-900">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold mb-2">Today's Activity</h1>
-            <p className="text-blue-100 text-lg">
+            <p className="text-sky-100 text-lg">
               {currentTime.toLocaleDateString('en-US', {
                 weekday: 'long',
                 month: 'long',
@@ -297,7 +297,7 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
                 className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
-                  autoRefresh ? 'bg-green-500' : 'bg-gray-500'
+                  autoRefresh ? 'bg-emerald-500' : 'bg-slate-500'
                 }`}
               >
                 <RefreshIcon className="h-4 w-4" />
@@ -312,63 +312,63 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow-md p-5">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-blue-600">
+            <div className="text-sky-600">
               <ArrowUpIcon className="h-6 w-6" />
             </div>
-            <div className="text-2xl font-bold text-gray-800">{todaysActivity.pickups.length}</div>
+            <div className="text-2xl font-bold text-slate-800">{todaysActivity.pickups.length}</div>
           </div>
-          <div className="text-gray-600 text-sm font-semibold">Scheduled Pickups</div>
-          <div className="text-green-600 text-xs mt-1">{todaysActivity.completedPickups} completed</div>
+          <div className="text-slate-600 text-sm font-semibold">Scheduled Pickups</div>
+          <div className="text-emerald-600 text-xs mt-1">{todaysActivity.completedPickups} completed</div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-5">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-green-600">
+            <div className="text-emerald-600">
               <ArrowDownIcon className="h-6 w-6" />
             </div>
-            <div className="text-2xl font-bold text-gray-800">{todaysActivity.returns.length}</div>
+            <div className="text-2xl font-bold text-slate-800">{todaysActivity.returns.length}</div>
           </div>
-          <div className="text-gray-600 text-sm font-semibold">Expected Returns</div>
-          <div className="text-green-600 text-xs mt-1">{todaysActivity.completedReturns} completed</div>
+          <div className="text-slate-600 text-sm font-semibold">Expected Returns</div>
+          <div className="text-emerald-600 text-xs mt-1">{todaysActivity.completedReturns} completed</div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-5">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-purple-600">
+            <div className="text-emerald-600">
               <TruckIcon className="h-6 w-6" />
             </div>
-            <div className="text-2xl font-bold text-gray-800">{todaysActivity.active.length}</div>
+            <div className="text-2xl font-bold text-slate-800">{todaysActivity.active.length}</div>
           </div>
-          <div className="text-gray-600 text-sm font-semibold">Currently Out</div>
-          <div className="text-gray-400 text-xs mt-1">Active rentals</div>
+          <div className="text-slate-600 text-sm font-semibold">Currently Out</div>
+          <div className="text-slate-400 text-xs mt-1">Active rentals</div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-5">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-indigo-600">
+            <div className="text-emerald-600">
               <span className="text-2xl">$</span>
             </div>
-            <div className="text-2xl font-bold text-gray-800">${todaysActivity.totalRevenue.toFixed(0)}</div>
+            <div className="text-2xl font-bold text-slate-800">${todaysActivity.totalRevenue.toFixed(0)}</div>
           </div>
-          <div className="text-gray-600 text-sm font-semibold">Today's Revenue</div>
-          <div className="text-gray-400 text-xs mt-1">From pickups</div>
+          <div className="text-slate-600 text-sm font-semibold">Today's Revenue</div>
+          <div className="text-slate-400 text-xs mt-1">From pickups</div>
         </div>
       </div>
 
       {/* Alerts */}
       {(todaysActivity.overduePickups.length > 0 || todaysActivity.overdueReturns.length > 0) && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow mb-6">
+        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-lg shadow mb-6">
           <div className="flex items-start">
-            <BellIcon className="h-6 w-6 text-red-500 mr-3 mt-1" />
+            <BellIcon className="h-6 w-6 text-rose-500 mr-3 mt-1" />
             <div className="flex-1">
-              <h3 className="text-red-800 font-bold text-lg mb-2">Priority Alerts</h3>
+              <h3 className="text-rose-800 font-bold text-lg mb-2">Priority Alerts</h3>
               {todaysActivity.overduePickups.length > 0 && (
-                <div className="text-red-700 mb-1">
+                <div className="text-rose-700 mb-1">
                   ⚠️ {todaysActivity.overduePickups.length} overdue pickup{todaysActivity.overduePickups.length !== 1 ? 's' : ''}
                 </div>
               )}
               {todaysActivity.overdueReturns.length > 0 && (
-                <div className="text-red-700">
+                <div className="text-rose-700">
                   ⚠️ {todaysActivity.overdueReturns.length} overdue return{todaysActivity.overdueReturns.length !== 1 ? 's' : ''}
                 </div>
               )}
@@ -379,14 +379,14 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
 
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow-md mb-6">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-slate-200">
           <div className="flex">
             <button
               onClick={() => setSelectedTab('all')}
               className={`px-6 py-4 font-semibold transition-colors ${
                 selectedTab === 'all'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'border-b-2 border-sky-600 text-sky-600'
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
             >
               All ({todaysActivity.pickups.length + todaysActivity.returns.length})
@@ -395,8 +395,8 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
               onClick={() => setSelectedTab('pickups')}
               className={`px-6 py-4 font-semibold transition-colors ${
                 selectedTab === 'pickups'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'border-b-2 border-sky-600 text-sky-600'
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
             >
               Pickups ({todaysActivity.pickups.length})
@@ -405,8 +405,8 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
               onClick={() => setSelectedTab('returns')}
               className={`px-6 py-4 font-semibold transition-colors ${
                 selectedTab === 'returns'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'border-b-2 border-sky-600 text-sky-600'
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
             >
               Returns ({todaysActivity.returns.length})
@@ -420,8 +420,8 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
         {/* Pickups Section */}
         {(selectedTab === 'all' || selectedTab === 'pickups') && (
           <div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <ArrowUpIcon className="h-5 w-5 text-blue-600" />
+            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <ArrowUpIcon className="h-5 w-5 text-sky-600" />
               Today's Pickups ({sortedPickups.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -429,7 +429,7 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
                 <PickupCard key={reservation.id} reservation={reservation} />
               ))}
               {sortedPickups.length === 0 && (
-                <div className="col-span-full text-center py-12 text-gray-500">
+                <div className="col-span-full text-center py-12 text-slate-500">
                   No pickups scheduled for today
                 </div>
               )}
@@ -440,8 +440,8 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
         {/* Returns Section */}
         {(selectedTab === 'all' || selectedTab === 'returns') && (
           <div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <ArrowDownIcon className="h-5 w-5 text-green-600" />
+            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <ArrowDownIcon className="h-5 w-5 text-emerald-600" />
               Today's Returns ({sortedReturns.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -449,7 +449,7 @@ const TodaysReservationsView: React.FC<TodaysReservationsViewProps> = ({
                 <ReturnCard key={reservation.id} reservation={reservation} />
               ))}
               {sortedReturns.length === 0 && (
-                <div className="col-span-full text-center py-12 text-gray-500">
+                <div className="col-span-full text-center py-12 text-slate-500">
                   No returns scheduled for today
                 </div>
               )}

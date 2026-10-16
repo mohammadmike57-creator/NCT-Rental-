@@ -85,59 +85,59 @@ export default function PWAInstallPrompt() {
   if (isIOS) {
     return (
       <div className="fixed bottom-20 left-0 right-0 z-50 px-4 safe-area-bottom">
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-slide-up">
+        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up">
           <div className="p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-900">
                   <ArrowDownTrayIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">
+                  <h3 className="text-base font-semibold text-slate-900">
                     Install NCT Rental
                   </h3>
-                  <p className="text-sm text-gray-600">Add to Home Screen</p>
+                  <p className="text-sm text-slate-600">Add to Home Screen</p>
                 </div>
               </div>
               <button
                 onClick={handleDismiss}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-3 mb-3">
-              <p className="text-sm text-gray-700 mb-3">
+            <div className="bg-sky-50 rounded-lg p-3 mb-3">
+              <p className="text-sm text-slate-700 mb-3">
                 Install this app for a better experience with offline access and
                 notifications.
               </p>
 
               <div className="space-y-2 text-sm">
                 <div className="flex items-start space-x-2">
-                  <span className="text-blue-600 font-semibold">1.</span>
-                  <span className="text-gray-700">
+                  <span className="text-sky-600 font-semibold">1.</span>
+                  <span className="text-slate-700">
                     Tap the{' '}
-                    <ShareIcon className="w-4 h-4 inline text-blue-600" />{' '}
+                    <ShareIcon className="w-4 h-4 inline text-sky-600" />{' '}
                     Share button below
                   </span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-blue-600 font-semibold">2.</span>
-                  <span className="text-gray-700">
+                  <span className="text-sky-600 font-semibold">2.</span>
+                  <span className="text-slate-700">
                     Scroll down and tap "Add to Home Screen"
                   </span>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <span className="text-blue-600 font-semibold">3.</span>
-                  <span className="text-gray-700">Tap "Add" to confirm</span>
+                  <span className="text-sky-600 font-semibold">3.</span>
+                  <span className="text-slate-700">Tap "Add" to confirm</span>
                 </div>
               </div>
             </div>
 
             <button
               onClick={handleDismiss}
-              className="w-full px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg active:bg-gray-200 transition-colors touch-manipulation"
+              className="w-full px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg active:bg-slate-200 transition-colors touch-manipulation"
             >
               Maybe Later
             </button>
@@ -150,33 +150,33 @@ export default function PWAInstallPrompt() {
   // Android/Desktop Install Prompt
   return (
     <div className="fixed bottom-20 left-0 right-0 z-50 px-4 safe-area-bottom">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-slide-up">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up">
         <div className="p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-900">
                 <ArrowDownTrayIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-900">
+                <h3 className="text-base font-semibold text-slate-900">
                   Install NCT Rental
                 </h3>
-                <p className="text-sm text-gray-600">Get the full app experience</p>
+                <p className="text-sm text-slate-600">Get the full app experience</p>
               </div>
             </div>
             <button
               onClick={handleDismiss}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+              className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
             >
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
 
           <div className="mb-4">
-            <ul className="space-y-2 text-sm text-gray-700">
+            <ul className="space-y-2 text-sm text-slate-700">
               <li className="flex items-start space-x-2">
                 <svg
-                  className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5"
+                  className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -192,7 +192,7 @@ export default function PWAInstallPrompt() {
               </li>
               <li className="flex items-start space-x-2">
                 <svg
-                  className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5"
+                  className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -208,7 +208,7 @@ export default function PWAInstallPrompt() {
               </li>
               <li className="flex items-start space-x-2">
                 <svg
-                  className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5"
+                  className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -228,13 +228,13 @@ export default function PWAInstallPrompt() {
           <div className="flex space-x-2">
             <button
               onClick={handleDismiss}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg active:bg-gray-200 transition-colors touch-manipulation"
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg active:bg-slate-200 transition-colors touch-manipulation"
             >
               Not Now
             </button>
             <button
               onClick={handleInstall}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg active:from-blue-700 active:to-blue-800 transition-colors touch-manipulation flex items-center justify-center space-x-2"
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors touch-manipulation flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
               <span>Install</span>

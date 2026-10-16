@@ -141,16 +141,16 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
   const totals = calculateTotals();
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="professional-card mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">
                 Professional Rental Agreement
               </h1>
-              <p className="text-gray-600">
+              <p className="text-slate-600">
                 Complete and sign rental agreement - Agreement #{Date.now().toString().slice(-8)}
               </p>
             </div>
@@ -176,8 +176,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                   <div
                     className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
                       currentStep >= step.id
-                        ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg'
-                        : 'bg-gray-200 text-gray-500'
+                        ? 'text-white shadow-lg bg-slate-900'
+                        : 'bg-slate-200 text-slate-500'
                     }`}
                   >
                     {currentStep > step.id ? (
@@ -188,16 +188,16 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                   </div>
                   <div className="ml-3">
                     <p className={`text-sm font-semibold ${
-                      currentStep >= step.id ? 'text-blue-600' : 'text-gray-500'
+                      currentStep >= step.id ? 'text-sky-600' : 'text-slate-500'
                     }`}>
                       Step {step.id}
                     </p>
-                    <p className="text-xs text-gray-600">{step.name}</p>
+                    <p className="text-xs text-slate-600">{step.name}</p>
                   </div>
                 </div>
                 {index < steps.length - 1 && (
                   <div className={`flex-1 h-1 mx-4 rounded-full transition-all duration-300 ${
-                    currentStep > step.id ? 'bg-blue-600' : 'bg-gray-200'
+                    currentStep > step.id ? 'bg-sky-600' : 'bg-slate-200'
                   }`} />
                 )}
               </React.Fragment>
@@ -212,19 +212,19 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
             {/* Step 1: Customer Details */}
             {currentStep === 1 && (
               <div className="professional-card animate-fade-in">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <UserIcon className="w-6 h-6 text-blue-600" />
+                <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <UserIcon className="w-6 h-6 text-sky-600" />
                   Customer & Driver Information
                 </h2>
 
                 <div className="space-y-6">
                   {/* Personal Information */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">Personal Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Full Name <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Full Name <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -236,8 +236,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email Address <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Email Address <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="email"
@@ -249,8 +249,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Phone Number <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Phone Number <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="tel"
@@ -262,8 +262,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Date of Birth / Age <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Date of Birth / Age <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="number"
@@ -281,10 +281,10 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
 
                   {/* Address */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Address Information</h3>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">Address Information</h3>
                     <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
                           Street Address
                         </label>
                         <input
@@ -297,7 +297,7 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                       </div>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
                             City
                           </label>
                           <input
@@ -309,7 +309,7 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
                             Postal Code
                           </label>
                           <input
@@ -321,7 +321,7 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
                             Country
                           </label>
                           <input
@@ -338,11 +338,11 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
 
                   {/* Driver License */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Driver's License Information</h3>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">Driver's License Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          License Number <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          License Number <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -354,8 +354,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          License Country <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          License Country <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -367,7 +367,7 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
                           Issue Date
                         </label>
                         <input
@@ -378,8 +378,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Expiry Date <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Expiry Date <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="date"
@@ -394,11 +394,11 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
 
                   {/* Rental Period */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Rental Period</h3>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">Rental Period</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Pickup Date & Time <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Pickup Date & Time <span className="text-rose-500">*</span>
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                           <input
@@ -418,8 +418,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Return Date & Time <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Return Date & Time <span className="text-rose-500">*</span>
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                           <input
@@ -439,8 +439,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Pickup Location <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Pickup Location <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -452,8 +452,8 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Return Location <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Return Location <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -491,48 +491,48 @@ const ProfessionalRentalAgreement: React.FC<RentalAgreementProps> = ({
           {/* Summary Sidebar */}
           <div className="lg:col-span-1">
             <div className="professional-card sticky top-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Agreement Summary</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Agreement Summary</h3>
 
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs text-gray-500">Customer</p>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-xs text-slate-500">Customer</p>
+                  <p className="text-sm font-medium text-slate-900">
                     {agreementData.customerFullName || 'Not entered'}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-500">Rental Period</p>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-xs text-slate-500">Rental Period</p>
+                  <p className="text-sm font-medium text-slate-900">
                     {agreementData.rentalDays || '0'} days
                   </p>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4">
+                <div className="border-t border-slate-200 pt-4">
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600">Base Rental</span>
+                    <span className="text-slate-600">Base Rental</span>
                     <span className="font-medium">${totals.baseRental.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600">Fees & Extras</span>
+                    <span className="text-slate-600">Fees & Extras</span>
                     <span className="font-medium">
                       ${(totals.subtotal - totals.baseRental).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600">Tax ({agreementData.taxPercentage}%)</span>
+                    <span className="text-slate-600">Tax ({agreementData.taxPercentage}%)</span>
                     <span className="font-medium">${totals.tax.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-300">
+                  <div className="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-300">
                     <span>Total Amount</span>
                     <span>${totals.total.toFixed(2)}</span>
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4">
+                <div className="border-t border-slate-200 pt-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Security Deposit</span>
-                    <span className="font-semibold text-blue-600">
+                    <span className="text-slate-600">Security Deposit</span>
+                    <span className="font-semibold text-sky-600">
                       ${agreementData.securityDeposit}
                     </span>
                   </div>

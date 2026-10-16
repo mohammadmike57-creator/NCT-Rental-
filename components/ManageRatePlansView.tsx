@@ -98,10 +98,10 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({ aggregator, o
                 </div>
                 
                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setEditingPlan(plan)} className="flex-1 sm:flex-none justify-center px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-wider rounded-md hover:bg-blue-100 transition-colors flex items-center gap-1">
+                    <button onClick={() => setEditingPlan(plan)} className="flex-1 sm:flex-none justify-center px-3 py-1.5 bg-sky-50 text-sky-600 text-xs font-bold uppercase tracking-wider rounded-md hover:bg-sky-100 transition-colors flex items-center gap-1">
                         <EditIcon className="w-3 h-3" /> Edit Rates
                     </button>
-                    <button onClick={() => handleDeletePlan(plan.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                    <button onClick={() => handleDeletePlan(plan.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors">
                         <TrashIcon className="w-4 h-4" />
                     </button>
                  </div>
@@ -127,10 +127,10 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({ aggregator, o
       )}
 
       {ratePlans.length > 0 && (
-          <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-white via-white to-transparent z-30 text-right">
+          <div className="sticky bottom-0 pt-4 pb-2 z-30 text-right bg-white">
             <button
             onClick={handleSaveAndPublish}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 hover:scale-105 transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-bold rounded-full shadow-lg hover:bg-emerald-700 hover:scale-105 transition-all"
             >
             <SaveIcon className="w-5 h-5" /> Save & Publish Rates
             </button>

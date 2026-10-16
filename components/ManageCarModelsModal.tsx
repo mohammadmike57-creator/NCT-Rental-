@@ -16,34 +16,34 @@ const InputField: React.FC<{
   placeholder?: string;
 }> = ({ label, value, onChange, type = 'text', placeholder }) => (
   <div>
-    <label className="text-xs font-medium text-gray-500">{label}</label>
+    <label className="text-xs font-medium text-slate-500">{label}</label>
     <input
       type={type}
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1"
+      className="w-full p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1"
     />
   </div>
 );
 
 const getExpiryStatus = (expiryDate: string) => {
-    if (!expiryDate) return { status: 'Unknown', days: null, colorClasses: 'border-l-4 border-gray-300', textBgClasses: 'bg-gray-200 text-gray-700' };
+    if (!expiryDate) return { status: 'Unknown', days: null, colorClasses: 'border-l-4 border-slate-300', textBgClasses: 'bg-slate-200 text-slate-700' };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const expiry = new Date(expiryDate);
      // Adjust for timezone offset to compare dates correctly
     expiry.setMinutes(expiry.getMinutes() + expiry.getTimezoneOffset());
     
-    if (isNaN(expiry.getTime())) return { status: 'Invalid Date', days: null, colorClasses: 'border-l-4 border-gray-300', textBgClasses: 'bg-gray-200 text-gray-700' };
+    if (isNaN(expiry.getTime())) return { status: 'Invalid Date', days: null, colorClasses: 'border-l-4 border-slate-300', textBgClasses: 'bg-slate-200 text-slate-700' };
     
     const diffTime = expiry.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return { status: `Expired ${Math.abs(diffDays)} days ago`, days: diffDays, colorClasses: 'border-l-4 border-red-500', textBgClasses: 'bg-red-100 text-red-700' };
-    if (diffDays <= 30) return { status: `Expires in ${diffDays} days`, days: diffDays, colorClasses: 'border-l-4 border-red-500', textBgClasses: 'bg-red-100 text-red-700' };
-    if (diffDays <= 90) return { status: `Expires in ${diffDays} days`, days: diffDays, colorClasses: 'border-l-4 border-yellow-500', textBgClasses: 'bg-yellow-100 text-yellow-700' };
-    return { status: 'OK', days: diffDays, colorClasses: 'border-l-4 border-green-500', textBgClasses: 'bg-green-100 text-green-700' };
+    if (diffDays < 0) return { status: `Expired ${Math.abs(diffDays)} days ago`, days: diffDays, colorClasses: 'border-l-4 border-rose-500', textBgClasses: 'bg-rose-100 text-rose-700' };
+    if (diffDays <= 30) return { status: `Expires in ${diffDays} days`, days: diffDays, colorClasses: 'border-l-4 border-rose-500', textBgClasses: 'bg-rose-100 text-rose-700' };
+    if (diffDays <= 90) return { status: `Expires in ${diffDays} days`, days: diffDays, colorClasses: 'border-l-4 border-amber-500', textBgClasses: 'bg-amber-100 text-amber-700' };
+    return { status: 'OK', days: diffDays, colorClasses: 'border-l-4 border-emerald-500', textBgClasses: 'bg-emerald-100 text-emerald-700' };
 };
 
 
@@ -143,12 +143,12 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
   return (
     <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 w-full max-w-7xl mx-auto">
         <header className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">Manage Fleet</h2>
+          <h2 className="text-xl font-semibold text-slate-800">Manage Fleet</h2>
         </header>
 
         <div>
            <div className="mb-8 p-4 bg-slate-50 rounded-lg border">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">Add New Vehicle</h3>
+            <h3 className="text-lg font-semibold text-slate-700 mb-3">Add New Vehicle</h3>
             <datalist id="category-options">
               {uniqueCategories.map(cat => <option key={cat} value={cat} />)}
             </datalist>
@@ -157,18 +157,18 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                 <InputField label="License Plate" value={newPlate} onChange={setNewPlate} placeholder="e.g., 10-12345" />
                 <InputField label="SIPP Code" value={newSippCode} onChange={setNewSippCode} placeholder="e.g., CDAR" />
                 <div>
-                  <label className="text-xs font-medium text-gray-500">Category</label>
+                  <label className="text-xs font-medium text-slate-500">Category</label>
                   <input
                     list="category-options"
                     value={newCategory}
                     onChange={e => setNewCategory(e.target.value)}
                     placeholder="Select or type new"
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1"
+                    className="w-full p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1"
                   />
                 </div>
                 <div>
-                    <label className="text-xs font-medium text-gray-500">Transmission</label>
-                    <select value={newTransmission} onChange={e => setNewTransmission(e.target.value as TransmissionType)} className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1">
+                    <label className="text-xs font-medium text-slate-500">Transmission</label>
+                    <select value={newTransmission} onChange={e => setNewTransmission(e.target.value as TransmissionType)} className="w-full p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1">
                         <option value={TransmissionType.AUTOMATIC}>Automatic</option>
                         <option value={TransmissionType.MANUAL}>Manual</option>
                     </select>
@@ -180,7 +180,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                   <PlusIcon /> Add Vehicle
                 </button>
             </div>
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            {error && <p className="text-rose-500 text-sm mt-2">{error}</p>}
           </div>
 
           <div className="space-y-6">
@@ -197,7 +197,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${expiryStatus.textBgClasses}`}>
                             {expiryStatus.status}
                          </span>
-                         <button onClick={() => handleDeleteVehicle(vehicle.id)} className="text-gray-400 hover:text-red-600 p-1" aria-label={`Delete ${vehicle.modelName}`}>
+                         <button onClick={() => handleDeleteVehicle(vehicle.id)} className="text-slate-400 hover:text-rose-600 p-1" aria-label={`Delete ${vehicle.modelName}`}>
                              <TrashIcon className="h-5 w-5"/>
                          </button>
                     </div>
@@ -207,17 +207,17 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                     <InputField label="License Plate" value={vehicle.licensePlate} onChange={v => handleVehicleChange(vehicle.id, 'licensePlate', v)} />
                     <InputField label="SIPP Code" value={vehicle.sippCode || ''} onChange={v => handleVehicleChange(vehicle.id, 'sippCode', v.toUpperCase())} />
                     <div>
-                      <label className="text-xs font-medium text-gray-500">Category</label>
+                      <label className="text-xs font-medium text-slate-500">Category</label>
                       <input
                         list="category-options"
                         value={vehicle.category}
                         onChange={e => handleVehicleChange(vehicle.id, 'category', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1"
+                        className="w-full p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1"
                       />
                     </div>
                     <div>
-                        <label className="text-xs font-medium text-gray-500">Transmission</label>
-                        <select value={vehicle.transmission} onChange={e => handleVehicleChange(vehicle.id, 'transmission', e.target.value as TransmissionType)} className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1">
+                        <label className="text-xs font-medium text-slate-500">Transmission</label>
+                        <select value={vehicle.transmission} onChange={e => handleVehicleChange(vehicle.id, 'transmission', e.target.value as TransmissionType)} className="w-full p-2 border border-slate-300 rounded-md text-sm focus:ring-secondary focus:border-secondary mt-1">
                             <option value={TransmissionType.AUTOMATIC}>Automatic</option>
                             <option value={TransmissionType.MANUAL}>Manual</option>
                         </select>
@@ -229,14 +229,14 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
               </div>
             )})}
              {sortedFleet.length === 0 && (
-                <div className="text-center py-10 text-gray-500 border-2 border-dashed rounded-lg">No vehicles configured.</div>
+                <div className="text-center py-10 text-slate-500 border-2 border-dashed rounded-lg">No vehicles configured.</div>
             )}
           </div>
         </div>
-        <footer className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2 mt-6 -mx-4 sm:-mx-6 -mb-6 rounded-b-lg">
+        <footer className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 mt-6 -mx-4 sm:-mx-6 -mb-6 rounded-b-lg">
             <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary text-sm font-medium"
+                className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary text-sm font-medium"
             >
                 Cancel
             </button>

@@ -48,11 +48,11 @@ const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ currentRatePlans }) => 
             
             <div className="flex-1 bg-slate-900 rounded-xl overflow-hidden shadow-inner border border-slate-700 relative group">
                 <div className="absolute top-0 left-0 right-0 bg-slate-800 px-4 py-2 flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
                 </div>
-                <pre className="p-6 pt-12 h-full overflow-auto text-xs sm:text-sm font-mono text-green-400 leading-relaxed">
+                <pre className="p-6 pt-12 h-full overflow-auto text-xs sm:text-sm font-mono text-emerald-400 leading-relaxed">
                     <code>{xmlContent}</code>
                 </pre>
                 <button 

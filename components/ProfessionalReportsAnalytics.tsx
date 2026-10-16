@@ -85,10 +85,28 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSource, setSelectedSource] = useState<string>('all');
 
+  // The app stores a year as { [month]: Reservation[] } with `amount` and upper-case statuses.
+  // Flatten it into the shape these reports read; `vehicleId` is the vehicle's index in `fleet`.
+  const toReportRows = (data?: YearData): any[] =>
+    Object.values(data || {}).flat().map((r: any) => {
+      const status = String(r.status || '').toLowerCase();
+      const isLost = status === 'cancelled' || status === 'no_show';
+      const vehicleIndex = fleet.findIndex(v => v.licensePlate && v.licensePlate === r.licensePlate);
+      return {
+        ...r,
+        totalCost: isLost ? 0 : (r.amount || 0),
+        status: r.dropOffCompleted && !isLost ? 'completed' : status,
+        vehicleId: vehicleIndex >= 0 ? String(vehicleIndex) : undefined,
+        customerName: r.personName || r.customer,
+        paymentStatus: r.pickupPaymentCollected || r.dropOffCompleted ? 'paid' : undefined,
+      };
+    });
+  const currentYearRows = useMemo(() => toReportRows(yearData), [yearData, fleet]);
+
   // Calculate comprehensive analytics
   const analytics = useMemo(() => {
-    const currentYearReservations = yearData?.reservations || [];
-    const previousYearReservations = allYearsData?.[year - 1]?.reservations || [];
+    const currentYearReservations = currentYearRows;
+    const previousYearReservations = toReportRows(allYearsData?.[year - 1]);
 
     // Current period metrics
     const totalRevenue = currentYearReservations.reduce((sum, res) => sum + (res.totalCost || 0), 0);
@@ -166,7 +184,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
       return {
         id,
-        name: `${vehicle.make} ${vehicle.model}`,
+        name: `${vehicle.modelName} (${vehicle.licensePlate})`,
         category: vehicle.category,
         revenue: vehicleRevenue,
         reservations: vehicleReservations.length,
@@ -219,7 +237,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
       outstandingPayments,
       customerFrequency
     };
-  }, [yearData, allYearsData, fleet, sources, year]);
+  }, [currentYearRows, allYearsData, fleet, sources, year]);
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -838,9 +856,9 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
               <h3 className="report-title">Customer Acquisition by Source</h3>
               <div className="report-content">
                 {analytics.revenueBySource.map((item, index) => {
-                  const customerCount = yearData?.reservations?.filter(
+                  const customerCount = currentYearRows.filter(
                     res => res.source === item.source
-                  ).length || 0;
+                  ).length;
 
                   return (
                     <div key={index} className="acquisition-row">
@@ -974,10 +992,10 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .professional-reports-analytics {
           padding: 2rem;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: #f1f5f9;
           min-height: 100vh;
         }
 
@@ -1001,7 +1019,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .header-icon {
           width: 64px;
           height: 64px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: #0f172a;
           border-radius: 12px;
           display: flex;
           align-items: center;
@@ -1017,13 +1035,13 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .header-title {
           font-size: 2rem;
           font-weight: 700;
-          color: #1f2937;
+          color: #1e293b;
           margin: 0;
         }
 
         .header-subtitle {
           font-size: 1rem;
-          color: #6b7280;
+          color: #64748b;
           margin: 0.25rem 0 0 0;
         }
 
@@ -1037,7 +1055,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           align-items: center;
           gap: 0.5rem;
           padding: 0.75rem 1.5rem;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: #0f172a;
           color: white;
           border: none;
           border-radius: 8px;
@@ -1048,7 +1066,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .action-button:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
         }
 
         .action-button .icon {
@@ -1078,19 +1096,19 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           align-items: center;
           gap: 0.5rem;
           font-weight: 600;
-          color: #374151;
+          color: #334155;
           font-size: 0.875rem;
         }
 
         .filter-label .icon {
           width: 16px;
           height: 16px;
-          color: #667eea;
+          color: #059669;
         }
 
         .filter-select {
           padding: 0.75rem;
-          border: 2px solid #e5e7eb;
+          border: 2px solid #e2e8f0;
           border-radius: 8px;
           font-size: 0.875rem;
           background: white;
@@ -1100,7 +1118,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .filter-select:focus {
           outline: none;
-          border-color: #667eea;
+          border-color: #059669;
         }
 
         .tab-navigation {
@@ -1119,7 +1137,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           padding: 1rem 2rem;
           border: none;
           background: transparent;
-          color: #6b7280;
+          color: #64748b;
           font-weight: 600;
           border-radius: 8px;
           cursor: pointer;
@@ -1128,11 +1146,11 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .tab-button:hover {
-          background: #f3f4f6;
+          background: #f1f5f9;
         }
 
         .tab-button.active {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: #0f172a;
           color: white;
         }
 
@@ -1169,7 +1187,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .kpi-label {
           font-size: 0.875rem;
           font-weight: 600;
-          color: #6b7280;
+          color: #64748b;
           text-transform: uppercase;
         }
 
@@ -1189,8 +1207,8 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .kpi-trend.negative {
-          background: #fee2e2;
-          color: #991b1b;
+          background: #ffe4e6;
+          color: #9f1239;
         }
 
         .kpi-trend .icon {
@@ -1201,13 +1219,13 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .kpi-value {
           font-size: 2rem;
           font-weight: 700;
-          color: #1f2937;
+          color: #1e293b;
           margin-bottom: 0.5rem;
         }
 
         .kpi-footer {
           font-size: 0.75rem;
-          color: #9ca3af;
+          color: #94a3b8;
         }
 
         .kpi-badge {
@@ -1215,20 +1233,20 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           border-radius: 20px;
           font-size: 0.75rem;
           font-weight: 600;
-          background: #dbeafe;
-          color: #1e40af;
+          background: #e0f2fe;
+          color: #075985;
         }
 
         .kpi-progress {
           height: 8px;
-          background: #e5e7eb;
+          background: #e2e8f0;
           border-radius: 4px;
           overflow: hidden;
         }
 
         .progress-bar {
           height: 100%;
-          background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+          background: #059669;
           border-radius: 4px;
           transition: width 0.3s ease;
         }
@@ -1251,7 +1269,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .section-title {
           font-size: 1.5rem;
           font-weight: 700;
-          color: #1f2937;
+          color: #1e293b;
           margin: 0;
         }
 
@@ -1262,9 +1280,9 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .chart-toggle {
           padding: 0.5rem 1rem;
-          border: 2px solid #e5e7eb;
+          border: 2px solid #e2e8f0;
           background: white;
-          color: #6b7280;
+          color: #64748b;
           border-radius: 6px;
           font-weight: 600;
           cursor: pointer;
@@ -1272,8 +1290,8 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .chart-toggle.active {
-          border-color: #667eea;
-          background: #667eea;
+          border-color: #059669;
+          background: #059669;
           color: white;
         }
 
@@ -1305,7 +1323,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .bar-value {
           font-size: 0.75rem;
           font-weight: 600;
-          color: #6b7280;
+          color: #64748b;
           margin-bottom: 0.5rem;
           white-space: nowrap;
         }
@@ -1314,7 +1332,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           width: 100%;
           min-height: 4px;
           border-radius: 4px 4px 0 0;
-          background: #f3f4f6;
+          background: #f1f5f9;
           position: relative;
           transition: all 0.3s ease;
         }
@@ -1325,14 +1343,14 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           left: 0;
           right: 0;
           height: 100%;
-          background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+          background: #059669;
           border-radius: 4px 4px 0 0;
         }
 
         .bar-label {
           font-size: 0.75rem;
           font-weight: 600;
-          color: #6b7280;
+          color: #64748b;
           margin-top: 0.5rem;
         }
 
@@ -1362,19 +1380,19 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .stat-icon.revenue {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          background: #059669;
         }
 
         .stat-icon.bookings {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          background: #0369a1;
         }
 
         .stat-icon.customers {
-          background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+          background: #047857;
         }
 
         .stat-icon.outstanding {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          background: #d97706;
         }
 
         .stat-icon .icon {
@@ -1390,14 +1408,14 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .stat-label {
           display: block;
           font-size: 0.875rem;
-          color: #6b7280;
+          color: #64748b;
           margin-bottom: 0.25rem;
         }
 
         .stat-value {
           font-size: 1.5rem;
           font-weight: 700;
-          color: #1f2937;
+          color: #1e293b;
         }
 
         .reports-grid {
@@ -1420,7 +1438,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .report-title {
           font-size: 1.25rem;
           font-weight: 700;
-          color: #1f2937;
+          color: #1e293b;
           margin: 0 0 1.5rem 0;
         }
 
@@ -1439,39 +1457,39 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .report-label {
           font-weight: 600;
-          color: #374151;
+          color: #334155;
           font-size: 0.875rem;
         }
 
         .report-bar-container {
           height: 24px;
-          background: #f3f4f6;
+          background: #f1f5f9;
           border-radius: 12px;
           overflow: hidden;
         }
 
         .report-bar {
           height: 100%;
-          background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+          background: #059669;
           border-radius: 12px;
           transition: width 0.5s ease;
         }
 
         .report-bar.category {
-          background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+          background: #059669;
         }
 
         .report-bar.payment {
-          background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+          background: #d97706;
         }
 
         .report-bar.customer {
-          background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+          background: #047857;
         }
 
         .report-value {
           font-weight: 600;
-          color: #1f2937;
+          color: #1e293b;
           text-align: right;
         }
 
@@ -1484,24 +1502,24 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           justify-content: space-between;
           align-items: center;
           padding: 1rem 0;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid #e2e8f0;
         }
 
         .summary-row.total {
           border-bottom: none;
-          border-top: 2px solid #374151;
+          border-top: 2px solid #334155;
           margin-top: 0.5rem;
           padding-top: 1.5rem;
         }
 
         .summary-label {
           font-weight: 600;
-          color: #6b7280;
+          color: #64748b;
         }
 
         .summary-value {
           font-weight: 700;
-          color: #1f2937;
+          color: #1e293b;
           font-size: 1.125rem;
         }
 
@@ -1524,19 +1542,19 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           justify-content: space-between;
           align-items: center;
           padding: 1rem;
-          background: #f9fafb;
+          background: #f8fafc;
           border-radius: 8px;
         }
 
         .metric-label {
           font-weight: 600;
-          color: #6b7280;
+          color: #64748b;
           font-size: 0.875rem;
         }
 
         .metric-value {
           font-weight: 700;
-          color: #1f2937;
+          color: #1e293b;
           font-size: 1.125rem;
         }
 
@@ -1548,7 +1566,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .utilization-item {
           padding: 1rem;
-          background: #f9fafb;
+          background: #f8fafc;
           border-radius: 8px;
         }
 
@@ -1561,18 +1579,18 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .vehicle-name {
           font-weight: 600;
-          color: #1f2937;
+          color: #1e293b;
           font-size: 0.875rem;
         }
 
         .utilization-percent {
           font-weight: 700;
-          color: #667eea;
+          color: #059669;
         }
 
         .utilization-bar-bg {
           height: 8px;
-          background: #e5e7eb;
+          background: #e2e8f0;
           border-radius: 4px;
           overflow: hidden;
           margin-bottom: 0.5rem;
@@ -1585,22 +1603,22 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .utilization-bar.high {
-          background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+          background: #059669;
         }
 
         .utilization-bar.medium {
-          background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+          background: #d97706;
         }
 
         .utilization-bar.low {
-          background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+          background: #be123c;
         }
 
         .utilization-stats {
           display: flex;
           justify-content: space-between;
           font-size: 0.75rem;
-          color: #6b7280;
+          color: #64748b;
         }
 
         .mini-chart {
@@ -1621,14 +1639,14 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .mini-bar-fill {
           width: 100%;
-          background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+          background: #059669;
           border-radius: 4px 4px 0 0;
           min-height: 2px;
         }
 
         .mini-bar-label {
           font-size: 0.625rem;
-          color: #9ca3af;
+          color: #94a3b8;
           margin-top: 0.25rem;
         }
 
@@ -1637,7 +1655,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
           justify-content: space-between;
           align-items: center;
           padding: 1rem;
-          background: #f9fafb;
+          background: #f8fafc;
           border-radius: 8px;
         }
 
@@ -1649,12 +1667,12 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .source-name {
           font-weight: 600;
-          color: #1f2937;
+          color: #1e293b;
         }
 
         .source-count {
           font-size: 0.875rem;
-          color: #6b7280;
+          color: #64748b;
         }
 
         .acquisition-metrics {
@@ -1685,21 +1703,21 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         .performance-table th {
           text-align: left;
           padding: 1rem;
-          background: #f9fafb;
-          color: #6b7280;
+          background: #f8fafc;
+          color: #64748b;
           font-weight: 600;
           font-size: 0.875rem;
           text-transform: uppercase;
-          border-bottom: 2px solid #e5e7eb;
+          border-bottom: 2px solid #e2e8f0;
         }
 
         .performance-table td {
           padding: 1rem;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: 1px solid #f1f5f9;
         }
 
         .performance-table tbody tr:hover {
-          background: #f9fafb;
+          background: #f8fafc;
         }
 
         .vehicle-cell {
@@ -1710,7 +1728,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .vehicle-id {
           font-size: 0.75rem;
-          color: #9ca3af;
+          color: #94a3b8;
         }
 
         .revenue-cell {
@@ -1726,7 +1744,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .mini-progress {
           height: 4px;
-          background: #e5e7eb;
+          background: #e2e8f0;
           border-radius: 2px;
           overflow: hidden;
         }
@@ -1738,7 +1756,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .mini-progress-bar.high {
-          background: #10b981;
+          background: #059669;
         }
 
         .mini-progress-bar.medium {
@@ -1746,7 +1764,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .mini-progress-bar.low {
-          background: #ef4444;
+          background: #e11d48;
         }
 
         .performance-badge {
@@ -1768,8 +1786,8 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
         }
 
         .performance-badge.poor {
-          background: #fee2e2;
-          color: #991b1b;
+          background: #ffe4e6;
+          color: #9f1239;
         }
 
         .fleet-summary-grid {
@@ -1788,7 +1806,7 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .summary-title {
           font-size: 0.875rem;
-          color: #6b7280;
+          color: #64748b;
           font-weight: 600;
           margin: 0 0 1rem 0;
           text-transform: uppercase;
@@ -1796,14 +1814,14 @@ const ProfessionalReportsAnalytics: React.FC<ProfessionalReportsAnalyticsProps> 
 
         .summary-vehicle {
           font-weight: 600;
-          color: #374151;
+          color: #334155;
           margin-bottom: 0.5rem;
         }
 
         .summary-stat {
           font-size: 1.75rem;
           font-weight: 700;
-          color: #667eea;
+          color: #059669;
         }
 
         @media print {

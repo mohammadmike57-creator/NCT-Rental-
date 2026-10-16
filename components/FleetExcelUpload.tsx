@@ -90,9 +90,9 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
   };
 
   return (
-    <div className="mt-4 p-4 border rounded-md bg-gray-50">
+    <div className="mt-4 p-4 border rounded-md bg-slate-50">
       <h3 className="text-md font-semibold mb-2">Import Fleet from Excel</h3>
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center">
         <input
           type="file"
           accept=".xlsx, .xls"
@@ -107,19 +107,19 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
         >
           {uploading ? 'Uploading...' : 'Choose Excel File'}
         </label>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-slate-500">
           Required columns: Model, License Plate, Security Deposit, Excess<br />
           Optional: Registration Expiry, Category, SIPP Code, Transmission
         </p>
       </div>
 
       {error && (
-        <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md whitespace-pre-wrap">
+        <div className="mt-4 p-3 bg-rose-100 text-rose-700 rounded-md whitespace-pre-wrap">
           {error}
         </div>
       )}
       {success && (
-        <div className="mt-4 p-3 bg-green-100 text-green-700 rounded-md">
+        <div className="mt-4 p-3 bg-emerald-100 text-emerald-700 rounded-md">
           {success}
         </div>
       )}

@@ -219,15 +219,15 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
   ];
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-gray-50 min-h-screen">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-slate-50 min-h-screen">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 text-white">
+      <div className="rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 text-white bg-slate-900">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div className="flex-1">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
               Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening'}, {currentUser?.fullName || 'User'}!
             </h1>
-            <p className="text-blue-100 text-sm sm:text-base lg:text-lg">
+            <p className="text-sky-100 text-sm sm:text-base lg:text-lg">
               {currentTime.toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
@@ -238,29 +238,29 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
           </div>
           <div className="text-left sm:text-right">
             <div className="text-3xl sm:text-4xl lg:text-5xl font-bold">{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-            <div className="text-blue-200 mt-1 text-sm sm:text-base">Live Dashboard</div>
+            <div className="text-sky-200 mt-1 text-sm sm:text-base">Live Dashboard</div>
           </div>
         </div>
       </div>
 
       {/* Alerts Section */}
       {kpis.overdueReturns > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow">
+        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-lg shadow">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-start flex-1">
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-500 mr-3 flex-shrink-0" />
+              <ExclamationTriangleIcon className="h-6 w-6 text-rose-500 mr-3 flex-shrink-0" />
               <div>
-                <h3 className="text-red-800 font-semibold text-sm sm:text-base">
+                <h3 className="text-rose-800 font-semibold text-sm sm:text-base">
                   {kpis.overdueReturns} Overdue Return{kpis.overdueReturns !== 1 ? 's' : ''}
                 </h3>
-                <p className="text-red-600 text-xs sm:text-sm">
+                <p className="text-rose-600 text-xs sm:text-sm">
                   Immediate attention required. Click to view details.
                 </p>
               </div>
             </div>
             <button
               onClick={() => onNavigate('reservations', { filter: 'overdue' })}
-              className="w-full sm:w-auto bg-red-500 text-white px-4 py-3 sm:py-2 rounded-lg hover:bg-red-600 transition-colors text-sm sm:text-base min-h-[44px] sm:min-h-0"
+              className="w-full sm:w-auto bg-rose-500 text-white px-4 py-3 sm:py-2 rounded-lg hover:bg-rose-600 transition-colors text-sm sm:text-base min-h-[44px] sm:min-h-0"
             >
               View Now
             </button>
@@ -273,12 +273,12 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
         {statsCards.map((card, index) => {
           const Icon = card.icon;
           const colorClasses = {
-            blue: 'bg-blue-500',
-            green: 'bg-green-500',
-            purple: 'bg-purple-500',
-            gray: 'bg-gray-500',
-            red: 'bg-red-500',
-            yellow: 'bg-yellow-500'
+            blue: 'bg-sky-500',
+            green: 'bg-emerald-500',
+            purple: 'bg-emerald-500',
+            gray: 'bg-slate-500',
+            red: 'bg-rose-500',
+            yellow: 'bg-amber-500'
           };
 
           return (
@@ -292,16 +292,16 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
                   <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 {card.trend !== undefined && card.trend !== 0 && (
-                  <div className={`flex items-center ${card.trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`flex items-center ${card.trend > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {card.trend > 0 ? <ArrowUpIcon className="h-3 w-3 sm:h-4 sm:w-4" /> : <ArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
                     <span className="text-xs sm:text-sm font-semibold ml-1">{Math.abs(card.trend)}</span>
                   </div>
                 )}
               </div>
-              <h3 className="text-gray-500 text-xs sm:text-sm font-medium mb-1">{card.title}</h3>
-              <div className="text-2xl sm:text-3xl font-bold text-gray-800">{card.value}</div>
+              <h3 className="text-slate-500 text-xs sm:text-sm font-medium mb-1">{card.title}</h3>
+              <div className="text-2xl sm:text-3xl font-bold text-slate-800">{card.value}</div>
               {card.subtitle && (
-                <p className="text-gray-400 text-xs sm:text-sm mt-1">{card.subtitle}</p>
+                <p className="text-slate-400 text-xs sm:text-sm mt-1">{card.subtitle}</p>
               )}
             </div>
           );
@@ -313,16 +313,16 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
         {revenueCards.map((card, index) => {
           const Icon = card.icon;
           const colorClasses = {
-            green: 'from-green-500 to-green-600',
-            indigo: 'from-indigo-500 to-indigo-600',
-            red: 'from-red-500 to-red-600',
-            yellow: 'from-yellow-500 to-yellow-600'
+            green: 'from-emerald-500 to-emerald-600',
+            indigo: 'from-emerald-500 to-emerald-600',
+            red: 'from-rose-500 to-rose-600',
+            yellow: 'from-amber-500 to-amber-600'
           };
 
           return (
             <div
               key={index}
-              className={`bg-gradient-to-br ${colorClasses[card.color]} rounded-xl shadow-lg p-4 sm:p-6 text-white`}
+              className={`${colorClasses[card.color]} rounded-xl shadow-lg p-4 sm:p-6 text-white bg-slate-900`}
             >
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <Icon className="h-6 w-6 sm:h-8 sm:w-8 opacity-80" />
@@ -345,35 +345,35 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
 
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-slate-800 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <button
             onClick={() => onNavigate('reservations', { action: 'new' })}
-            className="flex flex-col items-center p-3 sm:p-4 bg-blue-50 rounded-lg hover:bg-blue-100 active:bg-blue-200 transition-colors min-h-[88px] sm:min-h-0"
+            className="flex flex-col items-center p-3 sm:p-4 bg-sky-50 rounded-lg hover:bg-sky-100 active:bg-sky-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <CalendarIcon className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 mb-2" />
-            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">New Reservation</span>
+            <CalendarIcon className="h-7 w-7 sm:h-8 sm:w-8 text-sky-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-slate-700 text-center">New Reservation</span>
           </button>
           <button
             onClick={() => onNavigate('reservations-today')}
-            className="flex flex-col items-center p-3 sm:p-4 bg-green-50 rounded-lg hover:bg-green-100 active:bg-green-200 transition-colors min-h-[88px] sm:min-h-0"
+            className="flex flex-col items-center p-3 sm:p-4 bg-emerald-50 rounded-lg hover:bg-emerald-100 active:bg-emerald-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <ClockIcon className="h-7 w-7 sm:h-8 sm:w-8 text-green-600 mb-2" />
-            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">Today's Activity</span>
+            <ClockIcon className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-slate-700 text-center">Today's Activity</span>
           </button>
           <button
             onClick={() => onNavigate('invoice')}
-            className="flex flex-col items-center p-3 sm:p-4 bg-purple-50 rounded-lg hover:bg-purple-100 active:bg-purple-200 transition-colors min-h-[88px] sm:min-h-0"
+            className="flex flex-col items-center p-3 sm:p-4 bg-emerald-50 rounded-lg hover:bg-emerald-100 active:bg-emerald-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <DocumentTextIcon className="h-7 w-7 sm:h-8 sm:w-8 text-purple-600 mb-2" />
-            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">Generate Invoice</span>
+            <DocumentTextIcon className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-slate-700 text-center">Generate Invoice</span>
           </button>
           <button
             onClick={() => onNavigate('fleet-balance')}
-            className="flex flex-col items-center p-3 sm:p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 active:bg-indigo-200 transition-colors min-h-[88px] sm:min-h-0"
+            className="flex flex-col items-center p-3 sm:p-4 bg-emerald-50 rounded-lg hover:bg-emerald-100 active:bg-emerald-200 transition-colors min-h-[88px] sm:min-h-0"
           >
-            <ChartBarIcon className="h-7 w-7 sm:h-8 sm:w-8 text-indigo-600 mb-2" />
-            <span className="text-xs sm:text-sm font-semibold text-gray-700 text-center">Fleet Analytics</span>
+            <ChartBarIcon className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600 mb-2" />
+            <span className="text-xs sm:text-sm font-semibold text-slate-700 text-center">Fleet Analytics</span>
           </button>
         </div>
       </div>
@@ -382,15 +382,15 @@ const ProfessionalHomeDashboard: React.FC<ProfessionalHomeDashboardProps> = ({
       {kpis.upcomingReservations > 0 && (
         <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800">Upcoming This Week</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-slate-800">Upcoming This Week</h2>
             <button
               onClick={() => onNavigate('reservations', { filter: 'upcoming' })}
-              className="text-blue-600 hover:text-blue-700 font-semibold text-sm self-start sm:self-auto min-h-[44px] sm:min-h-0 flex items-center"
+              className="text-sky-600 hover:text-sky-700 font-semibold text-sm self-start sm:self-auto min-h-[44px] sm:min-h-0 flex items-center"
             >
               View All →
             </button>
           </div>
-          <div className="flex items-center text-gray-600">
+          <div className="flex items-center text-slate-600">
             <UserGroupIcon className="h-5 w-5 mr-2 flex-shrink-0" />
             <span className="text-sm sm:text-base">{kpis.upcomingReservations} reservation{kpis.upcomingReservations !== 1 ? 's' : ''} scheduled for the next 7 days</span>
           </div>

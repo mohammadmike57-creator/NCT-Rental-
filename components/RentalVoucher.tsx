@@ -85,13 +85,13 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto border border-slate-200">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto border border-slate-200">
         <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex justify-between items-center z-20">
           <h2 className="text-xl font-black text-slate-900 tracking-tight">Rental Agreement</h2>
           <div className="flex gap-3">
             <button
               onClick={handlePrint}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+              className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-md active:scale-95"
             >
               Print / PDF
             </button>
@@ -109,8 +109,8 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
           <div className="text-center border-b-2 border-slate-900 pb-6 mb-8">
             <h1 className="text-2xl font-black text-slate-900 mb-1 uppercase tracking-tight">{companyDetails.name}</h1>
             <p className="text-xs text-slate-500 font-medium">{companyDetails.address}</p>
-            <p className="text-[10px] text-gray-600">Tel: {companyDetails.phone} | Email: {companyDetails.email}</p>
-            <p className="text-[10px] text-gray-600">Tax Number: {companyDetails.taxNumber}</p>
+            <p className="text-[10px] text-slate-600">Tel: {companyDetails.phone} | Email: {companyDetails.email}</p>
+            <p className="text-[10px] text-slate-600">Tax Number: {companyDetails.taxNumber}</p>
           </div>
 
           {/* Voucher Title */}
@@ -157,7 +157,7 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">License Plate</p>
-                <p className="text-xl font-black text-indigo-400">{reservation.licensePlate || '—'}</p>
+                <p className="text-xl font-black text-emerald-400">{reservation.licensePlate || '—'}</p>
               </div>
               <div className="border-l-2 border-emerald-500/50 pl-5">
                 <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-1">Pickup Date/Time</p>
@@ -173,7 +173,7 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Duration</p>
-                <p className="text-xl font-black text-indigo-300">{durationDays} day{durationDays > 1 ? 's' : ''}</p>
+                <p className="text-xl font-black text-emerald-300">{durationDays} day{durationDays > 1 ? 's' : ''}</p>
               </div>
             </div>
           </div>
@@ -188,7 +188,7 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
               </div>
               {reservation.selectedExtras && reservation.selectedExtras.length > 0 && (
                 <>
-                  <div className="font-black text-[9px] text-indigo-600 uppercase tracking-widest mt-3">Selected Extras:</div>
+                  <div className="font-black text-[9px] text-emerald-600 uppercase tracking-widest mt-3">Selected Extras:</div>
                   {reservation.selectedExtras.map((extraId, index) => {
                     return (
                       <div key={index} className="flex justify-between text-xs">
@@ -201,7 +201,7 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
               )}
               <div className="flex justify-between font-black text-2xl border-t border-slate-200 pt-4 mt-4 text-slate-900 tracking-tight">
                 <span>Total Amount:</span>
-                <span className="text-indigo-600">${reservation.amount?.toFixed(2) || '0.00'}</span>
+                <span className="text-emerald-600">${reservation.amount?.toFixed(2) || '0.00'}</span>
               </div>
               <div className="grid grid-cols-2 gap-6 mt-4">
                 <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
@@ -219,17 +219,17 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
           {/* Notes */}
           {reservation.notes && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold border-b border-gray-300 pb-2 mb-3">Notes</h3>
+              <h3 className="text-lg font-semibold border-b border-slate-300 pb-2 mb-3">Notes</h3>
               <p className="text-sm whitespace-pre-wrap">{reservation.notes}</p>
             </div>
           )}
 
           {/* Signatures */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold border-b border-gray-300 pb-2 mb-3">Signatures</h3>
+            <h3 className="text-lg font-semibold border-b border-slate-300 pb-2 mb-3">Signatures</h3>
             <div className="grid grid-cols-2 gap-8 mt-8">
               <div>
-                <div className="border-b border-gray-400 mb-1 pb-1">
+                <div className="border-b border-slate-400 mb-1 pb-1">
                   {reservation.pickupRenterSignature ? (
                     <img src={reservation.pickupRenterSignature} alt="Renter signature" className="max-h-16" />
                   ) : (
@@ -237,12 +237,12 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
                   )}
                 </div>
                 <p className="text-sm text-center">Renter Signature</p>
-                <p className="text-xs text-center text-gray-500">
+                <p className="text-xs text-center text-slate-500">
                   {reservation.pickupDateTime ? formatDate(reservation.pickupDateTime) : ''}
                 </p>
               </div>
               <div>
-                <div className="border-b border-gray-400 mb-1 pb-1">
+                <div className="border-b border-slate-400 mb-1 pb-1">
                   {reservation.pickupAgentSignature ? (
                     <img src={reservation.pickupAgentSignature} alt="Agent signature" className="max-h-16" />
                   ) : (
@@ -250,13 +250,13 @@ const RentalVoucher: React.FC<RentalVoucherProps> = ({
                   )}
                 </div>
                 <p className="text-sm text-center">Agent Signature</p>
-                <p className="text-xs text-center text-gray-500">{reservation.pickupAgentName || ''}</p>
+                <p className="text-xs text-center text-slate-500">{reservation.pickupAgentName || ''}</p>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="text-center text-xs text-gray-500 mt-8 pt-4 border-t border-gray-200">
+          <div className="text-center text-xs text-slate-500 mt-8 pt-4 border-t border-slate-200">
             <p>This is a legally binding rental agreement. Please read all terms and conditions.</p>
             <p>© {new Date().getFullYear()} {companyDetails.name}. All rights reserved.</p>
           </div>

@@ -17,7 +17,7 @@ interface VoucherProps {
 
 const InfoBlock: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
   <div className={`bg-white border border-slate-200 rounded-2xl shadow-md p-5 h-full ${className || ''}`}>
-    <h3 className="text-xs font-black text-indigo-600 border-b border-slate-100 pb-2 mb-4 uppercase tracking-widest">
+    <h3 className="text-xs font-black text-emerald-600 border-b border-slate-100 pb-2 mb-4 uppercase tracking-widest">
       {title}
     </h3>
     <div className="space-y-4 text-sm">{children}</div>
@@ -37,28 +37,28 @@ const FuelGauge: React.FC<{ level?: number; pickupLevel?: number; onLevelChange:
 
   return (
     <div>
-      <div className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+      <div className="flex items-center justify-between text-xs font-medium text-slate-500 mb-1">
         <span>E</span>
         <span>F</span>
       </div>
       <div className="relative">
-        <div className="flex w-full h-8 border-2 border-gray-300 rounded-md overflow-hidden">
+        <div className="flex w-full h-8 border-2 border-slate-300 rounded-md overflow-hidden">
           {segments.map(s => (
             <div
               key={s}
               onClick={() => !disabled && onLevelChange(s)}
-              className={`flex-1 border-r border-gray-300 last:border-r-0 transition-colors ${!disabled ? 'cursor-pointer hover:bg-slate-300' : ''} ${level >= s ? 'bg-primary' : 'bg-gray-100'}`}
+              className={`flex-1 border-r border-slate-300 last:border-r-0 transition-colors ${!disabled ? 'cursor-pointer hover:bg-slate-300' : ''} ${level >= s ? 'bg-primary' : 'bg-slate-100'}`}
             />
           ))}
         </div>
         {hasPickupLevel && (
           <div className="absolute top-1 bottom-0 left-0 flex items-center" style={{ width: `${(pickupLevel / 8) * 100}%` }}>
-            <div className="h-full w-[3px] bg-yellow-500" title={`Pickup Fuel Level: ${pickupLevel}/8`} />
+            <div className="h-full w-[3px] bg-amber-500" title={`Pickup Fuel Level: ${pickupLevel}/8`} />
           </div>
         )}
       </div>
       <div className="text-center text-sm font-semibold mt-1">
-        {level}/8 Tank {hasPickupLevel && <span className="text-xs font-normal text-gray-500">(Pickup was {pickupLevel}/8)</span>}
+        {level}/8 Tank {hasPickupLevel && <span className="text-xs font-normal text-slate-500">(Pickup was {pickupLevel}/8)</span>}
       </div>
     </div>
   );
@@ -69,7 +69,7 @@ const TabButton: React.FC<{ title: string; isActive: boolean; onClick: () => voi
     onClick={onClick}
     disabled={disabled}
     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-      isActive ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:border-gray-300'
+      isActive ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:border-slate-300'
     } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
   >
     {title} {completed && ' ✅'}
@@ -629,12 +629,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) => (
     <div className="w-full">
-      <p className="text-xs text-gray-500 font-medium">{label}</p>
+      <p className="text-xs text-slate-500 font-medium">{label}</p>
       {isEditable ? (
         <textarea
           value={value || ''}
           onChange={e => onChange(e.target.value)}
-          className={`w-full py-1 border-b border-gray-300 text-sm font-medium focus:outline-none focus:border-primary disabled:bg-transparent disabled:border-gray-200 font-serif-professional resize-none overflow-hidden ${isEmail ? 'break-all' : 'break-words'}`}
+          className={`w-full py-1 border-b border-slate-300 text-sm font-medium focus:outline-none focus:border-primary disabled:bg-transparent disabled:border-slate-200 font-serif-professional resize-none overflow-hidden ${isEmail ? 'break-all' : 'break-words'}`}
           placeholder={isEmail ? "Required for receipt" : "Enter here"}
           disabled={!isEditable}
           required={isEmail}
@@ -646,7 +646,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           }}
         />
       ) : (
-        <p className={`font-medium text-gray-800 whitespace-pre-wrap py-1 border-b border-transparent ${isEmail ? 'break-all' : 'break-words'}`}>
+        <p className={`font-medium text-slate-800 whitespace-pre-wrap py-1 border-b border-transparent ${isEmail ? 'break-all' : 'break-words'}`}>
           {value || 'N/A'}
         </p>
       )}
@@ -665,8 +665,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     return (
       <>
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-8">
-          <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
+          <div className="bg-slate-50 p-5 rounded-lg border border-slate-200">
+            <h2 className="text-base font-semibold text-primary border-b border-slate-200 pb-2 mb-4 uppercase tracking-wider">
               {mode === 'pickup' ? 'Pre‑Rental Checklist' : 'Post‑Rental Checklist'}
             </h2>
             {mode === 'pickup' ? (
@@ -678,9 +678,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                       checked={checklist[item] || false}
                       onChange={e => handleFieldChange('pickupChecklist', { ...checklist, [item]: e.target.checked })}
                       disabled={!isEditable}
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-secondary disabled:bg-gray-200"
+                      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-secondary disabled:bg-slate-200"
                     />
-                    <span className="text-gray-700">{item}</span>
+                    <span className="text-slate-700">{item}</span>
                   </label>
                 ))}
               </div>
@@ -690,21 +690,21 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   const pickupChecked = localReservation.pickupChecklist?.[item] || false;
                   const dropoffChecked = localReservation.dropOffChecklist?.[item] || false;
                   return (
-                    <div key={item} className="flex items-center justify-between border-b border-gray-200 pb-1 last:border-0">
-                      <span className="text-sm text-gray-700">{item}</span>
+                    <div key={item} className="flex items-center justify-between border-b border-slate-200 pb-1 last:border-0">
+                      <span className="text-sm text-slate-700">{item}</span>
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-500">Pickup:</span>
-                          <input type="checkbox" checked={pickupChecked} disabled className="h-4 w-4 rounded border-gray-300 text-primary disabled:opacity-75" />
+                          <span className="text-xs text-slate-500">Pickup:</span>
+                          <input type="checkbox" checked={pickupChecked} disabled className="h-4 w-4 rounded border-slate-300 text-primary disabled:opacity-75" />
                         </div>
                         <div className="flex items-center space-x-1">
-                          <span className="text-xs text-gray-500">Drop‑off:</span>
+                          <span className="text-xs text-slate-500">Drop‑off:</span>
                           <input
                             type="checkbox"
                             checked={dropoffChecked}
                             onChange={e => handleFieldChange('dropOffChecklist', { ...checklist, [item]: e.target.checked })}
                             disabled={!isDropoffEditable}
-                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-secondary disabled:bg-gray-200"
+                            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-secondary disabled:bg-slate-200"
                           />
                         </div>
                       </div>
@@ -714,7 +714,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </div>
             )}
             <div className="mt-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Fuel Level</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">Fuel Level</h3>
               <FuelGauge
                 level={fuelLevel}
                 onLevelChange={level => handleFieldChange(mode === 'pickup' ? 'pickupFuelLevel' : 'dropOffFuelLevel', level)}
@@ -723,16 +723,16 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               />
             </div>
             <div className="mt-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-1">{mode === 'pickup' ? 'Kilometers Out' : 'Kilometers In'}</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-1">{mode === 'pickup' ? 'Kilometers Out' : 'Kilometers In'}</h3>
               {mode === 'dropoff' && (
-                <p className="text-xs text-gray-500 mb-1">KM Out at pickup: {localReservation.pickupKmOut?.toLocaleString() || 'N/A'}</p>
+                <p className="text-xs text-slate-500 mb-1">KM Out at pickup: {localReservation.pickupKmOut?.toLocaleString() || 'N/A'}</p>
               )}
               <input
                 type="number"
                 value={(mode === 'pickup' ? localReservation.pickupKmOut : localReservation.dropOffKmIn) || ''}
                 onChange={e => handleFieldChange(mode === 'pickup' ? 'pickupKmOut' : 'dropOffKmIn', parseInt(e.target.value) || undefined)}
                 disabled={!isEditable}
-                className="w-full p-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 focus:ring-1 focus:ring-primary focus:border-primary"
+                className="w-full p-2 border border-slate-300 rounded-md text-sm disabled:bg-slate-100 focus:ring-1 focus:ring-primary focus:border-primary"
                 placeholder={mode === 'pickup' ? "Enter starting KM" : "Enter returning KM"}
               />
               {mode === 'dropoff' && localReservation.dropOffKmIn && localReservation.pickupKmOut && localReservation.dropOffKmIn > localReservation.pickupKmOut && (
@@ -743,8 +743,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             </div>
           </div>
 
-          <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
+          <div className="bg-slate-50 p-5 rounded-lg border border-slate-200">
+            <h2 className="text-base font-semibold text-primary border-b border-slate-200 pb-2 mb-4 uppercase tracking-wider">
               Vehicle Condition Report
             </h2>
             <div className="grid grid-cols-2 gap-4">
@@ -752,19 +752,19 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 const Icon = { front: FrontCarIcon, back: BackCarIcon, left: LeftSideCarIcon, right: RightSideCarIcon }[view];
                 return (
                   <div key={view} className="flex flex-col items-center">
-                    <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">{view} View</p>
+                    <p className="text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">{view} View</p>
                     <div
-                      className={`relative ${isEditable ? 'cursor-crosshair' : ''} bg-white rounded-lg border-2 border-gray-300 shadow-sm hover:shadow-md transition-shadow w-full aspect-square flex items-center justify-center p-1 overflow-hidden`}
+                      className={`relative ${isEditable ? 'cursor-crosshair' : ''} bg-white rounded-lg border-2 border-slate-300 shadow-sm hover:shadow-md transition-shadow w-full aspect-square flex items-center justify-center p-1 overflow-hidden`}
                       onClick={e => handleDamageMark(e, view)}
                     >
-                      <Icon className="w-full h-full max-w-full max-h-full object-contain text-gray-700" />
+                      <Icon className="w-full h-full max-w-full max-h-full object-contain text-slate-700" />
                       {mode === 'dropoff' &&
                         localReservation.pickupDamageMarkers?.map(
                           (marker, index) =>
                             marker.view === view && (
                               <div
                                 key={`pickup-${index}`}
-                                className="absolute w-5 h-5 bg-blue-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md"
+                                className="absolute w-5 h-5 bg-sky-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md"
                                 style={{ left: `calc(${marker.x}% - 10px)`, top: `calc(${marker.y}% - 10px)` }}
                                 title="Damage from pickup"
                               >
@@ -777,7 +777,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                           marker.view === view && (
                             <div
                               key={index}
-                              className="absolute w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md cursor-pointer"
+                              className="absolute w-5 h-5 bg-rose-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md cursor-pointer"
                               style={{ left: `calc(${marker.x}% - 10px)`, top: `calc(${marker.y}% - 10px)` }}
                               onClick={e => {
                                 e.stopPropagation();
@@ -795,25 +795,25 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               })}
             </div>
             {mode === 'dropoff' ? (
-              <p className="text-xs text-center mt-3 text-gray-500 bg-blue-50 p-2 rounded-md border border-blue-200">
+              <p className="text-xs text-center mt-3 text-slate-500 bg-sky-50 p-2 rounded-md border border-sky-200">
                 <span className="inline-flex items-center gap-2">
-                  <span className="inline-block w-4 h-4 bg-blue-500 rounded-full text-white text-xs text-center leading-4">O</span> Damage from pickup
-                  <span className="inline-block w-4 h-4 bg-red-500 rounded-full text-white text-xs text-center leading-4 ml-4">X</span> New damage
+                  <span className="inline-block w-4 h-4 bg-sky-500 rounded-full text-white text-xs text-center leading-4">O</span> Damage from pickup
+                  <span className="inline-block w-4 h-4 bg-rose-500 rounded-full text-white text-xs text-center leading-4 ml-4">X</span> New damage
                 </span>
               </p>
             ) : (
-              <p className="text-xs text-center mt-3 text-gray-500 bg-gray-100 p-2 rounded-md">
-                Click on the car to mark damage. <span className="inline-block w-4 h-4 bg-red-500 rounded-full text-white text-xs text-center leading-4 ml-2">X</span> appears.
+              <p className="text-xs text-center mt-3 text-slate-500 bg-slate-100 p-2 rounded-md">
+                Click on the car to mark damage. <span className="inline-block w-4 h-4 bg-rose-500 rounded-full text-white text-xs text-center leading-4 ml-2">X</span> appears.
               </p>
             )}
           </div>
         </section>
 
         <section className="my-6">
-          <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-3 uppercase tracking-wider">Notes</h2>
+          <h2 className="text-base font-semibold text-primary border-b border-slate-200 pb-2 mb-3 uppercase tracking-wider">Notes</h2>
           {viewMode === 'pickup' ? (
             <div>
-              <label htmlFor="pickup-notes" className="text-sm font-medium text-gray-700 mb-1 block">
+              <label htmlFor="pickup-notes" className="text-sm font-medium text-slate-700 mb-1 block">
                 Pickup Notes
               </label>
               <textarea
@@ -822,20 +822,20 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 onChange={e => handleFieldChange('pickupNotes', e.target.value)}
                 disabled={!isPickupEditable}
                 rows={3}
-                className="w-full p-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 focus:ring-1 focus:ring-primary focus:border-primary"
+                className="w-full p-2 border border-slate-300 rounded-md text-sm disabled:bg-slate-100 focus:ring-1 focus:ring-primary focus:border-primary"
                 placeholder="Add any notes about the vehicle condition, customer interaction, etc..."
               />
             </div>
           ) : (
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-1">Pickup Notes (Read‑only)</h3>
-                <p className="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-100 min-h-[60px] whitespace-pre-wrap">
+                <h3 className="text-sm font-medium text-slate-700 mb-1">Pickup Notes (Read‑only)</h3>
+                <p className="w-full p-2 border border-slate-300 rounded-md text-sm bg-slate-100 min-h-[60px] whitespace-pre-wrap">
                   {localReservation.pickupNotes || 'No notes from pickup.'}
                 </p>
               </div>
               <div>
-                <label htmlFor="dropoff-notes" className="text-sm font-medium text-gray-700 mb-1 block">
+                <label htmlFor="dropoff-notes" className="text-sm font-medium text-slate-700 mb-1 block">
                   Drop‑off Notes
                 </label>
                 <textarea
@@ -844,7 +844,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   onChange={e => handleFieldChange('dropOffNotes', e.target.value)}
                   disabled={!isDropoffEditable}
                   rows={3}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 focus:ring-1 focus:ring-primary focus:border-primary"
+                  className="w-full p-2 border border-slate-300 rounded-md text-sm disabled:bg-slate-100 focus:ring-1 focus:ring-primary focus:border-primary"
                   placeholder="Add any notes about the return condition, extra charges, etc..."
                 />
               </div>
@@ -852,12 +852,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           )}
         </section>
 
-        <section className="my-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
-          <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
+        <section className="my-6 bg-slate-50 p-5 rounded-lg border border-slate-200">
+          <h2 className="text-base font-semibold text-primary border-b border-slate-200 pb-2 mb-4 uppercase tracking-wider">
             Terms & Signatures ({mode})
           </h2>
           {mode === 'pickup' && (
-            <div className="text-xs text-gray-600 p-3 bg-white rounded-md border border-gray-200 mb-4 shadow-sm">
+            <div className="text-xs text-slate-600 p-3 bg-white rounded-md border border-slate-200 mb-4 shadow-sm">
               By signing below, the Renter acknowledges receipt of the vehicle in good condition as documented above and agrees to the full
               terms and conditions provided separately. The Renter accepts financial responsibility for all charges, traffic violations,
               damages, and losses incurred during the rental period. The Company Representative confirms the vehicle's condition and rental
@@ -865,15 +865,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             </div>
           )}
           {mode === 'dropoff' && (
-            <div className="text-xs text-gray-600 p-3 bg-white rounded-md border border-gray-200 mb-4 shadow-sm">
+            <div className="text-xs text-slate-600 p-3 bg-white rounded-md border border-slate-200 mb-4 shadow-sm">
               By signing, the Renter confirms the return of the vehicle. The final condition and any additional charges (e.g., for fuel
               shortage, new damages) have been reviewed and accepted. The Company Representative confirms receipt of the vehicle and the
               accuracy of the post‑rental inspection.
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Renter Signature</h3>
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Renter Signature</h3>
               <SignaturePad
                 signature={renterSign}
                 onSave={data => handleFieldChange(mode === 'pickup' ? 'pickupRenterSignature' : 'dropOffRenterSignature', data)}
@@ -881,8 +881,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 disabled={!isEditable}
               />
             </div>
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Company Representative</h3>
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Company Representative</h3>
               <div className="mb-3">
                 {renderTextField(
                   'Representative Name',
@@ -936,8 +936,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     return (
       <>
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-8">
-          <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
+          <div className="bg-slate-50 p-5 rounded-lg border border-slate-200">
+            <h2 className="text-base font-semibold text-primary border-b border-slate-200 pb-2 mb-4 uppercase tracking-wider">
               {step === 'checkin' ? 'Old Car' : 'New Car'} Checklist
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
@@ -950,14 +950,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                       handleExchangeFieldChange(step === 'checkin' ? 'checkinChecklist' : 'checkoutChecklist', { ...checklist, [item]: e.target.checked })
                     }
                     disabled={!isEditable}
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-secondary disabled:bg-gray-200"
+                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-secondary disabled:bg-slate-200"
                   />
-                  <span className="text-gray-700">{item}</span>
+                  <span className="text-slate-700">{item}</span>
                 </label>
               ))}
             </div>
             <div className="mt-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Fuel Level</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">Fuel Level</h3>
               <FuelGauge
                 level={fuelLevel}
                 onLevelChange={level => handleExchangeFieldChange(step === 'checkin' ? 'checkinFuelLevel' : 'checkoutFuelLevel', level)}
@@ -966,17 +966,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               />
             </div>
             <div className="mt-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-1">
+              <h3 className="text-sm font-semibold text-slate-700 mb-1">
                 {step === 'checkin' ? 'Kilometers In (Check‑in)' : 'Kilometers Out (New Car)'}
               </h3>
               {step === 'checkin' && (
-                <p className="text-xs text-gray-500 mb-1">KM Out at pickup: {localReservation.pickupKmOut?.toLocaleString() || 'N/A'}</p>
+                <p className="text-xs text-slate-500 mb-1">KM Out at pickup: {localReservation.pickupKmOut?.toLocaleString() || 'N/A'}</p>
               )}
               <input
                 type="number"
                 value={(step === 'checkin' ? currentExchange.checkinKmIn : currentExchange.checkoutKmOut) || ''}
                 onChange={e => handleExchangeFieldChange(step === 'checkin' ? 'checkinKmIn' : 'checkoutKmOut', parseInt(e.target.value) || undefined)}
-                className="w-full p-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 focus:ring-1 focus:ring-primary focus:border-primary"
+                className="w-full p-2 border border-slate-300 rounded-md text-sm disabled:bg-slate-100 focus:ring-1 focus:ring-primary focus:border-primary"
                 placeholder={step === 'checkin' ? "Enter returning KM" : "Enter starting KM for new car"}
                 disabled={!isEditable}
               />
@@ -988,7 +988,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             </div>
             {step === 'checkin' && (
               <div className="mt-4">
-                <label htmlFor="exchange-reason" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="exchange-reason" className="block text-sm font-medium text-slate-700 mb-1">
                   Reason for Exchange
                 </label>
                 <textarea
@@ -996,7 +996,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   value={currentExchange.reason || ''}
                   onChange={e => handleExchangeFieldChange('reason', e.target.value)}
                   rows={2}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 focus:ring-1 focus:ring-primary focus:border-primary"
+                  className="w-full p-2 border border-slate-300 rounded-md text-sm disabled:bg-slate-100 focus:ring-1 focus:ring-primary focus:border-primary"
                   required
                   disabled={!isEditable}
                 />
@@ -1004,14 +1004,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             )}
             {step === 'checkout' && (
               <div className="mt-4">
-                <label htmlFor="new-license-plate" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="new-license-plate" className="block text-sm font-medium text-slate-700 mb-1">
                   New Car License Plate
                 </label>
                 <input
                   id="new-license-plate"
                   value={currentExchange.newCarLicensePlate || ''}
                   onChange={e => handleExchangeFieldChange('newCarLicensePlate', e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 focus:ring-1 focus:ring-primary focus:border-primary"
+                  className="w-full p-2 border border-slate-300 rounded-md text-sm disabled:bg-slate-100 focus:ring-1 focus:ring-primary focus:border-primary"
                   required
                   disabled={!isEditable}
                 />
@@ -1019,8 +1019,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             )}
           </div>
 
-          <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
+          <div className="bg-slate-50 p-5 rounded-lg border border-slate-200">
+            <h2 className="text-base font-semibold text-primary border-b border-slate-200 pb-2 mb-4 uppercase tracking-wider">
               Vehicle Condition Report
             </h2>
             <div className="grid grid-cols-2 gap-4">
@@ -1028,19 +1028,19 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 const Icon = { front: FrontCarIcon, back: BackCarIcon, left: LeftSideCarIcon, right: RightSideCarIcon }[view];
                 return (
                   <div key={view} className="flex flex-col items-center">
-                    <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">{view} View</p>
+                    <p className="text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">{view} View</p>
                     <div
-                      className={`relative ${isEditable ? 'cursor-crosshair' : ''} bg-white rounded-lg border-2 border-gray-300 shadow-sm hover:shadow-md transition-shadow w-full aspect-square flex items-center justify-center p-1 overflow-hidden`}
+                      className={`relative ${isEditable ? 'cursor-crosshair' : ''} bg-white rounded-lg border-2 border-slate-300 shadow-sm hover:shadow-md transition-shadow w-full aspect-square flex items-center justify-center p-1 overflow-hidden`}
                       onClick={e => handleExchangeDamageMark(e, view)}
                     >
-                      <Icon className="w-full h-full max-w-full max-h-full object-contain text-gray-700" />
+                      <Icon className="w-full h-full max-w-full max-h-full object-contain text-slate-700" />
                       {step === 'checkin' &&
                         localReservation.pickupDamageMarkers?.map(
                           (marker, index) =>
                             marker.view === view && (
                               <div
                                 key={`pickup-${index}`}
-                                className="absolute w-5 h-5 bg-blue-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md"
+                                className="absolute w-5 h-5 bg-sky-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md"
                                 style={{ left: `calc(${marker.x}% - 10px)`, top: `calc(${marker.y}% - 10px)` }}
                                 title="Damage from pickup"
                               >
@@ -1053,7 +1053,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                           marker.view === view && (
                             <div
                               key={index}
-                              className="absolute w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md cursor-pointer"
+                              className="absolute w-5 h-5 bg-rose-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-md cursor-pointer"
                               style={{ left: `calc(${marker.x}% - 10px)`, top: `calc(${marker.y}% - 10px)` }}
                               onClick={e => {
                                 e.stopPropagation();
@@ -1071,23 +1071,23 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               })}
             </div>
             {step === 'checkin' && (
-              <p className="text-xs text-center mt-3 text-gray-500 bg-blue-50 p-2 rounded-md border border-blue-200">
+              <p className="text-xs text-center mt-3 text-slate-500 bg-sky-50 p-2 rounded-md border border-sky-200">
                 <span className="inline-flex items-center gap-2">
-                  <span className="inline-block w-4 h-4 bg-blue-500 rounded-full text-white text-xs text-center leading-4">O</span> Damage from pickup
-                  <span className="inline-block w-4 h-4 bg-red-500 rounded-full text-white text-xs text-center leading-4 ml-4">X</span> New damage
+                  <span className="inline-block w-4 h-4 bg-sky-500 rounded-full text-white text-xs text-center leading-4">O</span> Damage from pickup
+                  <span className="inline-block w-4 h-4 bg-rose-500 rounded-full text-white text-xs text-center leading-4 ml-4">X</span> New damage
                 </span>
               </p>
             )}
           </div>
         </section>
 
-        <section className="my-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
-          <h2 className="text-base font-semibold text-primary border-b border-gray-200 pb-2 mb-4 uppercase tracking-wider">
+        <section className="my-6 bg-slate-50 p-5 rounded-lg border border-slate-200">
+          <h2 className="text-base font-semibold text-primary border-b border-slate-200 pb-2 mb-4 uppercase tracking-wider">
             Signatures ({step})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Renter Signature</h3>
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Renter Signature</h3>
               <SignaturePad
                 signature={renterSign}
                 onSave={data => handleExchangeFieldChange(step === 'checkin' ? 'checkinRenterSignature' : 'checkoutRenterSignature', data)}
@@ -1095,8 +1095,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 disabled={!isEditable}
               />
             </div>
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Company Representative</h3>
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Company Representative</h3>
               <div className="mb-3">
                 {renderTextField(
                   'Representative Name',
@@ -1121,8 +1121,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex-shrink-0 px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-800">Rental Agreement</h2>
+        <div className="flex-shrink-0 px-6 py-4 border-b bg-slate-50 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-slate-800">Rental Agreement</h2>
           <div className="flex items-center space-x-2">
             <TabButton
               title="Pickup Check"
@@ -1160,7 +1160,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             </div>
 
             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-              <h3 className="text-[10px] font-black text-indigo-600 border-b border-slate-200 pb-3 mb-4 uppercase tracking-widest">
+              <h3 className="text-[10px] font-black text-emerald-600 border-b border-slate-200 pb-3 mb-4 uppercase tracking-widest">
                 Renter Details
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1185,8 +1185,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   label="Pickup/Return Location"
                   value={
                     <>
-                      <p className="font-medium text-gray-800">{location?.name || 'N/A'}</p>
-                      {location && <p className="text-xs text-gray-500">{location.address}</p>}
+                      <p className="font-medium text-slate-800">{location?.name || 'N/A'}</p>
+                      {location && <p className="text-xs text-slate-500">{location.address}</p>}
                     </>
                   }
                 />
@@ -1199,7 +1199,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                       type="text"
                       value={localReservation.carModel || ''}
                       onChange={e => handleFieldChange('carModel', e.target.value)}
-                      className="w-full pt-0.5 border-b border-gray-300 text-sm font-medium focus:outline-none focus:border-primary"
+                      className="w-full pt-0.5 border-b border-slate-300 text-sm font-medium focus:outline-none focus:border-primary"
                       placeholder="Enter vehicle model"
                     />
                   ) : (
@@ -1208,12 +1208,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 } />
                 {isPickupEditable ? (
                   <div>
-                    <p className="text-xs text-gray-500 font-medium">License Plate</p>
+                    <p className="text-xs text-slate-500 font-medium">License Plate</p>
                     <input
                       type="text"
                       value={localReservation.licensePlate || ''}
                       onChange={e => handleFieldChange('licensePlate', e.target.value)}
-                      className="w-full pt-0.5 border-b border-gray-300 text-sm font-medium focus:outline-none focus:border-primary"
+                      className="w-full pt-0.5 border-b border-slate-300 text-sm font-medium focus:outline-none focus:border-primary"
                       placeholder="Enter Plate #"
                     />
                   </div>
@@ -1228,8 +1228,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </InfoBlock>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <h3 className="text-sm font-semibold text-primary border-b border-gray-200 pb-2 mb-3 uppercase tracking-wider">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <h3 className="text-sm font-semibold text-primary border-b border-slate-200 pb-2 mb-3 uppercase tracking-wider">
                 Financial Summary
               </h3>
               <div className="grid grid-cols-2 gap-4">
@@ -1249,7 +1249,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                     {isPickupEditable && (
                       <>
                         <div className="mt-2">
-                          <label className="text-xs text-gray-500">Authorization Number</label>
+                          <label className="text-xs text-slate-500">Authorization Number</label>
                           <input
                             type="text"
                             value={localReservation.authNumber || ''}
@@ -1259,7 +1259,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Final Amount Charged ($)</label>
+                          <label className="text-xs text-slate-500">Final Amount Charged ($)</label>
                           <input
                             type="number"
                             value={localReservation.finalAmountCharged || ''}
@@ -1286,17 +1286,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             {viewMode === 'dropoff' && (
               <>
                 {hasDueExtension && (
-                  <div className="p-3 bg-orange-100 border-l-4 border-orange-500 text-orange-800 rounded-md text-sm" role="alert">
+                  <div className="p-3 bg-amber-100 border-l-4 border-amber-500 text-amber-800 rounded-md text-sm" role="alert">
                     <strong>Unpaid Extension Balance:</strong> {formatCurrency(dueForExtension)}
                   </div>
                 )}
                 {hasOutstandingTickets && (
-                  <div className="p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-md text-sm" role="alert">
+                  <div className="p-3 bg-rose-100 border-l-4 border-rose-500 text-rose-800 rounded-md text-sm" role="alert">
                     <strong>Outstanding Tickets:</strong> {totalTicketAmountDue.toFixed(2)} JOD
                   </div>
                 )}
                 {localReservation.lateReturnFee && localReservation.lateReturnFee.status === 'PENDING' && (
-                  <div className="p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-md text-sm">
+                  <div className="p-3 bg-rose-100 border-l-4 border-rose-500 text-rose-800 rounded-md text-sm">
                     <strong>Late Return Detected:</strong> Resolve in Late Returns section.
                   </div>
                 )}
@@ -1308,13 +1308,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                       <div className="flex justify-center gap-4">
                         <button
                           onClick={() => setProcessType('return')}
-                          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                          className="px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-600"
                         >
                           Final Vehicle Return
                         </button>
                         <button
                           onClick={() => setProcessType('exchange')}
-                          className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                          className="px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
                         >
                           Vehicle Exchange
                         </button>
@@ -1331,9 +1331,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </>
             )}
 
-            <div className="text-center pt-3 mt-3 border-t border-gray-300">
+            <div className="text-center pt-3 mt-3 border-t border-slate-300">
               <p className="text-sm font-semibold">Thank you for choosing {companyDetails.name}!</p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 {companyDetails.address} | {companyDetails.phone} | {companyDetails.email}
               </p>
             </div>
@@ -1341,15 +1341,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         </div>
 
         {!showSuccessOverlay && (
-          <div className="flex-shrink-0 px-6 py-3 border-t bg-gray-50 flex justify-between items-center">
-            <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+          <div className="flex-shrink-0 px-6 py-3 border-t bg-slate-50 flex justify-between items-center">
+            <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">
               Close
             </button>
             <div className="flex items-center gap-4">
               {viewMode === 'dropoff' && processType === 'exchange' && (
                 <>
                   {exchangeStep === 'checkout' && (
-                    <button onClick={() => setExchangeStep('checkin')} className="px-4 py-2 text-gray-800">
+                    <button onClick={() => setExchangeStep('checkin')} className="px-4 py-2 text-slate-800">
                       Back
                     </button>
                   )}
@@ -1357,7 +1357,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                     <button
                       onClick={() => setExchangeStep('checkout')}
                       disabled={!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature || !currentExchange.reason || hasOutstandingTickets || hasDueExtension}
-                      className="px-5 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-gray-400"
+                      className="px-5 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-slate-400"
                     >
                       Next: Check-out New Car
                     </button>
@@ -1371,7 +1371,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <button
                   onClick={handleSubmit}
                   disabled={hasOutstandingTickets || hasDueExtension || isDropoffBlockedByPendingFee}
-                  className="px-5 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-gray-400"
+                  className="px-5 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:bg-slate-400"
                 >
                   {`Submit & Finalize ${processType === 'exchange' ? 'Exchange' : viewMode === 'pickup' ? 'Pickup' : 'Return'}`}
                 </button>
@@ -1391,19 +1391,19 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
         {showSuccessOverlay && (
           <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 no-print space-y-3">
-            <svg className="w-12 h-12 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <svg className="w-12 h-12 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h2 className="text-xl font-bold text-gray-800">
+            <h2 className="text-xl font-bold text-slate-800">
               {localReservation.dropOffCompleted ? 'Return Process Completed!' : 'Pickup Process Completed!'}
             </h2>
             <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-              <div className="bg-gray-100 p-3 rounded-lg text-center">
-                <h4 className="font-semibold text-gray-700">Rental Agreement</h4>
+              <div className="bg-slate-100 p-3 rounded-lg text-center">
+                <h4 className="font-semibold text-slate-700">Rental Agreement</h4>
                 <button onClick={handleDownloadVoucherPDF} className="mt-2 px-3 py-1 bg-white text-primary border border-primary rounded-md text-sm">Download PDF</button>
               </div>
-              <div className="bg-gray-100 p-3 rounded-lg text-center">
-                <h4 className="font-semibold text-gray-700">Payment Receipt</h4>
+              <div className="bg-slate-100 p-3 rounded-lg text-center">
+                <h4 className="font-semibold text-slate-700">Payment Receipt</h4>
                 <button onClick={handleDownloadReceiptPDF} className="mt-2 px-3 py-1 bg-white text-primary border border-primary rounded-md text-sm">Download PDF</button>
               </div>
             </div>

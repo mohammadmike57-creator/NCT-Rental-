@@ -209,7 +209,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
   // -------------------------------------------------------------------------
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'channels' | 'xml' | 'crm' | 'analytics' | 'automation' | 'security'>('dashboard');
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   // Channel Management
   const [channels, setChannels] = useState<DistributionChannel[]>([]);
@@ -878,31 +878,31 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
 
   const getStatusColor = (status: DistributionChannel['status']) => {
     switch (status) {
-      case 'active': return 'bg-green-500';
-      case 'inactive': return 'bg-gray-500';
-      case 'error': return 'bg-red-500';
-      case 'syncing': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
+      case 'active': return 'bg-emerald-500';
+      case 'inactive': return 'bg-slate-500';
+      case 'error': return 'bg-rose-500';
+      case 'syncing': return 'bg-amber-500';
+      default: return 'bg-slate-500';
     }
   };
 
   const getSegmentColor = (segment: CustomerProfile['segment']) => {
     switch (segment) {
-      case 'VIP': return 'bg-purple-500';
-      case 'REGULAR': return 'bg-blue-500';
-      case 'FIRST_TIME': return 'bg-green-500';
-      case 'INACTIVE': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'VIP': return 'bg-emerald-500';
+      case 'REGULAR': return 'bg-sky-500';
+      case 'FIRST_TIME': return 'bg-emerald-500';
+      case 'INACTIVE': return 'bg-slate-500';
+      default: return 'bg-slate-500';
     }
   };
 
   const getEventTypeColor = (type: BookingEvent['type']) => {
     switch (type) {
-      case 'NEW': return 'text-green-400';
-      case 'MODIFIED': return 'text-blue-400';
-      case 'CONFIRMED': return 'text-purple-400';
-      case 'CANCELLED': return 'text-red-400';
-      default: return 'text-gray-400';
+      case 'NEW': return 'text-emerald-400';
+      case 'MODIFIED': return 'text-sky-400';
+      case 'CONFIRMED': return 'text-emerald-400';
+      case 'CANCELLED': return 'text-rose-400';
+      default: return 'text-slate-400';
     }
   };
 
@@ -910,10 +910,10 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
   // RENDER COMPONENT
   // -------------------------------------------------------------------------
 
-  const bgClass = darkMode ? 'bg-gray-900' : 'bg-gray-50';
-  const textClass = darkMode ? 'text-gray-100' : 'text-gray-900';
-  const cardClass = darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const inputClass = darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900';
+  const bgClass = darkMode ? 'bg-slate-900' : 'bg-slate-50';
+  const textClass = darkMode ? 'text-slate-100' : 'text-slate-900';
+  const cardClass = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
+  const inputClass = darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-300 text-slate-900';
 
   return (
     <div className={`min-h-screen ${bgClass} ${textClass} p-6 transition-colors duration-300`}>
@@ -921,10 +921,10 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-2 text-slate-900">
               Advanced XML/CRM Integration Hub
             </h1>
-            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
               Enterprise-grade multi-channel management with AI-powered automation
             </p>
           </div>
@@ -936,7 +936,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
               {darkMode ? '☀️ Light' : '🌙 Dark'}
             </button>
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${isSyncing ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`} />
+              <div className={`w-3 h-3 rounded-full ${isSyncing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
               <span className="text-sm">{isSyncing ? 'Syncing...' : 'All Systems Online'}</span>
             </div>
           </div>
@@ -958,8 +958,8 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                  : `${cardClass} border hover:border-blue-500`
+                  ? 'text-white shadow-lg bg-slate-900'
+                  : `${cardClass} border hover:border-sky-500`
               }`}
             >
               <tab.icon className="w-5 h-5" />
@@ -974,15 +974,15 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
             <div
               key={notif.id}
               className={`px-6 py-4 rounded-lg shadow-2xl border-l-4 ${
-                notif.type === 'success' ? 'bg-green-900 border-green-500' :
-                notif.type === 'warning' ? 'bg-yellow-900 border-yellow-500' :
-                'bg-red-900 border-red-500'
+                notif.type === 'success' ? 'bg-emerald-900 border-emerald-500' :
+                notif.type === 'warning' ? 'bg-amber-900 border-amber-500' :
+                'bg-rose-900 border-rose-500'
               } animate-slide-in-right`}
             >
               <div className="flex items-center gap-3">
-                {notif.type === 'success' && <CheckCircleIcon className="w-5 h-5 text-green-400" />}
-                {notif.type === 'warning' && <AlertIcon className="w-5 h-5 text-yellow-400" />}
-                {notif.type === 'error' && <AlertIcon className="w-5 h-5 text-red-400" />}
+                {notif.type === 'success' && <CheckCircleIcon className="w-5 h-5 text-emerald-400" />}
+                {notif.type === 'warning' && <AlertIcon className="w-5 h-5 text-amber-400" />}
+                {notif.type === 'error' && <AlertIcon className="w-5 h-5 text-rose-400" />}
                 <p className="text-sm text-white">{notif.message}</p>
               </div>
             </div>
@@ -1000,37 +1000,37 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
               <div className={`${cardClass} border rounded-xl p-6 hover:shadow-xl transition-all`}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-sm opacity-70">Total Bookings</h3>
-                  <CalendarIcon className="w-8 h-8 text-blue-500" />
+                  <CalendarIcon className="w-8 h-8 text-sky-500" />
                 </div>
                 <p className="text-3xl font-bold">{calculateChannelMetrics.totalBookings}</p>
-                <p className="text-sm text-green-500 mt-2">↑ 12.5% from last month</p>
+                <p className="text-sm text-emerald-500 mt-2">↑ 12.5% from last month</p>
               </div>
 
               <div className={`${cardClass} border rounded-xl p-6 hover:shadow-xl transition-all`}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-sm opacity-70">Active Channels</h3>
-                  <CloudIcon className="w-8 h-8 text-green-500" />
+                  <CloudIcon className="w-8 h-8 text-emerald-500" />
                 </div>
                 <p className="text-3xl font-bold">{calculateChannelMetrics.activeChannels}/{calculateChannelMetrics.totalChannels}</p>
-                <p className="text-sm text-blue-500 mt-2">All systems operational</p>
+                <p className="text-sm text-sky-500 mt-2">All systems operational</p>
               </div>
 
               <div className={`${cardClass} border rounded-xl p-6 hover:shadow-xl transition-all`}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-sm opacity-70">Avg Conversion</h3>
-                  <ChartBarIcon className="w-8 h-8 text-purple-500" />
+                  <ChartBarIcon className="w-8 h-8 text-emerald-500" />
                 </div>
                 <p className="text-3xl font-bold">{calculateChannelMetrics.averageConversion}%</p>
-                <p className="text-sm text-green-500 mt-2">↑ 0.8% improvement</p>
+                <p className="text-sm text-emerald-500 mt-2">↑ 0.8% improvement</p>
               </div>
 
               <div className={`${cardClass} border rounded-xl p-6 hover:shadow-xl transition-all`}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-sm opacity-70">VIP Customers</h3>
-                  <UserCircleIcon className="w-8 h-8 text-yellow-500" />
+                  <UserCircleIcon className="w-8 h-8 text-amber-500" />
                 </div>
                 <p className="text-3xl font-bold">{customers.filter(c => c.segment === 'VIP').length}</p>
-                <p className="text-sm text-purple-500 mt-2">High value segment</p>
+                <p className="text-sm text-emerald-500 mt-2">High value segment</p>
               </div>
             </div>
 
@@ -1038,16 +1038,16 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
             <div className={`${cardClass} border rounded-xl p-6`}>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <BellIcon className="w-6 h-6 text-blue-500" />
+                  <BellIcon className="w-6 h-6 text-sky-500" />
                   <h2 className="text-2xl font-bold">Live Booking Feed</h2>
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${liveBookingFeed ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
+                    <div className={`w-2 h-2 rounded-full ${liveBookingFeed ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
                     <span className="text-sm opacity-70">{liveBookingFeed ? 'Live' : 'Paused'}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setLiveBookingFeed(!liveBookingFeed)}
-                  className={`px-4 py-2 rounded-lg ${liveBookingFeed ? 'bg-red-600' : 'bg-green-600'} text-white hover:opacity-80 transition-all`}
+                  className={`px-4 py-2 rounded-lg ${liveBookingFeed ? 'bg-rose-600' : 'bg-emerald-600'} text-white hover:opacity-80 transition-all`}
                 >
                   {liveBookingFeed ? 'Pause' : 'Resume'}
                 </button>
@@ -1057,7 +1057,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                 {filteredBookingEvents.slice(0, 10).map(event => (
                   <div
                     key={event.id}
-                    className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} border ${darkMode ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all animate-fade-in`}
+                    className={`p-4 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-50'} border ${darkMode ? 'border-slate-600' : 'border-slate-200'} hover:shadow-lg transition-all animate-fade-in`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -1084,7 +1084,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
               <button
                 onClick={syncAllChannels}
                 disabled={isSyncing}
-                className="p-8 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 text-white hover:shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-8 rounded-xl text-white hover:shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-700"
               >
                 <RefreshIcon className={`w-12 h-12 mx-auto mb-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 <h3 className="text-xl font-bold mb-2">Sync All Channels</h3>
@@ -1093,7 +1093,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('xml')}
-                className="p-8 rounded-xl bg-gradient-to-br from-purple-600 to-purple-800 text-white hover:shadow-2xl transition-all"
+                className="p-8 rounded-xl text-white hover:shadow-2xl transition-all bg-emerald-600 hover:bg-emerald-700"
               >
                 <CodeBracketIcon className="w-12 h-12 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">Process XML</h3>
@@ -1102,7 +1102,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('crm')}
-                className="p-8 rounded-xl bg-gradient-to-br from-green-600 to-green-800 text-white hover:shadow-2xl transition-all"
+                className="p-8 rounded-xl text-white hover:shadow-2xl transition-all bg-emerald-600 hover:bg-emerald-700"
               >
                 <UserCircleIcon className="w-12 h-12 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">Manage CRM</h3>
@@ -1131,7 +1131,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                 <button
                   onClick={syncAllChannels}
                   disabled={isSyncing}
-                  className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                   <RefreshIcon className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
                   Sync All
@@ -1151,10 +1151,10 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                       </div>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      channel.status === 'active' ? 'bg-green-500 bg-opacity-20 text-green-400' :
-                      channel.status === 'syncing' ? 'bg-yellow-500 bg-opacity-20 text-yellow-400' :
-                      channel.status === 'error' ? 'bg-red-500 bg-opacity-20 text-red-400' :
-                      'bg-gray-500 bg-opacity-20 text-gray-400'
+                      channel.status === 'active' ? 'bg-emerald-500 bg-opacity-20 text-emerald-400' :
+                      channel.status === 'syncing' ? 'bg-amber-500 bg-opacity-20 text-amber-400' :
+                      channel.status === 'error' ? 'bg-rose-500 bg-opacity-20 text-rose-400' :
+                      'bg-slate-500 bg-opacity-20 text-slate-400'
                     }`}>
                       {channel.status.toUpperCase()}
                     </div>
@@ -1183,7 +1183,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                     <p className="text-sm opacity-70 mb-2">Features</p>
                     <div className="flex flex-wrap gap-2">
                       {channel.features.map((feature, idx) => (
-                        <span key={idx} className="px-2 py-1 rounded-md bg-blue-500 bg-opacity-20 text-blue-400 text-xs">
+                        <span key={idx} className="px-2 py-1 rounded-md bg-sky-500 bg-opacity-20 text-sky-400 text-xs">
                           {feature}
                         </span>
                       ))}
@@ -1194,21 +1194,21 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                     <button
                       onClick={() => syncChannel(channel.id)}
                       disabled={channel.status === 'syncing'}
-                      className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <RefreshIcon className={`w-4 h-4 ${channel.status === 'syncing' ? 'animate-spin' : ''}`} />
                       Sync
                     </button>
                     <button
                       onClick={() => testChannelConnection(channel.id)}
-                      className="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
                     >
                       <CheckCircleIcon className="w-4 h-4" />
                       Test
                     </button>
                     <button
                       onClick={() => setSelectedChannel(channel.id)}
-                      className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-all"
+                      className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all"
                     >
                       <CogIcon className="w-4 h-4" />
                     </button>
@@ -1225,7 +1225,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">AI-Powered XML Processor</h2>
               <div className="flex items-center gap-2">
-                <CodeBracketIcon className="w-6 h-6 text-purple-500" />
+                <CodeBracketIcon className="w-6 h-6 text-emerald-500" />
                 <span className="text-sm opacity-70">OTA 2003/05, Booking.com, Expedia, Airbnb supported</span>
               </div>
             </div>
@@ -1318,7 +1318,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
 </OTA_HotelResNotifRQ>`;
                       setXmlInput(sample);
                     }}
-                    className="text-sm text-blue-500 hover:underline"
+                    className="text-sm text-sky-500 hover:underline"
                   >
                     Load Sample
                   </button>
@@ -1332,14 +1332,14 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={handleXMLProcess}
-                    className="flex-1 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
                   >
                     <BoltIcon className="w-4 h-4" />
                     Process XML
                   </button>
                   <button
                     onClick={() => setXmlInput('')}
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all"
+                    className="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-all"
                   >
                     Clear
                   </button>
@@ -1352,8 +1352,8 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                   {xmlValidation && (
                     <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                       xmlValidation.isValid
-                        ? 'bg-green-500 bg-opacity-20 text-green-400'
-                        : 'bg-red-500 bg-opacity-20 text-red-400'
+                        ? 'bg-emerald-500 bg-opacity-20 text-emerald-400'
+                        : 'bg-rose-500 bg-opacity-20 text-rose-400'
                     }`}>
                       {xmlValidation.isValid ? 'Valid' : 'Invalid'}
                     </div>
@@ -1366,21 +1366,21 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                   className={`w-full h-96 p-4 rounded-lg border ${inputClass} font-mono text-sm resize-none`}
                 />
                 {xmlValidation && !xmlValidation.isValid && (
-                  <div className="mt-4 p-4 rounded-lg bg-red-900 bg-opacity-30 border border-red-500">
-                    <h4 className="font-bold text-red-400 mb-2">Validation Errors:</h4>
+                  <div className="mt-4 p-4 rounded-lg bg-rose-900 bg-opacity-30 border border-rose-500">
+                    <h4 className="font-bold text-rose-400 mb-2">Validation Errors:</h4>
                     <ul className="space-y-1">
                       {xmlValidation.errors.map((error, idx) => (
-                        <li key={idx} className="text-sm text-red-300">
+                        <li key={idx} className="text-sm text-rose-300">
                           Line {error.line}, Col {error.column}: {error.message}
                         </li>
                       ))}
                     </ul>
                     {xmlValidation.suggestedFixes && xmlValidation.suggestedFixes.length > 0 && (
                       <div className="mt-3">
-                        <h5 className="font-medium text-yellow-400 mb-1">Suggested Fixes:</h5>
+                        <h5 className="font-medium text-amber-400 mb-1">Suggested Fixes:</h5>
                         <ul className="space-y-1">
                           {xmlValidation.suggestedFixes.map((fix, idx) => (
-                            <li key={idx} className="text-sm text-yellow-300">• {fix}</li>
+                            <li key={idx} className="text-sm text-amber-300">• {fix}</li>
                           ))}
                         </ul>
                       </div>
@@ -1388,8 +1388,8 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                   </div>
                 )}
                 {xmlValidation && xmlValidation.detectedFormat && (
-                  <div className="mt-4 p-3 rounded-lg bg-blue-900 bg-opacity-30 border border-blue-500">
-                    <p className="text-sm text-blue-300">
+                  <div className="mt-4 p-3 rounded-lg bg-sky-900 bg-opacity-30 border border-sky-500">
+                    <p className="text-sm text-sky-300">
                       <span className="font-medium">Detected Format:</span> {xmlValidation.detectedFormat}
                     </p>
                   </div>
@@ -1416,7 +1416,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                 </select>
                 <button
                   onClick={() => transformXML('OTA 2003/05', 'Internal JSON')}
-                  className="px-6 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all"
+                  className="px-6 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all"
                 >
                   Transform
                 </button>
@@ -1484,7 +1484,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg bg-slate-900">
                         {customer.name.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div>
@@ -1516,7 +1516,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                     <p className="text-sm opacity-70 mb-2">Tags</p>
                     <div className="flex flex-wrap gap-2">
                       {customer.tags.map((tag, idx) => (
-                        <span key={idx} className="px-2 py-1 rounded-md bg-purple-500 bg-opacity-20 text-purple-400 text-xs">
+                        <span key={idx} className="px-2 py-1 rounded-md bg-emerald-500 bg-opacity-20 text-emerald-400 text-xs">
                           {tag}
                         </span>
                       ))}
@@ -1529,7 +1529,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                         e.stopPropagation();
                         sendAutomatedEmail(customer.id, 'promotion');
                       }}
-                      className="flex-1 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all text-sm flex items-center justify-center gap-2"
+                      className="flex-1 px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-600 transition-all text-sm flex items-center justify-center gap-2"
                     >
                       <MailIcon className="w-4 h-4" />
                       Email
@@ -1538,7 +1538,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                       }}
-                      className="px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all text-sm"
+                      className="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all text-sm"
                     >
                       <EyeIcon className="w-4 h-4" />
                     </button>
@@ -1583,9 +1583,9 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                           <span className="text-sm font-medium">{channel.conversionRate}% conv.</span>
                         </div>
                       </div>
-                      <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                      <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-1000"
+                          className="h-full transition-all duration-1000 bg-slate-900"
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
@@ -1605,7 +1605,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                     .slice(0, 5)
                     .map((channel, idx) => (
                       <div key={channel.id} className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold bg-slate-900">
                           {idx + 1}
                         </div>
                         <div className="flex-1">
@@ -1628,9 +1628,9 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                       <div key={channel.id} className="flex items-center justify-between">
                         <span className="font-medium">{channel.provider}</span>
                         <div className="flex items-center gap-2">
-                          <div className="w-32 bg-gray-700 rounded-full h-2 overflow-hidden">
+                          <div className="w-32 bg-slate-700 rounded-full h-2 overflow-hidden">
                             <div
-                              className="h-full bg-green-500"
+                              className="h-full bg-emerald-500"
                               style={{ width: `${(channel.conversionRate / 10) * 100}%` }}
                             />
                           </div>
@@ -1651,7 +1651,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
               <h2 className="text-2xl font-bold">Marketing Automation</h2>
               <button
                 onClick={() => setShowAutomationBuilder(!showAutomationBuilder)}
-                className="px-6 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-all flex items-center gap-2"
+                className="px-6 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-2"
               >
                 <BoltIcon className="w-5 h-5" />
                 Create Rule
@@ -1664,7 +1664,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                 <div key={rule.id} className={`${cardClass} border rounded-xl p-6`}>
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <BoltIcon className="w-8 h-8 text-yellow-500" />
+                      <BoltIcon className="w-8 h-8 text-amber-500" />
                       <div>
                         <h3 className="text-lg font-bold">{rule.name}</h3>
                         <p className="text-sm opacity-70">Trigger: {rule.trigger.replace('_', ' ')}</p>
@@ -1719,8 +1719,8 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Security & Compliance</h2>
               <div className="flex items-center gap-2">
-                <ShieldCheckIcon className="w-6 h-6 text-green-500" />
-                <span className="text-sm font-medium text-green-500">All Security Checks Passed</span>
+                <ShieldCheckIcon className="w-6 h-6 text-emerald-500" />
+                <span className="text-sm font-medium text-emerald-500">All Security Checks Passed</span>
               </div>
             </div>
 
@@ -1728,38 +1728,38 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className={`${cardClass} border rounded-xl p-6`}>
                 <div className="flex items-center gap-3 mb-4">
-                  <LockClosedIcon className="w-8 h-8 text-green-500" />
+                  <LockClosedIcon className="w-8 h-8 text-emerald-500" />
                   <h3 className="text-lg font-bold">Encryption</h3>
                 </div>
                 <p className="text-sm opacity-70 mb-2">All API credentials encrypted</p>
-                <div className="w-full bg-green-500 bg-opacity-20 rounded-full h-2">
-                  <div className="w-full h-full bg-green-500 rounded-full" />
+                <div className="w-full bg-emerald-500 bg-opacity-20 rounded-full h-2">
+                  <div className="w-full h-full bg-emerald-500 rounded-full" />
                 </div>
-                <p className="text-xs text-green-500 mt-2">AES-256 encryption active</p>
+                <p className="text-xs text-emerald-500 mt-2">AES-256 encryption active</p>
               </div>
 
               <div className={`${cardClass} border rounded-xl p-6`}>
                 <div className="flex items-center gap-3 mb-4">
-                  <ShieldCheckIcon className="w-8 h-8 text-blue-500" />
+                  <ShieldCheckIcon className="w-8 h-8 text-sky-500" />
                   <h3 className="text-lg font-bold">GDPR Compliance</h3>
                 </div>
                 <p className="text-sm opacity-70 mb-2">Data protection active</p>
-                <div className="w-full bg-blue-500 bg-opacity-20 rounded-full h-2">
-                  <div className="w-full h-full bg-blue-500 rounded-full" />
+                <div className="w-full bg-sky-500 bg-opacity-20 rounded-full h-2">
+                  <div className="w-full h-full bg-sky-500 rounded-full" />
                 </div>
-                <p className="text-xs text-blue-500 mt-2">EU data regulations compliant</p>
+                <p className="text-xs text-sky-500 mt-2">EU data regulations compliant</p>
               </div>
 
               <div className={`${cardClass} border rounded-xl p-6`}>
                 <div className="flex items-center gap-3 mb-4">
-                  <CheckCircleIcon className="w-8 h-8 text-purple-500" />
+                  <CheckCircleIcon className="w-8 h-8 text-emerald-500" />
                   <h3 className="text-lg font-bold">PCI-DSS</h3>
                 </div>
                 <p className="text-sm opacity-70 mb-2">Payment security verified</p>
-                <div className="w-full bg-purple-500 bg-opacity-20 rounded-full h-2">
-                  <div className="w-full h-full bg-purple-500 rounded-full" />
+                <div className="w-full bg-emerald-500 bg-opacity-20 rounded-full h-2">
+                  <div className="w-full h-full bg-emerald-500 rounded-full" />
                 </div>
-                <p className="text-xs text-purple-500 mt-2">Level 1 compliance ready</p>
+                <p className="text-xs text-emerald-500 mt-2">Level 1 compliance ready</p>
               </div>
             </div>
 
@@ -1774,9 +1774,9 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
                   { time: '3 hours ago', event: 'Rate limit adjusted', status: 'info' },
                   { time: '5 hours ago', event: 'OAuth2 token refreshed', status: 'success' }
                 ].map((log, idx) => (
-                  <div key={idx} className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} flex items-center justify-between`}>
+                  <div key={idx} className={`p-3 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-50'} flex items-center justify-between`}>
                     <div className="flex items-center gap-3">
-                      <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                      <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
                       <span className="text-sm">{log.event}</span>
                     </div>
                     <span className="text-xs opacity-70">{log.time}</span>
@@ -1789,7 +1789,7 @@ const ProfessionalAdvancedXMLCRM: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <div className="max-w-7xl mx-auto mt-12 pt-6 border-t border-gray-700">
+      <div className="max-w-7xl mx-auto mt-12 pt-6 border-t border-slate-700">
         <div className="flex items-center justify-between text-sm opacity-70">
           <p>© 2024 NCT Rental System - Advanced XML/CRM Integration v2.0.0</p>
           <div className="flex items-center gap-6">

@@ -51,7 +51,7 @@ const ManageStopSaleView: React.FC<ManageStopSaleViewProps> = ({ stopSales, onUp
     
     const getTargetName = (ss: StopSale) => {
         if (ss.type === 'category') {
-            return <span className="font-bold text-purple-700">Category: {ss.target}</span>;
+            return <span className="font-bold text-emerald-700">Category: {ss.target}</span>;
         }
         const vehicle = fleet.find(v => v.id === ss.target);
         return vehicle ? <span className="font-medium text-slate-700">{vehicle.modelName} <span className="text-slate-400 text-xs font-normal">({vehicle.licensePlate})</span></span> : 'Unknown Vehicle';
@@ -59,13 +59,13 @@ const ManageStopSaleView: React.FC<ManageStopSaleViewProps> = ({ stopSales, onUp
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">
-             <div className="flex items-start gap-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm">
-                <div className="p-2 bg-red-100 rounded-full text-red-600 hidden sm:block">
+             <div className="flex items-start gap-4 p-4 bg-rose-50 border-l-4 border-rose-500 rounded-r-lg shadow-sm">
+                <div className="p-2 bg-rose-100 rounded-full text-rose-600 hidden sm:block">
                     <StopIcon className="w-6 h-6" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-bold text-red-800">Global Stop Sale</h3>
-                    <p className="text-sm text-red-700">
+                    <h3 className="text-lg font-bold text-rose-800">Global Stop Sale</h3>
+                    <p className="text-sm text-rose-700">
                         Blocked inventory will not be sent to any partner via XML. This overrides all availability settings.
                     </p>
                 </div>
@@ -138,7 +138,7 @@ const ManageStopSaleView: React.FC<ManageStopSaleViewProps> = ({ stopSales, onUp
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-600">{ss.reason || '-'}</td>
                                     <td className="px-6 py-4 text-center">
-                                        <button onClick={() => handleDelete(ss.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all" title="Remove Block">
+                                        <button onClick={() => handleDelete(ss.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all" title="Remove Block">
                                             <TrashIcon className="w-4 h-4" />
                                         </button>
                                     </td>

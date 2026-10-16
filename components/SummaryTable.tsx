@@ -287,31 +287,31 @@ const StripePaymentModal: React.FC<{
                     {!isSuccess ? (
                         <>
                             <div className="text-center mb-6">
-                                <h4 className="text-gray-500 text-sm uppercase tracking-wider font-semibold">Franchise Payment</h4>
-                                <p className="text-4xl font-bold text-gray-900 mt-2">{currency} {amount.toFixed(2)}</p>
-                                <p className="text-gray-500 text-sm mt-1">{month} {year}</p>
+                                <h4 className="text-slate-500 text-sm uppercase tracking-wider font-semibold">Franchise Payment</h4>
+                                <p className="text-4xl font-bold text-slate-900 mt-2">{currency} {amount.toFixed(2)}</p>
+                                <p className="text-slate-500 text-sm mt-1">{month} {year}</p>
                             </div>
 
                             <div className="space-y-6">
-                                <div className="bg-gray-50 border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center">
+                                <div className="bg-slate-50 border-2 border-dashed border-emerald-200 rounded-xl p-6 text-center">
                                     <div className="flex justify-center mb-4">
-                                        <div className="p-3 bg-indigo-100 rounded-full">
+                                        <div className="p-3 bg-emerald-100 rounded-full">
                                             <CreditCardIcon className="w-8 h-8 text-[#635bff]" />
                                         </div>
                                     </div>
                                     
                                     {isLoadingLink ? (
                                         <div className="flex flex-col items-center gap-2 py-4">
-                                            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                            <p className="text-xs text-gray-500">Generating secure payment link...</p>
+                                            <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="text-xs text-slate-500">Generating secure payment link...</p>
                                         </div>
                                     ) : fetchError ? (
                                         <div className="mb-4">
-                                            <p className="text-xs text-red-600 font-bold mb-2">{fetchError}</p>
-                                            <p className="text-[10px] text-gray-500">Using backup payment gateway.</p>
+                                            <p className="text-xs text-rose-600 font-bold mb-2">{fetchError}</p>
+                                            <p className="text-[10px] text-slate-500">Using backup payment gateway.</p>
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-gray-600 mb-4 font-medium">To complete the payment, click the secure link below to open Stripe Checkout:</p>
+                                        <p className="text-sm text-slate-600 mb-4 font-medium">To complete the payment, click the secure link below to open Stripe Checkout:</p>
                                     )}
                                     
                                     <button 
@@ -324,7 +324,7 @@ const StripePaymentModal: React.FC<{
                                             }
                                         }}
                                         className={`inline-flex items-center gap-2 px-8 py-3 rounded-full font-bold shadow-lg transition-all transform hover:scale-105 ${
-                                            isLoadingLink ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#635bff] text-white hover:bg-[#534bb3]'
+                                            isLoadingLink ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#635bff] text-white hover:bg-[#534bb3]'
                                         }`}
                                     >
                                         <CreditCardIcon className="w-5 h-5" />
@@ -336,24 +336,24 @@ const StripePaymentModal: React.FC<{
                                     <button 
                                         onClick={handleConfirm}
                                         disabled={isProcessing}
-                                        className="w-full py-3 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 transition-all shadow flex items-center justify-center gap-2"
+                                        className="w-full py-3 bg-emerald-600 text-white rounded-md font-semibold hover:bg-emerald-700 transition-all shadow flex items-center justify-center gap-2"
                                     >
                                         {isProcessing ? "Confirming..." : "I have completed the payment"}
                                     </button>
                                 )}
                                 
-                                <p className="text-center text-[10px] text-gray-400">
+                                <p className="text-center text-[10px] text-slate-400">
                                     Secure payment powered by Stripe
                                 </p>
                             </div>
                         </>
                     ) : (
                         <div className="text-center py-10">
-                            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 scale-110">
+                            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 scale-110">
                                 <CheckCircleIcon className="w-12 h-12" />
                             </div>
-                            <h4 className="text-2xl font-bold text-gray-900">Payment Confirmed</h4>
-                            <p className="text-gray-500 mt-2">The franchise fee has been recorded as paid.</p>
+                            <h4 className="text-2xl font-bold text-slate-900">Payment Confirmed</h4>
+                            <p className="text-slate-500 mt-2">The franchise fee has been recorded as paid.</p>
                         </div>
                     )}
                 </div>
@@ -376,10 +376,10 @@ const FRANCHISE_STATUS_STYLES: Record<FranchiseStatus, { label: string, pill: st
     PAID: { label: 'Paid', pill: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20', dot: 'bg-emerald-500' },
     PARTIAL: { label: 'Part paid', pill: 'bg-amber-50 text-amber-700 ring-amber-600/20', dot: 'bg-amber-500' },
     OVERDUE: { label: 'Overdue', pill: 'bg-rose-50 text-rose-700 ring-rose-600/20', dot: 'bg-rose-500' },
-    DUE: { label: 'Due', pill: 'bg-orange-50 text-orange-700 ring-orange-600/20', dot: 'bg-orange-500' },
+    DUE: { label: 'Due', pill: 'bg-amber-50 text-amber-700 ring-amber-600/20', dot: 'bg-amber-500' },
     ACCRUING: { label: 'In progress', pill: 'bg-sky-50 text-sky-700 ring-sky-600/20', dot: 'bg-sky-500' },
     UPCOMING: { label: 'Upcoming', pill: 'bg-slate-50 text-slate-500 ring-slate-500/20', dot: 'bg-slate-300' },
-    WAIVED: { label: 'Waived', pill: 'bg-violet-50 text-violet-700 ring-violet-600/20', dot: 'bg-violet-400' },
+    WAIVED: { label: 'Waived', pill: 'bg-slate-100 text-slate-600 ring-slate-500/20', dot: 'bg-slate-400' },
 };
 
 const getFranchiseDeadline = (monthStr: string, year: number) => {
@@ -909,9 +909,9 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   const SummaryRow: React.FC<{label: string, value: string | number}> = ({ label, value }) => (
-    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className="font-semibold text-gray-800">{value}</span>
+    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+        <span className="text-sm text-slate-500">{label}</span>
+        <span className="font-semibold text-slate-800">{value}</span>
     </div>
   );
 
@@ -919,29 +919,29 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     <div className="p-4 sm:p-6">
        <div className="flex flex-col sm:flex-row justify-between items-start mb-6">
         <div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-1">Yearly Summary for {year}</h3>
-          <p className="text-md text-gray-500">Commission is calculated at {(COMMISSION_RATE * 100).toFixed(1)}% on the total revenue.</p>
+          <h3 className="text-2xl font-bold text-slate-800 mb-1">Yearly Summary for {year}</h3>
+          <p className="text-md text-slate-500">Commission is calculated at {(COMMISSION_RATE * 100).toFixed(1)}% on the total revenue.</p>
         </div>
         <div className="flex items-center gap-4 mt-4 sm:mt-0">
              {activeTab === 'Summary' && (
                 <>
-                    <div className="flex bg-gray-200 rounded-lg p-1">
+                    <div className="flex bg-slate-200 rounded-lg p-1">
                         <button
                             onClick={() => setCurrency('USD')}
-                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'USD' ? 'bg-white text-primary shadow' : 'text-gray-600'}`}
+                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'USD' ? 'bg-white text-primary shadow' : 'text-slate-600'}`}
                         >
                             USD
                         </button>
                         <button
                             onClick={() => setCurrency('JOD')}
-                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'JOD' ? 'bg-white text-primary shadow' : 'text-gray-600'}`}
+                            className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${currency === 'JOD' ? 'bg-white text-primary shadow' : 'text-slate-600'}`}
                         >
                             JOD
                         </button>
                     </div>
                     <button 
                     onClick={handleExportPDF} 
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-md hover:bg-rose-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-600 text-sm font-medium"
                     >
                     <PdfIcon />
                     <span className="hidden sm:inline">Export PDF</span>
@@ -962,35 +962,35 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
       {activeTab === 'Summary' ? (
           isDesktopView ? (
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Reservations</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Confirmed Reservations</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Revenue ({currency})</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Commission ({currency})</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Month</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Reservations</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Confirmed Reservations</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Revenue ({currency})</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Commission ({currency})</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-slate-200">
                     {summary.map((row, index) => (
-                      <tr key={row.month} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.month}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{row.totalReservations}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{row.confirmedReservations}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(row.totalRevenue)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(row.commission)}</td>
+                      <tr key={row.month} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{row.month}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{row.totalReservations}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{row.confirmedReservations}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{formatCurrency(row.totalRevenue)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">{formatCurrency(row.commission)}</td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-100">
+                  <tfoot className="bg-slate-100">
                       <tr>
-                          <th scope="row" className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase">Grand Total</th>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.totalReservations}</td>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.confirmedReservations}</td>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.totalRevenue)}</td>
-                          <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.commission)}</td>
+                          <th scope="row" className="px-6 py-3 text-left text-sm font-bold text-slate-700 uppercase">Grand Total</th>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{grandTotal.totalReservations}</td>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{grandTotal.confirmedReservations}</td>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{formatCurrency(grandTotal.totalRevenue)}</td>
+                          <td className="px-6 py-3 text-right text-sm font-bold text-slate-700">{formatCurrency(grandTotal.commission)}</td>
                       </tr>
                   </tfoot>
                 </table>
@@ -998,7 +998,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
           ) : (
             <div className="space-y-4">
                 {summary.map(row => (
-                    <div key={row.month} className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                    <div key={row.month} className="bg-white p-4 rounded-lg shadow border border-slate-200">
                         <h4 className="font-bold text-lg mb-2 text-primary">{row.month}</h4>
                         <SummaryRow label="Total Reservations" value={row.totalReservations} />
                         <SummaryRow label="Confirmed" value={row.confirmedReservations} />

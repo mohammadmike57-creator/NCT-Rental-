@@ -248,13 +248,13 @@ const ProfessionalSummaryDashboard: React.FC<ProfessionalSummaryDashboardProps> 
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-slate-50 min-h-screen">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-8 text-white mb-6">
+      <div className="rounded-xl shadow-lg p-8 text-white mb-6 bg-slate-900">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold mb-2">Annual Summary {year}</h1>
-            <p className="text-blue-100">Comprehensive business performance analytics</p>
+            <p className="text-sky-100">Comprehensive business performance analytics</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -265,7 +265,7 @@ const ProfessionalSummaryDashboard: React.FC<ProfessionalSummaryDashboardProps> 
             </button>
             <button
               onClick={handleExportPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-semibold"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-sky-600 rounded-lg hover:bg-sky-50 transition-colors font-semibold"
             >
               <PdfIcon className="h-5 w-5" />
               Export PDF
@@ -278,97 +278,97 @@ const ProfessionalSummaryDashboard: React.FC<ProfessionalSummaryDashboardProps> 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
+            <div className="bg-sky-100 p-3 rounded-lg">
+              <CurrencyDollarIcon className="h-6 w-6 text-sky-600" />
             </div>
             {yoyComparison.growth !== 0 && (
-              <div className={`flex items-center ${yoyComparison.growth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`flex items-center ${yoyComparison.growth > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {yoyComparison.growth > 0 ? <ArrowUpIcon className="h-4 w-4" /> : <ArrowDownIcon className="h-4 w-4" />}
                 <span className="text-sm font-semibold ml-1">{Math.abs(yoyComparison.growth).toFixed(1)}%</span>
               </div>
             )}
           </div>
-          <h3 className="text-gray-500 text-sm font-medium mb-1">Total Revenue</h3>
-          <div className="text-3xl font-bold text-gray-800">{formatCurrency(grandTotals.totalRevenue)}</div>
-          <p className="text-xs text-gray-400 mt-2">Avg: {formatCurrency(performance.avgMonthlyRevenue)}/mo</p>
+          <h3 className="text-slate-500 text-sm font-medium mb-1">Total Revenue</h3>
+          <div className="text-3xl font-bold text-slate-800">{formatCurrency(grandTotals.totalRevenue)}</div>
+          <p className="text-xs text-slate-400 mt-2">Avg: {formatCurrency(performance.avgMonthlyRevenue)}/mo</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="bg-green-100 p-3 rounded-lg">
-              <CheckCircleIcon className="h-6 w-6 text-green-600" />
+            <div className="bg-emerald-100 p-3 rounded-lg">
+              <CheckCircleIcon className="h-6 w-6 text-emerald-600" />
             </div>
           </div>
-          <h3 className="text-gray-500 text-sm font-medium mb-1">Total Bookings</h3>
-          <div className="text-3xl font-bold text-gray-800">{grandTotals.confirmedReservations}</div>
-          <p className="text-xs text-gray-400 mt-2">Avg: {performance.avgMonthlyBookings.toFixed(1)}/mo</p>
+          <h3 className="text-slate-500 text-sm font-medium mb-1">Total Bookings</h3>
+          <div className="text-3xl font-bold text-slate-800">{grandTotals.confirmedReservations}</div>
+          <p className="text-xs text-slate-400 mt-2">Avg: {performance.avgMonthlyBookings.toFixed(1)}/mo</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <ChartBarIcon className="h-6 w-6 text-purple-600" />
+            <div className="bg-emerald-100 p-3 rounded-lg">
+              <ChartBarIcon className="h-6 w-6 text-emerald-600" />
             </div>
           </div>
-          <h3 className="text-gray-500 text-sm font-medium mb-1">Commission (7.5%)</h3>
-          <div className="text-3xl font-bold text-gray-800">{formatCurrency(grandTotals.commission)}</div>
-          <p className="text-xs text-gray-400 mt-2">Net: {formatCurrency(grandTotals.netRevenue)}</p>
+          <h3 className="text-slate-500 text-sm font-medium mb-1">Commission (7.5%)</h3>
+          <div className="text-3xl font-bold text-slate-800">{formatCurrency(grandTotals.commission)}</div>
+          <p className="text-xs text-slate-400 mt-2">Net: {formatCurrency(grandTotals.netRevenue)}</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="bg-indigo-100 p-3 rounded-lg">
-              <TrendingUpIcon className="h-6 w-6 text-indigo-600" />
+            <div className="bg-emerald-100 p-3 rounded-lg">
+              <TrendingUpIcon className="h-6 w-6 text-emerald-600" />
             </div>
           </div>
-          <h3 className="text-gray-500 text-sm font-medium mb-1">Conversion Rate</h3>
-          <div className="text-3xl font-bold text-gray-800">{performance.conversionRate.toFixed(1)}%</div>
-          <p className="text-xs text-gray-400 mt-2">Trend: {performance.trend}</p>
+          <h3 className="text-slate-500 text-sm font-medium mb-1">Conversion Rate</h3>
+          <div className="text-3xl font-bold text-slate-800">{performance.conversionRate.toFixed(1)}%</div>
+          <p className="text-xs text-slate-400 mt-2">Trend: {performance.trend}</p>
         </div>
       </div>
 
       {/* Performance Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <ChartBarIcon className="h-6 w-6 text-blue-600" />
+          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <ChartBarIcon className="h-6 w-6 text-sky-600" />
             Performance Highlights
           </h2>
           <div className="space-y-4">
-            <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg">
+            <div className="flex justify-between items-center p-4 bg-emerald-50 rounded-lg">
               <div>
-                <div className="text-sm text-gray-600">Best Month</div>
-                <div className="text-lg font-bold text-green-700">{performance.topMonth.month}</div>
+                <div className="text-sm text-slate-600">Best Month</div>
+                <div className="text-lg font-bold text-emerald-700">{performance.topMonth.month}</div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-green-700">{formatCurrency(performance.topMonth.totalRevenue)}</div>
-                <div className="text-xs text-gray-500">{performance.topMonth.confirmedReservations} bookings</div>
+                <div className="text-2xl font-bold text-emerald-700">{formatCurrency(performance.topMonth.totalRevenue)}</div>
+                <div className="text-xs text-slate-500">{performance.topMonth.confirmedReservations} bookings</div>
               </div>
             </div>
 
-            <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
+            <div className="flex justify-between items-center p-4 bg-sky-50 rounded-lg">
               <div>
-                <div className="text-sm text-gray-600">Average Monthly Revenue</div>
-                <div className="text-lg font-bold text-blue-700">{formatCurrency(performance.avgMonthlyRevenue)}</div>
+                <div className="text-sm text-slate-600">Average Monthly Revenue</div>
+                <div className="text-lg font-bold text-sky-700">{formatCurrency(performance.avgMonthlyRevenue)}</div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-600">Avg Booking Value</div>
-                <div className="font-semibold text-blue-700">
+                <div className="text-sm text-slate-600">Avg Booking Value</div>
+                <div className="font-semibold text-sky-700">
                   {formatCurrency(grandTotals.totalRevenue / grandTotals.confirmedReservations)}
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between items-center p-4 bg-purple-50 rounded-lg">
+            <div className="flex justify-between items-center p-4 bg-emerald-50 rounded-lg">
               <div>
-                <div className="text-sm text-gray-600">Year-over-Year Growth</div>
-                <div className={`text-2xl font-bold ${yoyComparison.growth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="text-sm text-slate-600">Year-over-Year Growth</div>
+                <div className={`text-2xl font-bold ${yoyComparison.growth > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {yoyComparison.growth > 0 ? '+' : ''}{yoyComparison.growth.toFixed(1)}%
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-gray-500">{year - 1}: {formatCurrency(yoyComparison.previousYear)}</div>
-                <div className="text-xs text-gray-500">{year}: {formatCurrency(yoyComparison.currentYear)}</div>
+                <div className="text-xs text-slate-500">{year - 1}: {formatCurrency(yoyComparison.previousYear)}</div>
+                <div className="text-xs text-slate-500">{year}: {formatCurrency(yoyComparison.currentYear)}</div>
               </div>
             </div>
           </div>
@@ -376,7 +376,7 @@ const ProfessionalSummaryDashboard: React.FC<ProfessionalSummaryDashboardProps> 
 
         {/* Visual Revenue Chart */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Monthly Revenue Trend</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-4">Monthly Revenue Trend</h2>
           <div className="space-y-2">
             {monthlyAnalytics.map((month) => {
               const maxRevenue = Math.max(...monthlyAnalytics.map(m => m.totalRevenue));
@@ -385,15 +385,15 @@ const ProfessionalSummaryDashboard: React.FC<ProfessionalSummaryDashboardProps> 
               return (
                 <div key={month.month} className="space-y-1">
                   <div className="flex justify-between text-xs">
-                    <span className="font-medium text-gray-600">{month.month.substring(0, 3)}</span>
-                    <span className="text-gray-500">{formatCurrency(month.totalRevenue)}</span>
+                    <span className="font-medium text-slate-600">{month.month.substring(0, 3)}</span>
+                    <span className="text-slate-500">{formatCurrency(month.totalRevenue)}</span>
                   </div>
-                  <div className="h-6 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-6 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        month.growthPercent > 0 ? 'bg-green-500' :
-                        month.growthPercent < 0 ? 'bg-red-500' :
-                        'bg-blue-500'
+                        month.growthPercent > 0 ? 'bg-emerald-500' :
+                        month.growthPercent < 0 ? 'bg-rose-500' :
+                        'bg-sky-500'
                       }`}
                       style={{ width: `${percentage}%` }}
                     >
@@ -415,82 +415,82 @@ const ProfessionalSummaryDashboard: React.FC<ProfessionalSummaryDashboardProps> 
 
       {/* Monthly Breakdown Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">Monthly Breakdown</h2>
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-xl font-bold text-slate-800">Monthly Breakdown</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Month</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Bookings</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Revenue</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Commission</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Net</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Growth</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase">Month</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase">Bookings</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase">Revenue</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase">Commission</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase">Net</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase">Growth</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-200">
               {monthlyAnalytics.map((month, index) => (
                 <tr
                   key={month.month}
-                  className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                  className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
                 >
                   <td className="px-6 py-4">
-                    <div className="font-semibold text-gray-900">{month.month}</div>
-                    <div className="text-xs text-gray-500">Avg: {formatCurrency(month.avgBookingValue)}</div>
+                    <div className="font-semibold text-slate-900">{month.month}</div>
+                    <div className="text-xs text-slate-500">Avg: {formatCurrency(month.avgBookingValue)}</div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="font-medium text-gray-900">{month.confirmedReservations}</div>
-                    <div className="text-xs text-gray-500">of {month.totalReservations}</div>
+                    <div className="font-medium text-slate-900">{month.confirmedReservations}</div>
+                    <div className="text-xs text-slate-500">of {month.totalReservations}</div>
                   </td>
-                  <td className="px-6 py-4 text-right font-semibold text-gray-900">
+                  <td className="px-6 py-4 text-right font-semibold text-slate-900">
                     {formatCurrency(month.totalRevenue)}
                   </td>
-                  <td className="px-6 py-4 text-right text-gray-700">
+                  <td className="px-6 py-4 text-right text-slate-700">
                     {formatCurrency(month.commission)}
                   </td>
-                  <td className="px-6 py-4 text-right font-medium text-gray-900">
+                  <td className="px-6 py-4 text-right font-medium text-slate-900">
                     {formatCurrency(month.netRevenue)}
                   </td>
                   <td className="px-6 py-4 text-right">
                     {month.growthPercent !== 0 ? (
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
                         month.growthPercent > 0
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-rose-100 text-rose-700'
                       }`}>
                         {month.growthPercent > 0 ? <ArrowUpIcon className="h-3 w-3 mr-1" /> : <ArrowDownIcon className="h-3 w-3 mr-1" />}
                         {Math.abs(month.growthPercent).toFixed(1)}%
                       </span>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-slate-400">-</span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-100">
+            <tfoot className="bg-slate-100">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">Total</th>
-                <th className="px-6 py-4 text-right text-sm font-bold text-gray-700">
+                <th className="px-6 py-4 text-left text-sm font-bold text-slate-700 uppercase">Total</th>
+                <th className="px-6 py-4 text-right text-sm font-bold text-slate-700">
                   {grandTotals.confirmedReservations}
                 </th>
-                <th className="px-6 py-4 text-right text-sm font-bold text-gray-700">
+                <th className="px-6 py-4 text-right text-sm font-bold text-slate-700">
                   {formatCurrency(grandTotals.totalRevenue)}
                 </th>
-                <th className="px-6 py-4 text-right text-sm font-bold text-gray-700">
+                <th className="px-6 py-4 text-right text-sm font-bold text-slate-700">
                   {formatCurrency(grandTotals.commission)}
                 </th>
-                <th className="px-6 py-4 text-right text-sm font-bold text-gray-700">
+                <th className="px-6 py-4 text-right text-sm font-bold text-slate-700">
                   {formatCurrency(grandTotals.netRevenue)}
                 </th>
                 <th className="px-6 py-4 text-right">
                   {yoyComparison.growth !== 0 && (
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
                       yoyComparison.growth > 0
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-rose-100 text-rose-700'
                     }`}>
                       {yoyComparison.growth > 0 ? <ArrowUpIcon className="h-3 w-3 mr-1" /> : <ArrowDownIcon className="h-3 w-3 mr-1" />}
                       {Math.abs(yoyComparison.growth).toFixed(1)}% YoY

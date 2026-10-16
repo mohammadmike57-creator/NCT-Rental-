@@ -279,7 +279,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
     const isExpired = vehicle.registrationExpiry && vehicle.registrationExpiry < today;
 
     if (isExpired) {
-      return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 border border-red-200">Expired</span>;
+      return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800 border border-rose-200">Expired</span>;
     }
 
     const daysUntilExpiry = vehicle.registrationExpiry
@@ -287,20 +287,20 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
       : 9999;
 
     if (daysUntilExpiry < 30) {
-      return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 border border-orange-200">Expiring Soon</span>;
+      return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">Expiring Soon</span>;
     }
 
-    return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">Active</span>;
+    return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">Active</span>;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-6">
+    <div className="min-h-screen p-6 bg-slate-50">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center gap-3">
-              <CarIcon className="w-10 h-10 text-blue-600" />
+            <h1 className="text-4xl font-bold flex items-center gap-3 text-slate-900">
+              <CarIcon className="w-10 h-10 text-sky-600" />
               Fleet Management
             </h1>
             <p className="text-slate-600 mt-2">Comprehensive vehicle inventory management system</p>
@@ -315,7 +315,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
             </button>
             <button
               onClick={openAddModal}
-              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center gap-2 shadow-lg font-semibold"
+              className="px-6 py-2 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg font-semibold bg-emerald-600 hover:bg-emerald-700"
             >
               <PlusCircleIcon className="w-5 h-5" />
               Add Vehicle
@@ -325,62 +325,62 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-sky-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Total Fleet</p>
                 <p className="text-3xl font-bold text-slate-800 mt-1">{fleetStats.total}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <CarIcon className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center">
+                <CarIcon className="w-6 h-6 text-sky-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-emerald-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Available</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{fleetStats.available}</p>
+                <p className="text-3xl font-bold text-emerald-600 mt-1">{fleetStats.available}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircleIcon className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                <CheckCircleIcon className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-red-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-rose-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Expired Reg.</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{fleetStats.expired}</p>
+                <p className="text-3xl font-bold text-rose-600 mt-1">{fleetStats.expired}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertIcon className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center">
+                <AlertIcon className="w-6 h-6 text-rose-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-purple-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-emerald-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Avg. Deposit</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">${fleetStats.avgSecurityDeposit.toFixed(0)}</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">${fleetStats.avgSecurityDeposit.toFixed(0)}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-purple-600 font-bold text-lg">$</span>
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                <span className="text-emerald-600 font-bold text-lg">$</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-indigo-500 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-xl p-5 shadow-md border-l-4 border-emerald-500 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 font-medium">Fleet Value</p>
-                <p className="text-2xl font-bold text-indigo-600 mt-1">${fleetStats.totalValue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">${fleetStats.totalValue.toLocaleString()}</p>
               </div>
-              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                <span className="text-indigo-600 font-bold text-lg">💎</span>
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                <span className="text-emerald-600 font-bold text-lg">💎</span>
               </div>
             </div>
           </div>
@@ -399,7 +399,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                 placeholder="Search vehicles by model, plate, category, SIPP, VIN..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
               />
             </div>
           </div>
@@ -408,7 +408,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-            className="px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium"
+            className="px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all font-medium"
           >
             <option value="all">All Status ({fleet.length})</option>
             <option value="available">Available ({fleetStats.available})</option>
@@ -419,7 +419,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
           {selectedVehicles.size > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all flex items-center gap-2 font-semibold shadow-md"
+              className="px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-all flex items-center gap-2 font-semibold shadow-md"
             >
               <TrashIcon className="w-5 h-5" />
               Delete {selectedVehicles.size} Selected
@@ -428,7 +428,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
 
           {/* Results Count */}
           <div className="text-sm text-slate-600 font-medium">
-            Showing <span className="font-bold text-blue-600">{filteredVehicles.length}</span> of {fleet.length} vehicles
+            Showing <span className="font-bold text-sky-600">{filteredVehicles.length}</span> of {fleet.length} vehicles
           </div>
         </div>
       </div>
@@ -437,14 +437,14 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
+            <thead className="border-b-2 border-slate-200 bg-slate-50">
               <tr>
                 <th className="px-4 py-4 text-left">
                   <input
                     type="checkbox"
                     checked={selectedVehicles.size === filteredVehicles.length && filteredVehicles.length > 0}
                     onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                   />
                 </th>
                 <th
@@ -513,14 +513,14 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                 filteredVehicles.map((vehicle, index) => (
                   <tr
                     key={vehicle.id}
-                    className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                    className={`hover:bg-sky-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
                   >
                     <td className="px-4 py-4">
                       <input
                         type="checkbox"
                         checked={selectedVehicles.has(vehicle.id)}
                         onChange={() => toggleVehicleSelection(vehicle.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                       />
                     </td>
                     <td className="px-4 py-4">
@@ -535,7 +535,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium border border-blue-200">
+                      <span className="px-3 py-1 bg-sky-100 text-sky-800 rounded-lg text-sm font-medium border border-sky-200">
                         {vehicle.category}
                       </span>
                     </td>
@@ -558,14 +558,14 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => openEditModal(vehicle)}
-                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          className="p-2 text-sky-600 hover:bg-sky-100 rounded-lg transition-colors"
                           title="Edit Vehicle"
                         >
                           <PencilIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(vehicle.id)}
-                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                          className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
                           title="Delete Vehicle"
                         >
                           <TrashIcon className="w-5 h-5" />
@@ -590,7 +590,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
 
             <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
+              <div className="px-6 py-5 bg-slate-900">
                 <div className="flex items-center justify-between">
                   <h3 className="text-2xl font-bold text-white flex items-center gap-3">
                     <CarIcon className="w-7 h-7" />
@@ -610,7 +610,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <div className="col-span-2">
-                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-blue-200">Basic Information</h4>
+                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-sky-200">Basic Information</h4>
                   </div>
 
                   <div>
@@ -619,7 +619,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="text"
                       value={formData.modelName || ''}
                       onChange={(e) => setFormData({ ...formData, modelName: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                       placeholder="e.g., Toyota Camry 2024"
                     />
                   </div>
@@ -630,7 +630,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="text"
                       value={formData.licensePlate || ''}
                       onChange={(e) => setFormData({ ...formData, licensePlate: e.target.value.toUpperCase() })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-mono"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all font-mono"
                       placeholder="ABC-1234"
                     />
                   </div>
@@ -640,7 +640,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                     <select
                       value={formData.category || ''}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     >
                       <option value="">Select Category</option>
                       <option value="Economy">Economy</option>
@@ -660,7 +660,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                     <select
                       value={formData.transmission || 'Automatic'}
                       onChange={(e) => setFormData({ ...formData, transmission: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     >
                       <option value="Automatic">Automatic</option>
                       <option value="Manual">Manual</option>
@@ -673,7 +673,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="text"
                       value={formData.sippCode || ''}
                       onChange={(e) => setFormData({ ...formData, sippCode: e.target.value.toUpperCase() })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-mono"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all font-mono"
                       placeholder="ECAR"
                       maxLength={4}
                     />
@@ -685,7 +685,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="text"
                       value={formData.color || ''}
                       onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                       placeholder="e.g., Silver"
                     />
                   </div>
@@ -696,7 +696,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="text"
                       value={formData.vin || ''}
                       onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-mono"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all font-mono"
                       placeholder="1HGBH41JXMN109186"
                       maxLength={17}
                     />
@@ -704,7 +704,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
 
                   {/* Financial Information */}
                   <div className="col-span-2 mt-4">
-                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-green-200">Financial Information</h4>
+                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-emerald-200">Financial Information</h4>
                   </div>
 
                   <div>
@@ -713,7 +713,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="number"
                       value={formData.securityDeposit || 0}
                       onChange={(e) => setFormData({ ...formData, securityDeposit: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                       min="0"
                     />
                   </div>
@@ -724,7 +724,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="number"
                       value={formData.excess || 0}
                       onChange={(e) => setFormData({ ...formData, excess: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                       min="0"
                     />
                   </div>
@@ -735,7 +735,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="number"
                       value={formData.purchasePrice || 0}
                       onChange={(e) => setFormData({ ...formData, purchasePrice: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                       min="0"
                     />
                   </div>
@@ -746,13 +746,13 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="date"
                       value={formData.purchaseDate || ''}
                       onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     />
                   </div>
 
                   {/* Registration & Compliance */}
                   <div className="col-span-2 mt-4">
-                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-purple-200">Registration & Compliance</h4>
+                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-emerald-200">Registration & Compliance</h4>
                   </div>
 
                   <div>
@@ -761,7 +761,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="date"
                       value={formData.registrationExpiry || ''}
                       onChange={(e) => setFormData({ ...formData, registrationExpiry: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     />
                   </div>
 
@@ -771,13 +771,13 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="date"
                       value={formData.insuranceExpiry || ''}
                       onChange={(e) => setFormData({ ...formData, insuranceExpiry: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     />
                   </div>
 
                   {/* Maintenance & Service */}
                   <div className="col-span-2 mt-4">
-                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-orange-200">Maintenance & Service</h4>
+                    <h4 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-amber-200">Maintenance & Service</h4>
                   </div>
 
                   <div>
@@ -786,7 +786,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="number"
                       value={formData.odometer || 0}
                       onChange={(e) => setFormData({ ...formData, odometer: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                       min="0"
                     />
                   </div>
@@ -796,7 +796,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                     <select
                       value={formData.fuelLevel || '100%'}
                       onChange={(e) => setFormData({ ...formData, fuelLevel: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     >
                       <option value="100%">100% (Full)</option>
                       <option value="75%">75% (3/4)</option>
@@ -812,7 +812,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="date"
                       value={formData.lastService || ''}
                       onChange={(e) => setFormData({ ...formData, lastService: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     />
                   </div>
 
@@ -822,7 +822,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                       type="date"
                       value={formData.nextServiceDue || ''}
                       onChange={(e) => setFormData({ ...formData, nextServiceDue: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                     />
                   </div>
 
@@ -832,7 +832,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                     <textarea
                       value={formData.notes || ''}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all"
                       rows={3}
                       placeholder="Any additional information about this vehicle..."
                     />
@@ -850,7 +850,7 @@ const ProfessionalFleetManagement: React.FC<ProfessionalFleetManagementProps> = 
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center gap-2 shadow-lg font-semibold"
+                  className="px-8 py-2.5 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg font-semibold bg-emerald-600 hover:bg-emerald-700"
                 >
                   <SaveIcon className="w-5 h-5" />
                   {editingVehicle ? 'Update Vehicle' : 'Add Vehicle'}

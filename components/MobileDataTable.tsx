@@ -144,13 +144,13 @@ export default function MobileDataTable({
   const primaryColumn = columns[0];
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-slate-50">
       {/* Header */}
-      <div className="sticky top-14 z-20 bg-white border-b border-gray-200">
+      <div className="sticky top-14 z-20 bg-white border-b border-slate-200">
         {/* Title and Actions */}
         {title && (
           <div className="flex items-center justify-between px-4 py-3">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
             <div className="flex items-center space-x-2">
               {isSelectionMode && (
                 <button
@@ -158,7 +158,7 @@ export default function MobileDataTable({
                     setIsSelectionMode(false);
                     setSelectedRows(new Set());
                   }}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg active:bg-gray-200 transition-colors touch-manipulation"
+                  className="px-3 py-1.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg active:bg-slate-200 transition-colors touch-manipulation"
                 >
                   Cancel ({selectedRows.size})
                 </button>
@@ -171,18 +171,18 @@ export default function MobileDataTable({
         {searchable && (
           <div className="px-4 pb-3">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search..."
-                className="w-full pl-10 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               />
               {filterable && (
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 active:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 active:bg-slate-100 rounded-lg transition-colors touch-manipulation"
                 >
                   <FunnelIcon className="w-5 h-5" />
                 </button>
@@ -195,16 +195,16 @@ export default function MobileDataTable({
         {showFilters && (
           <div className="px-4 pb-3">
             <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
-              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-full active:bg-blue-100 transition-colors touch-manipulation">
+              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-sky-700 bg-sky-50 rounded-full active:bg-sky-100 transition-colors touch-manipulation">
                 All
               </button>
-              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full active:bg-gray-50 transition-colors touch-manipulation">
+              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full active:bg-slate-50 transition-colors touch-manipulation">
                 Active
               </button>
-              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full active:bg-gray-50 transition-colors touch-manipulation">
+              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full active:bg-slate-50 transition-colors touch-manipulation">
                 Pending
               </button>
-              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full active:bg-gray-50 transition-colors touch-manipulation">
+              <button className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full active:bg-slate-50 transition-colors touch-manipulation">
                 Completed
               </button>
             </div>
@@ -216,10 +216,10 @@ export default function MobileDataTable({
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {paginatedData.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <MagnifyingGlassIcon className="w-8 h-8 text-slate-400" />
             </div>
-            <p className="text-gray-500 text-sm">No results found</p>
+            <p className="text-slate-500 text-sm">No results found</p>
           </div>
         ) : (
           paginatedData.map((item) => {
@@ -241,7 +241,7 @@ export default function MobileDataTable({
                       onEdit?.(item);
                       setSwipedRow(null);
                     }}
-                    className="h-full px-4 bg-blue-500 text-white flex items-center touch-manipulation"
+                    className="h-full px-4 bg-emerald-600 text-white flex items-center touch-manipulation"
                   >
                     <PencilIcon className="w-5 h-5" />
                   </button>
@@ -251,7 +251,7 @@ export default function MobileDataTable({
                       onDelete?.(item);
                       setSwipedRow(null);
                     }}
-                    className="h-full px-4 bg-red-500 text-white flex items-center touch-manipulation"
+                    className="h-full px-4 bg-rose-500 text-white flex items-center touch-manipulation"
                   >
                     <TrashIcon className="w-5 h-5" />
                   </button>
@@ -275,8 +275,8 @@ export default function MobileDataTable({
                   {/* Card Header */}
                   <div
                     onClick={() => toggleRowExpansion(id)}
-                    className={`flex items-start justify-between p-4 cursor-pointer active:bg-gray-50 transition-colors ${
-                      isSelected ? 'bg-blue-50' : ''
+                    className={`flex items-start justify-between p-4 cursor-pointer active:bg-slate-50 transition-colors ${
+                      isSelected ? 'bg-sky-50' : ''
                     }`}
                   >
                     <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -289,8 +289,8 @@ export default function MobileDataTable({
                           }}
                           className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                             isSelected
-                              ? 'bg-blue-600 border-blue-600'
-                              : 'border-gray-300'
+                              ? 'bg-sky-600 border-sky-600'
+                              : 'border-slate-300'
                           }`}
                         >
                           {isSelected && <CheckIcon className="w-4 h-4 text-white" />}
@@ -299,7 +299,7 @@ export default function MobileDataTable({
 
                       {/* Primary Content */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-gray-900 truncate mb-1">
+                        <h3 className="text-sm font-semibold text-slate-900 truncate mb-1">
                           {primaryColumn.render
                             ? primaryColumn.render(item[primaryColumn.key], item)
                             : item[primaryColumn.key]}
@@ -309,7 +309,7 @@ export default function MobileDataTable({
                           {columns.slice(1, 3).map((col) => (
                             <span
                               key={col.key}
-                              className="text-xs text-gray-600"
+                              className="text-xs text-slate-600"
                             >
                               {col.render
                                 ? col.render(item[col.key], item)
@@ -322,7 +322,7 @@ export default function MobileDataTable({
 
                     {/* Expand Icon */}
                     <ChevronDownIcon
-                      className={`w-5 h-5 text-gray-400 flex-shrink-0 ml-2 transition-transform ${
+                      className={`w-5 h-5 text-slate-400 flex-shrink-0 ml-2 transition-transform ${
                         isExpanded ? 'rotate-180' : ''
                       }`}
                     />
@@ -330,14 +330,14 @@ export default function MobileDataTable({
 
                   {/* Expanded Content */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-gray-100">
+                    <div className="px-4 pb-4 border-t border-slate-100">
                       <div className="grid grid-cols-2 gap-3 mt-3">
                         {columns.slice(1).map((col) => (
                           <div key={col.key}>
-                            <p className="text-xs text-gray-500 mb-1">
+                            <p className="text-xs text-slate-500 mb-1">
                               {col.label}
                             </p>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-slate-900">
                               {col.render
                                 ? col.render(item[col.key], item)
                                 : item[col.key] || '-'}
@@ -354,7 +354,7 @@ export default function MobileDataTable({
                               hapticFeedback();
                               onView(item);
                             }}
-                            className="flex items-center justify-center space-x-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg active:bg-blue-100 transition-colors touch-manipulation"
+                            className="flex items-center justify-center space-x-1 px-3 py-2 text-sm font-medium text-sky-700 bg-sky-50 rounded-lg active:bg-sky-100 transition-colors touch-manipulation"
                           >
                             <EyeIcon className="w-4 h-4" />
                             <span>View</span>
@@ -366,7 +366,7 @@ export default function MobileDataTable({
                               hapticFeedback();
                               onEdit(item);
                             }}
-                            className="flex items-center justify-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg active:bg-gray-100 transition-colors touch-manipulation"
+                            className="flex items-center justify-center space-x-1 px-3 py-2 text-sm font-medium text-slate-700 bg-slate-50 rounded-lg active:bg-slate-100 transition-colors touch-manipulation"
                           >
                             <PencilIcon className="w-4 h-4" />
                             <span>Edit</span>
@@ -378,7 +378,7 @@ export default function MobileDataTable({
                               hapticFeedback();
                               onDelete(item);
                             }}
-                            className="flex items-center justify-center space-x-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-lg active:bg-red-100 transition-colors touch-manipulation"
+                            className="flex items-center justify-center space-x-1 px-3 py-2 text-sm font-medium text-rose-700 bg-rose-50 rounded-lg active:bg-rose-100 transition-colors touch-manipulation"
                           >
                             <TrashIcon className="w-4 h-4" />
                             <span>Delete</span>
@@ -396,22 +396,22 @@ export default function MobileDataTable({
 
       {/* Pagination */}
       {pagination && totalPages > 1 && (
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 py-3">
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 py-3">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed active:bg-gray-50 transition-colors touch-manipulation"
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed active:bg-slate-50 transition-colors touch-manipulation"
             >
               Previous
             </button>
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-slate-700">
               Page {currentPage} of {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed active:bg-gray-50 transition-colors touch-manipulation"
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed active:bg-slate-50 transition-colors touch-manipulation"
             >
               Next
             </button>

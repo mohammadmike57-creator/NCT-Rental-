@@ -17,10 +17,10 @@ interface ReceiptProps {
 
 const DetailItem: React.FC<{ icon: React.ReactNode, label: string, value?: string | React.ReactNode }> = ({ icon, label, value }) => (
     <div className="flex items-start">
-        <div className="flex-shrink-0 text-gray-400 mt-0.5">{icon}</div>
+        <div className="flex-shrink-0 text-slate-400 mt-0.5">{icon}</div>
         <div className="ml-3">
-            <p className="text-xs text-gray-500">{label}</p>
-            <p className="text-sm font-medium text-gray-800">{value || 'N/A'}</p>
+            <p className="text-xs text-slate-500">{label}</p>
+            <p className="text-sm font-medium text-slate-800">{value || 'N/A'}</p>
         </div>
     </div>
 );
@@ -142,14 +142,14 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
                     <h2 className="text-base font-black text-slate-900 border-b border-slate-100 pb-3 mb-6 uppercase tracking-widest">Transaction Details</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <h3 className="font-black text-indigo-600 mb-3 uppercase text-[10px] tracking-widest">Billed To</h3>
+                            <h3 className="font-black text-emerald-600 mb-3 uppercase text-[10px] tracking-widest">Billed To</h3>
                             <div className="space-y-3">
                                 <DetailItem icon={<UserIcon className="w-4 h-4" />} label="Name" value={<span className="text-base font-bold">{reservation.personName}</span>} />
                                 <DetailItem icon={<MailIcon className="w-4 h-4" />} label="Email" value={<span className="text-base font-bold">{reservation.customerEmail}</span>} />
                             </div>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <h3 className="font-black text-indigo-600 mb-3 uppercase text-[10px] tracking-widest">Rental Summary</h3>
+                            <h3 className="font-black text-emerald-600 mb-3 uppercase text-[10px] tracking-widest">Rental Summary</h3>
                             <div className="space-y-3">
                                 <DetailItem icon={<CarIcon className="w-4 h-4" />} label="Vehicle" value={<span className="text-base font-bold">{reservation.carModel}</span>} />
                                 <DetailItem icon={<CalendarIcon className="w-4 h-4" />} label="Rental Period" value={<span className="text-base font-bold">{reservation.startDate} to {reservation.endDate}</span>} />
@@ -195,7 +195,7 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
                                     <td className="text-right font-bold p-3 text-emerald-600 uppercase text-[9px] tracking-widest">Amount Paid:</td>
                                     <td className="text-right font-black p-3 text-emerald-600 text-lg">{formatCurrency(amountPaid)}</td>
                                 </tr>
-                                <tr className="bg-indigo-600 text-white">
+                                <tr className="bg-emerald-600 text-white">
                                     <td className="text-right font-black text-base p-4 uppercase tracking-widest">Balance Due:</td>
                                     <td className="text-right font-black text-2xl p-4 tracking-tight">{formatCurrency(balanceDue)}</td>
                                 </tr>
@@ -205,15 +205,15 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
                 </section>
                 
                 <footer className="pt-6 border-t mt-8 text-center">
-                    <p className="text-lg font-semibold text-gray-800">Thank you for your business!</p>
-                    <p className="text-xs text-gray-500 mt-2">{companyDetails.name} - {companyDetails.subName}</p>
+                    <p className="text-lg font-semibold text-slate-800">Thank you for your business!</p>
+                    <p className="text-xs text-slate-500 mt-2">{companyDetails.name} - {companyDetails.subName}</p>
                 </footer>
             </div>
             
              <div className="mt-8 flex justify-between items-center no-print">
                 <button
                     onClick={onClose}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                    className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300"
                 >
                     Close
                 </button>
@@ -221,7 +221,7 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
                     <button
                         onClick={handleSendEmail}
                         disabled={!reservation.customerEmail}
-                        className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 disabled:bg-gray-400 text-sm font-medium flex items-center gap-2"
+                        className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 disabled:bg-slate-400 text-sm font-medium flex items-center gap-2"
                         title={!reservation.customerEmail ? "Customer email not available" : "Send receipt via email"}
                     >
                         <MailIcon /> Email

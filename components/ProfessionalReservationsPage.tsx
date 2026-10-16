@@ -193,35 +193,35 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
 
   const getStatusBadge = (reservation: Reservation) => {
     if (reservation.dropOffCompleted) {
-      return <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">Completed</span>;
+      return <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-semibold">Completed</span>;
     }
     if (reservation.voucherSubmitted) {
       const today = new Date().toISOString().split('T')[0];
       const endDate = reservation.endDate?.split('T')[0];
       if (endDate < today) {
-        return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Overdue</span>;
+        return <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-xs font-semibold">Overdue</span>;
       }
-      return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Active</span>;
+      return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">Active</span>;
     }
     const startDate = new Date(reservation.startDate);
     if (startDate > new Date()) {
-      return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Upcoming</span>;
+      return <span className="px-3 py-1 bg-sky-100 text-sky-700 rounded-full text-xs font-semibold">Upcoming</span>;
     }
-    return <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">Pending</span>;
+    return <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">Pending</span>;
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-slate-50 min-h-screen">
       {/* Header */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Reservations Management</h1>
-            <p className="text-gray-500 mt-1">Manage all your rental reservations in one place</p>
+            <h1 className="text-3xl font-bold text-slate-800">Reservations Management</h1>
+            <p className="text-slate-500 mt-1">Manage all your rental reservations in one place</p>
           </div>
           <button
             onClick={onCreateNew}
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+            className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-600 transition-colors shadow-md"
           >
             <PlusIcon className="h-5 w-5" />
             New Reservation
@@ -230,25 +230,25 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg">
-            <div className="text-blue-600 text-sm font-semibold">Total</div>
-            <div className="text-2xl font-bold text-blue-900">{stats.total}</div>
+          <div className="p-4 rounded-lg bg-slate-50">
+            <div className="text-sky-600 text-sm font-semibold">Total</div>
+            <div className="text-2xl font-bold text-sky-900">{stats.total}</div>
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg">
-            <div className="text-green-600 text-sm font-semibold">Active</div>
-            <div className="text-2xl font-bold text-green-900">{stats.active}</div>
+          <div className="p-4 rounded-lg bg-slate-50">
+            <div className="text-emerald-600 text-sm font-semibold">Active</div>
+            <div className="text-2xl font-bold text-emerald-900">{stats.active}</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg">
-            <div className="text-purple-600 text-sm font-semibold">Upcoming</div>
-            <div className="text-2xl font-bold text-purple-900">{stats.upcoming}</div>
+          <div className="p-4 rounded-lg bg-slate-50">
+            <div className="text-emerald-600 text-sm font-semibold">Upcoming</div>
+            <div className="text-2xl font-bold text-emerald-900">{stats.upcoming}</div>
           </div>
-          <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg">
-            <div className="text-red-600 text-sm font-semibold">Overdue</div>
-            <div className="text-2xl font-bold text-red-900">{stats.overdue}</div>
+          <div className="p-4 rounded-lg bg-slate-50">
+            <div className="text-rose-600 text-sm font-semibold">Overdue</div>
+            <div className="text-2xl font-bold text-rose-900">{stats.overdue}</div>
           </div>
-          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-lg">
-            <div className="text-indigo-600 text-sm font-semibold">Revenue</div>
-            <div className="text-2xl font-bold text-indigo-900">${stats.totalRevenue.toFixed(0)}</div>
+          <div className="p-4 rounded-lg bg-slate-50">
+            <div className="text-emerald-600 text-sm font-semibold">Revenue</div>
+            <div className="text-2xl font-bold text-emerald-900">${stats.totalRevenue.toFixed(0)}</div>
           </div>
         </div>
       </div>
@@ -259,13 +259,13 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
           {/* Search */}
           <div className="col-span-1 md:col-span-2">
             <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search by name, booking ID, email, phone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -274,7 +274,7 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
           >
             <option value="all">All Status</option>
             <option value="upcoming">Upcoming</option>
@@ -289,7 +289,7 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
           >
             <option value="all">All Dates</option>
             <option value="today">Today</option>
@@ -302,7 +302,7 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
         <div className="flex gap-3 mt-4">
           <button
             onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
           >
             <DownloadIcon className="h-4 w-4" />
             Export
@@ -310,7 +310,7 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
           {selectedReservations.size > 0 && (
             <button
               onClick={() => setSelectedReservations(new Set())}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
             >
               Clear Selection ({selectedReservations.size})
             </button>
@@ -322,90 +322,90 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 text-left">
                   <input
                     type="checkbox"
                     checked={selectedReservations.size === paginatedReservations.length && paginatedReservations.length > 0}
                     onChange={toggleSelectAll}
-                    className="rounded border-gray-300"
+                    className="rounded border-slate-300"
                   />
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('bookingId')}>
                   Booking ID {sortField === 'bookingId' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('personName')}>
                   Customer {sortField === 'personName' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('startDate')}>
                   Pickup {sortField === 'startDate' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('endDate')}>
                   Return {sortField === 'endDate' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Vehicle</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Vehicle</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
                     onClick={() => handleSort('amount')}>
                   Amount {sortField === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-200">
               {paginatedReservations.map((reservation) => (
-                <tr key={reservation.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={reservation.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <input
                       type="checkbox"
                       checked={selectedReservations.has(reservation.id)}
                       onChange={() => toggleSelect(reservation.id)}
-                      className="rounded border-gray-300"
+                      className="rounded border-slate-300"
                     />
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-semibold text-blue-600">{reservation.bookingId || 'N/A'}</div>
+                    <div className="font-semibold text-sky-600">{reservation.bookingId || 'N/A'}</div>
                     {reservation.source && (
-                      <div className="text-xs text-gray-500">{reservation.source.name}</div>
+                      <div className="text-xs text-slate-500">{reservation.source.name}</div>
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{reservation.personName}</div>
-                    <div className="text-sm text-gray-500">{reservation.contactNumber}</div>
+                    <div className="font-medium text-slate-900">{reservation.personName}</div>
+                    <div className="text-sm text-slate-500">{reservation.contactNumber}</div>
                     {reservation.customerEmail && (
-                      <div className="text-xs text-gray-400">{reservation.customerEmail}</div>
+                      <div className="text-xs text-slate-400">{reservation.customerEmail}</div>
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-slate-900">
                       {new Date(reservation.startDate).toLocaleDateString()}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-slate-500">
                       {new Date(reservation.startDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-slate-900">
                       {new Date(reservation.endDate).toLocaleDateString()}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-slate-500">
                       {new Date(reservation.endDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{reservation.reservationVehicle}</div>
+                    <div className="text-sm font-medium text-slate-900">{reservation.reservationVehicle}</div>
                     {reservation.assignedVehicle && (
-                      <div className="text-xs text-gray-500">{reservation.assignedVehicle.licensePlate}</div>
+                      <div className="text-xs text-slate-500">{reservation.assignedVehicle.licensePlate}</div>
                     )}
                   </td>
                   <td className="px-6 py-4">{getStatusBadge(reservation)}</td>
                   <td className="px-6 py-4">
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-slate-900">
                       ${reservation.amount?.toFixed(2) || '0.00'}
                     </div>
                   </td>
@@ -413,14 +413,14 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
                     <div className="flex gap-2">
                       <button
                         onClick={() => onView(reservation)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
                         title="View"
                       >
                         <EyeIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => onEdit(reservation)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                         title="Edit"
                       >
                         <EditIcon className="h-4 w-4" />
@@ -431,7 +431,7 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
                             onDelete(reservation.id);
                           }
                         }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                         title="Delete"
                       >
                         <TrashIcon className="h-4 w-4" />
@@ -446,25 +446,25 @@ const ProfessionalReservationsPage: React.FC<ProfessionalReservationsPageProps> 
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-            <div className="text-sm text-gray-600">
+          <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-slate-200">
+            <div className="text-sm text-slate-600">
               Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredReservations.length)} of {filteredReservations.length} results
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeftIcon className="h-5 w-5" />
               </button>
-              <span className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+              <span className="px-4 py-2 bg-sky-600 text-white rounded-lg">
                 {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRightIcon className="h-5 w-5" />
               </button>

@@ -52,15 +52,15 @@ const ManageAvailabilityView: React.FC<ManageAvailabilityViewProps> = ({ allocat
 
     return (
         <div className="space-y-6">
-             <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                <h3 className="font-bold text-blue-800 flex items-center gap-2"><CalendarDaysIcon/> Availability & Yield Management</h3>
-                <p className="text-sm text-blue-700 mt-1">
+             <div className="p-4 bg-sky-50 rounded-lg border-l-4 border-sky-400">
+                <h3 className="font-bold text-sky-800 flex items-center gap-2"><CalendarDaysIcon/> Availability & Yield Management</h3>
+                <p className="text-sm text-sky-700 mt-1">
                     Use this tool to set the number of vehicles per category available for sale on online channels ("Free Sale"). 
                     This provides positive control over your inventory. Use "Stop Sale" to block specific vehicles by license plate.
                 </p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg border">
-                <h3 className="text-lg font-semibold text-gray-700 mb-3">Set New Allocation</h3>
+            <div className="p-4 bg-slate-50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-slate-700 mb-3">Set New Allocation</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                     <div className="lg:col-span-2">
                         <label className="text-xs font-medium">Car Category</label>
@@ -90,25 +90,25 @@ const ManageAvailabilityView: React.FC<ManageAvailabilityViewProps> = ({ allocat
             </div>
 
             <div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Current Allocations</h3>
+                <h3 className="text-lg font-semibold text-slate-700 mb-2">Current Allocations</h3>
                 <div className="overflow-x-auto rounded-lg border">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Details</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Category</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Period</th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase">Details</th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white divide-y divide-slate-200">
                             {allocations.map(alloc => (
                                 <tr key={alloc.id}>
                                     <td className="px-4 py-3 whitespace-nowrap font-medium">{alloc.target}</td>
                                     <td className="px-4 py-3 whitespace-nowrap">{alloc.startDate} to {alloc.endDate}</td>
                                     <td className="px-4 py-3 text-center font-bold text-lg">{alloc.reason}</td>
                                     <td className="px-4 py-3 text-center">
-                                        <button onClick={() => handleDelete(alloc.id)} className="p-1 text-gray-400 hover:text-red-500">
+                                        <button onClick={() => handleDelete(alloc.id)} className="p-1 text-slate-400 hover:text-rose-500">
                                             <TrashIcon />
                                         </button>
                                     </td>
@@ -116,7 +116,7 @@ const ManageAvailabilityView: React.FC<ManageAvailabilityViewProps> = ({ allocat
                             ))}
                             {allocations.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="text-center py-6 text-gray-500">No availability allocations have been set.</td>
+                                    <td colSpan={4} className="text-center py-6 text-slate-500">No availability allocations have been set.</td>
                                 </tr>
                             )}
                         </tbody>

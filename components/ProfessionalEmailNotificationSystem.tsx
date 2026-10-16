@@ -396,10 +396,10 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
 
   const getStatusBadge = (status: EmailJob['status']) => {
     const styles = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      sending: 'bg-blue-100 text-blue-800',
-      sent: 'bg-green-100 text-green-800',
-      failed: 'bg-red-100 text-red-800',
+      pending: 'bg-amber-100 text-amber-800',
+      sending: 'bg-sky-100 text-sky-800',
+      sent: 'bg-emerald-100 text-emerald-800',
+      failed: 'bg-rose-100 text-rose-800',
     };
 
     const icons = {
@@ -422,12 +422,12 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Email Templates</h2>
-          <p className="text-gray-600 mt-1">Create and manage professional email templates</p>
+          <h2 className="text-2xl font-bold text-slate-900">Email Templates</h2>
+          <p className="text-slate-600 mt-1">Create and manage professional email templates</p>
         </div>
         <button
           onClick={() => setIsTemplateEditorOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
+          className="flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all shadow-lg bg-emerald-600 hover:bg-emerald-700"
         >
           <PlusIcon className="w-5 h-5" />
           Create Template
@@ -437,19 +437,19 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
       {/* Search and Filter */}
       <div className="flex gap-4">
         <div className="flex-1 relative">
-          <SearchIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <SearchIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Search templates..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           />
         </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as any)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
         >
           <option value="all">All Templates</option>
           <option value="active">Active</option>
@@ -462,43 +462,43 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
         {filteredTemplates.map((template) => (
           <div
             key={template.id}
-            className="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-all overflow-hidden"
+            className="bg-white rounded-xl shadow-lg border border-slate-200 hover:shadow-xl transition-all overflow-hidden"
           >
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+                  <div className="p-3 rounded-lg bg-slate-900">
                     <DocumentTextIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{template.name}</h3>
-                    <p className="text-sm text-gray-500">{template.type.replace('_', ' ')}</p>
+                    <h3 className="font-semibold text-slate-900">{template.name}</h3>
+                    <p className="text-sm text-slate-500">{template.type.replace('_', ' ')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
                   {template.isActive ? (
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
                   ) : (
-                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2 mb-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600">
                   <strong>Subject:</strong> {template.subject}
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {template.variables.slice(0, 3).map((variable) => (
                     <span
                       key={variable}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                      className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded"
                     >
                       {variable}
                     </span>
                   ))}
                   {template.variables.length > 3 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                    <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded">
                       +{template.variables.length - 3} more
                     </span>
                   )}
@@ -511,14 +511,14 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
                     setSelectedTemplate(template);
                     setIsTemplateEditorOpen(true);
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
                 >
                   <PencilIcon className="w-4 h-4" />
                   Edit
                 </button>
                 <button
                   onClick={() => setSelectedTemplate(template)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
                 >
                   <EyeIcon className="w-4 h-4" />
                   Preview
@@ -536,12 +536,12 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Automated Triggers</h2>
-          <p className="text-gray-600 mt-1">Configure automatic email sending based on events</p>
+          <h2 className="text-2xl font-bold text-slate-900">Automated Triggers</h2>
+          <p className="text-slate-600 mt-1">Configure automatic email sending based on events</p>
         </div>
         <button
           onClick={() => setIsTriggerEditorOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
+          className="flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all shadow-lg bg-emerald-600 hover:bg-emerald-700"
         >
           <PlusIcon className="w-5 h-5" />
           Create Trigger
@@ -555,39 +555,39 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
           return (
             <div
               key={trigger.id}
-              className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all"
+              className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 hover:shadow-xl transition-all"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4 flex-1">
-                  <div className={`p-3 rounded-lg ${trigger.isActive ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    <BellIcon className={`w-6 h-6 ${trigger.isActive ? 'text-green-600' : 'text-gray-400'}`} />
+                  <div className={`p-3 rounded-lg ${trigger.isActive ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                    <BellIcon className={`w-6 h-6 ${trigger.isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{trigger.name}</h3>
+                      <h3 className="text-lg font-semibold text-slate-900">{trigger.name}</h3>
                       {trigger.isActive ? (
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                        <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full">
                           Active
                         </span>
                       ) : (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">
                           Inactive
                         </span>
                       )}
                     </div>
                     <div className="space-y-2">
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-slate-600">
                         <strong>Event:</strong> {trigger.event.replace('_', ' ')}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-slate-600">
                         <strong>Template:</strong> {template?.name || 'Unknown'}
                       </p>
                       {trigger.delay && (
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-slate-600">
                           <strong>Delay:</strong> {trigger.delay} minutes before event
                         </p>
                       )}
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-slate-600">
                         <strong>Priority:</strong> {trigger.priority}/10
                       </p>
                     </div>
@@ -596,12 +596,12 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
                 <div className="flex gap-2">
                   <button
                     onClick={() => setIsTriggerEditorOpen(true)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                   >
                     <PencilIcon className="w-5 h-5" />
                   </button>
                   <button
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                   >
                     <TrashIcon className="w-5 h-5" />
                   </button>
@@ -619,15 +619,15 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Email Queue</h2>
-          <p className="text-gray-600 mt-1">Monitor and manage email sending queue</p>
+          <h2 className="text-2xl font-bold text-slate-900">Email Queue</h2>
+          <p className="text-slate-600 mt-1">Monitor and manage email sending queue</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-600 transition-colors">
             <RefreshIcon className="w-5 h-5" />
             Refresh
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+          <button className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors">
             <TrashIcon className="w-5 h-5" />
             Clear Failed
           </button>
@@ -636,28 +636,28 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="rounded-xl p-6 text-white shadow-lg bg-slate-900">
           <div className="flex items-center justify-between mb-2">
             <ClockIcon className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.totalPending}</span>
           </div>
           <p className="text-sm font-medium opacity-90">Pending</p>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="rounded-xl p-6 text-white shadow-lg bg-slate-900">
           <div className="flex items-center justify-between mb-2">
             <CheckCircleIcon className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.totalSent}</span>
           </div>
           <p className="text-sm font-medium opacity-90">Sent</p>
         </div>
-        <div className="bg-gradient-to-br from-red-500 to-pink-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="rounded-xl p-6 text-white shadow-lg bg-slate-900">
           <div className="flex items-center justify-between mb-2">
             <AlertIcon className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.totalFailed}</span>
           </div>
           <p className="text-sm font-medium opacity-90">Failed</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="rounded-xl p-6 text-white shadow-lg bg-slate-900">
           <div className="flex items-center justify-between mb-2">
             <MailIcon className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.totalSent + stats.totalPending}</span>
@@ -667,50 +667,50 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
       </div>
 
       {/* Queue Table */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Recipient
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Subject
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Priority
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Scheduled
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-slate-200">
               {emailQueue.map((job) => (
-                <tr key={job.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={job.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <UserIcon className="w-5 h-5 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">{job.to}</span>
+                      <UserIcon className="w-5 h-5 text-slate-400 mr-2" />
+                      <span className="text-sm text-slate-900">{job.to}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">{job.subject}</div>
+                    <div className="text-sm text-slate-900">{job.subject}</div>
                     {job.metadata.bookingId && (
-                      <div className="text-xs text-gray-500">Booking: {job.metadata.bookingId}</div>
+                      <div className="text-xs text-slate-500">Booking: {job.metadata.bookingId}</div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(job.status)}
                     {job.failureReason && (
-                      <div className="text-xs text-red-600 mt-1">{job.failureReason}</div>
+                      <div className="text-xs text-rose-600 mt-1">{job.failureReason}</div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -719,33 +719,33 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
                         <div
                           key={i}
                           className={`w-2 h-4 mr-1 rounded ${
-                            i < job.priority ? 'bg-purple-500' : 'bg-gray-200'
+                            i < job.priority ? 'bg-emerald-500' : 'bg-slate-200'
                           }`}
                         />
                       ))}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                     {new Date(job.scheduledTime).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="flex gap-2">
                       {job.status === 'failed' && (
                         <button
-                          className="text-blue-600 hover:text-blue-800"
+                          className="text-sky-600 hover:text-sky-800"
                           title="Retry"
                         >
                           <RefreshIcon className="w-5 h-5" />
                         </button>
                       )}
                       <button
-                        className="text-gray-600 hover:text-gray-800"
+                        className="text-slate-600 hover:text-slate-800"
                         title="View Details"
                       >
                         <EyeIcon className="w-5 h-5" />
                       </button>
                       <button
-                        className="text-red-600 hover:text-red-800"
+                        className="text-rose-600 hover:text-rose-800"
                         title="Delete"
                       >
                         <TrashIcon className="w-5 h-5" />
@@ -766,12 +766,12 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Email Campaigns</h2>
-          <p className="text-gray-600 mt-1">Create and manage bulk email campaigns</p>
+          <h2 className="text-2xl font-bold text-slate-900">Email Campaigns</h2>
+          <p className="text-slate-600 mt-1">Create and manage bulk email campaigns</p>
         </div>
         <button
           onClick={() => setIsCampaignEditorOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
+          className="flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all shadow-lg bg-emerald-600 hover:bg-emerald-700"
         >
           <PlusIcon className="w-5 h-5" />
           Create Campaign
@@ -783,18 +783,18 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
         {campaigns.map((campaign) => (
           <div
             key={campaign.id}
-            className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all"
+            className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 hover:shadow-xl transition-all"
           >
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">{campaign.name}</h3>
-                <p className="text-sm text-gray-600 mt-1">{campaign.subject}</p>
+                <h3 className="text-lg font-semibold text-slate-900">{campaign.name}</h3>
+                <p className="text-sm text-slate-600 mt-1">{campaign.subject}</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                campaign.status === 'completed' ? 'bg-green-100 text-green-800' :
-                campaign.status === 'sending' ? 'bg-blue-100 text-blue-800' :
-                campaign.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
+                campaign.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
+                campaign.status === 'sending' ? 'bg-sky-100 text-sky-800' :
+                campaign.status === 'scheduled' ? 'bg-amber-100 text-amber-800' :
+                'bg-slate-100 text-slate-800'
               }`}>
                 {campaign.status}
               </span>
@@ -802,20 +802,20 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
 
             <div className="grid grid-cols-4 gap-4 mb-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{campaign.recipientCount}</div>
-                <div className="text-xs text-gray-500">Recipients</div>
+                <div className="text-2xl font-bold text-slate-900">{campaign.recipientCount}</div>
+                <div className="text-xs text-slate-500">Recipients</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{campaign.sentCount}</div>
-                <div className="text-xs text-gray-500">Sent</div>
+                <div className="text-2xl font-bold text-sky-600">{campaign.sentCount}</div>
+                <div className="text-xs text-slate-500">Sent</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{campaign.openCount}</div>
-                <div className="text-xs text-gray-500">Opens</div>
+                <div className="text-2xl font-bold text-emerald-600">{campaign.openCount}</div>
+                <div className="text-xs text-slate-500">Opens</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{campaign.clickCount}</div>
-                <div className="text-xs text-gray-500">Clicks</div>
+                <div className="text-2xl font-bold text-emerald-600">{campaign.clickCount}</div>
+                <div className="text-xs text-slate-500">Clicks</div>
               </div>
             </div>
 
@@ -827,9 +827,9 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
                     {((campaign.openCount / campaign.sentCount) * 100).toFixed(1)}%
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-slate-200 rounded-full h-2">
                   <div
-                    className="bg-green-500 h-2 rounded-full"
+                    className="bg-emerald-500 h-2 rounded-full"
                     style={{ width: `${(campaign.openCount / campaign.sentCount) * 100}%` }}
                   />
                 </div>
@@ -837,16 +837,16 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
             )}
 
             {campaign.segment && (
-              <div className="mb-4 p-3 bg-purple-50 rounded-lg">
-                <p className="text-sm font-medium text-purple-900">Segment: {campaign.segment.name}</p>
+              <div className="mb-4 p-3 bg-emerald-50 rounded-lg">
+                <p className="text-sm font-medium text-emerald-900">Segment: {campaign.segment.name}</p>
               </div>
             )}
 
             <div className="flex gap-2">
-              <button className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm">
+              <button className="flex-1 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm">
                 View Details
               </button>
-              <button className="flex-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm">
+              <button className="flex-1 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors text-sm">
                 Analytics
               </button>
             </div>
@@ -860,80 +860,80 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Email Analytics</h2>
-        <p className="text-gray-600 mt-1">Track email performance and engagement metrics</p>
+        <h2 className="text-2xl font-bold text-slate-900">Email Analytics</h2>
+        <p className="text-slate-600 mt-1">Track email performance and engagement metrics</p>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <ChartBarIcon className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-emerald-100 rounded-lg">
+              <ChartBarIcon className="w-6 h-6 text-emerald-600" />
             </div>
-            <span className="text-sm text-green-600 font-medium">+12.5%</span>
+            <span className="text-sm text-emerald-600 font-medium">+12.5%</span>
           </div>
-          <div className="text-3xl font-bold text-gray-900">{stats.openRate}%</div>
-          <div className="text-sm text-gray-600 mt-1">Open Rate</div>
-          <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500" style={{ width: `${stats.openRate}%` }} />
+          <div className="text-3xl font-bold text-slate-900">{stats.openRate}%</div>
+          <div className="text-sm text-slate-600 mt-1">Open Rate</div>
+          <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500" style={{ width: `${stats.openRate}%` }} />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <ChartBarIcon className="w-6 h-6 text-purple-600" />
+            <div className="p-3 bg-emerald-100 rounded-lg">
+              <ChartBarIcon className="w-6 h-6 text-emerald-600" />
             </div>
-            <span className="text-sm text-purple-600 font-medium">+8.3%</span>
+            <span className="text-sm text-emerald-600 font-medium">+8.3%</span>
           </div>
-          <div className="text-3xl font-bold text-gray-900">{stats.clickRate}%</div>
-          <div className="text-sm text-gray-600 mt-1">Click Rate</div>
-          <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-purple-500" style={{ width: `${stats.clickRate}%` }} />
+          <div className="text-3xl font-bold text-slate-900">{stats.clickRate}%</div>
+          <div className="text-sm text-slate-600 mt-1">Click Rate</div>
+          <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500" style={{ width: `${stats.clickRate}%` }} />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-100 rounded-lg">
-              <ChartBarIcon className="w-6 h-6 text-red-600" />
+            <div className="p-3 bg-rose-100 rounded-lg">
+              <ChartBarIcon className="w-6 h-6 text-rose-600" />
             </div>
-            <span className="text-sm text-green-600 font-medium">-0.5%</span>
+            <span className="text-sm text-emerald-600 font-medium">-0.5%</span>
           </div>
-          <div className="text-3xl font-bold text-gray-900">{stats.bounceRate}%</div>
-          <div className="text-sm text-gray-600 mt-1">Bounce Rate</div>
-          <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-red-500" style={{ width: `${stats.bounceRate}%` }} />
+          <div className="text-3xl font-bold text-slate-900">{stats.bounceRate}%</div>
+          <div className="text-sm text-slate-600 mt-1">Bounce Rate</div>
+          <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-rose-500" style={{ width: `${stats.bounceRate}%` }} />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <ChartBarIcon className="w-6 h-6 text-yellow-600" />
+            <div className="p-3 bg-amber-100 rounded-lg">
+              <ChartBarIcon className="w-6 h-6 text-amber-600" />
             </div>
-            <span className="text-sm text-green-600 font-medium">-0.1%</span>
+            <span className="text-sm text-emerald-600 font-medium">-0.1%</span>
           </div>
-          <div className="text-3xl font-bold text-gray-900">{stats.unsubscribeRate}%</div>
-          <div className="text-sm text-gray-600 mt-1">Unsubscribe Rate</div>
-          <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-yellow-500" style={{ width: `${stats.unsubscribeRate * 10}%` }} />
+          <div className="text-3xl font-bold text-slate-900">{stats.unsubscribeRate}%</div>
+          <div className="text-sm text-slate-600 mt-1">Unsubscribe Rate</div>
+          <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-amber-500" style={{ width: `${stats.unsubscribeRate * 10}%` }} />
           </div>
         </div>
       </div>
 
       {/* Email Performance Chart */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Performance Trend</h3>
+      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">Email Performance Trend</h3>
         <div className="h-64 flex items-end justify-between gap-2">
           {[65, 72, 68, 75, 80, 78, 85, 82, 88, 90, 87, 92].map((value, index) => (
             <div key={index} className="flex-1 flex flex-col items-center">
               <div
-                className="w-full bg-gradient-to-t from-purple-600 to-indigo-600 rounded-t-lg transition-all hover:from-purple-700 hover:to-indigo-700"
+                className="w-full rounded-t-lg transition-all bg-slate-900"
                 style={{ height: `${value}%` }}
               />
-              <span className="text-xs text-gray-500 mt-2">
+              <span className="text-xs text-slate-500 mt-2">
                 {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][index]}
               </span>
             </div>
@@ -942,8 +942,8 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
       </div>
 
       {/* Top Performing Templates */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Templates</h3>
+      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">Top Performing Templates</h3>
         <div className="space-y-4">
           {[
             { name: 'Agreement Signed Confirmation', sent: 450, opens: 385, clicks: 180, rate: 85.6 },
@@ -951,16 +951,16 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
             { name: '24-Hour Pickup Reminder', sent: 290, opens: 220, clicks: 95, rate: 75.9 },
             { name: 'Thank You & Invoice', sent: 265, opens: 195, clicks: 78, rate: 73.6 },
           ].map((template, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{template.name}</p>
-                <p className="text-sm text-gray-600">
+                <p className="font-medium text-slate-900">{template.name}</p>
+                <p className="text-sm text-slate-600">
                   {template.sent} sent • {template.opens} opens • {template.clicks} clicks
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-purple-600">{template.rate}%</div>
-                <div className="text-xs text-gray-500">Open Rate</div>
+                <div className="text-lg font-bold text-emerald-600">{template.rate}%</div>
+                <div className="text-xs text-slate-500">Open Rate</div>
               </div>
             </div>
           ))}
@@ -970,19 +970,19 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+    <div className="min-h-screen p-6 bg-slate-50">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
-            <div className="p-4 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl shadow-lg">
+            <div className="p-4 rounded-2xl shadow-lg bg-slate-900">
               <MailIcon className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-slate-900">
                 Professional Email & Notification System
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-slate-600 mt-1">
                 Enterprise-grade email automation with advanced analytics and tracking
               </p>
             </div>
@@ -990,7 +990,7 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 mb-6 overflow-hidden">
           <div className="flex overflow-x-auto">
             {[
               { id: 'templates', label: 'Templates', icon: DocumentTextIcon },
@@ -1007,8 +1007,8 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-2 px-6 py-4 font-medium transition-all whitespace-nowrap ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'text-white bg-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -1027,10 +1027,10 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
           {activeTab === 'campaigns' && renderCampaignsTab()}
           {activeTab === 'analytics' && renderAnalyticsTab()}
           {activeTab === 'history' && (
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-              <CalendarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Email History</h3>
-              <p className="text-gray-600">
+            <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 text-center">
+              <CalendarIcon className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">Email History</h3>
+              <p className="text-slate-600">
                 Complete log of all sent emails with detailed tracking information
               </p>
             </div>
@@ -1041,13 +1041,13 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
         {selectedTemplate && !isTemplateEditorOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Template Preview</h2>
+              <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">Template Preview</h2>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setPreviewMode('desktop')}
                     className={`px-3 py-2 rounded-lg ${
-                      previewMode === 'desktop' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
+                      previewMode === 'desktop' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
                     }`}
                   >
                     Desktop
@@ -1055,24 +1055,24 @@ const ProfessionalEmailNotificationSystem: React.FC<ProfessionalEmailNotificatio
                   <button
                     onClick={() => setPreviewMode('mobile')}
                     className={`px-3 py-2 rounded-lg ${
-                      previewMode === 'mobile' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
+                      previewMode === 'mobile' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
                     }`}
                   >
                     Mobile
                   </button>
                   <button
                     onClick={() => setSelectedTemplate(null)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"
                   >
                     Close
                   </button>
                 </div>
               </div>
               <div className="p-6">
-                <div className={`mx-auto border border-gray-300 rounded-lg overflow-hidden ${
+                <div className={`mx-auto border border-slate-300 rounded-lg overflow-hidden ${
                   previewMode === 'mobile' ? 'max-w-sm' : 'max-w-full'
                 }`}>
-                  <div className="bg-gray-800 px-4 py-2 text-white text-sm">
+                  <div className="bg-slate-800 px-4 py-2 text-white text-sm">
                     <strong>Subject:</strong> {selectedTemplate.subject}
                   </div>
                   <div

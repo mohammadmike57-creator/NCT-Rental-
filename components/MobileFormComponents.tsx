@@ -52,15 +52,15 @@ export function BottomSheet({
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1 bg-gray-300 rounded-full" />
+          <div className="w-12 h-1 bg-slate-300 rounded-full" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
           <button
             onClick={onClose}
-            className="p-2 -mr-2 text-gray-500 active:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+            className="p-2 -mr-2 text-slate-500 active:bg-slate-100 rounded-lg transition-colors touch-manipulation"
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -95,9 +95,9 @@ export function MobileDatePicker({
 }: MobileDatePickerProps) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-slate-700 mb-2">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-rose-500 ml-1">*</span>}
       </label>
       <div className="relative">
         <input
@@ -107,9 +107,9 @@ export function MobileDatePicker({
           min={min}
           max={max}
           required={required}
-          className="w-full px-4 py-3 pr-10 text-base bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none touch-manipulation"
+          className="w-full px-4 py-3 pr-10 text-base bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent appearance-none touch-manipulation"
         />
-        <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
       </div>
     </div>
   );
@@ -153,19 +153,19 @@ export function MobileAutocomplete({
   return (
     <>
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-slate-700 mb-2">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-rose-500 ml-1">*</span>}
         </label>
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="w-full flex items-center justify-between px-4 py-3 text-base bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 active:bg-gray-50 transition-colors touch-manipulation"
+          className="w-full flex items-center justify-between px-4 py-3 text-base bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 active:bg-slate-50 transition-colors touch-manipulation"
         >
-          <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
+          <span className={selectedOption ? 'text-slate-900' : 'text-slate-400'}>
             {selectedOption?.label || placeholder}
           </span>
-          <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+          <ChevronDownIcon className="w-5 h-5 text-slate-400" />
         </button>
       </div>
 
@@ -173,13 +173,13 @@ export function MobileAutocomplete({
         {/* Search */}
         <div className="mb-4">
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
-              className="w-full pl-10 pr-4 py-3 text-base bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-3 text-base bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
               autoFocus
             />
           </div>
@@ -197,14 +197,14 @@ export function MobileAutocomplete({
               }}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors touch-manipulation ${
                 value === option.value
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-900 active:bg-gray-50'
+                  ? 'bg-sky-50 text-sky-700'
+                  : 'text-slate-900 active:bg-slate-50'
               }`}
             >
               <div className="flex-1 text-left">
                 <p className="font-medium">{option.label}</p>
                 {option.subtitle && (
-                  <p className="text-sm text-gray-500 mt-0.5">{option.subtitle}</p>
+                  <p className="text-sm text-slate-500 mt-0.5">{option.subtitle}</p>
                 )}
               </div>
               {value === option.value && <CheckIcon className="w-5 h-5 ml-2" />}
@@ -213,7 +213,7 @@ export function MobileAutocomplete({
         </div>
 
         {filteredOptions.length === 0 && (
-          <div className="text-center py-8 text-gray-500">No results found</div>
+          <div className="text-center py-8 text-slate-500">No results found</div>
         )}
       </BottomSheet>
     </>
@@ -260,9 +260,9 @@ export function MobileFileUpload({
 
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-slate-700 mb-2">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-rose-500 ml-1">*</span>}
       </label>
 
       <div className="grid grid-cols-2 gap-3">
@@ -270,10 +270,10 @@ export function MobileFileUpload({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed border-gray-300 rounded-lg active:bg-gray-50 transition-colors touch-manipulation"
+          className="flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed border-slate-300 rounded-lg active:bg-slate-50 transition-colors touch-manipulation"
         >
-          <DocumentIcon className="w-8 h-8 text-gray-400 mb-2" />
-          <span className="text-sm font-medium text-gray-700">Choose File</span>
+          <DocumentIcon className="w-8 h-8 text-slate-400 mb-2" />
+          <span className="text-sm font-medium text-slate-700">Choose File</span>
         </button>
 
         {/* Camera Button */}
@@ -281,10 +281,10 @@ export function MobileFileUpload({
           <button
             type="button"
             onClick={() => cameraInputRef.current?.click()}
-            className="flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed border-gray-300 rounded-lg active:bg-gray-50 transition-colors touch-manipulation"
+            className="flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed border-slate-300 rounded-lg active:bg-slate-50 transition-colors touch-manipulation"
           >
-            <CameraIcon className="w-8 h-8 text-gray-400 mb-2" />
-            <span className="text-sm font-medium text-gray-700">Take Photo</span>
+            <CameraIcon className="w-8 h-8 text-slate-400 mb-2" />
+            <span className="text-sm font-medium text-slate-700">Take Photo</span>
           </button>
         )}
       </div>
@@ -320,7 +320,7 @@ export function MobileFileUpload({
               <button
                 type="button"
                 onClick={() => setPreview((prev) => prev.filter((_, i) => i !== index))}
-                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full"
+                className="absolute top-1 right-1 p-1 bg-rose-500 text-white rounded-full"
               >
                 <XMarkIcon className="w-4 h-4" />
               </button>
@@ -416,12 +416,12 @@ export function SignaturePad({ label, onSave, required = false }: SignaturePadPr
 
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-slate-700 mb-2">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-rose-500 ml-1">*</span>}
       </label>
 
-      <div className="border-2 border-gray-300 rounded-lg overflow-hidden">
+      <div className="border-2 border-slate-300 rounded-lg overflow-hidden">
         <canvas
           ref={canvasRef}
           width={400}
@@ -437,7 +437,7 @@ export function SignaturePad({ label, onSave, required = false }: SignaturePadPr
         <button
           type="button"
           onClick={clear}
-          className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg active:bg-gray-50 transition-colors touch-manipulation"
+          className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg active:bg-slate-50 transition-colors touch-manipulation"
         >
           Clear
         </button>
@@ -445,7 +445,7 @@ export function SignaturePad({ label, onSave, required = false }: SignaturePadPr
           type="button"
           onClick={save}
           disabled={isEmpty}
-          className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed active:bg-blue-700 transition-colors touch-manipulation"
+          className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed active:bg-emerald-600 transition-colors touch-manipulation"
         >
           Save Signature
         </button>
@@ -486,16 +486,16 @@ export function FormStepper({ steps, onComplete }: FormStepperProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Progress Bar */}
-      <div className="px-4 py-3 bg-white border-b border-gray-200">
+      <div className="px-4 py-3 bg-white border-b border-slate-200">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-slate-700">
             Step {currentStep + 1} of {steps.length}
           </span>
-          <span className="text-sm text-gray-500">{steps[currentStep].title}</span>
+          <span className="text-sm text-slate-500">{steps[currentStep].title}</span>
         </div>
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-600 transition-all duration-300"
+            className="h-full bg-sky-600 transition-all duration-300"
             style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
           />
         </div>
@@ -507,13 +507,13 @@ export function FormStepper({ steps, onComplete }: FormStepperProps) {
       </div>
 
       {/* Navigation Buttons */}
-      <div className="px-4 py-3 bg-white border-t border-gray-200 safe-area-bottom">
+      <div className="px-4 py-3 bg-white border-t border-slate-200 safe-area-bottom">
         <div className="flex space-x-3">
           {currentStep > 0 && (
             <button
               type="button"
               onClick={prevStep}
-              className="flex-1 px-4 py-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-lg active:bg-gray-50 transition-colors touch-manipulation"
+              className="flex-1 px-4 py-3 text-base font-medium text-slate-700 bg-white border border-slate-300 rounded-lg active:bg-slate-50 transition-colors touch-manipulation"
             >
               Previous
             </button>
@@ -521,7 +521,7 @@ export function FormStepper({ steps, onComplete }: FormStepperProps) {
           <button
             type="button"
             onClick={nextStep}
-            className="flex-1 px-4 py-3 text-base font-medium text-white bg-blue-600 rounded-lg active:bg-blue-700 transition-colors touch-manipulation"
+            className="flex-1 px-4 py-3 text-base font-medium text-white bg-emerald-600 rounded-lg active:bg-emerald-600 transition-colors touch-manipulation"
           >
             {currentStep === steps.length - 1 ? 'Complete' : 'Next'}
           </button>
@@ -557,9 +557,9 @@ export function MobileInput({
 }: MobileInputProps) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-slate-700 mb-2">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-rose-500 ml-1">*</span>}
       </label>
       <input
         type={type}
@@ -570,13 +570,13 @@ export function MobileInput({
         autoComplete={autoComplete}
         className={`w-full px-4 py-3 text-base bg-white border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
           error
-            ? 'border-red-300 focus:ring-red-500 focus:border-transparent'
-            : 'border-gray-300 focus:ring-blue-500 focus:border-transparent'
+            ? 'border-rose-300 focus:ring-rose-500 focus:border-transparent'
+            : 'border-slate-300 focus:ring-sky-500 focus:border-transparent'
         }`}
       />
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-sm text-rose-600">{error}</p>}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+        <p className="mt-1 text-sm text-slate-500">{helperText}</p>
       )}
     </div>
   );
@@ -602,9 +602,9 @@ export function MobileTextarea({
 }: MobileTextareaProps) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-slate-700 mb-2">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-rose-500 ml-1">*</span>}
       </label>
       <textarea
         value={value}
@@ -612,7 +612,7 @@ export function MobileTextarea({
         placeholder={placeholder}
         required={required}
         rows={rows}
-        className="w-full px-4 py-3 text-base bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+        className="w-full px-4 py-3 text-base bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none"
       />
     </div>
   );
