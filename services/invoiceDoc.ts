@@ -163,6 +163,9 @@ export function buildInvoiceHtml(inv: InvoiceData, company: CompanyDetails, logo
   .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
   .sign div { border-top: 1px solid #0f172a; padding-top: 4px; font-size: 7.8pt; color: #475569; }
   .foot { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7.3pt; color: #64748b; }
+
+  html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { body { padding: 0; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
 </style></head><body>
   <div class="accent"></div>
   <div class="top">

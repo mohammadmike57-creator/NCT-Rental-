@@ -120,7 +120,7 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
     });
     setBusy(false);
     if (outcome.ok) finish();
-    else setEmailError(outcome.reason === 'unconfigured' ? 'Outgoing email is not set up on the server.' : outcome.message || 'The email could not be sent.');
+    else setEmailError(outcome.reason === 'unconfigured' ? 'Outgoing email is not set up yet — an administrator can turn it on in Email Settings.' : outcome.message || 'The email could not be sent.');
   };
 
   const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500';

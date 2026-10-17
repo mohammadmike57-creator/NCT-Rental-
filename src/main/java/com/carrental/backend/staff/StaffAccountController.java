@@ -1,5 +1,6 @@
 package com.carrental.backend.staff;
 
+import com.carrental.backend.audit.ActivityService;
 import com.carrental.backend.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,7 @@ public class StaffAccountController {
     static final String MANAGE_USERS = "ACTION_ADMIN_MANAGE_USERS";
 
     private final StaffAccountService service;
+    private final ActivityService activity;
 
     @GetMapping("/api/account/me")
     public ResponseEntity<?> me(Authentication auth) {
@@ -43,13 +45,21 @@ public class StaffAccountController {
     @PostMapping("/api/admin/users")
     public ResponseEntity<?> create(@RequestBody StaffAccountRequest req, Authentication auth) {
         if (!canManage(auth)) return forbidden();
-        return run(() -> ResponseEntity.status(201).body(service.create(req)));
+        return run(() -> {
+            Object created = service.create(req);
+            activity.record(auth.getName(), "STAFF_CREATED", "staff", "Created staff account " + req.email(), null, null);
+            return ResponseEntity.status(201).body(created);
+        });
     }
 
     @PutMapping("/api/admin/users/{id}")
     public ResponseEntity<?> update(@PathVariable String id, @RequestBody StaffAccountRequest req, Authentication auth) {
         if (!canManage(auth)) return forbidden();
-        return run(() -> ResponseEntity.ok(service.update(id, req, auth.getName())));
+        return run(() -> {
+            Object updated = service.update(id, req, auth.getName());
+            activity.record(auth.getName(), "STAFF_UPDATED", "staff", "Updated staff account " + (req.email() == null ? id : req.email()), null, null);
+            return ResponseEntity.ok(updated);
+        });
     }
 
     @PostMapping("/api/admin/users/{id}/password")
@@ -57,6 +67,7 @@ public class StaffAccountController {
         if (!canManage(auth)) return forbidden();
         return run(() -> {
             User u = service.resetPassword(id, body.get("password"));
+            activity.record(auth.getName(), "STAFF_PASSWORD_RESET", "staff", "Set a new password for " + u.getEmail(), null, null);
             return ResponseEntity.ok(Map.of("id", u.getId(), "passwordLastChanged", String.valueOf(u.getPasswordLastChanged())));
         });
     }
@@ -66,6 +77,7 @@ public class StaffAccountController {
         if (!canManage(auth)) return forbidden();
         return run(() -> {
             service.delete(id, auth.getName());
+            activity.record(auth.getName(), "STAFF_DELETED", "staff", "Deleted staff account " + id, null, null);
             return ResponseEntity.noContent().build();
         });
     }

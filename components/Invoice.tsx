@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppData, Aggregator, CompanyDetails, InvoiceData, InvoiceLine, PaymentType, RentalSource, Reservation, ReservationStatus, YearData } from '../types';
 import { MONTHS, URDRIVE_LOGO_B64 } from '../constants';
-import { sendCustomerEmail } from '../firebase/api';
+import { sendCustomerEmail, recordActivity } from '../firebase/api';
 import { downloadPdf, htmlToPdfBase64 } from '../services/agreementPdf';
+import { printHtml } from '../services/printDocs';
 import {
   TERMS_DAYS, TERMS_LABEL, amountInWords, billableAmount, buildInvoiceHtml, invoiceState, InvoiceState, linesOf, money, priceLine, rentalDays,
 } from '../services/invoiceDoc';
@@ -150,6 +151,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
     writePref(PAY_KEY, payInstr);
     const inv: InvoiceData = { ...draft, id: `invoice-${Date.now()}`, generatedAt: new Date().toISOString() };
     onSaveInvoice(inv);
+    recordActivity('INVOICE_ISSUED', 'invoice', `Issued invoice ${inv.invoiceNumber} to ${inv.billToName} for ${money(inv.grandTotal, inv.currency)} (${linesOf(inv).length} bookings)`);
     setTab('history');
     setOpenId(inv.id);
     setPoNumber('');
@@ -417,8 +419,7 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
     try { downloadPdf(await htmlToPdfBase64(html), fileName); } catch { flash('The PDF could not be created. Use Print instead.'); } finally { setBusy(null); }
   };
   const print = () => {
-    const w = window.open('', '_blank', 'width=900,height=1000');
-    if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+    if (!printHtml(html)) flash('Allow pop-ups for this site to print.');
   };
   const csv = () => {
     const q = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
@@ -461,19 +462,21 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
         onUpdate({ ...invoice, billToEmail: invoice.billToEmail || to, emails: [...(invoice.emails || []), { to, sentAt: new Date().toISOString() }] });
         flash(`Invoice emailed to ${to}.`);
       } else {
-        flash(outcome.reason === 'unconfigured' ? 'Outgoing email is not set up on the server yet.' : outcome.message || 'The email could not be sent.');
+        flash(outcome.reason === 'unconfigured' ? 'Outgoing email is not set up yet — an administrator can turn it on in Email Settings.' : outcome.message || 'The email could not be sent.');
       }
     } catch { flash('The invoice PDF could not be created.'); } finally { setBusy(null); }
   };
   const markPaid = () => {
     onUpdate({ ...invoice, status: 'paid', paidAt: pay.date, paymentMethod: pay.method, paymentReference: pay.ref.trim() || undefined });
     setPay(p => ({ ...p, open: false }));
+    recordActivity('INVOICE_PAID', 'invoice', `Recorded payment of ${money(invoice.grandTotal, invoice.currency)} for ${invoice.invoiceNumber} (${pay.method}${pay.ref.trim() ? `, ref ${pay.ref.trim()}` : ''})`);
     flash(`${invoice.invoiceNumber} marked as paid.`);
   };
   const voidIt = () => {
     const reason = window.prompt(`Void ${invoice.invoiceNumber}? Its bookings become available to invoice again.\n\nReason:`);
     if (reason === null) return;
     onUpdate({ ...invoice, status: 'void', voidedAt: new Date().toISOString(), voidReason: reason.trim() || undefined });
+    recordActivity('INVOICE_VOIDED', 'invoice', `Voided invoice ${invoice.invoiceNumber}${reason.trim() ? ` — ${reason.trim()}` : ''}`);
     flash(`${invoice.invoiceNumber} voided.`);
   };
 

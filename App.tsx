@@ -8,7 +8,7 @@ import Tabs from './components/Tabs';
 import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import Notifications from './components/Notifications';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData, fetchCurrentAccount } from './firebase/api';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData, fetchCurrentAccount, recordActivity } from './firebase/api';
 
 // Lazy load components
 const ReservationTable = React.lazy(() => import('./components/ReservationTable'));
@@ -40,7 +40,8 @@ const PaymentApprovals = React.lazy(() => import('./components/PaymentApprovals'
 const ManageExtrasView = React.lazy(() => import('./components/ManageExtrasView'));
 const ProfileView = React.lazy(() => import('./components/ProfileView'));
 const AggregatorSetupView = React.lazy(() => import('./components/AggregatorSetupView'));
-const UserActivityLogView = React.lazy(() => import('./components/UserActivityLogView'));
+const StaffActivityView = React.lazy(() => import('./components/StaffActivityView'));
+const EmailSettingsView = React.lazy(() => import('./components/EmailSettingsView'));
 const ExcelUpload = React.lazy(() => import('./components/ExcelUpload'));
 const FleetExcelUpload = React.lazy(() => import('./components/FleetExcelUpload'));
 
@@ -781,6 +782,7 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    recordActivity('LOGOUT', 'auth', 'Signed out');
     try {
       await signOutUser();
       localStorage.removeItem('token');
@@ -872,6 +874,7 @@ export const App: React.FC = () => {
         setReservations(updatedData);
         setSaveStatus('saved');
         showConfirmation(`Reservation for ${reservationToSave.personName} saved into ${month} ${year}.`);
+        recordActivity('RESERVATION_CREATED', 'reservation', `Created reservation for ${reservationToSave.personName} (${reservationToSave.carModel || 'vehicle'}, ${reservationToSave.startDate?.slice(0, 10)} → ${reservationToSave.endDate?.slice(0, 10)})`, reservationToSave.bookingId);
         setNewReservations(prev => prev.filter(r => r.id !== transientId));
       } catch (err) {
         setSaveStatus('error');
@@ -918,6 +921,7 @@ export const App: React.FC = () => {
       setShowUnlistedAgreement(false);
       setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }));
       showConfirmation(`Booking ${reservation.bookingId} created and sent for confirmation.`);
+      recordActivity('UNLISTED_AGREEMENT_CREATED', 'reservation', `Opened an agreement for unlisted booking — ${reservation.personName}, ${reservation.carModel}`, reservation.bookingId);
     } catch (err) {
       setSaveStatus('error');
       console.error('Failed to create unlisted booking:', err);
@@ -958,6 +962,8 @@ export const App: React.FC = () => {
           ...addedTickets,
         ]
       : trafficTickets;
+    recordActivity('RETURN_CHARGES_RAISED', 'charges', `Raised ${charges.items.length} charge${charges.items.length === 1 ? '' : 's'} at return for ${reservation.personName} — ${charges.currency} ${charges.items.reduce((s, i) => s + i.amount, 0).toFixed(3)} (${paid ? 'paid' : 'claim'} ${charges.documentNumber})`,
+      reservation.bookingId, charges.items.map(i => `${i.kind}: ${i.description} ${i.amount}`).join(' · '));
     if (!damages.length && !ticketItems.length) return;
     setVehicleDamages(nextDamages);
     setTrafficTickets(nextTickets);
@@ -992,9 +998,11 @@ export const App: React.FC = () => {
       return;
     }
 
+    const deleted = (reservations[year]?.[month] || []).find(r => r.id === id);
     setSaveStatus('saving');
     try {
       const updatedData = await reservationService.deleteReservation(id, year, month);
+      recordActivity('RESERVATION_DELETED', 'reservation', `Deleted reservation${deleted ? ` for ${deleted.personName}` : ''}`, deleted?.bookingId);
       setReservations(updatedData);
       setSaveStatus('saved');
       showConfirmation('Reservation deleted.');
@@ -1009,6 +1017,7 @@ export const App: React.FC = () => {
     if (!window.confirm(`Are you sure you want to delete ALL reservations for ${month} ${year}? This action cannot be undone.`)) {
       return;
     }
+    recordActivity('MONTH_DELETED', 'reservation', `Deleted all ${(reservations[year]?.[month] || []).length} reservations for ${month} ${year}`);
 
     setReservations(prev => {
       const newReservationsData = JSON.parse(JSON.stringify(prev)) as AppData;
@@ -1075,6 +1084,7 @@ export const App: React.FC = () => {
       handleUpdateSingleReservation(updatedReservation);
       setReservationToExtend(null);
       showConfirmation(`Rental for ${originalReservation.personName} extended successfully.`);
+      recordActivity('RENTAL_EXTENDED', 'agreement', `Extended rental for ${originalReservation.personName} by ${extensionInfo.days} day${extensionInfo.days === 1 ? '' : 's'} (+$${extensionInfo.cost.toFixed(2)}, ${paymentMethod === 'payNow' ? 'paid now' : 'pay on return'})`, originalReservation.bookingId);
   };
 
   const handleCollectDeferredPayment = (reservationId: string) => {
@@ -1090,6 +1100,7 @@ export const App: React.FC = () => {
                      lastEditedBy: currentUser?.fullName
                  };
                  handleUpdateReservations(updatedRes, parseInt(year), month);
+                 recordActivity('DEFERRED_PAYMENT_COLLECTED', 'finance', `Collected deferred payment of $${(res.unpaidExtensionAmount || 0).toFixed(2)} from ${res.personName}`, res.bookingId);
                  found = true;
                  break;
             }
@@ -1115,6 +1126,7 @@ export const App: React.FC = () => {
 
     handleUpdateReservations(updatedReservation, year, month);
     showConfirmation('Payment approval request sent to manager.');
+    recordActivity('PAYMENT_APPROVAL_REQUESTED', 'finance', `Requested payment approval for ${reservation.personName}`, reservation.bookingId);
   };
 
   const handleAddYear = (year: number) => {
@@ -1197,6 +1209,7 @@ export const App: React.FC = () => {
     handleUpdateSingleReservation({ ...reservation, extras, amount: newAmount, lastEditedBy: currentUser?.fullName });
     setReservationToAddExtras(null);
     showConfirmation(`Extras updated for ${reservation.personName}. New total $${newAmount.toFixed(2)}.`);
+    recordActivity('EXTRAS_UPDATED', 'agreement', `Updated extras for ${reservation.personName}: ${extras.map(e => e.name + (e.isComplementary ? ' (free)' : '')).join(', ') || 'none'} — new total $${newAmount.toFixed(2)}`, reservation.bookingId);
   };
 
   const handleFleetUpdate = async (newFleet: Fleet) => {
@@ -1481,6 +1494,7 @@ ${currentUser?.fullName}
         };
 
         handleUpdateSingleReservation(updatedReservation);
+        recordActivity('VEHICLE_UPGRADED', 'agreement', `Upgraded ${reservation.personName} from ${reservation.carModel} to ${newCar.modelName} (${upgradeFee > 0 ? `+$${upgradeFee.toFixed(2)}` : 'free'})`, reservation.bookingId, details?.reason ? `Reason: ${details.reason}` : undefined);
         showConfirmation(upgradeFee > 0
           ? `Upgraded to ${newCar.modelName} (+$${upgradeFee.toFixed(2)}). New total $${newTotal.toFixed(2)}.`
           : `Upgraded to ${newCar.modelName} free of charge.`);
@@ -1754,7 +1768,8 @@ ${currentUser?.fullName}
         }
     }} onDeleteAllReservations={handleDeleteAllReservations} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
     'Manage Years': { component: <ManageYearsView years={years} onAddYear={handleAddYear} onRemoveYear={handleRemoveYear} />, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
-    'Activity Log': { component: <UserActivityLogView activityLog={activityLog} users={users} />, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
+    'Activity Log': { component: <StaffActivityView users={users} />, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
+    'Email Settings': { component: <EmailSettingsView defaultFromName={companyDetails.name} defaultTestTo={currentUser?.email} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
     'My Profile': { component: (
         <ProfileView
             currentUser={currentUser!}
@@ -1819,8 +1834,9 @@ ${currentUser?.fullName}
         { name: 'Manage Extras', icon: PlusCircleIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EXTRAS },
         { name: 'Manage Locations', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_LOCATIONS },
         { name: 'Company Details', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+        { name: 'Email Settings', icon: MailIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
         { name: 'Manage Years', icon: CogIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
-        { name: 'Activity Log', icon: DocumentReportIcon, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
+        { name: 'Activity Log', icon: ClockIcon, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
     ]
   };
 

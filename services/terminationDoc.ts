@@ -108,6 +108,9 @@ export function buildTerminationHtml(i: TerminationDocInput): string {
   .sl { border-top: 1px solid #0f172a; padding-top: 3px; font-size: 7.8pt; font-weight: 700; }
   .sm { font-size: 7pt; color: #64748b; }
   .foot { margin-top: 14px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7pt; color: #64748b; }
+
+  html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { body { padding: 0; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
 </style></head><body>
   <div class="accent"></div>
   <div class="top">

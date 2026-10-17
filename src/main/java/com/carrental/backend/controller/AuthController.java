@@ -1,5 +1,6 @@
 package com.carrental.backend.controller;
 
+import com.carrental.backend.audit.ActivityService;
 import com.carrental.backend.dto.AuthRequest;
 import com.carrental.backend.dto.AuthResponse;
 import com.carrental.backend.dto.ChangePasswordRequest;
@@ -28,6 +29,9 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private ActivityService activity;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
         // Staff can sign in with their email or their username.
@@ -40,6 +44,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
         if (user.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            activity.record(user.getEmail(), "LOGIN_FAILED", "auth", "Failed sign-in attempt (wrong password)", null, null);
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
         if ((user.getStatus() != null && user.getStatus() != com.carrental.backend.model.UserStatus.ACTIVE)
@@ -47,6 +52,7 @@ public class AuthController {
             return ResponseEntity.status(403).body("This account has been disabled. Contact your administrator.");
         }
         String token = jwtUtil.generateToken(user.getEmail());
+        activity.record(user.getEmail(), "LOGIN", "auth", "Signed in", null, null);
         return ResponseEntity.ok(new AuthResponse(token, user));
     }
 
@@ -64,6 +70,7 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setPasswordLastChanged(LocalDateTime.now());
         userRepository.save(user);
+        activity.record(user.getEmail(), "PASSWORD_CHANGED", "auth", "Changed own password", null, null);
         return ResponseEntity.ok().body("Password changed successfully");
     }
 }

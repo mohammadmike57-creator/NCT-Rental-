@@ -93,6 +93,9 @@ export function buildReturnChargesHtml(r: Reservation, c: ReturnCharges, company
   .sig-img img { max-height: 48px; max-width: 100%; }
   .sig-line { border-top: 1px solid #0f172a; margin-top: 3px; padding-top: 3px; font-size: 8pt; font-weight: 600; }
   .foot { margin-top: 16px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7.5pt; color: #64748b; }
+
+  html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { body { padding: 0; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
 </style></head><body>
   <div class="top">
     <div>${logo ? `<img src="${logo}" alt="">` : `<div class="b" style="font-size:14pt">${esc(company.name)}</div>`}

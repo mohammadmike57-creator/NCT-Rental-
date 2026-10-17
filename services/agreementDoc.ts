@@ -147,6 +147,10 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .sl { border-top: 1px solid #0f172a; padding-top: 2px; font-size: 7.2pt; font-weight: 700; text-align: center; }
   .sm { font-size: 6.6pt; color: #64748b; text-align: center; min-height: 9px; }
   .foot { margin-top: 8px; padding-top: 5px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 6.8pt; color: #64748b; }
+
+  html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { size: A4; margin: 9mm; }
+  @media print { body { padding: 0; zoom: 0.86; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
 </style></head><body>
   <div class="accent"></div>
   <div class="top">

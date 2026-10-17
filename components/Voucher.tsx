@@ -4,11 +4,12 @@ import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
-import { sendCustomerEmail } from '../firebase/api';
+import { sendCustomerEmail, recordActivity } from '../firebase/api';
 import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
 import { buildTerminationHtml, terminationFileName, terminationNumber } from '../services/terminationDoc';
+import { printHtml } from '../services/printDocs';
 import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
 
 interface VoucherProps {
@@ -385,6 +386,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       onUpdate(submittedVoucher);
       setLocalReservation(submittedVoucher);
       setShowSuccessOverlay(true);
+      recordActivity('CHECK_OUT', 'agreement', `Checked out ${submittedVoucher.carModel || 'vehicle'}${submittedVoucher.licensePlate ? ` (${submittedVoucher.licensePlate})` : ''} to ${submittedVoucher.personName}`,
+        submittedVoucher.bookingId, `Km out ${submittedVoucher.pickupKmOut ?? '—'} · fuel ${submittedVoucher.pickupFuelLevel ?? '—'}/8 · agent ${submittedVoucher.pickupAgentName || '—'}`);
       void emailAgreement(submittedVoucher, 'checkout');
     } else {
       if (processType === 'return') {
@@ -416,6 +419,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         onUpdate(submittedVoucher);
         setLocalReservation(submittedVoucher);
         setShowSuccessOverlay(true);
+        recordActivity('CHECK_IN', 'agreement', `Checked in ${submittedVoucher.carModel || 'vehicle'}${submittedVoucher.licensePlate ? ` (${submittedVoucher.licensePlate})` : ''} from ${submittedVoucher.personName} and closed the agreement`,
+          submittedVoucher.bookingId, `Km in ${submittedVoucher.dropOffKmIn ?? '—'} · fuel ${submittedVoucher.dropOffFuelLevel ?? '—'}/8${finalCharges ? ` · charges ${formatMoney(chargesTotal(finalCharges.items), finalCharges.currency)} (${finalCharges.settlement === 'paid' ? 'paid' : 'claim'} ${finalCharges.documentNumber})` : ' · no charges'}`);
         void emailAgreement(submittedVoucher, 'checkin');
       } else if (processType === 'exchange') {
         if (!currentExchange.reason?.trim()) { alert("A reason for the exchange is required."); return; }
@@ -451,6 +456,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           carExchanges: [...(localReservation.carExchanges || []), completeExchange],
         };
         onUpdate(updatedReservation);
+        recordActivity('VEHICLE_EXCHANGED', 'agreement', `Exchanged ${completeExchange.oldCarLicensePlate} for ${completeExchange.newCarLicensePlate} for ${localReservation.personName}`, localReservation.bookingId, `Reason: ${completeExchange.reason}`);
         onClose();
       }
     }
@@ -483,19 +489,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   });
 
   const handlePrintTermination = () => {
-    const w = window.open('', '_blank', 'width=900,height=1000');
-    if (w) { w.document.write(buildTermination()); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+    if (!printHtml(buildTermination())) alert('Allow pop-ups for this site to print the termination statement.');
   };
 
   const handleDownloadVoucherPDF = () => {
-    const html = buildAgreementHtml();
-    const printWindow = window.open('', '_blank', 'width=900,height=1000');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => printWindow.print(), 300);
-    }
+    if (!printHtml(buildAgreementHtml())) alert('Allow pop-ups for this site to print the agreement.');
+    recordActivity('AGREEMENT_PRINTED', 'agreement', `Printed the rental agreement for ${localReservation.personName}`, localReservation.bookingId);
   };
 
   const handleDownloadReceiptPDF = () => {
@@ -547,8 +546,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   };
   const handleDownloadChargesPDF = () => {
     if (!localReservation.returnCharges) return;
-    const w = window.open('', '_blank', 'width=900,height=1000');
-    if (w) { w.document.write(buildReturnChargesHtml(localReservation, localReservation.returnCharges, companyDetails, URDRIVE_LOGO_B64)); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+    if (!printHtml(buildReturnChargesHtml(localReservation, localReservation.returnCharges, companyDetails, URDRIVE_LOGO_B64))) alert('Allow pop-ups for this site to print.');
   };
 
   // Emails the signed agreement (as a PDF) to the customer right after check-out / check-in.
@@ -1228,7 +1226,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                      emailState.status === 'unconfigured' ? 'Email is not set up' : 'Email the agreement'}
                   </span>
                   <span className="block text-xs text-slate-500 truncate">
-                    {emailState.status === 'unconfigured' ? 'Ask an administrator to configure outgoing email on the server.' :
+                    {emailState.status === 'unconfigured' ? 'An administrator can turn it on in Email Settings.' :
                      emailState.status === 'failed' ? (emailState.message || 'Please try again.') :
                      `${localReservation.dropOffCompleted ? `Agreement + termination${localReservation.returnCharges?.items.length ? ` + ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'}` : ''}` : 'Agreement PDF'} to ${localReservation.customerEmail}`}
                   </span>

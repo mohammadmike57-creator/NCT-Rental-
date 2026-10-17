@@ -2,7 +2,6 @@ package com.carrental.backend.notify;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.mail.*;
@@ -24,13 +23,9 @@ public class CustomerEmailService {
     private static final Set<String> ALLOWED_TYPES = Set.of("application/pdf", "text/html", "text/plain");
     static final int MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
-    @Value("${mail.smtp.enabled:false}") boolean enabled;
-    @Value("${mail.smtp.host:smtp.gmail.com}") String host;
-    @Value("${mail.smtp.port:587}") String port;
-    @Value("${mail.smtp.username:}") String username;
-    @Value("${mail.smtp.password:}") String password;
-    @Value("${mail.smtp.from:noreply@nctrental.com}") String from;
-    @Value("${mail.smtp.from.name:NCT Rental}") String fromName;
+    private final MailSettingsService settings;
+
+    public CustomerEmailService(MailSettingsService settings) { this.settings = settings; }
 
     public static class EmailException extends RuntimeException {
         private final int status;
@@ -39,23 +34,24 @@ public class CustomerEmailService {
     }
 
     public boolean isConfigured() {
-        return enabled && !host.isBlank() && !username.isBlank() && !password.isBlank();
+        return settings.effective().usable();
     }
 
     public void send(CustomerEmailRequest req) {
         String to = req.to() == null ? "" : req.to().trim();
         if (!EMAIL.matcher(to).matches()) throw new EmailException(400, "The customer email address is not valid.");
         if (blank(req.subject())) throw new EmailException(400, "Subject is required.");
-        if (!isConfigured()) throw new EmailException(503, "Email sending is not set up on the server (MAIL_ENABLED / SMTP settings).");
+        MailSettingsService.MailConfig cfg = settings.effective();
+        if (!cfg.usable()) throw new EmailException(503, "Outgoing email is not set up yet. An administrator can set it up in Settings → Email.");
 
         try {
-            Session session = Session.getInstance(smtpProps(), new Authenticator() {
+            Session session = Session.getInstance(smtpProps(cfg), new Authenticator() {
                 @Override protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(username, password);
+                    return new PasswordAuthentication(cfg.username(), cfg.password());
                 }
             });
             MimeMessage msg = new MimeMessage(session);
-            msg.setFrom(new InternetAddress(from, blank(req.companyName()) ? fromName : req.companyName(), "UTF-8"));
+            msg.setFrom(new InternetAddress(cfg.from(), blank(req.companyName()) ? cfg.fromName() : req.companyName(), "UTF-8"));
             msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to, true));
             if (!blank(req.replyTo()) && EMAIL.matcher(req.replyTo().trim()).matches()) {
                 msg.setReplyTo(InternetAddress.parse(req.replyTo().trim(), true));
@@ -98,14 +94,14 @@ public class CustomerEmailService {
         }
     }
 
-    private Properties smtpProps() {
+    private static Properties smtpProps(MailSettingsService.MailConfig cfg) {
         Properties p = new Properties();
         p.put("mail.smtp.auth", "true");
-        p.put("mail.smtp.host", host);
-        p.put("mail.smtp.port", port);
+        p.put("mail.smtp.host", cfg.host());
+        p.put("mail.smtp.port", String.valueOf(cfg.port()));
         p.put("mail.smtp.connectiontimeout", "15000");
         p.put("mail.smtp.timeout", "20000");
-        if ("465".equals(port)) p.put("mail.smtp.ssl.enable", "true");
+        if ("SSL".equals(cfg.security())) p.put("mail.smtp.ssl.enable", "true");
         else p.put("mail.smtp.starttls.enable", "true");
         return p;
     }

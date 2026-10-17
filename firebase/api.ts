@@ -218,3 +218,61 @@ export const sendCustomerEmail = async (payload: CustomerEmailPayload): Promise<
     return { ok: false, reason: 'failed', message };
   }
 };
+
+// --- Staff activity log ---------------------------------------------------------
+
+export interface StaffActivityEntry {
+  id: string;
+  occurredAt: string;
+  userEmail: string;
+  userName?: string;
+  action: string;
+  category: string;
+  summary: string;
+  bookingId?: string;
+  details?: string;
+}
+export type ActivityCategory = 'auth' | 'reservation' | 'agreement' | 'charges' | 'invoice' | 'email' | 'fleet' | 'finance' | 'settings' | 'staff' | 'other';
+
+/** Records something the signed-in user did. Fire-and-forget: never blocks or breaks the action. */
+export const recordActivity = (action: string, category: ActivityCategory, summary: string, bookingId?: string, details?: string) => {
+  try {
+    if (!localStorage.getItem('token')) return;
+  } catch { return; }
+  axios.post(`${API_URL}/api/activity`, { action, category, summary, bookingId, details }, { headers: authHeaders(), timeout: 15000 }).catch(() => { /* offline: skip */ });
+};
+
+export const fetchActivity = async (params: { user?: string; category?: string; bookingId?: string; q?: string; from?: string; to?: string; limit?: number }): Promise<StaffActivityEntry[]> => {
+  try {
+    const res = await axios.get(`${API_URL}/api/activity`, { headers: authHeaders(), params });
+    return res.data;
+  } catch (e) { throw apiError(e, 'Could not load the activity log.'); }
+};
+
+export interface StaffActivitySummary { userEmail: string; userName?: string; events: number; lastActivity: string; byCategory: Record<string, number> }
+export const fetchActivitySummary = async (days = 30): Promise<StaffActivitySummary[]> => {
+  try {
+    const res = await axios.get(`${API_URL}/api/activity/users`, { headers: authHeaders(), params: { days } });
+    return res.data;
+  } catch (e) { throw apiError(e, 'Could not load staff activity.'); }
+};
+
+// --- Outgoing email settings ----------------------------------------------------
+
+export interface MailSettingsView {
+  enabled: boolean; host: string; port: number; username: string; passwordSet: boolean;
+  fromAddress: string; fromName: string; security: 'STARTTLS' | 'SSL'; source: 'app' | 'environment' | 'none';
+  configured: boolean; updatedBy?: string; updatedAt?: string;
+}
+export const getMailSettings = async (): Promise<MailSettingsView> => {
+  try { return (await axios.get(`${API_URL}/api/admin/mail-settings`, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not load email settings.'); }
+};
+export const saveMailSettings = async (s: Partial<MailSettingsView> & { password?: string }): Promise<MailSettingsView> => {
+  try { return (await axios.put(`${API_URL}/api/admin/mail-settings`, s, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not save email settings.'); }
+};
+export const sendTestEmail = async (to: string): Promise<void> => {
+  try { await axios.post(`${API_URL}/api/admin/mail-settings/test`, { to }, { headers: authHeaders(), timeout: 60000 }); }
+  catch (e) { throw apiError(e, 'The test email could not be sent.'); }
+};
