@@ -10,9 +10,14 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve static resources from classpath:/static/
+        // Serve static resources from multiple locations
         registry.addResourceHandler("/**")
-                .addResourceLocations("classpath:/static/")
+                .addResourceLocations(
+                    "classpath:/static/",
+                    "classpath:/public/",
+                    "file:./dist/",
+                    "file:./public/"
+                )
                 .setCachePeriod(0);
     }
 
