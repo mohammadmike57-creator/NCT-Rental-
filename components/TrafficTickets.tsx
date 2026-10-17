@@ -3,6 +3,7 @@ import { TrafficTicket, TrafficTicketStatus, AppData, Reservation, User, UserPer
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, CancelIcon, ExportIcon, PaperAirplaneIcon, UploadIcon, DocumentTextIcon, ShareIcon } from './icons';
 import ConfirmationDialog from './ConfirmationDialog';
 import SecurityKeyModal from './SecurityKeyModal';
+import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, Field, EmptyState, DetailList, SectionLabel, Dialog, Drawer, inputCls, selectCls, textareaCls, table } from './ui/Crm';
 
 interface TrafficTicketsProps {
   tickets: TrafficTicket[];
@@ -84,7 +85,7 @@ const FileActions: React.FC<{ fileData?: string; fileName?: string; }> = ({ file
     }
 
     const showShare = 'share' in navigator && 'canShare' in navigator;
-    const btn = "p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800";
+    const btn = "w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900";
 
     return (
         <div className="inline-flex items-center gap-0.5">
@@ -103,9 +104,6 @@ const FileActions: React.FC<{ fileData?: string; fileName?: string; }> = ({ file
     );
 };
 
-const inputCls = "w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none";
-const editCls = "w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none";
-const labelCls = "block text-xs font-semibold text-slate-600 mb-1.5";
 const money = (v: unknown) => {
     const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
     return (Number.isFinite(n) ? n : 0).toFixed(2);
@@ -122,6 +120,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
   const [pendingAction, setPendingAction] = useState<{ type: 'edit' | 'delete'; payload: any } | null>(null);
   const [statusFilter, setStatusFilter] = useState<TrafficTicketStatus | ''>('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [viewId, setViewId] = useState<string | null>(null);
   
   const hasManagePermission = currentUser?.permissions.includes(UserPermission.ACTION_TRAFFIC_TICKETS_MANAGE);
 
@@ -333,13 +332,13 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
   const rows = filteredTickets.map(ticket => ({ ticket, res: findReservationByBookingId(ticket.bookingId) }));
 
   const statusPill = (status: TrafficTicketStatus) => (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${status === TrafficTicketStatus.COLLECTED ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+    <Badge tone={status === TrafficTicketStatus.COLLECTED ? 'success' : 'warning'}>
       {status === TrafficTicketStatus.COLLECTED ? 'Collected' : 'Not collected'}
-    </span>
+    </Badge>
   );
 
   const statusSelect = (ticket: TrafficTicket) => (
-    <select value={ticket.status} onChange={e => handleUpdateChange(ticket.id, 'status', e.target.value)} className={editCls}>
+    <select value={ticket.status} onChange={e => handleUpdateChange(ticket.id, 'status', e.target.value)} className={`${selectCls} w-full`}>
       <option value={TrafficTicketStatus.NOT_COLLECTED}>Not Collected</option>
       <option value={TrafficTicketStatus.COLLECTED}>Collected</option>
     </select>
@@ -349,13 +348,13 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
     if (isEditing && hasManagePermission) {
       return ticket.ticketDocument ? (
         <div className="inline-flex items-center gap-0.5">
-          <a href={ticket.ticketDocument} target="_blank" rel="noopener noreferrer" title={ticket.ticketDocumentFilename} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"><DocumentTextIcon className="w-4 h-4" /></a>
-          <button type="button" onClick={() => handleRemoveFile(ticket.id)} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50" title="Remove Document"><TrashIcon className="w-4 h-4" /></button>
+          <a href={ticket.ticketDocument} target="_blank" rel="noopener noreferrer" title={ticket.ticketDocumentFilename} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"><DocumentTextIcon className="w-4 h-4" /></a>
+          <button type="button" onClick={() => handleRemoveFile(ticket.id)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-rose-500 hover:bg-rose-50" title="Remove Document"><TrashIcon className="w-4 h-4" /></button>
         </div>
       ) : (
         <>
           <input type="file" id={`edit-upload-${view}-${ticket.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(ticket.id, e)} accept="image/*,.pdf" />
-          <label htmlFor={`edit-upload-${view}-${ticket.id}`} className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ring-1 ring-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50" title="Upload Document"><UploadIcon className="w-4 h-4" /> Upload</label>
+          <label htmlFor={`edit-upload-${view}-${ticket.id}`} className="cursor-pointer inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm" title="Upload Document"><UploadIcon className="w-4 h-4" /> Upload</label>
         </>
       );
     }
@@ -367,27 +366,28 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
     if (isEditing && hasManagePermission) {
       return (
         <div className={`${full ? 'grid grid-cols-2' : 'inline-flex'} gap-2`}>
-          <button type="button" onClick={handleSaveEdit} className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700" title="Save"><SaveIcon className="w-4 h-4" /> Done</button>
-          <button type="button" onClick={handleCancelEdit} className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white ring-1 ring-slate-200 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50" title="Cancel"><CancelIcon className="w-4 h-4" /> Cancel</button>
+          <Button variant="primary" size="sm" onClick={handleSaveEdit} title="Save" icon={<SaveIcon className="w-4 h-4" />}>Done</Button>
+          <Button size="sm" onClick={handleCancelEdit} title="Cancel" icon={<CancelIcon className="w-4 h-4" />}>Cancel</Button>
         </div>
       );
     }
     const isClaim = ticket.status === TrafficTicketStatus.NOT_COLLECTED;
     return (
-      <div className={`flex items-center gap-2 ${full ? '' : 'justify-end'}`}>
-        <button
-          type="button"
+      <div className={`flex items-center gap-1 ${full ? '' : 'justify-end'}`}>
+        <Button
+          size="sm"
           onClick={() => handleSendEmail(isClaim ? 'claim' : 'receipt', ticket, res!)}
           disabled={!canSendEmail}
-          className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold ring-1 ring-inset whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed ${full ? 'flex-1' : ''} ${isClaim ? 'bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100'}`}
+          className={full ? 'flex-1' : ''}
           title={canSendEmail ? (isClaim ? 'Send claim email to renter' : 'Send receipt email to renter') : 'Renter email not found in voucher'}
+          icon={<PaperAirplaneIcon className="w-4 h-4" />}
         >
-          <PaperAirplaneIcon className="w-4 h-4" /> {isClaim ? 'Send claim' : 'Send receipt'}
-        </button>
+          {isClaim ? 'Send claim' : 'Send receipt'}
+        </Button>
         {hasManagePermission && (
           <>
-            <button type="button" onClick={() => handleEditClick(ticket)} className="p-2 rounded-lg text-slate-500 hover:bg-indigo-50 hover:text-indigo-600" title="Edit" aria-label="Edit ticket"><EditIcon className="w-4 h-4" /></button>
-            <button type="button" onClick={() => handleDeleteClick(ticket.id)} className="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600" title="Delete" aria-label="Delete ticket"><TrashIcon className="w-4 h-4" /></button>
+            <button type="button" onClick={() => handleEditClick(ticket)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900" title="Edit" aria-label="Edit ticket"><EditIcon className="w-4 h-4" /></button>
+            <button type="button" onClick={() => handleDeleteClick(ticket.id)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-600" title="Delete" aria-label="Delete ticket"><TrashIcon className="w-4 h-4" /></button>
           </>
         )}
       </div>
@@ -400,98 +400,88 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
     { key: TrafficTicketStatus.COLLECTED, label: 'Collected' },
   ];
 
-  const headers = ['Ticket date', 'Booking / renter', 'Rental period', 'Amount', 'Status', 'Details', 'Document', ''];
+  // Record drawer: an edit session (after the security key) takes precedence over a plain view.
+  const drawerId = editingId || viewId;
+  const drawerTicket = drawerId ? tickets.find(t => t.id === drawerId) || null : null;
+  const drawerRes = drawerTicket ? findReservationByBookingId(drawerTicket.bookingId) : null;
+  const drawerEditing = !!drawerTicket && editingId === drawerTicket.id && !!hasManagePermission;
+  const closeDrawer = () => {
+    if (editingId) handleSaveEdit();
+    setViewId(null);
+  };
 
   return (
-    <div className="space-y-5 mb-10">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <DocumentTextIcon className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Traffic tickets</h2>
-              <p className="text-sm text-slate-500">Fines linked to bookings, with claim and receipt emails to renters.</p>
-            </div>
-          </div>
-          <div className={`grid gap-2 sm:flex sm:items-center w-full lg:w-auto ${hasManagePermission ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            <button
-              onClick={handleExportCSV}
-              disabled={filteredTickets.length === 0}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              <ExportIcon className="w-4 h-4" /> Export CSV
-            </button>
-            {hasManagePermission && (
-              <button onClick={() => setShowAddForm(true)} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm whitespace-nowrap">
-                <PlusIcon className="w-4 h-4" /> Add ticket
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-          {[
-            { label: 'Tickets', value: String(stats.total), tone: 'text-slate-900' },
-            { label: 'Outstanding', value: String(stats.outstandingCount), tone: stats.outstandingCount ? 'text-amber-600' : 'text-slate-900' },
-            { label: 'To collect (JOD)', value: stats.outstanding.toFixed(2), tone: stats.outstanding ? 'text-amber-600' : 'text-slate-900' },
-            { label: 'Collected (JOD)', value: stats.collected.toFixed(2), tone: 'text-emerald-600' },
-          ].map(k => (
-            <div key={k.label} className="px-4 sm:px-5 py-4 min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
-              <p className={`mt-1 text-2xl font-bold tabular-nums truncate ${k.tone}`}>{k.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        section="Financials & Incidents"
+        title="Traffic Tickets"
+        subtitle="Fines linked to bookings, with claim and receipt emails to renters."
+        actions={<>
+          <Button onClick={handleExportCSV} disabled={filteredTickets.length === 0} icon={<ExportIcon className="w-4 h-4" />}>Export CSV</Button>
+          {hasManagePermission && (
+            <Button variant="primary" onClick={() => setShowAddForm(true)} icon={<PlusIcon className="w-4 h-4" />}>Add ticket</Button>
+          )}
+        </>}
+      />
 
-      {/* List */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-4 sm:px-5 py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Recorded tickets · {filteredTickets.length}</p>
-          <div className="grid grid-cols-3 sm:inline-flex p-1 bg-slate-100 rounded-xl" role="group" aria-label="Filter by status">
-            {filterOptions.map(o => (
-              <button key={o.label} onClick={() => setStatusFilter(o.key)}
-                className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg whitespace-nowrap ${statusFilter === o.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <StatGrid items={[
+        { label: 'Tickets', value: stats.total, sub: 'all statuses', active: statusFilter === '', onClick: () => setStatusFilter('') },
+        { label: 'Outstanding', value: stats.outstandingCount, sub: 'not collected', tone: stats.outstandingCount ? 'warning' : 'default', active: statusFilter === TrafficTicketStatus.NOT_COLLECTED, onClick: () => setStatusFilter(TrafficTicketStatus.NOT_COLLECTED) },
+        { label: 'To collect (JOD)', value: stats.outstanding.toFixed(2), tone: stats.outstanding ? 'warning' : 'default' },
+        { label: 'Collected (JOD)', value: stats.collected.toFixed(2), tone: 'success', active: statusFilter === TrafficTicketStatus.COLLECTED, onClick: () => setStatusFilter(TrafficTicketStatus.COLLECTED) },
+      ]} />
+
+      <Panel title={<>Recorded tickets <span className="ml-1 text-slate-400 font-normal tabular-nums">{filteredTickets.length}</span></>}>
+        <Toolbar>
+          <Segmented
+            options={filterOptions.map(o => ({ key: o.key, label: o.label }))}
+            value={statusFilter}
+            onChange={k => setStatusFilter(k as TrafficTicketStatus | '')}
+            className="w-full md:w-auto"
+          />
+          <span className="md:ml-auto text-xs text-slate-500">Select a ticket to view details, documents and emails.</span>
+        </Toolbar>
 
         {filteredTickets.length === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
-              <DocumentTextIcon className="w-6 h-6" />
-            </div>
-            <p className="mt-3 font-semibold text-slate-700">{tickets.length > 0 ? 'No tickets match this filter' : 'No traffic tickets yet'}</p>
-            <p className="text-sm text-slate-500">{tickets.length > 0 ? 'Choose a different status to see more tickets.' : 'Recorded fines will appear here, linked to their booking.'}</p>
-          </div>
+          <EmptyState
+            icon={<DocumentTextIcon />}
+            title={tickets.length > 0 ? 'No tickets match this filter' : 'No traffic tickets yet'}
+            hint={tickets.length > 0 ? 'Choose a different status to see more tickets.' : 'Recorded fines will appear here, linked to their booking.'}
+            action={tickets.length === 0 && hasManagePermission ? <Button variant="primary" size="sm" onClick={() => setShowAddForm(true)} icon={<PlusIcon className="w-4 h-4" />}>Add ticket</Button> : undefined}
+          />
         ) : (
           <>
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
-                  <tr>{headers.map((h, i) => <th key={i} className={`px-4 py-3 font-semibold ${i === 3 ? 'text-right' : 'text-left'}`}>{h}</th>)}</tr>
+              <table className={table.wrap}>
+                <thead className={table.head}>
+                  <tr>
+                    <th className={table.th}>Ticket date</th>
+                    <th className={table.th}>Booking / renter</th>
+                    <th className={table.th}>Rental period</th>
+                    <th className={`${table.th} text-right`}>Amount</th>
+                    <th className={table.th}>Status</th>
+                    <th className={table.th}>Details</th>
+                    <th className={table.th}>Document</th>
+                    <th className={table.th}><span className="sr-only">Actions</span></th>
+                  </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className={table.body}>
                   {rows.map(({ ticket, res }) => {
                     const isEditing = editingId === ticket.id;
                     return (
-                      <tr key={ticket.id} className={`align-top ${isEditing ? 'bg-amber-50/50' : 'hover:bg-slate-50/70'}`}>
-                        <td className="px-4 py-3 whitespace-nowrap text-slate-700 tabular-nums">{isEditing ? <input type="date" value={ticket.ticketDate} onChange={e => handleUpdateChange(ticket.id, 'ticketDate', e.target.value)} className={editCls} /> : ticket.ticketDate}</td>
-                        <td className="px-4 py-3 min-w-[160px]">
+                      <tr key={ticket.id} className={`${table.row} cursor-pointer ${isEditing || viewId === ticket.id ? 'bg-indigo-50/40' : ''}`} onClick={() => setViewId(ticket.id)}>
+                        <td className={`${table.td} whitespace-nowrap text-slate-700 tabular-nums`}>{ticket.ticketDate}</td>
+                        <td className={`${table.td} min-w-[160px]`}>
                           <p className="font-semibold text-slate-900">{res?.personName || <span className="text-slate-400 font-normal">Unknown renter</span>}</p>
                           <p className="text-xs text-slate-500"><span className="font-mono">#{ticket.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600 tabular-nums">{res ? <>{res.startDate}<br />{res.endDate}</> : <span className="text-slate-400">-</span>}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-slate-900 tabular-nums">{isEditing ? <input type="number" value={ticket.amount || ''} placeholder="0.00" onChange={e => handleUpdateChange(ticket.id, 'amount', parseFloat(e.target.value) || 0)} className={`${editCls} w-28 text-right`} /> : `${money(ticket.amount)} JOD`}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{isEditing ? statusSelect(ticket) : statusPill(ticket.status)}</td>
-                        <td className="px-4 py-3 text-slate-600 min-w-[200px] max-w-xs">{isEditing ? <textarea value={ticket.details} onChange={e => handleUpdateChange(ticket.id, 'details', e.target.value)} className={editCls} rows={2} /> : (ticket.details || <span className="text-slate-300">-</span>)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{renderDocument(ticket, isEditing, 'd')}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right">{renderActions(ticket, res, isEditing)}</td>
+                        <td className={`${table.td} whitespace-nowrap text-xs text-slate-600 tabular-nums`}>{res ? <>{res.startDate}<br />{res.endDate}</> : <span className="text-slate-400">-</span>}</td>
+                        <td className={`${table.td} whitespace-nowrap text-right font-semibold text-slate-900 tabular-nums`}>{money(ticket.amount)} JOD</td>
+                        <td className={`${table.td} whitespace-nowrap`}>{statusPill(ticket.status)}</td>
+                        <td className={`${table.td} text-slate-600 max-w-[240px]`}><p className="truncate" title={ticket.details}>{ticket.details || <span className="text-slate-300">-</span>}</p></td>
+                        <td className={`${table.td} whitespace-nowrap`} onClick={e => e.stopPropagation()}>{renderDocument(ticket, false, 'd')}</td>
+                        <td className={`${table.td} whitespace-nowrap text-right`} onClick={e => e.stopPropagation()}>{renderActions(ticket, res, false)}</td>
                       </tr>
                     );
                   })}
@@ -499,128 +489,156 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
               </table>
             </div>
 
-            {/* Mobile cards */}
+            {/* Mobile list */}
             <ul className="md:hidden divide-y divide-slate-100">
-              {rows.map(({ ticket, res }) => {
-                const isEditing = editingId === ticket.id;
-                return (
-                  <li key={ticket.id} className={`px-4 py-4 space-y-3 ${isEditing ? 'bg-amber-50/50' : ''}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 truncate">{res?.personName || 'Unknown renter'}</p>
-                        <p className="text-xs text-slate-500 truncate"><span className="font-mono">#{ticket.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
-                      </div>
-                      {!isEditing && (
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-slate-900 tabular-nums">{money(ticket.amount)} JOD</p>
-                          <div className="mt-1">{statusPill(ticket.status)}</div>
-                        </div>
-                      )}
+              {rows.map(({ ticket, res }) => (
+                <li key={ticket.id} className="px-4 py-3 space-y-2.5">
+                  <button type="button" onClick={() => setViewId(ticket.id)} className="w-full text-left flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-slate-900 truncate">{res?.personName || 'Unknown renter'}</p>
+                      <p className="text-xs text-slate-500 truncate"><span className="font-mono">#{ticket.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
+                      <p className="text-xs text-slate-500 tabular-nums">{ticket.ticketDate}</p>
                     </div>
-                    {isEditing ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <div><label className={labelCls}>Ticket date</label><input type="date" value={ticket.ticketDate} onChange={e => handleUpdateChange(ticket.id, 'ticketDate', e.target.value)} className={editCls} /></div>
-                        <div><label className={labelCls}>Amount (JOD)</label><input type="number" value={ticket.amount || ''} placeholder="0.00" onChange={e => handleUpdateChange(ticket.id, 'amount', parseFloat(e.target.value) || 0)} className={editCls} /></div>
-                        <div className="col-span-2"><label className={labelCls}>Status</label>{statusSelect(ticket)}</div>
-                        <div className="col-span-2"><label className={labelCls}>Details</label><textarea value={ticket.details} onChange={e => handleUpdateChange(ticket.id, 'details', e.target.value)} className={editCls} rows={2} /></div>
-                      </div>
-                    ) : (
-                      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                        <dt className="text-slate-400">Ticket date</dt><dd className="text-slate-700 text-right tabular-nums">{ticket.ticketDate}</dd>
-                        <dt className="text-slate-400">Rental</dt><dd className="text-slate-700 text-right tabular-nums">{res ? `${res.startDate} – ${res.endDate}` : '-'}</dd>
-                        {ticket.details && <dd className="col-span-2 mt-1 text-sm text-slate-600 break-words">{ticket.details}</dd>}
-                      </dl>
-                    )}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Document</span>
-                      {renderDocument(ticket, isEditing, 'm')}
+                    <div className="text-right shrink-0">
+                      <p className="text-[13px] font-semibold text-slate-900 tabular-nums">{money(ticket.amount)} JOD</p>
+                      <div className="mt-1">{statusPill(ticket.status)}</div>
                     </div>
-                    {renderActions(ticket, res, isEditing, true)}
-                  </li>
-                );
-              })}
+                  </button>
+                  {ticket.details && <p className="text-xs text-slate-600 line-clamp-2 break-words">{ticket.details}</p>}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Document</span>
+                    {renderDocument(ticket, false, 'm')}
+                  </div>
+                  {renderActions(ticket, res, false, true)}
+                </li>
+              ))}
             </ul>
           </>
         )}
-      </div>
+      </Panel>
 
-      {/* Add ticket modal */}
-      {hasManagePermission && showAddForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 sm:p-4" onClick={() => setShowAddForm(false)}>
-          <form onSubmit={handleAddSubmit} onClick={e => e.stopPropagation()} className="w-full sm:max-w-2xl max-h-[92vh] flex flex-col bg-white rounded-t-2xl sm:rounded-2xl shadow-xl">
-            <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">Add traffic ticket</h3>
-                <p className="text-sm text-slate-500">Link the fine to an existing booking.</p>
-              </div>
-              <button type="button" onClick={() => setShowAddForm(false)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close"><CancelIcon className="w-5 h-5" /></button>
+      {/* Ticket record drawer (view + edit) */}
+      <Drawer
+        open={!!drawerTicket}
+        onClose={closeDrawer}
+        title={drawerTicket ? (drawerRes?.personName || 'Unknown renter') : ''}
+        subtitle={drawerTicket && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono">#{drawerTicket.bookingId}</span>
+            {statusPill(drawerTicket.status)}
+            {drawerEditing && <Badge tone="info" dot={false}>Editing</Badge>}
+          </div>
+        )}
+        footer={drawerTicket && (drawerEditing
+          ? <div className="w-full">{renderActions(drawerTicket, drawerRes, true, true)}</div>
+          : <div className="w-full">{renderActions(drawerTicket, drawerRes, false, true)}</div>)}
+      >
+        {drawerTicket && (
+          <div className="px-5 py-4 space-y-5">
+            <div>
+              <SectionLabel className="mb-1">Booking</SectionLabel>
+              <DetailList rows={[
+                { label: 'Renter', value: drawerRes?.personName || <span className="text-slate-400">Unknown</span> },
+                { label: 'Vehicle', value: drawerRes?.carModel || '-' },
+                { label: 'Rental period', value: <span className="tabular-nums">{drawerRes ? `${drawerRes.startDate} – ${drawerRes.endDate}` : '-'}</span> },
+                { label: 'Renter email', value: drawerRes?.customerEmail || <span className="text-slate-400">Not on voucher</span> },
+              ]} />
             </div>
-            <div className="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelCls}>Booking ID</label>
-                  <input type="text" value={newTicketData.bookingId} onChange={e => handleInputChange('bookingId', e.target.value)} placeholder="Enter booking ID" className={inputCls} autoFocus />
+            <div>
+              <SectionLabel className="mb-2">Ticket</SectionLabel>
+              {drawerEditing ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Ticket date"><input type="date" value={drawerTicket.ticketDate} onChange={e => handleUpdateChange(drawerTicket.id, 'ticketDate', e.target.value)} className={inputCls} /></Field>
+                  <Field label="Amount (JOD)"><input type="number" value={drawerTicket.amount || ''} placeholder="0.00" onChange={e => handleUpdateChange(drawerTicket.id, 'amount', parseFloat(e.target.value) || 0)} className={`${inputCls} text-right tabular-nums`} /></Field>
+                  <Field label="Status" className="col-span-2">{statusSelect(drawerTicket)}</Field>
+                  <Field label="Details" className="col-span-2"><textarea value={drawerTicket.details} onChange={e => handleUpdateChange(drawerTicket.id, 'details', e.target.value)} className={textareaCls} rows={3} /></Field>
                 </div>
-                <div>
-                  <label className={labelCls}>Ticket date</label>
-                  <input type="date" value={newTicketData.ticketDate} onChange={e => handleInputChange('ticketDate', e.target.value)} className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Amount (JOD)</label>
-                  <input type="number" step="0.01" value={newTicketData.amount || ''} placeholder="0.00" onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)} className={inputCls} />
-                </div>
-              </div>
-              {foundReservation ? (
-                <div className="px-3 py-2.5 text-sm bg-emerald-50 ring-1 ring-inset ring-emerald-200 text-emerald-800 rounded-xl">
-                  <span className="font-semibold">Reservation found:</span> {foundReservation.personName} ({foundReservation.carModel})
-                </div>
-              ) : newTicketData.bookingId ? (
-                <div className="px-3 py-2.5 text-sm bg-rose-50 ring-1 ring-inset ring-rose-200 text-rose-700 rounded-xl">
-                  No reservation found with this booking ID.
-                </div>
-              ) : null}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Details</label>
-                  <textarea value={newTicketData.details} onChange={e => handleInputChange('details', e.target.value)} rows={3} placeholder="e.g. Speeding ticket on Main St." className={inputCls}></textarea>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelCls}>Ticket document</label>
-                    {newTicketData.ticketDocument ? (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
-                        <DocumentTextIcon className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span className="text-sm text-slate-700 truncate flex-1 min-w-0" title={newTicketData.ticketDocumentFilename}>{newTicketData.ticketDocumentFilename}</span>
-                        <button type="button" onClick={() => setNewTicketData(p => ({...p, ticketDocument: undefined, ticketDocumentFilename: undefined}))} className="p-1 rounded-lg text-rose-500 hover:bg-rose-50" aria-label="Remove file"><TrashIcon className="w-4 h-4" /></button>
-                      </div>
-                    ) : (
-                      <>
-                        <input type="file" id="ticket-upload" className="hidden" onChange={handleFileChange} accept="image/*,.pdf" />
-                        <label htmlFor="ticket-upload" className="cursor-pointer flex items-center justify-center gap-2 px-3 py-2.5 bg-white text-slate-600 border border-dashed border-slate-300 rounded-xl hover:bg-slate-50 text-sm font-semibold">
-                          <UploadIcon className="w-4 h-4" /> Select file
-                        </label>
-                      </>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelCls}>Status</label>
-                    <select value={newTicketData.status} onChange={e => handleInputChange('status', e.target.value)} className={inputCls}>
-                      <option value={TrafficTicketStatus.NOT_COLLECTED}>Not Collected</option>
-                      <option value={TrafficTicketStatus.COLLECTED}>Collected</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              {validationError && <p className="text-sm font-medium text-rose-600">{validationError}</p>}
+              ) : (
+                <DetailList rows={[
+                  { label: 'Ticket date', value: <span className="tabular-nums">{drawerTicket.ticketDate}</span> },
+                  { label: 'Amount', value: <span className="tabular-nums">{money(drawerTicket.amount)} JOD</span> },
+                  { label: 'Status', value: statusPill(drawerTicket.status) },
+                  { label: 'Details', value: drawerTicket.details || <span className="text-slate-400">-</span> },
+                ]} />
+              )}
             </div>
-            <div className="px-5 sm:px-6 py-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50">Cancel</button>
-              <button type="submit" disabled={!foundReservation} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed">
-                <PlusIcon className="w-4 h-4" /> Add ticket
-              </button>
+            <div>
+              <SectionLabel className="mb-2">Document</SectionLabel>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                <span className="text-[13px] text-slate-700 truncate min-w-0">{drawerTicket.ticketDocumentFilename || <span className="text-slate-400">No document attached</span>}</span>
+                {renderDocument(drawerTicket, drawerEditing, 'm')}
+              </div>
             </div>
+          </div>
+        )}
+      </Drawer>
+
+      {/* Add ticket dialog */}
+      {hasManagePermission && (
+        <Dialog
+          open={showAddForm}
+          onClose={() => setShowAddForm(false)}
+          title="Add traffic ticket"
+          subtitle="Link the fine to an existing booking."
+          footer={<>
+            <Button onClick={() => setShowAddForm(false)}>Cancel</Button>
+            <Button variant="primary" type="submit" form="add-ticket-form" disabled={!foundReservation} icon={<PlusIcon className="w-4 h-4" />}>Add ticket</Button>
+          </>}
+        >
+          <form id="add-ticket-form" onSubmit={handleAddSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Field label="Booking ID" required>
+                <input type="text" value={newTicketData.bookingId} onChange={e => handleInputChange('bookingId', e.target.value)} placeholder="Enter booking ID" className={inputCls} autoFocus />
+              </Field>
+              <Field label="Ticket date">
+                <input type="date" value={newTicketData.ticketDate} onChange={e => handleInputChange('ticketDate', e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Amount (JOD)" required>
+                <input type="number" step="0.01" value={newTicketData.amount || ''} placeholder="0.00" onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)} className={inputCls} />
+              </Field>
+            </div>
+            {foundReservation ? (
+              <div className="px-3 py-2 text-[13px] bg-emerald-50 ring-1 ring-inset ring-emerald-200 text-emerald-800 rounded-lg">
+                <span className="font-semibold">Reservation found:</span> {foundReservation.personName} ({foundReservation.carModel})
+              </div>
+            ) : newTicketData.bookingId ? (
+              <div className="px-3 py-2 text-[13px] bg-rose-50 ring-1 ring-inset ring-rose-200 text-rose-700 rounded-lg">
+                No reservation found with this booking ID.
+              </div>
+            ) : null}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Details">
+                <textarea value={newTicketData.details} onChange={e => handleInputChange('details', e.target.value)} rows={4} placeholder="e.g. Speeding ticket on Main St." className={textareaCls}></textarea>
+              </Field>
+              <div className="space-y-4">
+                <div>
+                  <span className="block text-[13px] font-medium text-slate-700 mb-1">Ticket document</span>
+                  {newTicketData.ticketDocument ? (
+                    <div className="flex items-center gap-2 h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg">
+                      <DocumentTextIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="text-[13px] text-slate-700 truncate flex-1 min-w-0" title={newTicketData.ticketDocumentFilename}>{newTicketData.ticketDocumentFilename}</span>
+                      <button type="button" onClick={() => setNewTicketData(p => ({...p, ticketDocument: undefined, ticketDocumentFilename: undefined}))} className="p-1 rounded-md text-rose-500 hover:bg-rose-50" aria-label="Remove file"><TrashIcon className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <input type="file" id="ticket-upload" className="hidden" onChange={handleFileChange} accept="image/*,.pdf" />
+                      <label htmlFor="ticket-upload" className="cursor-pointer flex items-center justify-center gap-2 h-9 px-3 bg-white text-slate-600 border border-dashed border-slate-300 rounded-lg hover:bg-slate-50 text-[13px] font-semibold">
+                        <UploadIcon className="w-4 h-4" /> Select file
+                      </label>
+                    </>
+                  )}
+                </div>
+                <Field label="Status">
+                  <select value={newTicketData.status} onChange={e => handleInputChange('status', e.target.value)} className={`${selectCls} w-full`}>
+                    <option value={TrafficTicketStatus.NOT_COLLECTED}>Not Collected</option>
+                    <option value={TrafficTicketStatus.COLLECTED}>Collected</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
+            {validationError && <p className="text-[13px] font-medium text-rose-600">{validationError}</p>}
           </form>
-        </div>
+        </Dialog>
       )}
 
       {ticketToDelete && (
@@ -637,7 +655,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
             onClose={() => { setIsKeyModalOpen(false); setPendingAction(null); }}
         />
       )}
-    </div>
+    </Page>
   );
 };
 

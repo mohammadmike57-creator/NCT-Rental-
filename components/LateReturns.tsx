@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Reservation } from '../types';
-import { ClockIcon, CheckCircleIcon, ShieldCheckIcon } from './icons';
+import { CheckCircleIcon, ShieldCheckIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Badge, Plate, Button, EmptyState, table } from './ui/Crm';
 
 interface LateReturnsProps {
   allData: any; // adjust based on your actual app structure
@@ -67,122 +68,108 @@ const LateReturns: React.FC<LateReturnsProps> = ({ allData, onUpdateReservation 
     };
   }, [sorted]);
 
-  const severity = (value?: string) => {
+  const severity = (value?: string): 'danger' | 'warning' | 'muted' => {
     const h = overdueHours(value);
-    if (h >= 72) return 'bg-rose-50 text-rose-700 ring-rose-200';
-    if (h >= 24) return 'bg-amber-50 text-amber-700 ring-amber-200';
-    return 'bg-slate-100 text-slate-600 ring-slate-200';
+    if (h >= 72) return 'danger';
+    if (h >= 24) return 'warning';
+    return 'muted';
   };
 
   const renderClose = (res: Reservation, full?: boolean) => (
-    <button
+    <Button
+      variant="primary"
+      size="sm"
       onClick={() => handleClose(res)}
-      className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm whitespace-nowrap ${full ? 'w-full' : ''}`}
+      icon={<CheckCircleIcon className="w-4 h-4 shrink-0" />}
+      className={full ? 'w-full' : ''}
     >
-      <CheckCircleIcon className="w-4 h-4 shrink-0" /> Close agreement
-    </button>
+      Close agreement
+    </Button>
   );
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-5 sm:p-6 flex items-center gap-4 min-w-0">
-          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-            <ClockIcon className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Late returns</h2>
-            <p className="text-sm text-slate-500">Rentals past their return time that have not been checked in.</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-          {[
-            { label: 'Overdue', value: kpis.total, sub: 'open agreements', tone: kpis.total > 0 ? 'text-rose-600' : 'text-slate-900' },
-            { label: 'Under 24 h', value: kpis.under24, sub: 'recently due', tone: 'text-slate-900' },
-            { label: '1 to 3 days', value: kpis.over24, sub: 'follow up', tone: kpis.over24 > 0 ? 'text-amber-600' : 'text-slate-900' },
-            { label: 'Over 3 days', value: kpis.over72, sub: 'escalate', tone: kpis.over72 > 0 ? 'text-rose-600' : 'text-slate-900' },
-          ].map(k => (
-            <div key={k.label} className="px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
-              <p className={`mt-1 text-2xl font-bold tabular-nums ${k.tone}`}>{k.value}</p>
-              <p className="text-xs text-slate-400">{k.sub}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        section="Financials & Incidents"
+        title="Late Returns"
+        subtitle="Rentals past their return time that have not been checked in."
+      />
 
-      {sorted.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 sm:p-16 text-center">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <ShieldCheckIcon className="w-6 h-6" />
-          </div>
-          <p className="mt-4 font-semibold text-slate-800">No late returns</p>
-          <p className="text-sm text-slate-500">Every rental past its return time has been checked in.</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Overdue · {sorted.length}</span>
-            <span className="text-xs text-slate-400">Most overdue first</span>
-          </div>
+      <StatGrid items={[
+        { label: 'Overdue', value: kpis.total, sub: 'open agreements', tone: kpis.total > 0 ? 'danger' : 'default' },
+        { label: 'Under 24 h', value: kpis.under24, sub: 'recently due' },
+        { label: '1 to 3 days', value: kpis.over24, sub: 'follow up', tone: kpis.over24 > 0 ? 'warning' : 'default' },
+        { label: 'Over 3 days', value: kpis.over72, sub: 'escalate', tone: kpis.over72 > 0 ? 'danger' : 'default' },
+      ]} />
 
-          {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+      <Panel
+        title={<>Overdue agreements <span className="ml-1 text-slate-400 font-normal tabular-nums">{sorted.length}</span></>}
+        subtitle="Most overdue first"
+      >
+        {sorted.length === 0 ? (
+          <EmptyState
+            icon={<ShieldCheckIcon />}
+            title="No late returns"
+            hint="Every rental past its return time has been checked in."
+          />
+        ) : (
+          <>
+            {/* Desktop table */}
+            <table className={`hidden md:table ${table.wrap}`}>
+              <thead className={table.head}>
                 <tr>
-                  <th className="px-5 py-3 text-left font-semibold">Renter</th>
-                  <th className="px-5 py-3 text-left font-semibold">Booking ID</th>
-                  <th className="px-5 py-3 text-left font-semibold">Vehicle</th>
-                  <th className="px-5 py-3 text-left font-semibold">Return due</th>
-                  <th className="px-5 py-3 text-left font-semibold">Overdue</th>
-                  <th className="px-5 py-3"><span className="sr-only">Actions</span></th>
+                  <th className={table.th}>Renter</th>
+                  <th className={table.th}>Booking ID</th>
+                  <th className={table.th}>Vehicle</th>
+                  <th className={table.th}>Return due</th>
+                  <th className={table.th}>Overdue</th>
+                  <th className={table.th}><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className={table.body}>
                 {sorted.map(res => (
-                  <tr key={res.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-3.5 text-sm font-semibold text-slate-900 whitespace-nowrap">{res.personName}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-xs text-slate-600">{res.bookingId || '—'}</span>
+                  <tr key={res.id} className={table.row}>
+                    <td className={`${table.td} font-semibold text-slate-900`}>{res.personName}</td>
+                    <td className={`${table.td} whitespace-nowrap font-mono text-xs text-slate-600`}>{res.bookingId || '—'}</td>
+                    <td className={`${table.td} text-slate-600`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate">{res.carModel}</span>
+                        <Plate value={res.licensePlate} />
+                      </div>
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-slate-600 whitespace-nowrap">
-                      {res.carModel}
-                      {res.licensePlate && <span className="ml-1.5 text-xs text-slate-400">{res.licensePlate}</span>}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-slate-600 tabular-nums whitespace-nowrap">{formatDue(res.endDate)}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${severity(res.endDate)}`}>{overdueLabel(res.endDate) || 'Overdue'}</span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">{renderClose(res)}</td>
+                    <td className={`${table.td} text-slate-600 tabular-nums whitespace-nowrap`}>{formatDue(res.endDate)}</td>
+                    <td className={table.td}><Badge tone={severity(res.endDate)}>{overdueLabel(res.endDate) || 'Overdue'}</Badge></td>
+                    <td className={`${table.td} text-right whitespace-nowrap`}>{renderClose(res)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
 
-          {/* Mobile cards */}
-          <ul className="md:hidden divide-y divide-slate-100">
-            {sorted.map(res => (
-              <li key={res.id} className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{res.personName}</p>
-                    <p className="mt-0.5 text-xs text-slate-500 truncate">
-                      {res.bookingId && <span className="font-mono">{res.bookingId} · </span>}{res.carModel}{res.licensePlate ? ` (${res.licensePlate})` : ''}
-                    </p>
+            {/* Mobile list */}
+            <ul className="md:hidden divide-y divide-slate-100">
+              {sorted.map(res => (
+                <li key={res.id} className="px-4 py-3 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-slate-900 truncate">{res.personName}</p>
+                      <p className="mt-0.5 text-xs text-slate-500 truncate">
+                        {res.bookingId && <span className="font-mono">{res.bookingId} · </span>}{res.carModel}
+                      </p>
+                    </div>
+                    <Badge tone={severity(res.endDate)} className="shrink-0">{overdueLabel(res.endDate) || 'Overdue'}</Badge>
                   </div>
-                  <span className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${severity(res.endDate)}`}>{overdueLabel(res.endDate) || 'Overdue'}</span>
-                </div>
-                <p className="text-xs text-slate-500">Return due <span className="font-semibold text-slate-700 tabular-nums">{formatDue(res.endDate)}</span></p>
-                {renderClose(res, true)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+                  <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                    <span>Due <span className="font-medium text-slate-700 tabular-nums">{formatDue(res.endDate)}</span></span>
+                    <Plate value={res.licensePlate} />
+                  </div>
+                  {renderClose(res, true)}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Panel>
+    </Page>
   );
 };
 

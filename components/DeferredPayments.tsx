@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AppData, Reservation, User, UserPermission } from '../types';
-import { CurrencyDollarIcon, CheckCircleIcon, LockClosedIcon, ShieldCheckIcon } from './icons';
+import { CheckCircleIcon, LockClosedIcon, ShieldCheckIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Badge, Button, EmptyState, table } from './ui/Crm';
 import ConfirmationDialog from './ConfirmationDialog';
 import SecurityKeyModal from './SecurityKeyModal';
 
@@ -79,132 +80,109 @@ const DeferredPayments: React.FC<DeferredPaymentsProps> = ({ allData, onCollectP
     }, [deferredPayments]);
 
     const renderCollect = (res: Reservation, full?: boolean) => (
-        <button
+        <Button
+            variant="primary"
+            size="sm"
             onClick={() => handleCollectAttempt(res)}
             disabled={!hasManagePermission}
             title={hasManagePermission ? 'Mark this payment as collected' : 'You do not have permission to collect payments'}
-            className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed whitespace-nowrap ${full ? 'w-full' : ''}`}
+            icon={<CheckCircleIcon className="w-4 h-4 shrink-0" />}
+            className={full ? 'w-full' : ''}
         >
-            <CheckCircleIcon className="w-4 h-4 shrink-0" /> Mark as collected
-        </button>
+            Mark as collected
+        </Button>
     );
 
-    const renderStatus = (res: Reservation) => isOverdue(res.endDate) ? (
-        <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-rose-50 text-rose-700 ring-rose-200">Past return</span>
-    ) : (
-        <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-amber-50 text-amber-700 ring-amber-200">On rent</span>
-    );
+    const renderStatus = (res: Reservation) => isOverdue(res.endDate)
+        ? <Badge tone="danger">Past return</Badge>
+        : <Badge tone="warning">On rent</Badge>;
 
     return (
-        <div className="space-y-5">
-            {/* Header */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-                <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                            <CurrencyDollarIcon className="w-6 h-6" />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Deferred payments</h2>
-                            <p className="text-sm text-slate-500">Collect outstanding amounts from "Pay Later" rental extensions.</p>
-                        </div>
-                    </div>
-                    {!hasManagePermission && (
-                        <span className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset bg-slate-50 text-slate-600 ring-slate-200">
-                            <LockClosedIcon className="w-3.5 h-3.5" /> View only
-                        </span>
-                    )}
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-                    {[
-                        { label: 'Outstanding', value: deferredPayments.length, sub: deferredPayments.length === 1 ? 'extension' : 'extensions', warn: deferredPayments.length > 0 },
-                        { label: 'Total due', value: formatCurrency(kpis.total), sub: 'to be collected' },
-                        { label: 'Past return', value: kpis.overdueCount, sub: 'return date passed', danger: kpis.overdueCount > 0 },
-                        { label: 'Past-return value', value: formatCurrency(kpis.overdueTotal), sub: 'collect first', danger: kpis.overdueTotal > 0 },
-                    ].map(k => (
-                        <div key={k.label} className="px-5 py-4 min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
-                            <p className={`mt-1 text-xl sm:text-2xl font-bold tabular-nums truncate ${k.danger ? 'text-rose-600' : k.warn ? 'text-amber-600' : 'text-slate-900'}`}>{k.value}</p>
-                            <p className="text-xs text-slate-400">{k.sub}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
+        <Page>
+            <PageHeader
+                section="Financials & Incidents"
+                title="Deferred Payments"
+                subtitle={'Collect outstanding amounts from "Pay Later" rental extensions.'}
+                actions={!hasManagePermission ? (
+                    <Badge tone="muted" dot={false}><LockClosedIcon className="w-3.5 h-3.5" /> View only</Badge>
+                ) : undefined}
+            />
 
-            {deferredPayments.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 sm:p-16 text-center">
-                    <div className="mx-auto w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                        <ShieldCheckIcon className="w-6 h-6" />
-                    </div>
-                    <p className="mt-4 font-semibold text-slate-800">All deferred payments are collected</p>
-                    <p className="text-sm text-slate-500">Extensions booked as "Pay Later" will appear here until they are paid.</p>
-                </div>
-            ) : (
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Extensions · {deferredPayments.length}</span>
-                        <span className="text-xs text-slate-400">Earliest return first</span>
-                    </div>
+            <StatGrid items={[
+                { label: 'Outstanding', value: deferredPayments.length, sub: deferredPayments.length === 1 ? 'extension' : 'extensions', tone: deferredPayments.length > 0 ? 'warning' : 'default' },
+                { label: 'Total due', value: formatCurrency(kpis.total), sub: 'to be collected' },
+                { label: 'Past return', value: kpis.overdueCount, sub: 'return date passed', tone: kpis.overdueCount > 0 ? 'danger' : 'default' },
+                { label: 'Past-return value', value: formatCurrency(kpis.overdueTotal), sub: 'collect first', tone: kpis.overdueTotal > 0 ? 'danger' : 'default' },
+            ]} />
 
-                    {/* Desktop table */}
-                    <div className="hidden md:block overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+            <Panel
+                title={<>Extensions <span className="ml-1 text-slate-400 font-normal tabular-nums">{deferredPayments.length}</span></>}
+                subtitle="Earliest return first"
+            >
+                {deferredPayments.length === 0 ? (
+                    <EmptyState
+                        icon={<ShieldCheckIcon />}
+                        title="All deferred payments are collected"
+                        hint={'Extensions booked as "Pay Later" will appear here until they are paid.'}
+                    />
+                ) : (
+                    <>
+                        {/* Desktop table */}
+                        <table className={`hidden md:table ${table.wrap}`}>
+                            <thead className={table.head}>
                                 <tr>
-                                    <th className="px-5 py-3 text-left font-semibold">Renter</th>
-                                    <th className="px-5 py-3 text-left font-semibold">Booking ID</th>
-                                    <th className="px-5 py-3 text-left font-semibold">Vehicle</th>
-                                    <th className="px-5 py-3 text-left font-semibold">New return date</th>
-                                    <th className="px-5 py-3 text-left font-semibold">Status</th>
-                                    <th className="px-5 py-3 text-right font-semibold">Amount due</th>
-                                    <th className="px-5 py-3"><span className="sr-only">Actions</span></th>
+                                    <th className={table.th}>Renter</th>
+                                    <th className={table.th}>Booking ID</th>
+                                    <th className={table.th}>Vehicle</th>
+                                    <th className={table.th}>New return date</th>
+                                    <th className={table.th}>Status</th>
+                                    <th className={`${table.th} text-right`}>Amount due</th>
+                                    <th className={table.th}><span className="sr-only">Actions</span></th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className={table.body}>
                                 {deferredPayments.map(res => (
-                                    <tr key={res.id} className="hover:bg-slate-50/70 transition-colors">
-                                        <td className="px-5 py-3.5 text-sm font-semibold text-slate-900 whitespace-nowrap">{res.personName}</td>
-                                        <td className="px-5 py-3.5 whitespace-nowrap">
-                                            <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-xs text-slate-600">{res.bookingId || '—'}</span>
-                                        </td>
-                                        <td className="px-5 py-3.5 text-sm text-slate-600 whitespace-nowrap">{res.carModel}</td>
-                                        <td className="px-5 py-3.5 text-sm text-slate-600 tabular-nums whitespace-nowrap">{formatDate(res.endDate)}</td>
-                                        <td className="px-5 py-3.5 whitespace-nowrap">{renderStatus(res)}</td>
-                                        <td className="px-5 py-3.5 text-sm text-right font-bold tabular-nums text-rose-600 whitespace-nowrap">{formatCurrency(res.unpaidExtensionAmount || 0)}</td>
-                                        <td className="px-5 py-3.5 text-right whitespace-nowrap">{renderCollect(res)}</td>
+                                    <tr key={res.id} className={table.row}>
+                                        <td className={`${table.td} font-semibold text-slate-900`}>{res.personName}</td>
+                                        <td className={`${table.td} whitespace-nowrap font-mono text-xs text-slate-600`}>{res.bookingId || '—'}</td>
+                                        <td className={`${table.td} text-slate-600`}>{res.carModel}</td>
+                                        <td className={`${table.td} text-slate-600 tabular-nums whitespace-nowrap`}>{formatDate(res.endDate)}</td>
+                                        <td className={table.td}>{renderStatus(res)}</td>
+                                        <td className={`${table.td} text-right font-semibold tabular-nums text-rose-600 whitespace-nowrap`}>{formatCurrency(res.unpaidExtensionAmount || 0)}</td>
+                                        <td className={`${table.td} text-right whitespace-nowrap`}>{renderCollect(res)}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                    </div>
 
-                    {/* Mobile cards */}
-                    <ul className="md:hidden divide-y divide-slate-100">
-                        {deferredPayments.map(res => (
-                            <li key={res.id} className="p-4 space-y-3">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-semibold text-slate-900 truncate">{res.personName}</p>
-                                        <p className="mt-0.5 text-xs text-slate-500 truncate">
-                                            <span className="font-mono">{res.bookingId || '—'}</span> · {res.carModel}
-                                        </p>
+                        {/* Mobile list */}
+                        <ul className="md:hidden divide-y divide-slate-100">
+                            {deferredPayments.map(res => (
+                                <li key={res.id} className="px-4 py-3 space-y-2">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-[13px] font-semibold text-slate-900 truncate">{res.personName}</p>
+                                            <p className="mt-0.5 text-xs text-slate-500 truncate">
+                                                <span className="font-mono">{res.bookingId || '—'}</span> · {res.carModel}
+                                            </p>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Due</p>
+                                            <p className="text-[13px] font-semibold tabular-nums text-rose-600">{formatCurrency(res.unpaidExtensionAmount || 0)}</p>
+                                        </div>
                                     </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Due</p>
-                                        <p className="text-base font-bold tabular-nums text-rose-600">{formatCurrency(res.unpaidExtensionAmount || 0)}</p>
+                                    <div className="flex items-center justify-between gap-3 text-xs">
+                                        <span className="text-slate-500 min-w-0 truncate">Returns <span className="font-medium text-slate-700 tabular-nums">{formatDate(res.endDate)}</span></span>
+                                        {renderStatus(res)}
                                     </div>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 text-xs">
-                                    <span className="text-slate-500 min-w-0 truncate">Returns <span className="font-semibold text-slate-700 tabular-nums">{formatDate(res.endDate)}</span></span>
-                                    {renderStatus(res)}
-                                </div>
-                                {renderCollect(res, true)}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-            
+                                    {renderCollect(res, true)}
+                                </li>
+                            ))}
+                        </ul>
+                    </>
+                )}
+            </Panel>
+
             {isKeyModalOpen && paymentToCollect && (
                  <SecurityKeyModal
                     onSuccess={handleKeySuccess}
@@ -220,7 +198,7 @@ const DeferredPayments: React.FC<DeferredPaymentsProps> = ({ allData, onCollectP
                     confirmButtonText="Confirm Collection"
                 />
             )}
-        </div>
+        </Page>
     );
 };
 

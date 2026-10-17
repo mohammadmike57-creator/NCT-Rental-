@@ -6,6 +6,7 @@ import ManageExpensesModal from './ManageExpensesModal';
 import { PlusIcon, EditIcon, TrashIcon, AccountingIcon } from './icons';
 import SecurityKeyModal from './SecurityKeyModal';
 import ConfirmationDialog from './ConfirmationDialog';
+import { Page, PageHeader, StatGrid, StatItem, Panel, Segmented, Badge, Button, EmptyState, table } from './ui/Crm';
 
 interface AccountingDashboardProps {
   allData: AppData;
@@ -252,11 +253,11 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
     ];
     const periodLabel = filterTabs.find(t => t.key === filter)?.name || 'This year';
 
-    const kpis: { label: string; value: string; tone: string; hint?: string }[] = [
-        { label: 'Revenue', value: formatCurrency(financialData.totalRevenue), tone: 'text-slate-900' },
-        { label: 'Expenses', value: formatCurrency(financialData.totalExpenses), tone: 'text-slate-900' },
-        { label: 'Net profit', value: formatCurrency(financialData.netProfit), tone: financialData.netProfit < 0 ? 'text-rose-600' : 'text-emerald-600' },
-        { label: 'Profit margin', value: `${num(financialData.profitMargin).toFixed(1)}%`, tone: financialData.profitMargin < 0 ? 'text-rose-600' : 'text-slate-900' },
+    const kpis: StatItem[] = [
+        { label: 'Revenue', value: formatCurrency(financialData.totalRevenue), sub: periodLabel },
+        { label: 'Expenses', value: formatCurrency(financialData.totalExpenses), sub: 'incl. payroll' },
+        { label: 'Net profit', value: formatCurrency(financialData.netProfit), tone: financialData.netProfit < 0 ? 'danger' : 'success' },
+        { label: 'Profit margin', value: `${num(financialData.profitMargin).toFixed(1)}%`, tone: financialData.profitMargin < 0 ? 'danger' : 'default' },
     ];
 
     const breakdown = [
@@ -267,144 +268,117 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
     const breakdownTotal = financialData.totalRevenue > 0 ? financialData.totalRevenue : 1;
 
     const CategoryPill: React.FC<{ exp: Expense }> = ({ exp }) => (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${exp.isRecurring ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-slate-100 text-slate-700 ring-slate-200'}`}>
+        <Badge tone={exp.isRecurring ? 'info' : 'default'} dot={false}>
             {exp.category}{exp.isRecurring ? ' · auto' : ''}
-        </span>
+        </Badge>
     );
 
     return (
-        <div className="space-y-5 mb-10">
-            {/* Header */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-                <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                            <AccountingIcon className="w-6 h-6" />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Accounting</h2>
-                            <p className="text-sm text-slate-500">Revenue, expenses and profit · {periodLabel.toLowerCase()}</p>
-                        </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
-                        <div className="grid grid-cols-3 sm:inline-flex p-1 bg-slate-100 rounded-xl">
-                            {filterTabs.map(t => (
-                                <button key={t.key} onClick={() => setFilter(t.key)}
-                                    className={`px-3 py-1.5 text-sm font-semibold rounded-lg whitespace-nowrap ${filter === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-                                    {t.name}
-                                </button>
-                            ))}
-                        </div>
-                        <button onClick={() => handleActionAttempt('add')}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm">
-                            <PlusIcon className="w-4 h-4" /> Add expense
-                        </button>
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-                    {kpis.map(k => (
-                        <div key={k.label} className="px-4 sm:px-5 py-4 min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
-                            <p className={`mt-1 text-lg sm:text-2xl font-bold tabular-nums truncate ${k.tone}`} title={k.value}>{k.value}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
+        <Page>
+            <PageHeader
+                section="Financials & Incidents"
+                title="Accounting"
+                subtitle={`Revenue, expenses and profit · ${periodLabel.toLowerCase()}`}
+                actions={<>
+                    <Segmented
+                        options={filterTabs.map(t => ({ key: t.key, label: t.name }))}
+                        value={filter}
+                        onChange={k => setFilter(k as FilterPeriod)}
+                    />
+                    <Button variant="primary" onClick={() => handleActionAttempt('add')} icon={<PlusIcon className="w-4 h-4" />}>
+                        Add expense
+                    </Button>
+                </>}
+            />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="lg:col-span-2 min-w-0 min-h-[320px]">
+            <StatGrid items={kpis} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 min-w-0 min-h-[320px] [&>div]:rounded-xl [&>div]:p-4 [&_h3]:text-sm">
                     <BarChart data={chartData} title={`Monthly overview · ${new Date().getFullYear()}`} unit="JOD" unitPosition="before" />
                 </div>
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Revenue breakdown</p>
-                    <div className="mt-4 space-y-4">
+                <Panel title="Revenue breakdown" subtitle={periodLabel} padded>
+                    <div className="space-y-4">
                         {breakdown.map(b => (
                             <div key={b.label}>
                                 <div className="flex items-baseline justify-between gap-3">
-                                    <span className="text-sm text-slate-600">{b.label}</span>
-                                    <span className="text-sm font-semibold text-slate-900 tabular-nums">{formatCurrency(b.value)}</span>
+                                    <span className="text-[13px] text-slate-600">{b.label}</span>
+                                    <span className="text-[13px] font-semibold text-slate-900 tabular-nums">{formatCurrency(b.value)}</span>
                                 </div>
                                 <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                                     <div className={`h-full rounded-full ${b.bar}`} style={{ width: `${Math.max(0, Math.min(100, (num(b.value) / breakdownTotal) * 100))}%` }} />
                                 </div>
                             </div>
                         ))}
-                        <div className="flex items-baseline justify-between gap-3 pt-4 border-t border-slate-100">
-                            <span className="text-sm font-bold text-slate-900">Total revenue</span>
-                            <span className="text-base font-bold text-slate-900 tabular-nums">{formatCurrency(financialData.totalRevenue)}</span>
+                        <div className="flex items-baseline justify-between gap-3 pt-3 border-t border-slate-100">
+                            <span className="text-[13px] font-semibold text-slate-900">Total revenue</span>
+                            <span className="text-sm font-semibold text-slate-900 tabular-nums">{formatCurrency(financialData.totalRevenue)}</span>
                         </div>
                     </div>
-                </div>
+                </Panel>
             </div>
 
             {/* Expenses */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Expenses · {filteredExpenses.length}</p>
-                        <p className="text-sm text-slate-500 truncate">Payroll entries are generated automatically from active staff salaries.</p>
-                    </div>
-                    <span className="hidden sm:block text-sm font-bold text-slate-900 tabular-nums whitespace-nowrap">{formatCurrency(financialData.totalExpenses)}</span>
-                </div>
-
+            <Panel
+                title={<>Expenses <span className="ml-1 text-slate-400 font-normal tabular-nums">{filteredExpenses.length}</span></>}
+                subtitle="Payroll entries are generated automatically from active staff salaries."
+                actions={<span className="text-[13px] font-semibold text-slate-900 tabular-nums whitespace-nowrap">{formatCurrency(financialData.totalExpenses)}</span>}
+            >
                 {filteredExpenses.length === 0 ? (
-                    <div className="px-6 py-14 text-center">
-                        <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
-                            <AccountingIcon className="w-6 h-6" />
-                        </div>
-                        <p className="mt-3 font-semibold text-slate-700">No expenses for this period</p>
-                        <p className="text-sm text-slate-500">Add an expense or choose a different period.</p>
-                    </div>
+                    <EmptyState
+                        icon={<AccountingIcon />}
+                        title="No expenses for this period"
+                        hint="Add an expense or choose a different period."
+                        action={<Button variant="primary" size="sm" onClick={() => handleActionAttempt('add')} icon={<PlusIcon className="w-4 h-4" />}>Add expense</Button>}
+                    />
                 ) : (
                     <>
-                        <div className="hidden md:block">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
-                                    <tr>
-                                        <th className="px-5 py-3 text-left font-semibold">Date</th>
-                                        <th className="px-5 py-3 text-left font-semibold">Category</th>
-                                        <th className="px-5 py-3 text-left font-semibold">Description</th>
-                                        <th className="px-5 py-3 text-right font-semibold">Amount</th>
-                                        <th className="px-5 py-3 text-right font-semibold w-24">Actions</th>
+                        <table className={`hidden md:table ${table.wrap}`}>
+                            <thead className={table.head}>
+                                <tr>
+                                    <th className={table.th}>Date</th>
+                                    <th className={table.th}>Category</th>
+                                    <th className={table.th}>Description</th>
+                                    <th className={`${table.th} text-right`}>Amount</th>
+                                    <th className={`${table.th} text-right w-24`}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className={table.body}>
+                                {filteredExpenses.map(exp => (
+                                    <tr key={exp.id} className={table.row}>
+                                        <td className={`${table.td} whitespace-nowrap text-slate-600 tabular-nums`}>{formatDate(exp.date)}</td>
+                                        <td className={`${table.td} whitespace-nowrap`}><CategoryPill exp={exp} /></td>
+                                        <td className={`${table.td} text-slate-800`}>{exp.description}</td>
+                                        <td className={`${table.td} text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap`}>{formatCurrency(exp.amount)}</td>
+                                        <td className={`${table.td} text-right`}>
+                                            {!exp.isRecurring && (
+                                                <div className="inline-flex items-center gap-0.5">
+                                                    <button onClick={() => handleActionAttempt('edit', exp)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900" title="Edit" aria-label="Edit expense"><EditIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleActionAttempt('delete', exp)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-600" title="Delete" aria-label="Delete expense"><TrashIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            )}
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {filteredExpenses.map(exp => (
-                                        <tr key={exp.id} className="hover:bg-slate-50/70">
-                                            <td className="px-5 py-3 whitespace-nowrap text-slate-600 tabular-nums">{formatDate(exp.date)}</td>
-                                            <td className="px-5 py-3 whitespace-nowrap"><CategoryPill exp={exp} /></td>
-                                            <td className="px-5 py-3 text-slate-800">{exp.description}</td>
-                                            <td className="px-5 py-3 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">{formatCurrency(exp.amount)}</td>
-                                            <td className="px-5 py-3 text-right">
-                                                {!exp.isRecurring && (
-                                                    <div className="inline-flex items-center gap-1">
-                                                        <button onClick={() => handleActionAttempt('edit', exp)} className="p-2 rounded-lg text-slate-500 hover:bg-indigo-50 hover:text-indigo-600" title="Edit" aria-label="Edit expense"><EditIcon className="w-4 h-4" /></button>
-                                                        <button onClick={() => handleActionAttempt('delete', exp)} className="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600" title="Delete" aria-label="Delete expense"><TrashIcon className="w-4 h-4" /></button>
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                ))}
+                            </tbody>
+                        </table>
                         <ul className="md:hidden divide-y divide-slate-100">
                             {filteredExpenses.map(exp => (
-                                <li key={exp.id} className="px-4 py-3.5">
+                                <li key={exp.id} className="px-4 py-3">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
-                                            <p className="text-sm font-medium text-slate-900 break-words">{exp.description}</p>
+                                            <p className="text-[13px] font-medium text-slate-900 break-words">{exp.description}</p>
                                             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                                 <CategoryPill exp={exp} />
                                                 <span className="tabular-nums">{formatDate(exp.date)}</span>
                                             </div>
                                         </div>
-                                        <span className="text-sm font-bold text-slate-900 tabular-nums whitespace-nowrap">{formatCurrency(exp.amount)}</span>
+                                        <span className="text-[13px] font-semibold text-slate-900 tabular-nums whitespace-nowrap">{formatCurrency(exp.amount)}</span>
                                     </div>
                                     {!exp.isRecurring && (
-                                        <div className="mt-3 grid grid-cols-2 gap-2">
-                                            <button onClick={() => handleActionAttempt('edit', exp)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-xl ring-1 ring-slate-200 text-slate-700 hover:bg-slate-50"><EditIcon className="w-4 h-4" /> Edit</button>
-                                            <button onClick={() => handleActionAttempt('delete', exp)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-xl ring-1 ring-rose-200 text-rose-600 hover:bg-rose-50"><TrashIcon className="w-4 h-4" /> Delete</button>
+                                        <div className="mt-2.5 grid grid-cols-2 gap-2">
+                                            <Button size="sm" onClick={() => handleActionAttempt('edit', exp)} icon={<EditIcon className="w-4 h-4" />}>Edit</Button>
+                                            <Button size="sm" variant="danger" onClick={() => handleActionAttempt('delete', exp)} icon={<TrashIcon className="w-4 h-4" />}>Delete</Button>
                                         </div>
                                     )}
                                 </li>
@@ -412,7 +386,7 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
                         </ul>
                     </>
                 )}
-            </div>
+            </Panel>
 
             {isExpenseModalOpen && (
                 <ManageExpensesModal
@@ -435,7 +409,7 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
                     onClose={() => { setIsKeyModalOpen(false); setPendingAction(null); }}
                 />
             )}
-        </div>
+        </Page>
     );
 };
 
