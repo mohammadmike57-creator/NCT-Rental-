@@ -42,7 +42,9 @@
      =================================== */
 
   .animate-modal-enter {
-    animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    /* No fill-mode: once finished the element keeps no transform, so fixed-position
+       dialogs inside it still cover the whole screen. */
+    animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .animate-modal-exit {
@@ -80,7 +82,9 @@
     }
     to {
       opacity: 1;
-      transform: scale(1) translateY(0);
+      /* "none", not scale(1): a lingering transform would make full-screen
+         dialogs inside the animated wrapper size to it instead of the screen */
+      transform: none;
     }
   }
 

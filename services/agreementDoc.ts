@@ -81,16 +81,20 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
 <style>
   @page { size: A4; margin: 11mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Inter, Arial, sans-serif; color: #0f172a; font-size: 8.6pt; line-height: 1.4; padding: 4px; }
-  .accent { height: 4px; background: linear-gradient(90deg, #0f172a, #334155 60%, #f97316); border-radius: 3px; margin-bottom: 12px; }
-  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+  body { font-family: Inter, 'Segoe UI', Helvetica, Arial, sans-serif; color: #0f172a; font-size: 8.6pt; line-height: 1.4; padding: 6px; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding-bottom: 8px; border-bottom: 2px solid #0f172a; }
   .top img { height: 28px; }
   .co { font-size: 7.6pt; color: #475569; margin-top: 4px; line-height: 1.45; }
-  .doc { text-align: right; }
-  .doc h1 { font-size: 17pt; letter-spacing: -0.02em; line-height: 1.05; }
-  .doc .sub { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .14em; color: #64748b; margin-top: 3px; }
-  .doc .no { margin-top: 5px; font-size: 8.5pt; } .doc .no b { font-family: Consolas, monospace; }
-  .pill { display: inline-block; margin-top: 5px; padding: 2px 9px; border-radius: 999px; font-size: 7.3pt; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+  .doc { text-align: right; min-width: 235px; }
+  .doc h1 { font-size: 15.5pt; letter-spacing: -0.01em; line-height: 1.05; font-weight: 700; }
+  .doc .sub { font-size: 7pt; text-transform: uppercase; letter-spacing: .14em; color: #64748b; margin-top: 6px; }
+  .ref { margin-top: 7px; margin-left: auto; border: 1px solid #cbd5e1; border-radius: 6px; border-collapse: separate; border-spacing: 0; width: 235px; overflow: hidden; }
+  .ref td { padding: 2.5px 8px; border-bottom: 1px solid #e2e8f0; font-size: 7.6pt; }
+  .ref tr:last-child td { border-bottom: 0; }
+  .ref td:first-child { color: #64748b; text-align: left; background: #f8fafc; width: 42%; }
+  .ref td:last-child { text-align: right; font-weight: 600; }
+  .mono { font-family: Consolas, 'SF Mono', monospace; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 7.3pt; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
   .pill.closed { background: #0f172a; color: #fff; } .pill.open { background: #ecfdf5; color: #047857; } .pill.new { background: #eff6ff; color: #1d4ed8; }
   .band { margin-top: 10px; display: flex; gap: 0; border-radius: 8px; overflow: hidden; background: #0f172a; color: #fff; }
   .band div { flex: 1; padding: 7px 11px; border-right: 1px solid #1e293b; }
@@ -101,13 +105,23 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-top: 8px; }
   .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 7px; }
   .g2w { display: grid; grid-template-columns: 1.1fr 1fr; gap: 7px; margin-top: 7px; }
-  .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 10px; }
-  h2 { font-size: 7pt; text-transform: uppercase; letter-spacing: .1em; color: #64748b; margin-bottom: 5px; font-weight: 700; }
+  .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; }
+  h2 { font-size: 7pt; text-transform: uppercase; letter-spacing: .1em; color: #334155; margin-bottom: 5px; font-weight: 700; }
+  h2 .n { color: #94a3b8; font-weight: 800; letter-spacing: 0; margin-right: 5px; }
+  h2 .n::after { content: '.'; }
+  .items th { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .items td { border-bottom: 1px solid #f1f5f9; }
+  .items .sub td { color: #64748b; border-bottom: 0; padding-top: 2px; padding-bottom: 0; }
+  .keyterms { margin-top: 6px; border: 1px solid #e2e8f0; border-left: 3px solid #0f172a; border-radius: 6px; padding: 6px 10px; }
+  .keyterms ol { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; counter-reset: k; }
+  .keyterms li { counter-increment: k; font-size: 7.3pt; color: #334155; padding-left: 14px; position: relative; line-height: 1.4; }
+  .keyterms li::before { content: counter(k); position: absolute; left: 0; top: 0; font-weight: 800; color: #0f172a; }
+  .keyterms b { color: #0f172a; }
   .name { font-size: 10.5pt; font-weight: 700; }
   .kv { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
   .kv span:first-child { color: #64748b; } .kv span:last-child { font-weight: 600; text-align: right; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; }
-  td, th { padding: 3px 4px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: middle; }
+  td, th { padding: 2.5px 4px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: middle; }
   th { font-size: 6.8pt; text-transform: uppercase; letter-spacing: .07em; color: #64748b; font-weight: 700; }
   .cmp th { background: #f8fafc; }
   .cmp td, .cl td { padding-top: 1px; }
@@ -123,7 +137,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .ok { color: #059669; font-weight: 800; } .bad { color: #dc2626; font-weight: 800; } .dim { color: #cbd5e1; }
   .views { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   .view { border: 1px solid #eef2f6; border-radius: 6px; text-align: center; background: #fcfdfe; }
-  .view svg { width: 100%; height: 74px; display: block; }
+  .view svg { width: 100%; height: 62px; display: block; }
   .vl { font-size: 6.8pt; color: #64748b; padding-bottom: 2px; }
   .legend { margin-top: 5px; font-size: 7pt; color: #475569; }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px -1px 8px; vertical-align: baseline; }
@@ -146,22 +160,24 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .si img { max-height: 34px; max-width: 100%; }
   .sl { border-top: 1px solid #0f172a; padding-top: 2px; font-size: 7.2pt; font-weight: 700; text-align: center; }
   .sm { font-size: 6.6pt; color: #64748b; text-align: center; min-height: 9px; }
-  .foot { margin-top: 8px; padding-top: 5px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 6.8pt; color: #64748b; }
+  .foot { margin-top: 8px; padding-top: 5px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; gap: 12px; font-size: 6.6pt; color: #64748b; }
 
   html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4; margin: 9mm; }
   @media print { body { padding: 0; zoom: 0.86; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
 </style></head><body>
-  <div class="accent"></div>
   <div class="top">
     <div>${i.logo ? `<img src="${i.logo}" alt="">` : `<div class="name">${esc(i.company.name)}</div>`}
       <div class="co"><b style="color:#0f172a">${esc(i.company.name)}</b>${i.company.subName ? ' · ' + esc(i.company.subName) : ''}<br>${esc(i.company.address)}<br>Tel ${esc(i.company.phone)} · ${esc(i.company.email)}${i.company.taxNumber ? ' · Tax No. ' + esc(i.company.taxNumber) : ''}</div>
     </div>
     <div class="doc">
-      <h1>Rental Agreement</h1>
-      <div class="sub">${closed ? 'Check-out & check-in record' : onRent ? 'Check-out record' : 'Booking confirmation'}</div>
-      <div class="no">No. <b>${esc(r.bookingId)}</b></div>
-      <div class="pill ${status[1]}">${status[0]}</div>
+      <h1>Vehicle Rental Agreement</h1>
+      <div class="sub">${closed ? 'Closed · check-out &amp; check-in record' : onRent ? 'Open · check-out record' : 'Booking confirmation'}</div>
+      <table class="ref">
+        <tr><td>Agreement no.</td><td class="mono">RA-${esc(r.bookingId)}</td></tr>
+        <tr><td>Issued</td><td>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td></tr>
+        <tr><td>Status</td><td><span class="pill ${status[1]}">${status[0]}</span></td></tr>
+      </table>
     </div>
   </div>
 
@@ -174,22 +190,22 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   </div>` : ''}
 
   <div class="g3">
-    <div class="card"><h2>Renter</h2><div class="name">${esc(r.personName)}</div>
+    <div class="card"><h2><span class="n">1</span>Renter</h2><div class="name">${esc(r.personName)}</div>
       <div class="kv"><span>Phone</span><span>${esc(r.contactNumber || '—')}</span></div>
       <div class="kv"><span>Email</span><span>${esc(r.customerEmail || '—')}</span></div>
       <div class="kv"><span>Booked via</span><span>${esc(r.source || '—')}</span></div></div>
-    <div class="card"><h2>Vehicle</h2><div class="name">${esc(r.carModel || '—')}</div>
+    <div class="card"><h2><span class="n">2</span>Vehicle</h2><div class="name">${esc(r.carModel || '—')}</div>
       <div class="kv"><span>Plate</span><span style="font-family:Consolas,monospace">${esc(r.licensePlate || '—')}</span></div>
       ${(r.carExchanges || []).length ? `<div class="kv"><span>Exchanged</span><span>${r.carExchanges!.length}×</span></div>` : ''}
       <div class="kv"><span>Deposit / excess</span><span>${usd(r.securityDeposit || 0)} / ${usd(r.excess || 0)}</span></div></div>
-    <div class="card"><h2>Rental period</h2>
+    <div class="card"><h2><span class="n">3</span>Rental period</h2>
       <div class="kv"><span>Pick-up</span><span>${when(r.startDate)}</span></div>
       <div class="kv"><span>Return due</span><span>${when(r.endDate)}</span></div>
       <div class="kv"><span>Location</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
       ${(r.extensionHistory || []).length ? `<div class="kv"><span>Extended</span><span>+${r.extensionHistory!.reduce((s, e) => s + e.days, 0)} days</span></div>` : ''}</div>
   </div>
 
-  ${closed ? `<div class="card" style="margin-top:7px"><h2>Check-out vs check-in</h2>
+  ${closed ? `<div class="card" style="margin-top:7px"><h2><span class="n">4</span>Check-out vs check-in</h2>
     <table class="cmp">
       <tr><th></th><th>Check-out</th>${closed ? '<th>Check-in</th><th class="num">Difference</th>' : ''}</tr>
       <tr><td>Date & time</td><td>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</td>${closed ? `<td>${returnedAt ? when(returnedAt.toISOString()) : '—'}</td><td class="num ${lateHours > 2 ? 'diff-bad' : ''}">${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'On time'}</td>` : ''}</tr>
@@ -199,7 +215,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <tr><td>Damage marks</td><td>${pickupMarks.length} existing</td>${closed ? `<td>${returnMarks.length} new</td><td class="num ${returnMarks.length ? 'diff-bad' : 'diff-ok'}">${returnMarks.length ? `${returnMarks.length} new` : 'No new damage'}</td>` : ''}</tr>
       <tr><td>Staff</td><td>${esc(r.pickupAgentName || '—')}</td>${closed ? `<td>${esc(r.dropOffAgentName || '—')}</td><td></td>` : ''}</tr>
     </table>
-  </div>` : `<div class="card" style="margin-top:7px"><h2>Condition at check-out</h2>
+  </div>` : `<div class="card" style="margin-top:7px"><h2><span class="n">4</span>Condition at check-out</h2>
     <div class="cgrid">
       <div><span>Date & time</span><b>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</b></div>
       <div><span>Odometer</span><b>${km(r.pickupKmOut)}</b></div>
@@ -211,11 +227,11 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   </div>`}
 
   <div class="g2w">
-    <div class="card"><h2>Vehicle condition</h2>
+    <div class="card"><h2><span class="n">5</span>Vehicle condition</h2>
       <div class="views">${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
       <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>At check-out (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>New at check-in (${returnMarks.length})` : ''}</div>
     </div>
-    <div class="card"><h2>Inspection checklist</h2>
+    <div class="card"><h2><span class="n">6</span>Inspection checklist</h2>
       <table class="cl">
         <tr><th>Item</th><th class="ctr">Out</th>${closed ? '<th class="ctr">In</th>' : ''}</tr>
         ${i.checklistItems.map(x => `<tr><td>${esc(x)}</td><td class="ctr">${tick(out[x])}</td>${closed ? `<td class="ctr">${tick(back[x], !!out[x])}</td>` : ''}</tr>`).join('')}
@@ -224,18 +240,21 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   </div>
 
   <div class="${rc || sideNotes ? 'g2' : ''}" style="${rc || sideNotes ? '' : 'margin-top:7px'}">
-    <div class="card"><h2>Rental charges</h2>
-      <table>
-        <tr><td>Rental · ${i.rentalDays} day${i.rentalDays === 1 ? '' : 's'}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
-        ${(r.extras || []).map(e => `<tr><td>${esc(e.name)}</td><td class="num">${e.isComplementary ? 'Included' : usd(e.dailyPrice * i.rentalDays)}</td></tr>`).join('')}
-        <tr class="tot"><td>Total</td><td class="num">${usd(rentalTotal)}</td></tr>
+    <div class="card"><h2><span class="n">7</span>Rental charges</h2>
+      <table class="items">
+        <tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+        <tr><td>Vehicle rental${r.sippCode ? ` (${esc(r.sippCode)})` : ''}</td><td class="num">${i.rentalDays} d</td><td class="num">${usd(i.rentalDays ? i.baseRentalFee / i.rentalDays : i.baseRentalFee)}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
+        ${(r.extras || []).map(e => `<tr><td>${esc(e.name)}</td><td class="num">${i.rentalDays} d</td><td class="num">${e.isComplementary ? '—' : usd(e.dailyPrice)}</td><td class="num">${e.isComplementary ? 'Included' : usd(e.dailyPrice * i.rentalDays)}</td></tr>`).join('')}
+        <tr class="tot"><td colspan="3">Total</td><td class="num">${usd(rentalTotal)}</td></tr>
+        ${(r.securityDeposit || 0) > 0 ? `<tr class="sub"><td colspan="3">Security deposit (refundable)</td><td class="num">${usd(r.securityDeposit || 0)}</td></tr>` : ''}
+        ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">Damage excess (your maximum liability)</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
       </table>
       <div class="settle info">${paymentLine}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
-    ${sideNotes ? `<div class="card"><h2>${closed ? 'Notes' : 'Check-out notes'}</h2>${closed
+    ${sideNotes ? `<div class="card"><h2><span class="n">8</span>${closed ? 'Notes' : 'Check-out notes'}</h2>${closed
       ? `<div class="nl"><span>At check-out</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>At check-in</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`
       : `<div class="notes">${esc(r.pickupNotes)}</div>`}</div>` : ''}
-    ${rc ? `<div class="card"><h2>Charges at check-in · ${esc(rc.documentNumber || '')}</h2>
+    ${rc ? `<div class="card"><h2><span class="n">8</span>Charges at check-in · ${esc(rc.documentNumber || '')}</h2>
       <table>
         ${rc.items.map(it => `<tr><td>${esc(CHARGE_KIND_LABEL[it.kind])} — ${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
         <tr class="tot"><td>Total</td><td class="num">${esc(formatMoney(chargesTotal(rc.items), rc.currency))}</td></tr>
@@ -253,7 +272,16 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     <div class="card"><h2>Check-in notes</h2><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
   </div>` : ''}
 
-  <div class="card avoid" style="margin-top:7px"><h2>Declaration & signatures</h2>
+  <div class="keyterms avoid"><h2>Key rental terms</h2>
+    <ol>
+      <li><b>Return</b> the vehicle by ${when(r.endDate)}${i.locationName || r.locationName ? ` at ${esc(i.locationName || r.locationName)}` : ''}. Extensions must be agreed before this time.</li>
+      <li><b>Fuel</b> — return the vehicle with the same fuel level as at check-out${r.pickupFuelLevel != null ? ` (${r.pickupFuelLevel}/8)` : ''}. A shortage is charged.</li>
+      <li><b>Damage</b> — new damage found at return is charged ${(r.excess || 0) > 0 ? `up to the excess of ${usd(r.excess || 0)}` : 'at repair cost'}.${(r.securityDeposit || 0) > 0 ? ` The ${usd(r.securityDeposit || 0)} deposit is released after the return inspection.` : ''}</li>
+      <li><b>Traffic fines</b>, tolls and parking penalties incurred during the rental are the renter's responsibility and may be charged after return.</li>
+    </ol>
+  </div>
+
+  <div class="card avoid" style="margin-top:7px"><h2><span class="n">9</span>Declaration &amp; signatures</h2>
     <p class="terms">${esc(PICKUP_TERMS)}${closed ? ' ' + esc(RETURN_TERMS) : ''}</p>
     <div class="sg">
       <div class="sgrp"><h3>Check-out</h3><div class="row">
@@ -267,6 +295,6 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     </div>
   </div>
 
-  <div class="foot"><span>${esc(i.company.name)} · Agreement ${esc(r.bookingId)} · ${esc(i.locationAddress || i.locationName || r.locationName || '')}</span><span>Customer copy · issued ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
+  <div class="foot"><span>${esc(i.company.name)}${i.company.subName ? ' · ' + esc(i.company.subName) : ''} · Agreement RA-${esc(r.bookingId)} · ${esc(i.locationAddress || i.locationName || r.locationName || '')}</span><span>Customer copy · signed electronically · ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
 </body></html>`;
 }

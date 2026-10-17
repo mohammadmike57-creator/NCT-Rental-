@@ -7,7 +7,6 @@ import { Button } from './ui/Crm';
 import jsPDF from 'jspdf';
 
 // Forward declaration for html2canvas from CDN
-declare const html2canvas: any;
 
 interface ReceiptProps {
     reservation: Reservation;
@@ -79,13 +78,14 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
     const amountPaid = isPrepaid ? baseRentalFee : totalCharges;
     const balanceDue = isPrepaid ? extrasTotal : 0;
 
-    const handleDownloadPDF = () => {
-        const element = document.querySelector('.printable-area');
-        if (!element || typeof html2canvas === 'undefined') {
+    const handleDownloadPDF = async () => {
+        const element = document.querySelector('.printable-area') as HTMLElement | null;
+        if (!element) {
             alert('Could not generate PDF. A required library might be missing.');
             return;
         }
-    
+        const html2canvas = (await import('html2canvas')).default;
+
         html2canvas(element, { scale: 2 }).then((canvas: any) => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');

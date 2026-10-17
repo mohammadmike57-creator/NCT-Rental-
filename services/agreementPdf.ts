@@ -63,8 +63,8 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     let page = 0;
     // Trim the blank space below the last element so it doesn't count as content.
     const contentBottom = Math.min(canvas.height, Math.round(((breaks[breaks.length - 1] ?? height) + 12) * scale));
-    // A document that is only slightly longer than one page is shrunk onto it rather than leaving a near-empty page.
-    if (contentBottom > sliceH && contentBottom <= sliceH * 1.1) {
+    // A document that is only slightly longer than one page (up to 20%) is shrunk onto it rather than leaving a near-empty page.
+    if (contentBottom > sliceH && contentBottom <= sliceH * 1.2) {
       const fit = (pageH - margin * 2 - 10) / contentBottom;
       const w = canvas.width * fit;
       const slice = document.createElement('canvas');

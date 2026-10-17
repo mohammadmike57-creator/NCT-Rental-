@@ -2,10 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>NCT Rental</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#475569">
+    <meta name="theme-color" content="#0f172a">
     
     <!-- Apple PWA Tags for app-like experience on iOS -->
     <link rel="apple-touch-icon" href="/images/icons/icon-192.png">
@@ -13,60 +13,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="NCT Rental">
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: {
-                light: '#64748b',
-                DEFAULT: '#475569', // Slate 600
-                dark: '#334155',  // Slate 700
-              },
-              secondary: '#10B981', // Emerald 500
-              slate: {
-                50: '#f8fafc',
-                100: '#f1f5f9',
-                200: '#e2e8f0',
-                300: '#cbd5e1',
-                400: '#94a3b8',
-                500: '#64748b',
-                600: '#475569',
-                700: '#334155',
-                800: '#1e293b',
-                900: '#0f172a',
-              },
-            },
-            animation: {
-              'gradient-move': 'gradient-move 15s ease infinite',
-            },
-            keyframes: {
-              'gradient-move': {
-                '0%, 100%': { backgroundPosition: '0% 50%' },
-                '50%': { backgroundPosition: '100% 50%' },
-              },
-            },
-          }
-        }
-      }
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^18.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^18.2.0/",
-    "react/": "https://aistudiocdn.com/react@^18.2.0/",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/",
-    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.3",
-    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^5.0.2",
-    "vite": "https://aistudiocdn.com/vite@^7.2.2",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.1.0"
-  }
-}
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
