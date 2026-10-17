@@ -1,7 +1,12 @@
 import axios from 'axios';
 import { AllData } from '../types';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const configuredApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// The server also hosts the website, so when the page is opened on the company
+// domain (with or without "www") talk to that same address. Otherwise opening
+// nctrental.com instead of www.nctrental.com breaks every request.
+const sameOriginHost = typeof window !== 'undefined' && /(^|\.)nctrental\.com$/i.test(window.location.hostname);
+const rawApiUrl = sameOriginHost ? window.location.origin : configuredApiUrl;
 export const API_URL = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
 let token: string | null = localStorage.getItem('token');
