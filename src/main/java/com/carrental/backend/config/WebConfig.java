@@ -18,9 +18,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
-        // Forward all non-API routes to index.html for SPA routing
+        // Forward root to index.html for SPA routing
         registry.addViewController("/").setViewName("forward:/index.html");
-        registry.addViewController("/{x:[\\w\\-]+}").setViewName("forward:/index.html");
-        registry.addViewController("/{x:^(?!api$).*$}/**/{y:[\\w\\-]+}").setViewName("forward:/index.html");
     }
 }
