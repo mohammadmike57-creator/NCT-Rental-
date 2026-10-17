@@ -84,7 +84,22 @@ public class SecurityConfig {
                     "/stripe/**",
                     // Partner XML API: authenticated per channel with a feed key (see OtaPartnerController)
                     "/ota/**",
-                    "/api/voucher/**"
+                    "/api/voucher/**",
+                    // Static resources
+                    "/favicon.ico",
+                    "/favicon.png",
+                    "/manifest.json",
+                    "/service-worker.js",
+                    "/offline.html",
+                    "/static/**",
+                    "/public/**",
+                    "/assets/**",
+                    "/images/**",
+                    "/icons/**",
+                    "/*.png",
+                    "/*.jpg",
+                    "/*.ico",
+                    "/*.svg"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

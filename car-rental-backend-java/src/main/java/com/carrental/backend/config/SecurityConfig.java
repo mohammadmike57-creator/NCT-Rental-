@@ -79,7 +79,23 @@ public class SecurityConfig {
                     "/health",
                     "/api/state",
                     "/stripe/**",
-                    "/api/voucher/**"
+                    "/api/voucher/**",
+                    "/ota/**",
+                    // Static resources
+                    "/favicon.ico",
+                    "/favicon.png",
+                    "/manifest.json",
+                    "/service-worker.js",
+                    "/offline.html",
+                    "/static/**",
+                    "/public/**",
+                    "/assets/**",
+                    "/images/**",
+                    "/icons/**",
+                    "/*.png",
+                    "/*.jpg",
+                    "/*.ico",
+                    "/*.svg"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
