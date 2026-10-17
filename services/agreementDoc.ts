@@ -108,6 +108,9 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   td, th { padding: 3px 4px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: middle; }
   th { font-size: 6.8pt; text-transform: uppercase; letter-spacing: .07em; color: #64748b; font-weight: 700; }
   .cmp th { background: #f8fafc; }
+  .cgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px; }
+  .cgrid > div > span { display: block; font-size: 6.8pt; color: #64748b; text-transform: uppercase; letter-spacing: .08em; }
+  .cgrid b { font-size: 9pt; }
   .cmp td:first-child { color: #64748b; width: 23%; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .ctr { text-align: center; }
@@ -134,6 +137,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .sgrp { border: 1px solid #eef2f6; border-radius: 6px; padding: 5px 8px 6px; }
   .sgrp h3 { font-size: 6.8pt; text-transform: uppercase; letter-spacing: .1em; color: #64748b; margin-bottom: 2px; }
   .sgrp .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sgrp.next p { font-size: 7.4pt; color: #475569; margin-top: 3px; } .sgrp.next .due { color: #0f172a; }
   .si { height: 34px; display: flex; align-items: flex-end; justify-content: center; }
   .si img { max-height: 34px; max-width: 100%; }
   .sl { border-top: 1px solid #0f172a; padding-top: 2px; font-size: 7.2pt; font-weight: 700; text-align: center; }
@@ -177,7 +181,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       ${(r.extensionHistory || []).length ? `<div class="kv"><span>Extended</span><span>+${r.extensionHistory!.reduce((s, e) => s + e.days, 0)} days</span></div>` : ''}</div>
   </div>
 
-  <div class="card" style="margin-top:7px"><h2>${closed ? 'Check-out vs check-in' : 'Condition at check-out'}</h2>
+  ${closed ? `<div class="card" style="margin-top:7px"><h2>Check-out vs check-in</h2>
     <table class="cmp">
       <tr><th></th><th>Check-out</th>${closed ? '<th>Check-in</th><th class="num">Difference</th>' : ''}</tr>
       <tr><td>Date & time</td><td>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</td>${closed ? `<td>${returnedAt ? when(returnedAt.toISOString()) : '—'}</td><td class="num ${lateHours > 2 ? 'diff-bad' : ''}">${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'On time'}</td>` : ''}</tr>
@@ -187,7 +191,16 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <tr><td>Damage marks</td><td>${pickupMarks.length} existing</td>${closed ? `<td>${returnMarks.length} new</td><td class="num ${returnMarks.length ? 'diff-bad' : 'diff-ok'}">${returnMarks.length ? `${returnMarks.length} new` : 'No new damage'}</td>` : ''}</tr>
       <tr><td>Staff</td><td>${esc(r.pickupAgentName || '—')}</td>${closed ? `<td>${esc(r.dropOffAgentName || '—')}</td><td></td>` : ''}</tr>
     </table>
-  </div>
+  </div>` : `<div class="card" style="margin-top:7px"><h2>Condition at check-out</h2>
+    <div class="cgrid">
+      <div><span>Date & time</span><b>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</b></div>
+      <div><span>Odometer</span><b>${km(r.pickupKmOut)}</b></div>
+      <div><span>Fuel</span><b>${fuel(r.pickupFuelLevel, '#0284c7')}</b></div>
+      <div><span>Checklist</span><b>${okOut} of ${i.checklistItems.length} items OK</b></div>
+      <div><span>Existing damage</span><b>${pickupMarks.length} mark${pickupMarks.length === 1 ? '' : 's'}</b></div>
+      <div><span>Handed over by</span><b>${esc(r.pickupAgentName || '—')}</b></div>
+    </div>
+  </div>`}
 
   <div class="g2w">
     <div class="card"><h2>Vehicle condition</h2>
@@ -202,7 +215,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     </div>
   </div>
 
-  <div class="${rc ? 'g2' : ''}" style="${rc ? '' : 'margin-top:7px'}">
+  <div class="${rc || (!closed && r.pickupNotes) ? 'g2' : ''}" style="${rc || (!closed && r.pickupNotes) ? '' : 'margin-top:7px'}">
     <div class="card"><h2>Rental charges</h2>
       <table>
         <tr><td>Rental · ${i.rentalDays} day${i.rentalDays === 1 ? '' : 's'}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
@@ -211,6 +224,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       </table>
       <div class="settle info">${paymentLine}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
+    ${!closed && r.pickupNotes ? `<div class="card"><h2>Check-out notes</h2><div class="notes">${esc(r.pickupNotes)}</div></div>` : ''}
     ${rc ? `<div class="card"><h2>Charges at check-in · ${esc(rc.documentNumber || '')}</h2>
       <table>
         ${rc.items.map(it => `<tr><td>${esc(CHARGE_KIND_LABEL[it.kind])} — ${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
@@ -224,7 +238,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
 
   ${photos.length ? `<div class="card" style="margin-top:7px"><h2>Photo evidence at check-in</h2><div class="photos">${photos.map(p => `<figure><img src="${esc(p.src)}"/><figcaption>${esc(p.cap)}</figcaption></figure>`).join('')}</div></div>` : ''}
 
-  ${r.pickupNotes || r.dropOffNotes ? `<div class="g2">
+  ${closed && (r.pickupNotes || r.dropOffNotes) ? `<div class="g2">
     <div class="card"><h2>Check-out notes</h2><div class="notes">${esc(r.pickupNotes || '—')}</div></div>
     <div class="card"><h2>Check-in notes</h2><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
   </div>` : ''}
@@ -236,10 +250,10 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
         ${sig(r.pickupRenterSignature, 'Renter', r.personName, r.pickupDateTime ? when(r.pickupDateTime) : undefined)}
         ${sig(r.pickupAgentSignature, 'Company representative', r.pickupAgentName)}
       </div></div>
-      <div class="sgrp"><h3>Check-in</h3><div class="row">
-        ${closed ? sig(r.dropOffRenterSignature, 'Renter', r.personName, returnedAt ? when(returnedAt.toISOString()) : undefined) : sig(undefined, 'Renter', 'at return')}
-        ${closed ? sig(r.dropOffAgentSignature, 'Company representative', r.dropOffAgentName) : sig(undefined, 'Company representative', 'at return')}
-      </div></div>
+      ${closed ? `<div class="sgrp"><h3>Check-in</h3><div class="row">
+        ${sig(r.dropOffRenterSignature, 'Renter', r.personName, returnedAt ? when(returnedAt.toISOString()) : undefined)}
+        ${sig(r.dropOffAgentSignature, 'Company representative', r.dropOffAgentName)}
+      </div></div>` : `<div class="sgrp next"><h3>At return</h3><p>When you bring the car back it is inspected with you and both of you sign the check-in. You then receive the final agreement and the rental termination statement by email.</p><p class="due">Please return by <b>${when(r.endDate)}</b>${i.locationName || r.locationName ? ` at ${esc(i.locationName || r.locationName)}` : ''}.</p></div>`}
     </div>
   </div>
 

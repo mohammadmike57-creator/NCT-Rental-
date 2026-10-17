@@ -8,6 +8,7 @@ import { sendCustomerEmail } from '../firebase/api';
 import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
+import { buildTerminationHtml, terminationFileName, terminationNumber } from '../services/terminationDoc';
 import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
 
 interface VoucherProps {
@@ -470,6 +471,22 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     prepaid: sources.find(src => src.name === r.source)?.paymentType === PaymentType.PREPAID,
   });
 
+  const buildTermination = (r: Reservation = localReservation): string => buildTerminationHtml({
+    reservation: r,
+    company: companyDetails,
+    logo: URDRIVE_LOGO_B64,
+    rentalDays,
+    baseRentalFee,
+    checklistItems,
+    locationName: location?.name || r.locationName,
+    prepaid: sources.find(src => src.name === r.source)?.paymentType === PaymentType.PREPAID,
+  });
+
+  const handlePrintTermination = () => {
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (w) { w.document.write(buildTermination()); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+  };
+
   const handleDownloadVoucherPDF = () => {
     const html = buildAgreementHtml();
     const printWindow = window.open('', '_blank', 'width=900,height=1000');
@@ -547,6 +564,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       attachment = { fileName: `Rental-Agreement-${r.bookingId}.html`, contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(html))) };
     }
     const attachments = [attachment];
+    if (kind === 'checkin') {
+      const termHtml = buildTermination(r);
+      try {
+        attachments.push({ fileName: terminationFileName(r.bookingId), contentType: 'application/pdf', base64: await agreementHtmlToPdfBase64(termHtml) });
+      } catch {
+        attachments.push({ fileName: terminationFileName(r.bookingId).replace(/\.pdf$/, '.html'), contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(termHtml))) });
+      }
+    }
     const rc = kind === 'checkin' && r.returnCharges && r.returnCharges.items.length > 0 ? r.returnCharges : undefined;
     if (rc) {
       const chargesHtml = buildReturnChargesHtml(r, rc, companyDetails, URDRIVE_LOGO_B64);
@@ -561,13 +586,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     const isCheckout = kind === 'checkout';
     const outcome = await sendCustomerEmail({
       to,
-      subject: `${isCheckout ? 'Your rental agreement' : 'Vehicle return confirmation'} · Booking ${r.bookingId}`,
+      subject: `${isCheckout ? 'Your rental agreement' : 'Rental agreement closed'} · Booking ${r.bookingId}`,
       heading: isCheckout ? 'Your rental agreement' : 'Thank you — your vehicle has been returned',
       intro: `Dear ${r.personName}, ${isCheckout
         ? `thank you for choosing ${companyDetails.name}. Your signed rental agreement is attached to this email. Please keep it with you for the duration of the rental.`
         : rc
-          ? `we have checked in your vehicle. Attached are the final signed agreement and ${rc.settlement === 'paid' ? `your paid invoice ${rc.documentNumber}` : `claim ${rc.documentNumber} for the charges found at return`}, including photos.`
-          : `we have checked in your vehicle. The final signed agreement, including the return inspection, is attached for your records.`}`,
+          ? `we have checked in your vehicle and your rental agreement is now closed. Attached are your final signed agreement, the rental termination statement ${terminationNumber(r.bookingId)} and ${rc.settlement === 'paid' ? `your paid invoice ${rc.documentNumber}` : `claim ${rc.documentNumber} for the charges found at return`}, including photos.`
+          : `we have checked in your vehicle and your rental agreement is now closed. Attached are your final signed agreement with the return inspection and the rental termination statement ${terminationNumber(r.bookingId)} confirming that nothing further is due.`}`,
       rows: [
         ['Booking', r.bookingId],
         ['Vehicle', `${r.carModel || '—'}${r.licensePlate ? ` · ${r.licensePlate}` : ''}`],
@@ -590,7 +615,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       companyEmail: companyDetails.email,
       replyTo: companyDetails.email,
       attachments,
-      badge: isCheckout ? 'RENTAL AGREEMENT' : rc ? (rc.settlement === 'paid' ? 'PAID' : 'PAYMENT DUE') : 'VEHICLE RETURNED',
+      badge: isCheckout ? 'RENTAL AGREEMENT' : rc ? (rc.settlement === 'paid' ? 'PAID' : 'PAYMENT DUE') : 'AGREEMENT CLOSED',
       tone: rc ? (rc.settlement === 'paid' ? 'success' : 'warning') : isCheckout ? 'info' : 'success',
       highlightLabel: rc ? (rc.settlement === 'paid' ? `Invoice ${rc.documentNumber} · paid` : `Claim ${rc.documentNumber} · amount due`) : isCheckout ? 'Rental total' : undefined,
       highlightValue: rc ? formatMoney(chargesTotal(rc.items), rc.currency) : isCheckout ? formatCurrency(r.amount || 0) : undefined,
@@ -1137,9 +1162,16 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   {processType === 'exchange' && viewMode === 'dropoff' ? 'Complete exchange' : viewMode === 'pickup' ? 'Complete check-out' : 'Complete check-in'}
                 </button>
               ) : (
-                <button onClick={handleDownloadVoucherPDF} className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-slate-900 text-white rounded-xl hover:bg-slate-800">
-                  <PdfIcon className="w-4 h-4" /> Print agreement
-                </button>
+                <div className="flex items-center gap-2">
+                  {localReservation.dropOffCompleted && (
+                    <button onClick={handlePrintTermination} className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-white ring-1 ring-slate-200 text-slate-700 rounded-xl hover:bg-slate-50">
+                      <PdfIcon className="w-4 h-4" /> Termination
+                    </button>
+                  )}
+                  <button onClick={handleDownloadVoucherPDF} className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-slate-900 text-white rounded-xl hover:bg-slate-800">
+                    <PdfIcon className="w-4 h-4" /> Print agreement
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1161,6 +1193,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center"><PdfIcon className="w-5 h-5" /></span>
                 <span><span className="block text-sm font-semibold text-slate-900">Payment receipt</span><span className="block text-xs text-slate-500">Download PDF</span></span>
               </button>
+              {localReservation.dropOffCompleted && (
+                <button onClick={handlePrintTermination} className="sm:col-span-2 flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-left">
+                  <span className="w-10 h-10 rounded-xl bg-slate-700 text-white flex items-center justify-center"><PdfIcon className="w-5 h-5" /></span>
+                  <span><span className="block text-sm font-semibold text-slate-900">Rental termination {terminationNumber(localReservation.bookingId)}</span><span className="block text-xs text-slate-500">Closure statement and final account</span></span>
+                </button>
+              )}
               {localReservation.dropOffCompleted && localReservation.returnCharges && localReservation.returnCharges.items.length > 0 && (
                 <button onClick={handleDownloadChargesPDF} className={`sm:col-span-2 flex items-center gap-3 p-4 rounded-2xl border text-left ${localReservation.returnCharges.settlement === 'paid' ? 'border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50' : 'border-amber-200 bg-amber-50/50 hover:bg-amber-50'}`}>
                   <span className={`w-10 h-10 rounded-xl text-white flex items-center justify-center ${localReservation.returnCharges.settlement === 'paid' ? 'bg-emerald-600' : 'bg-amber-500'}`}><PdfIcon className="w-5 h-5" /></span>
@@ -1185,14 +1223,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-semibold text-slate-900">
                     {emailState.status === 'sending' ? 'Emailing the agreement…' :
-                     emailState.status === 'sent' ? (localReservation.dropOffCompleted && localReservation.returnCharges?.items.length ? `Agreement & ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'} emailed` : 'Agreement emailed') :
+                     emailState.status === 'sent' ? (localReservation.dropOffCompleted ? 'Closing documents emailed' : 'Agreement emailed') :
                      emailState.status === 'failed' ? 'Email not sent' :
                      emailState.status === 'unconfigured' ? 'Email is not set up' : 'Email the agreement'}
                   </span>
                   <span className="block text-xs text-slate-500 truncate">
                     {emailState.status === 'unconfigured' ? 'Ask an administrator to configure outgoing email on the server.' :
                      emailState.status === 'failed' ? (emailState.message || 'Please try again.') :
-                     `${localReservation.dropOffCompleted && localReservation.returnCharges?.items.length ? `Agreement + ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'}` : 'PDF'} to ${localReservation.customerEmail}`}
+                     `${localReservation.dropOffCompleted ? `Agreement + termination${localReservation.returnCharges?.items.length ? ` + ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'}` : ''}` : 'Agreement PDF'} to ${localReservation.customerEmail}`}
                   </span>
                 </span>
                 {(emailState.status === 'failed' || emailState.status === 'idle' || emailState.status === 'unconfigured') && (
