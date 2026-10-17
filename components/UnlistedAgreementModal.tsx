@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Fleet, RentalLocation, RentalSource } from '../types';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
+import { Panel, Badge, Plate, Button, DetailList, inputCls as kitInput, selectCls, textareaCls, labelCls } from './ui/Crm';
 
 export interface UnlistedBookingDraft {
   personName: string;
@@ -31,15 +32,15 @@ const toLocalInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-$
 const makeRef = () => `WALK-${Date.now().toString(36).slice(-4).toUpperCase()}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
 
 const Field: React.FC<{ label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode; className?: string }> = ({ label, required, error, hint, children, className }) => (
-  <label className={`block ${className || ''}`}>
-    <span className="block text-xs font-semibold text-slate-600 mb-1.5">{label}{required && <span className="text-rose-500"> *</span>}</span>
+  <label className={`block min-w-0 ${className || ''}`}>
+    <span className={labelCls}>{label}{required && <span className="text-rose-500"> *</span>}</span>
     {children}
-    {error ? <span className="block text-xs text-rose-600 mt-1">{error}</span> : hint ? <span className="block text-xs text-slate-400 mt-1">{hint}</span> : null}
+    {error ? <span className="block text-xs text-rose-600 mt-1">{error}</span> : hint ? <span className="block text-xs text-slate-500 mt-1">{hint}</span> : null}
   </label>
 );
 
-const inputCls = (bad?: boolean) =>
-  `w-full px-3 py-2.5 bg-white border rounded-xl text-sm text-slate-800 outline-none focus:ring-2 transition-shadow ${bad ? 'border-rose-300 focus:ring-rose-500/20' : 'border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500'}`;
+const inputCls = (bad?: boolean) => `${kitInput}${bad ? ' !border-rose-300 focus:!ring-rose-500/20' : ''}`;
+const selCls = `${selectCls} w-full`;
 
 const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocations, existingBookingIds, onCancel, onSubmit }) => {
   const now = new Date();
@@ -99,27 +100,23 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
   const kind = vehicleKind(d.carModel, fleet);
 
   return (
-    <div className="bg-slate-50 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-      <div className="px-6 py-5 bg-white border-b border-slate-200 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Agreement for an unlisted booking</h2>
-            <p className="text-sm text-slate-500">For walk-ins or bookings not yet in the list. It is saved as <span className="font-semibold text-amber-700">awaiting confirmation</span> until a supervisor confirms it.</p>
-          </div>
+    <div className="bg-slate-50 -m-4 sm:m-0 h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-xl shadow-2xl overflow-hidden flex flex-col" role="dialog" aria-modal="true">
+      <header className="px-5 py-4 bg-white border-b border-slate-200 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-slate-900">Agreement for an unlisted booking</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            <span className="font-mono">{d.bookingId || '—'}</span> · For walk-ins or bookings not yet in the list. Saved as <Badge tone="warning" dot={false} className="align-middle">Awaiting confirmation</Badge> until a supervisor confirms it.
+          </p>
         </div>
-        <button onClick={onCancel} aria-label="Close" className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+        <button onClick={onCancel} aria-label="Close" className="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 space-y-5">
-          <section className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">Customer</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-3 gap-4 content-start">
+        <div className="lg:col-span-2 space-y-4 min-w-0">
+          <Panel title="Customer" padded>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Full name" required error={err('personName')} className="sm:col-span-2">
                 <input className={inputCls(!!err('personName'))} value={d.personName} onChange={e => set('personName', e.target.value)} placeholder="As shown on driving licence" autoFocus />
               </Field>
@@ -130,16 +127,15 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
                 <input className={inputCls(!!err('customerEmail'))} value={d.customerEmail} onChange={e => set('customerEmail', e.target.value)} placeholder="name@example.com" inputMode="email" />
               </Field>
             </div>
-          </section>
+          </Panel>
 
-          <section className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">Booking</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Panel title="Booking" padded>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Booking reference" required error={err('bookingId')} hint="Auto-generated — replace with the partner reference if there is one">
                 <input className={`${inputCls(!!err('bookingId'))} font-mono`} value={d.bookingId} onChange={e => set('bookingId', e.target.value)} />
               </Field>
               <Field label="Source">
-                <select className={inputCls()} value={d.source} onChange={e => set('source', e.target.value)}>
+                <select className={selCls} value={d.source} onChange={e => set('source', e.target.value)}>
                   {!sources.some(s => s.name === 'Walk-in') && <option value="Walk-in">Walk-in</option>}
                   {sources.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
@@ -151,7 +147,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
                 <input type="datetime-local" className={inputCls(!!err('endDate'))} value={d.endDate} onChange={e => set('endDate', e.target.value)} />
               </Field>
               <Field label="Location">
-                <select className={inputCls()} value={d.locationName} onChange={e => set('locationName', e.target.value)}>
+                <select className={selCls} value={d.locationName} onChange={e => set('locationName', e.target.value)}>
                   <option value="">—</option>
                   {rentalLocations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
                 </select>
@@ -160,13 +156,12 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
                 <input type="number" min={0} step="0.01" className={`${inputCls(!!err('amount'))} tabular-nums`} value={d.amount || ''} onChange={e => set('amount', parseFloat(e.target.value) || 0)} placeholder="0.00" />
               </Field>
             </div>
-          </section>
+          </Panel>
 
-          <section className="bg-white rounded-2xl border border-slate-200 p-5">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-4">Vehicle</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Panel title="Vehicle" padded>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="From fleet" className="sm:col-span-2">
-                <select className={inputCls()} value={vehicleId} onChange={e => pickVehicle(e.target.value)}>
+                <select className={selCls} value={vehicleId} onChange={e => pickVehicle(e.target.value)}>
                   <option value="">Select a vehicle…</option>
                   {[...fleet].sort((a, b) => a.modelName.localeCompare(b.modelName)).map(v => (
                     <option key={v.id} value={v.id}>{v.modelName}{v.licensePlate ? ` · ${v.licensePlate}` : ''}{v.category ? ` · ${v.category}` : ''}</option>
@@ -180,34 +175,32 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
                 <input className={`${inputCls()} uppercase font-mono`} value={d.licensePlate} onChange={e => set('licensePlate', e.target.value)} />
               </Field>
               <Field label="Notes" className="sm:col-span-2">
-                <textarea rows={2} className={inputCls()} value={d.notes} onChange={e => set('notes', e.target.value)} placeholder="Why the booking was not listed, who authorised it, etc." />
+                <textarea rows={2} className={textareaCls} value={d.notes} onChange={e => set('notes', e.target.value)} placeholder="Why the booking was not listed, who authorised it, etc." />
               </Field>
             </div>
-          </section>
+          </Panel>
         </div>
 
-        <aside className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden sticky top-0">
-            <div className="bg-gradient-to-br from-slate-100 to-slate-50 h-32 flex items-center justify-center">
-              <VehicleArt kind={kind} className="h-24 w-auto" />
+        <aside className="space-y-4 min-w-0">
+          <Panel title="Summary" className="lg:sticky lg:top-0">
+            <div className="h-24 bg-slate-50 border-b border-slate-200 flex items-center justify-center">
+              <VehicleArt kind={kind} className="h-16 w-auto" />
             </div>
-            <div className="p-5 space-y-3 text-sm">
-              <div>
-                <p className="font-bold text-slate-900">{d.carModel || 'No vehicle selected'}</p>
-                <p className="text-xs text-slate-500">{vehicleKindLabel[kind]}{d.licensePlate ? ` · ${d.licensePlate.toUpperCase()}` : ''}</p>
-              </div>
-              <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                <div className="flex justify-between"><span className="text-slate-500">Customer</span><span className="font-semibold text-slate-800 truncate ml-3">{d.personName || '—'}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Duration</span><span className="font-semibold text-slate-800">{days ? `${days} day${days === 1 ? '' : 's'}` : '—'}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Per day</span><span className="font-semibold text-slate-800 tabular-nums">{days && d.amount ? `$${(d.amount / days).toFixed(2)}` : '—'}</span></div>
-              </div>
-              <div className="border-t border-slate-200 pt-3 flex justify-between items-baseline">
-                <span className="font-semibold text-slate-700">Total</span>
-                <span className="text-2xl font-bold text-slate-900 tabular-nums">${(d.amount || 0).toFixed(2)}</span>
+            <div className="p-4">
+              <p className="text-[13px] font-semibold text-slate-900">{d.carModel || 'No vehicle selected'}</p>
+              <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">{vehicleKindLabel[kind]}{d.licensePlate ? <Plate value={d.licensePlate.toUpperCase()} /> : null}</p>
+              <DetailList className="mt-2 border-t border-slate-100" rows={[
+                { label: 'Customer', value: <span className="truncate block">{d.personName || '—'}</span> },
+                { label: 'Duration', value: <span className="tabular-nums">{days ? `${days} day${days === 1 ? '' : 's'}` : '—'}</span> },
+                { label: 'Per day', value: <span className="tabular-nums">{days && d.amount ? `$${(d.amount / days).toFixed(2)}` : '—'}</span> },
+              ]} />
+              <div className="border-t border-slate-200 pt-2.5 mt-1 flex justify-between items-baseline">
+                <span className="text-[13px] font-semibold text-slate-700">Total</span>
+                <span className="text-xl font-semibold text-slate-900 tabular-nums">${(d.amount || 0).toFixed(2)}</span>
               </div>
             </div>
-          </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 leading-relaxed">
+          </Panel>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 leading-relaxed">
             <p className="font-semibold mb-1">What happens next</p>
             <ol className="list-decimal ml-4 space-y-0.5">
               <li>The rental agreement opens so you can inspect, sign and check out the car.</li>
@@ -218,13 +211,13 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
         </aside>
       </div>
 
-      <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between gap-3">
+      <footer className="px-5 py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-3">
         <p className="text-xs text-slate-500 hidden sm:block">{touched && !valid ? <span className="text-rose-600 font-semibold">Please fix the highlighted fields.</span> : 'Fields marked * are required.'}</p>
-        <div className="flex gap-2 ml-auto">
-          <button onClick={onCancel} className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">Cancel</button>
-          <button onClick={submit} className="px-5 py-2.5 text-sm font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 shadow-sm">Open agreement</button>
+        <div className="flex gap-2 ml-auto max-sm:w-full [&>*]:max-sm:flex-1">
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" onClick={submit}>Open agreement</Button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };

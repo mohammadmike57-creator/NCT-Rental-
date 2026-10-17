@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Reservation, ExtensionInfo, ReservationExtra, TrafficTicket, TrafficTicketStatus, CompanyDetails } from '../types';
 import { CloseIcon, ShieldExclamationIcon } from './icons';
 import { sendCustomerEmail } from '../firebase/api';
+import { Panel, SectionLabel, Badge, Button, DetailList, inputCls } from './ui/Crm';
 
 const DAY = 24 * 60 * 60 * 1000;
 const GRACE = 2 * 60 * 60 * 1000;
@@ -122,140 +123,132 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
     else setEmailError(outcome.reason === 'unconfigured' ? 'Outgoing email is not set up yet — an administrator can turn it on in Email Settings.' : outcome.message || 'The email could not be sent.');
   };
 
-  const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500';
+  const optCls = (on: boolean) => `p-2.5 rounded-lg text-left border transition-colors ${on ? 'border-indigo-500 ring-2 ring-indigo-500/15 bg-indigo-50/40' : 'border-slate-200 bg-white hover:bg-slate-50'}`;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-slate-50 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-3xl max-h-[94dvh] sm:max-h-[92vh] flex flex-col overflow-hidden">
-        <header className="flex items-start justify-between gap-4 px-6 py-5 bg-white border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Extend rental</h2>
-              <p className="text-sm text-slate-500">#{reservation.bookingId} · {reservation.personName} · {reservation.carModel}{reservation.licensePlate ? ` · ${reservation.licensePlate}` : ''}</p>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-900/50" />
+      <div className="relative bg-slate-50 w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-xl shadow-2xl flex flex-col overflow-hidden">
+        <header className="flex items-start justify-between gap-3 px-5 py-4 bg-white border-b border-slate-200">
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-slate-900">Extend rental</h3>
+            <p className="text-xs text-slate-500 mt-0.5 truncate">#{reservation.bookingId} · {reservation.personName} · {reservation.carModel}{reservation.licensePlate ? ` · ${reservation.licensePlate}` : ''}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"><CloseIcon className="w-5 h-5" /></button>
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100"><CloseIcon className="w-5 h-5" /></button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-5 gap-5">
-          <div className="md:col-span-3 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 grid grid-cols-1 md:grid-cols-5 gap-4 content-start">
+          <div className="md:col-span-3 space-y-4 min-w-0">
             {outstandingTickets.length > 0 && (
-              <div className="flex gap-3 p-4 rounded-2xl border border-rose-200 bg-rose-50 text-sm text-rose-800">
+              <div className="flex gap-2.5 p-3 rounded-lg border border-rose-200 bg-rose-50 text-[13px] text-rose-800">
                 <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
                 <p><b>{outstandingTickets.length} unpaid traffic ticket{outstandingTickets.length === 1 ? '' : 's'}</b> on this booking ({money(ticketsDue)}). Collect them before extending if possible.</p>
               </div>
             )}
 
-            <section className="bg-white rounded-2xl border border-slate-200 p-5">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">New return</h3>
-              <div className="flex flex-wrap gap-2 mb-3">
+            <Panel title="New return" padded bodyClassName="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
                 {[1, 2, 3, 7, 14].map(n => (
-                  <button key={n} onClick={() => setQuick(n)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold ring-1 transition-colors ${quickActive(n) ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'}`}>
+                  <button key={n} onClick={() => setQuick(n)} aria-pressed={quickActive(n)}
+                    className={`h-8 px-2.5 rounded-lg text-xs font-semibold border transition-colors ${quickActive(n) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
                     +{n} day{n === 1 ? '' : 's'}
                   </button>
                 ))}
               </div>
               <input type="datetime-local" value={newEnd} min={toLocalInput(new Date(currentEndMs + 60000))} onChange={e => setNewEnd(e.target.value)} className={inputCls} />
-              <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50"><p className="text-slate-500">Currently due back</p><p className="font-semibold text-slate-800 mt-0.5">{fmtDate(currentEndMs)}</p></div>
-                <div className="p-3 rounded-xl bg-amber-50"><p className="text-amber-700">New return</p><p className="font-semibold text-slate-900 mt-0.5">{Number.isFinite(newEndMs) ? fmtDate(newEndMs) : '—'}</p></div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50"><SectionLabel>Currently due back</SectionLabel><p className="font-semibold text-slate-800 mt-0.5 tabular-nums">{fmtDate(currentEndMs)}</p></div>
+                <div className="p-2.5 rounded-lg border border-indigo-200 bg-indigo-50/50"><SectionLabel className="!text-indigo-600">New return</SectionLabel><p className="font-semibold text-slate-900 mt-0.5 tabular-nums">{Number.isFinite(newEndMs) ? fmtDate(newEndMs) : '—'}</p></div>
               </div>
-            </section>
+            </Panel>
 
-            <section className="bg-white rounded-2xl border border-slate-200 p-5">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Daily rate</h3>
+            <Panel title="Daily rate" padded bodyClassName="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 {([['current', 'Current rate', money(currentRate) + ' / day'], ['custom', 'Custom rate', 'Agreed with customer']] as const).map(([key, title, sub]) => (
-                  <button key={key} onClick={() => setRateOption(key)}
-                    className={`p-3 rounded-xl text-left ring-1 transition-colors ${rateOption === key ? 'ring-2 ring-indigo-600 bg-indigo-50/50' : 'ring-slate-200 hover:bg-slate-50'}`}>
-                    <p className="text-sm font-semibold text-slate-900">{title}</p>
+                  <button key={key} onClick={() => setRateOption(key)} aria-pressed={rateOption === key} className={optCls(rateOption === key)}>
+                    <p className="text-[13px] font-semibold text-slate-900">{title}</p>
                     <p className="text-xs text-slate-500">{sub}</p>
                   </button>
                 ))}
               </div>
               {rateOption === 'custom' && (
-                <div className="mt-3 relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400">$</span>
                   <input type="number" min={0} step="0.01" value={customRate || ''} onChange={e => setCustomRate(parseFloat(e.target.value) || 0)} className={`${inputCls} pl-7 tabular-nums`} placeholder="0.00" autoFocus />
                 </div>
               )}
-            </section>
+            </Panel>
 
             {(reservation.extras || []).length > 0 && (
-              <section className="bg-white rounded-2xl border border-slate-200 p-5">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Keep extras for the extra days</h3>
-                <div className="space-y-2">
+              <Panel title="Keep extras for the extra days">
+                <div className="divide-y divide-slate-100">
                   {(reservation.extras || []).map(ex => (
-                    <label key={ex.name} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer">
+                    <label key={ex.name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer">
                       <input type="checkbox" checked={!!extrasOn[ex.name]} onChange={() => setExtrasOn(p => ({ ...p, [ex.name]: !p[ex.name] }))} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                      <span className="flex-1 text-sm font-medium text-slate-800">{ex.name}</span>
+                      <span className="flex-1 text-[13px] font-medium text-slate-800">{ex.name}</span>
                       <span className="text-xs text-slate-500 tabular-nums">{ex.isComplementary ? 'Included' : `${money(ex.dailyPrice)} / day`}</span>
                     </label>
                   ))}
                 </div>
-              </section>
+              </Panel>
             )}
 
-            <section className="bg-white rounded-2xl border border-slate-200 p-5">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Payment</h3>
+            <Panel title="Payment" padded bodyClassName="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 {([['payNow', 'Paid now', 'Collected at the counter'], ['payLater', 'Pay on return', 'Added to deferred payments']] as const).map(([key, title, sub]) => (
-                  <button key={key} onClick={() => setPaymentMethod(key)}
-                    className={`p-3 rounded-xl text-left ring-1 transition-colors ${paymentMethod === key ? 'ring-2 ring-indigo-600 bg-indigo-50/50' : 'ring-slate-200 hover:bg-slate-50'}`}>
-                    <p className="text-sm font-semibold text-slate-900">{title}</p>
+                  <button key={key} onClick={() => setPaymentMethod(key)} aria-pressed={paymentMethod === key} className={optCls(paymentMethod === key)}>
+                    <p className="text-[13px] font-semibold text-slate-900">{title}</p>
                     <p className="text-xs text-slate-500">{sub}</p>
                   </button>
                 ))}
               </div>
-              <label className="mt-4 flex items-center gap-3 cursor-pointer">
+              <label className="flex items-center gap-2.5 cursor-pointer">
                 <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                <span className="text-sm font-medium text-slate-800">Email the confirmation to the customer</span>
+                <span className="text-[13px] font-medium text-slate-800">Email the confirmation to the customer</span>
               </label>
               {sendEmail && (
                 <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="name@example.com"
-                  className={`${inputCls} mt-2 ${customerEmail && !emailValid ? 'border-rose-300' : ''}`} />
+                  className={`${inputCls} ${customerEmail && !emailValid ? '!border-rose-300' : ''}`} />
               )}
-            </section>
+            </Panel>
           </div>
 
-          <aside className="md:col-span-2">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 sticky top-0 space-y-3 text-sm">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Summary</h3>
-              <div className="flex justify-between"><span className="text-slate-500">Extra days</span><span className="font-semibold text-slate-900">{extensionDays}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Car · {extensionDays} × {money(rate)}</span><span className="font-semibold tabular-nums">{money(carCost)}</span></div>
-              {extrasCost > 0 && <div className="flex justify-between"><span className="text-slate-500">Extras</span><span className="font-semibold tabular-nums">{money(extrasCost)}</span></div>}
-              <div className="flex justify-between border-t border-slate-100 pt-3"><span className="font-semibold text-slate-700">Extension cost</span><span className="font-bold text-amber-700 tabular-nums">{money(extensionCost)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-slate-500">Current total</span><span className="tabular-nums">{money(reservation.amount || 0)}</span></div>
-              <div className="flex justify-between items-baseline border-t border-slate-200 pt-3">
-                <span className="font-semibold text-slate-700">New total</span>
-                <span className="text-2xl font-bold text-slate-900 tabular-nums">{money(newTotal)}</span>
+          <aside className="md:col-span-2 min-w-0">
+            <Panel title="Summary" padded className="md:sticky md:top-0">
+              <DetailList rows={[
+                { label: 'Extra days', value: <span className="tabular-nums">{extensionDays}</span> },
+                { label: `Car · ${extensionDays} × ${money(rate)}`, value: <span className="tabular-nums">{money(carCost)}</span> },
+                ...(extrasCost > 0 ? [{ label: 'Extras', value: <span className="tabular-nums">{money(extrasCost)}</span> }] : []),
+                { label: <span className="font-semibold text-slate-700">Extension cost</span>, value: <span className="tabular-nums text-indigo-700">{money(extensionCost)}</span> },
+                { label: 'Current total', value: <span className="tabular-nums font-normal text-slate-600">{money(reservation.amount || 0)}</span> },
+              ]} />
+              <div className="flex justify-between items-baseline border-t border-slate-200 pt-2.5 mt-1">
+                <span className="text-[13px] font-semibold text-slate-700">New total</span>
+                <span className="text-xl font-semibold text-slate-900 tabular-nums">{money(newTotal)}</span>
               </div>
-              <p className={`text-xs px-2.5 py-1.5 rounded-lg ${paymentMethod === 'payNow' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                {paymentMethod === 'payNow' ? `${money(extensionCost)} collected now` : `${money(extensionCost)} added to amount due on return`}
-              </p>
-            </div>
+              <div className="mt-3">
+                <Badge tone={paymentMethod === 'payNow' ? 'success' : 'warning'} className="whitespace-normal">
+                  {paymentMethod === 'payNow' ? `${money(extensionCost)} collected now` : `${money(extensionCost)} added to amount due on return`}
+                </Badge>
+              </div>
+            </Panel>
           </aside>
         </div>
 
-        <footer className="px-6 py-4 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex-1 text-xs">
+        <footer className="px-5 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex-1 min-w-0 text-xs">
             {emailError ? (
               <span className="text-rose-700"><b>Email not sent:</b> {emailError}{' '}
                 <button onClick={finish} className="font-semibold underline">Extend without email</button>
               </span>
             ) : problems.length ? <span className="text-slate-500">{problems[0]}</span> : <span className="text-slate-500">The agreement and return date update immediately.</span>}
           </div>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">Cancel</button>
-            <button onClick={handleConfirm} disabled={busy || problems.length > 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 disabled:opacity-40">
-              {busy && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+          <div className="flex gap-2 [&>*]:max-sm:flex-1">
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" onClick={handleConfirm} disabled={busy || problems.length > 0}
+              icon={busy ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : undefined}>
               {busy ? 'Sending email…' : `Extend by ${extensionDays || 0} day${extensionDays === 1 ? '' : 's'}`}
-            </button>
+            </Button>
           </div>
         </footer>
       </div>

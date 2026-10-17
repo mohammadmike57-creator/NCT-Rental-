@@ -2,7 +2,8 @@
 import React from 'react';
 import { Reservation, CompanyDetails, RentalSource, PaymentType } from '../types';
 import { URDRIVE_LOGO_B64 } from '../constants';
-import { MailIcon, PhoneIcon, UserIcon, CarIcon, CalendarIcon, PrinterIcon, PdfIcon } from './icons';
+import { MailIcon, PhoneIcon, UserIcon, CarIcon, CalendarIcon, PdfIcon } from './icons';
+import { Button } from './ui/Crm';
 import jsPDF from 'jspdf';
 
 // Forward declaration for html2canvas from CDN
@@ -115,7 +116,18 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
 
 
     return (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl font-sans w-full max-w-3xl border border-slate-200">
+        <div className="bg-slate-50 font-sans w-full max-w-3xl mx-auto -m-4 sm:m-0 h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-xl shadow-2xl flex flex-col overflow-hidden" role="dialog" aria-modal="true">
+            <div className="flex items-start justify-between gap-3 px-5 py-4 bg-white border-b border-slate-200 no-print">
+                <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-slate-900">Payment receipt</h3>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate"><span className="font-mono">RCPT-{reservation.bookingId || 'N/A'}</span> · {reservation.personName}</p>
+                </div>
+                <button onClick={onClose} aria-label="Close" className="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sm:p-8 overflow-x-auto">
             <div className="printable-area">
                 <header className="flex justify-between items-start pb-6 border-b-2 border-slate-900">
                     <div>
@@ -210,25 +222,23 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
                 </footer>
             </div>
             
-             <div className="mt-8 flex justify-between items-center no-print">
-                <button
-                    onClick={onClose}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-                >
-                    Close
-                </button>
-                <div className="flex items-center gap-2">
-                    <button
+            </div>
+            </div>
+             <div className="px-5 py-3 bg-white border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 no-print">
+                <Button variant="secondary" onClick={onClose} className="max-sm:hidden">Close</Button>
+                <div className="flex items-center gap-2 max-sm:w-full [&>*]:max-sm:flex-1">
+                    <Button
+                        variant="secondary"
                         onClick={handleSendEmail}
                         disabled={!reservation.customerEmail}
-                        className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 disabled:bg-gray-400 text-sm font-medium flex items-center gap-2"
                         title={!reservation.customerEmail ? "Customer email not available" : "Send receipt via email"}
+                        icon={<MailIcon className="w-4 h-4" />}
                     >
-                        <MailIcon /> Email
-                    </button>
-                    <button onClick={handleDownloadPDF} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark flex items-center gap-2 text-sm font-medium">
-                        <PdfIcon /> Download
-                    </button>
+                        Email
+                    </Button>
+                    <Button variant="primary" onClick={handleDownloadPDF} icon={<PdfIcon className="w-4 h-4" />}>
+                        Download
+                    </Button>
                 </div>
             </div>
         </div>
