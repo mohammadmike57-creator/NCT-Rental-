@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet } from '../types';
+import { Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { sendCustomerEmail } from '../firebase/api';
 import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
+import ReturnChargesPanel from './ReturnChargesPanel';
+import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
 
 interface VoucherProps {
   reservation: Reservation;
@@ -15,6 +17,8 @@ interface VoucherProps {
   onClose: () => void;
   companyDetails: CompanyDetails;
   onUpdate: (reservation: Reservation) => void;
+  /** Called when a check-in closes with charges, so damages and tickets are also recorded in their registers. */
+  onRecordReturnCharges?: (reservation: Reservation, charges: ReturnCharges) => void;
 }
 
 const InfoBlock: React.FC<{ title: string; children: React.ReactNode; className?: string; icon?: React.ReactNode }> = ({ title, children, className, icon }) => (
@@ -208,7 +212,7 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
   return remainingMs >= gracePeriodInMs ? fullDays + 1 : fullDays;
 };
 
-const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets }) => {
+const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges }) => {
   const getInitialReservationState = (res: Reservation) => {
     const migrated: any = { ...res };
     if (res.checklist && !res.pickupChecklist) migrated.pickupChecklist = res.checklist;
@@ -303,7 +307,24 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const isPickupEditable = !localReservation.voucherSubmitted;
   const isDropoffBlockedByPendingFee = localReservation.lateReturnFee?.status === 'PENDING';
-  const isDropoffEditable = !!localReservation.voucherSubmitted && !localReservation.dropOffCompleted && !hasOutstandingTickets && !hasDueExtension && !isDropoffBlockedByPendingFee;
+  const ticketsBlockFlow = hasOutstandingTickets && processType === 'exchange';
+  const isDropoffEditable = !!localReservation.voucherSubmitted && !localReservation.dropOffCompleted && !ticketsBlockFlow && !hasDueExtension && !isDropoffBlockedByPendingFee;
+
+  const charges: ReturnCharges = localReservation.returnCharges || { items: [], currency: 'JOD' };
+  const setCharges = (c: ReturnCharges) => setLocalReservation(prev => ({ ...prev, returnCharges: c }));
+  // Unpaid traffic tickets on this booking are billed as part of the return.
+  useEffect(() => {
+    if (viewMode !== 'dropoff' || processType !== 'return' || !isDropoffEditable || outstandingTickets.length === 0) return;
+    setLocalReservation(prev => {
+      const cur: ReturnCharges = prev.returnCharges || { items: [], currency: 'JOD' };
+      const missing = outstandingTickets.filter(t => !cur.items.some(i => i.ticketId === t.id));
+      if (missing.length === 0) return prev;
+      return { ...prev, returnCharges: { ...cur, items: [...cur.items, ...missing.map(t => ({
+        id: `rc-t-${t.id}`, kind: 'ticket' as const, description: t.details || 'Traffic violation', amount: t.amount, ticketId: t.id, ticketDate: t.ticketDate,
+        photos: t.ticketDocument && t.ticketDocument.startsWith('data:image') ? [t.ticketDocument] : [],
+      }))] } };
+    });
+  }, [viewMode, processType, isDropoffEditable, outstandingTickets]);
 
   const location = rentalLocations.find(loc => loc.name === reservation.locationName);
   const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -373,7 +394,23 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         if (!localReservation.dropOffRenterSignature) { alert("Renter signature is required for drop-off."); return; }
         if (!localReservation.dropOffAgentSignature) { alert("Agent signature is required for drop-off."); return; }
 
-        const submittedVoucher = { ...localReservation, dropOffCompleted: true };
+        let finalCharges: ReturnCharges | undefined;
+        if (charges.items.length > 0) {
+          const bad = charges.items.findIndex(i => !i.description.trim() || !(i.amount > 0));
+          if (bad >= 0) { alert(`Charge #${bad + 1} needs a description and an amount.`); return; }
+          if (!charges.settlement) { alert('Choose whether the charges are paid now or sent to the customer as a claim.'); return; }
+          if (charges.settlement === 'paid' && !charges.paymentMethod) { alert('Select how the charges were paid.'); return; }
+          if (!charges.customerSignature) { alert('The customer must sign to acknowledge the charges.'); return; }
+          finalCharges = {
+            ...charges,
+            documentNumber: charges.documentNumber || chargesDocumentNumber(localReservation.bookingId, charges.settlement),
+            issuedAt: new Date().toISOString(),
+            issuedBy: localReservation.dropOffAgentName || undefined,
+            dueDate: charges.settlement === 'claim' ? (charges.dueDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)) : undefined,
+          };
+        }
+        const submittedVoucher: Reservation = { ...localReservation, dropOffCompleted: true, returnCharges: finalCharges };
+        if (finalCharges && onRecordReturnCharges) onRecordReturnCharges(submittedVoucher, finalCharges);
         onUpdate(submittedVoucher);
         setLocalReservation(submittedVoucher);
         setShowSuccessOverlay(true);
@@ -470,7 +507,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   .kv { display: flex; justify-content: space-between; gap: 8px; padding: 1.5px 0; }
   .kv span:first-child { color: #64748b; } .kv span:last-child { font-weight: 600; text-align: right; }
   .big { font-size: 11pt; font-weight: 700; }
-  table { width: 100%; border-collapse: collapse; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; }
   td, th { padding: 3px 0; border-bottom: 1px solid #f1f5f9; text-align: left; }
   th { font-size: 7pt; text-transform: uppercase; letter-spacing: .06em; color: #64748b; font-weight: 600; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -549,6 +586,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     <div class="legend"><i style="border:1.5px solid #0284c7"></i>At pickup (${pickupMarks.length}) <i style="background:#e11d48"></i>New at return (${returnMarks.length})</div>
   </div>
 
+  ${r.returnCharges && r.returnCharges.items.length ? `<div class="card" style="margin-top:8px"><h2>Charges at return · ${esc(r.returnCharges.documentNumber || '')} · ${r.returnCharges.settlement === 'paid' ? 'Paid' : 'Claimed'}</h2>
+    <table>${r.returnCharges.items.map(i => `<tr><td>${esc(CHARGE_KIND_LABEL[i.kind])} — ${esc(i.description)}</td><td class="num">${esc(formatMoney(i.amount, r.returnCharges!.currency))}</td></tr>`).join('')}
+    <tr class="total"><td>Total</td><td class="num">${esc(formatMoney(chargesTotal(r.returnCharges.items), r.returnCharges.currency))}</td></tr></table></div>` : ''}
+
   <div class="grid2">
     <div class="card"><h2>Pickup notes</h2><div class="notes">${esc(r.pickupNotes || '—')}</div></div>
     <div class="card"><h2>Return notes</h2><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
@@ -622,6 +663,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     doc.save(`receipt-${reservation.bookingId}.pdf`);
   };
 
+  const handlePreviewCharges = () => {
+    const html = buildReturnChargesHtml(localReservation, { ...charges, documentNumber: charges.documentNumber || 'PREVIEW' }, companyDetails, URDRIVE_LOGO_B64);
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (w) { w.document.write(html); w.document.close(); w.focus(); }
+  };
+  const handleDownloadChargesPDF = () => {
+    if (!localReservation.returnCharges) return;
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (w) { w.document.write(buildReturnChargesHtml(localReservation, localReservation.returnCharges, companyDetails, URDRIVE_LOGO_B64)); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+  };
+
   // Emails the signed agreement (as a PDF) to the customer right after check-out / check-in.
   const emailAgreement = async (r: Reservation, kind: 'checkout' | 'checkin') => {
     const to = r.customerEmail?.trim();
@@ -634,6 +686,16 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     } catch {
       attachment = { fileName: `Rental-Agreement-${r.bookingId}.html`, contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(html))) };
     }
+    const attachments = [attachment];
+    const rc = kind === 'checkin' && r.returnCharges && r.returnCharges.items.length > 0 ? r.returnCharges : undefined;
+    if (rc) {
+      const chargesHtml = buildReturnChargesHtml(r, rc, companyDetails, URDRIVE_LOGO_B64);
+      try {
+        attachments.push({ fileName: chargesFileName(rc, r.bookingId), contentType: 'application/pdf', base64: await agreementHtmlToPdfBase64(chargesHtml) });
+      } catch {
+        attachments.push({ fileName: chargesFileName(rc, r.bookingId).replace(/\.pdf$/, '.html'), contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(chargesHtml))) });
+      }
+    }
     const days = calculateDaysWithGrace(r.startDate, r.endDate);
     const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
     const isCheckout = kind === 'checkout';
@@ -643,7 +705,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       heading: isCheckout ? 'Your rental agreement' : 'Thank you — your vehicle has been returned',
       intro: `Dear ${r.personName}, ${isCheckout
         ? `thank you for choosing ${companyDetails.name}. Your signed rental agreement is attached to this email. Please keep it with you for the duration of the rental.`
-        : `we have checked in your vehicle. The final signed agreement, including the return inspection, is attached for your records.`}`,
+        : rc
+          ? `we have checked in your vehicle. Attached are the final signed agreement and ${rc.settlement === 'paid' ? `your paid invoice ${rc.documentNumber}` : `claim ${rc.documentNumber} for the charges found at return`}, including photos.`
+          : `we have checked in your vehicle. The final signed agreement, including the return inspection, is attached for your records.`}`,
       rows: [
         ['Booking', r.bookingId],
         ['Vehicle', `${r.carModel || '—'}${r.licensePlate ? ` · ${r.licensePlate}` : ''}`],
@@ -652,18 +716,33 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         ['Duration', `${days} day${days === 1 ? '' : 's'}`],
         ['Total', formatCurrency(r.amount || 0)],
         ...(isCheckout ? [] : [['Kilometres', r.dropOffKmIn != null && r.pickupKmOut != null ? `${r.pickupKmOut} → ${r.dropOffKmIn}` : '—'] as [string, string]]),
+        ...(rc ? [
+          ...rc.items.map((it, i) => [`${i + 1}. ${CHARGE_KIND_LABEL[it.kind]}`, `${it.description} — ${formatMoney(it.amount, rc.currency)}`] as [string, string]),
+          [rc.settlement === 'paid' ? 'Charges paid' : 'Amount due', `${formatMoney(chargesTotal(rc.items), rc.currency)}${rc.settlement === 'claim' && rc.dueDate ? ` by ${new Date(rc.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}`] as [string, string],
+        ] : []),
       ],
-      closing: isCheckout ? 'We wish you a safe journey. If you need assistance during your rental, just reply to this email or call us.' : 'We hope to see you again soon.',
+      closing: isCheckout ? 'We wish you a safe journey. If you need assistance during your rental, just reply to this email or call us.'
+        : rc && rc.settlement === 'claim' ? `Please settle the amount due, quoting ${rc.documentNumber}. Reply to this email if you have any questions about the charges.`
+        : 'We hope to see you again soon.',
       companyName: companyDetails.name,
       companyAddress: companyDetails.address,
       companyPhone: companyDetails.phone,
       companyEmail: companyDetails.email,
       replyTo: companyDetails.email,
-      attachments: [attachment],
+      attachments,
+      badge: isCheckout ? 'RENTAL AGREEMENT' : rc ? (rc.settlement === 'paid' ? 'PAID' : 'PAYMENT DUE') : 'VEHICLE RETURNED',
+      tone: rc ? (rc.settlement === 'paid' ? 'success' : 'warning') : isCheckout ? 'info' : 'success',
+      highlightLabel: rc ? (rc.settlement === 'paid' ? `Invoice ${rc.documentNumber} · paid` : `Claim ${rc.documentNumber} · amount due`) : isCheckout ? 'Rental total' : undefined,
+      highlightValue: rc ? formatMoney(chargesTotal(rc.items), rc.currency) : isCheckout ? formatCurrency(r.amount || 0) : undefined,
     });
     if (outcome.ok) {
       setEmailState({ status: 'sent', to });
-      const withLog: Reservation = { ...r, agreementEmails: [...(r.agreementEmails || []), { to, kind, sentAt: new Date().toISOString() }] };
+      const sentAt = new Date().toISOString();
+      const withLog: Reservation = {
+        ...r,
+        agreementEmails: [...(r.agreementEmails || []), { to, kind, sentAt }],
+        ...(rc ? { returnCharges: { ...rc, emails: [...(rc.emails || []), { to, sentAt }] } } : {}),
+      };
       setLocalReservation(withLog);
       onUpdate(withLog);
     } else {
@@ -769,7 +848,20 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           />
         </StepSection>
 
-        <StepSection step={4} title="Notes">
+        {!isPickup && (
+          <StepSection step={4} title="Damages, traffic tickets & charges" subtitle="Photograph new damage, add tickets and other charges, then settle or claim">
+            <ReturnChargesPanel
+              charges={charges}
+              onChange={setCharges}
+              editable={isEditable}
+              markers={localReservation.dropOffDamageMarkers || []}
+              customerName={reservation.personName}
+              onPreview={handlePreviewCharges}
+            />
+          </StepSection>
+        )}
+
+        <StepSection step={isPickup ? 4 : 5} title="Notes">
           {isPickup ? (
             <textarea
               value={localReservation.pickupNotes || ''}
@@ -800,7 +892,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           )}
         </StepSection>
 
-        <StepSection step={5} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Both signatures are required to finish">
+        <StepSection step={isPickup ? 5 : 6} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Both signatures are required to finish">
           <p className="text-xs leading-relaxed text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">{isPickup ? PICKUP_TERMS : RETURN_TERMS}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SignatureBlock
@@ -1031,7 +1123,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                     {hasOutstandingTickets && (
                       <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-sm" role="alert">
                         <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
-                        <div><p className="font-semibold">Outstanding traffic tickets: {totalTicketAmountDue.toFixed(2)} JOD</p><p className="text-xs">Settle them in Traffic Tickets before closing the rental.</p></div>
+                        <div><p className="font-semibold">Outstanding traffic tickets: {totalTicketAmountDue.toFixed(2)} JOD</p><p className="text-xs">{processType === 'exchange' ? 'Settle them in Traffic Tickets before exchanging the car.' : 'They have been added to the return charges below — collect them now or send them to the customer as a claim.'}</p></div>
                       </div>
                     )}
                     {localReservation.lateReturnFee && localReservation.lateReturnFee.status === 'PENDING' && (
@@ -1041,7 +1133,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                       </div>
                     )}
 
-                    <fieldset disabled={hasOutstandingTickets || hasDueExtension || isDropoffBlockedByPendingFee} className="min-w-0">
+                    <fieldset disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee} className="min-w-0">
                       {processType === 'selection' && !localReservation.dropOffCompleted ? (
                         <div className="bg-white rounded-2xl border border-slate-200 p-6">
                           <h2 className="text-base font-semibold text-slate-900">What are you processing?</h2>
@@ -1106,6 +1198,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                     <span className="text-sm font-semibold text-slate-900">Total</span>
                     <span className="text-2xl font-bold text-slate-900 tabular-nums">{formatCurrency(totalCost)}</span>
                   </div>
+                  {charges.items.length > 0 && (
+                    <div className="rounded-xl bg-rose-50/60 border border-rose-100 p-3 space-y-1.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Return charges{charges.settlement ? ` · ${charges.settlement === 'paid' ? 'paid' : 'claim'}` : ''}</p>
+                      {charges.items.map(i => (
+                        <div key={i.id} className="flex justify-between gap-3 text-xs"><span className="text-slate-600 truncate">{CHARGE_KIND_LABEL[i.kind]}</span><span className="font-semibold tabular-nums text-slate-900">{formatMoney(i.amount, charges.currency)}</span></div>
+                      ))}
+                      <div className="flex justify-between text-sm border-t border-rose-100 pt-1.5"><span className="font-semibold text-slate-800">Total</span><span className="font-bold tabular-nums text-rose-700">{formatMoney(chargesTotal(charges.items), charges.currency)}</span></div>
+                    </div>
+                  )}
                   <InfoPair label="Security deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
                   <InfoPair label="Excess" value={formatCurrency(reservation.excess || 0)} />
                   {isPayOnArrival !== undefined && <InfoPair label="Payment type" value={isPayOnArrival ? 'Pay on arrival' : 'Prepaid'} />}
@@ -1169,7 +1270,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 (viewMode === 'dropoff' && processType === 'exchange' && exchangeStep === 'checkout' && isDropoffEditable)) ? (
                 <button
                   onClick={handleSubmit}
-                  disabled={hasOutstandingTickets || hasDueExtension || isDropoffBlockedByPendingFee}
+                  disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee}
                   className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:bg-slate-300 shadow-sm"
                 >
                   {CHECK_ICON}
@@ -1200,6 +1301,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center"><PdfIcon className="w-5 h-5" /></span>
                 <span><span className="block text-sm font-semibold text-slate-900">Payment receipt</span><span className="block text-xs text-slate-500">Download PDF</span></span>
               </button>
+              {localReservation.dropOffCompleted && localReservation.returnCharges && localReservation.returnCharges.items.length > 0 && (
+                <button onClick={handleDownloadChargesPDF} className={`sm:col-span-2 flex items-center gap-3 p-4 rounded-2xl border text-left ${localReservation.returnCharges.settlement === 'paid' ? 'border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50' : 'border-amber-200 bg-amber-50/50 hover:bg-amber-50'}`}>
+                  <span className={`w-10 h-10 rounded-xl text-white flex items-center justify-center ${localReservation.returnCharges.settlement === 'paid' ? 'bg-emerald-600' : 'bg-amber-500'}`}><PdfIcon className="w-5 h-5" /></span>
+                  <span className="flex-1"><span className="block text-sm font-semibold text-slate-900">{chargesDocumentTitle(localReservation.returnCharges)} {localReservation.returnCharges.documentNumber}</span>
+                    <span className="block text-xs text-slate-500">{localReservation.returnCharges.items.length} charge{localReservation.returnCharges.items.length === 1 ? '' : 's'} · {formatMoney(chargesTotal(localReservation.returnCharges.items), localReservation.returnCharges.currency)} · {localReservation.returnCharges.settlement === 'paid' ? 'Paid' : 'Payment due'}</span></span>
+                </button>
+              )}
             </div>
             {localReservation.customerEmail && (
               <div className={`mt-4 w-full max-w-md flex items-center gap-3 p-3.5 rounded-2xl border text-left ${
@@ -1217,14 +1325,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-semibold text-slate-900">
                     {emailState.status === 'sending' ? 'Emailing the agreement…' :
-                     emailState.status === 'sent' ? 'Agreement emailed' :
+                     emailState.status === 'sent' ? (localReservation.dropOffCompleted && localReservation.returnCharges?.items.length ? `Agreement & ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'} emailed` : 'Agreement emailed') :
                      emailState.status === 'failed' ? 'Email not sent' :
                      emailState.status === 'unconfigured' ? 'Email is not set up' : 'Email the agreement'}
                   </span>
                   <span className="block text-xs text-slate-500 truncate">
                     {emailState.status === 'unconfigured' ? 'Ask an administrator to configure outgoing email on the server.' :
                      emailState.status === 'failed' ? (emailState.message || 'Please try again.') :
-                     `PDF to ${localReservation.customerEmail}`}
+                     `${localReservation.dropOffCompleted && localReservation.returnCharges?.items.length ? `Agreement + ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'}` : 'PDF'} to ${localReservation.customerEmail}`}
                   </span>
                 </span>
                 {(emailState.status === 'failed' || emailState.status === 'idle' || emailState.status === 'unconfigured') && (

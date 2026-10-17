@@ -18,6 +18,11 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     doc.close();
     await new Promise(r => setTimeout(r, 150));
     await Promise.all(Array.from(doc.images).map(img => (img.complete ? null : new Promise(res => { img.onload = img.onerror = () => res(null); }))));
+    // html2canvas draws text a few pixels lower than the browser lays it out, which makes
+    // table rules cut through the text. Extra room under each cell keeps them clear.
+    const fix = doc.createElement('style');
+    fix.textContent = 'td, th { padding-bottom: 7px !important; }';
+    doc.head.appendChild(fix);
     const body = doc.body;
     body.style.padding = '0';
     const height = Math.max(body.scrollHeight, 1123);

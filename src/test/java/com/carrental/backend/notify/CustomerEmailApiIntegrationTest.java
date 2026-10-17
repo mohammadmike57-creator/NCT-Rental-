@@ -90,6 +90,29 @@ class CustomerEmailApiIntegrationTest {
     }
 
     @Test
+    void rendersStatusBadgeHighlightAndAttachmentList() throws Exception {
+        String pdf = Base64.getEncoder().encodeToString("%PDF-1.4 fake".getBytes());
+        String body = """
+            {"to":"guest@example.com","subject":"Vehicle return BK-2","heading":"Thank you — your vehicle has been returned",
+             "intro":"Attached are the final agreement and claim CLM-1.","rows":[["1. Vehicle damage","Scratch — JOD 85.000"]],
+             "companyName":"UR-Drive Jordan","badge":"PAYMENT DUE","tone":"warning","highlightLabel":"Claim CLM-1 · amount due","highlightValue":"JOD 120.000",
+             "attachments":[{"fileName":"Rental-Agreement-BK-2.pdf","contentType":"application/pdf","base64":"%s"},{"fileName":"Claim-CLM-1.pdf","contentType":"application/pdf","base64":"%s"}]}
+            """.formatted(pdf, pdf);
+        mvc.perform(post("/api/notifications/customer-email").header("Authorization", token).contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk());
+        assertTrue(smtp.waitForIncomingEmail(5000, 1));
+        MimeMessage m = smtp.getReceivedMessages()[0];
+        MimeMultipart mixed = (MimeMultipart) m.getContent();
+        assertEquals(3, mixed.getCount(), "body + two PDFs");
+        String html = (String) ((MimeMultipart) mixed.getBodyPart(0).getContent()).getBodyPart(1).getContent();
+        assertTrue(html.contains("PAYMENT DUE"));
+        assertTrue(html.contains("JOD 120.000"));
+        assertTrue(html.contains("Claim-CLM-1.pdf"), "attachments are listed in the email body");
+        String dump = System.getProperty("email.dump");
+        if (dump != null) java.nio.file.Files.writeString(java.nio.file.Path.of(dump), html);
+    }
+
+    @Test
     void rejectsBadInputAndRequiresLogin() throws Exception {
         mvc.perform(post("/api/notifications/customer-email").header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"to\":\"not-an-email\",\"subject\":\"x\"}")).andExpect(status().isBadRequest());

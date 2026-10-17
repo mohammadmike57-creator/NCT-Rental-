@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { AppData, Reservation, ReservationExtra, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
+import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
@@ -923,6 +923,50 @@ export const App: React.FC = () => {
       console.error('Failed to create unlisted booking:', err);
       addNotification('Could not create the booking. Check your connection and try again.', 'error');
     }
+  };
+
+  // Charges raised at check-in also go to the Vehicle Damages and Traffic Tickets registers.
+  const handleRecordReturnCharges = (reservation: Reservation, charges: ReturnCharges) => {
+    const paid = charges.settlement === 'paid';
+    const ref = `${charges.documentNumber || ''}${paid ? ' · paid' : ' · claimed'}`;
+    const damages: VehicleDamage[] = charges.items.filter(i => i.kind === 'damage').map(i => ({
+      id: `vd-${reservation.id}-${i.id}`,
+      bookingId: reservation.bookingId,
+      amount: i.amount,
+      details: `${i.description}${i.view ? ` (${i.view} side)` : ''} — ${ref}`,
+      status: paid ? VehicleDamageStatus.COLLECTED : VehicleDamageStatus.NOT_COLLECTED,
+      damageImage: i.photos?.[0],
+      damageImageFilename: i.photos?.[0] ? `damage-${reservation.bookingId}-${i.id}.jpg` : undefined,
+    }));
+    const nextDamages = damages.length ? [...vehicleDamages.filter(d => !damages.some(n => n.id === d.id)), ...damages] : vehicleDamages;
+    const ticketItems = charges.items.filter(i => i.kind === 'ticket');
+    const addedTickets: TrafficTicket[] = ticketItems.filter(i => !i.ticketId).map(i => ({
+      id: `tt-${reservation.id}-${i.id}`,
+      bookingId: reservation.bookingId,
+      ticketDate: i.ticketDate || new Date().toISOString().slice(0, 10),
+      amount: i.amount,
+      details: `${i.description}${i.ticketReference ? ` · Ref ${i.ticketReference}` : ''} — ${ref}`,
+      status: paid ? TrafficTicketStatus.COLLECTED : TrafficTicketStatus.NOT_COLLECTED,
+      ticketDocument: i.photos?.[0],
+      ticketDocumentFilename: i.photos?.[0] ? `ticket-${reservation.bookingId}-${i.id}.jpg` : undefined,
+    }));
+    const nextTickets = ticketItems.length
+      ? [
+          ...trafficTickets
+            .filter(t => !addedTickets.some(a => a.id === t.id))
+            .map(t => (paid && ticketItems.some(i => i.ticketId === t.id) ? { ...t, status: TrafficTicketStatus.COLLECTED } : t)),
+          ...addedTickets,
+        ]
+      : trafficTickets;
+    if (!damages.length && !ticketItems.length) return;
+    setVehicleDamages(nextDamages);
+    setTrafficTickets(nextTickets);
+    // Save straight away so the next background refresh cannot replace them with the older server copy.
+    skipAutoSaveRef.current = true;
+    saveAllData({ vehicleDamages: nextDamages, trafficTickets: nextTickets }).catch(err => {
+      console.error('Failed to save return charges:', err);
+      addNotification('Damages and tickets could not be saved to the server. They will be retried on the next save.', 'error');
+    });
   };
 
   const handleDeleteReservation = async (id: string, isNew?: boolean, year?: number, month?: string) => {
@@ -2001,7 +2045,7 @@ ${currentUser?.fullName}
 
       <Suspense fallback={<LoadingSpinner />}>
       <AnimatedModal isOpen={!!modals.viewVoucher} onClose={() => setModals(m=>({...m, viewVoucher: null}))}>
-        {modals.viewVoucher && <Voucher reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
+        {modals.viewVoucher && <Voucher reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
       </AnimatedModal>
 
       <AnimatedModal isOpen={showUnlistedAgreement} onClose={() => setShowUnlistedAgreement(false)}>
@@ -2017,7 +2061,7 @@ ${currentUser?.fullName}
         )}
       </AnimatedModal>
       <AnimatedModal isOpen={!!modals.viewRentalVoucher} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))}>
-        {modals.viewRentalVoucher && <Voucher reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
+        {modals.viewRentalVoucher && <Voucher reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
       </AnimatedModal>
 
       <AnimatedModal isOpen={!!modals.viewReceipt} onClose={() => setModals(m=>({...m, viewReceipt: null}))}>

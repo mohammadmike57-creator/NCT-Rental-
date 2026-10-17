@@ -118,36 +118,61 @@ public class CustomerEmailService {
     }
 
     static String renderHtml(CustomerEmailRequest r) {
+        String[] tone = switch (blank(r.tone()) ? "info" : r.tone()) {
+            case "success" -> new String[]{"#047857", "#ecfdf5", "#a7f3d0"};
+            case "warning" -> new String[]{"#b45309", "#fffbeb", "#fde68a"};
+            default -> new String[]{"#3730a3", "#eef2ff", "#c7d2fe"};
+        };
         StringBuilder rows = new StringBuilder();
         if (r.rows() != null) {
             for (List<String> row : r.rows()) {
                 if (row == null || row.size() < 2) continue;
-                rows.append("<tr><td style=\"padding:8px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9\">")
+                rows.append("<tr><td style=\"padding:9px 12px 9px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;vertical-align:top\">")
                     .append(esc(row.get(0)))
-                    .append("</td><td style=\"padding:8px 0;color:#0f172a;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9\">")
+                    .append("</td><td style=\"padding:9px 0;color:#0f172a;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9\">")
                     .append(esc(row.get(1))).append("</td></tr>");
             }
         }
+        StringBuilder files = new StringBuilder();
+        if (r.attachments() != null) {
+            for (CustomerEmailRequest.Attachment a : r.attachments()) {
+                if (a == null || blank(a.fileName())) continue;
+                boolean pdf = "application/pdf".equals(a.contentType());
+                files.append("<tr><td style=\"padding:6px 0\"><span style=\"display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:8px;font-size:9px;font-weight:800;color:#ffffff;background:")
+                    .append(pdf ? "#e11d48" : "#475569").append("\">").append(pdf ? "PDF" : "DOC").append("</span>")
+                    .append("<span style=\"padding-left:10px;font-size:13px;color:#0f172a;font-weight:600\">").append(esc(a.fileName())).append("</span></td></tr>");
+            }
+        }
         String company = blank(r.companyName()) ? "NCT Rental" : r.companyName();
-        String contact = String.join(" · ", java.util.stream.Stream.of(r.companyAddress(), r.companyPhone(), r.companyEmail())
+        String contact = String.join(" &middot; ", java.util.stream.Stream.of(r.companyAddress(), r.companyPhone(), r.companyEmail())
             .filter(x -> !blank(x)).map(CustomerEmailService::esc).toList());
-        return "<!DOCTYPE html><html><body style=\"margin:0;padding:0;background:#f1f5f9;font-family:Segoe UI,Arial,sans-serif\">"
-            + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f1f5f9;padding:24px 12px\"><tr><td align=\"center\">"
-            + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden\">"
-            + "<tr><td style=\"background:#0f172a;padding:22px 28px;color:#ffffff;font-size:18px;font-weight:700\">" + esc(company) + "</td></tr>"
-            + "<tr><td style=\"padding:28px\">"
-            + "<h1 style=\"margin:0 0 12px;font-size:20px;color:#0f172a\">" + esc(r.heading()) + "</h1>"
-            + "<p style=\"margin:0 0 20px;font-size:14px;line-height:1.6;color:#334155;white-space:pre-line\">" + esc(r.intro()) + "</p>"
+        return "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>"
+            + "<body style=\"margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Helvetica,Arial,sans-serif\">"
+            + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f1f5f9;padding:28px 12px\"><tr><td align=\"center\">"
+            + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:580px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.08)\">"
+            + "<tr><td style=\"background:#0f172a;padding:22px 30px\"><div style=\"color:#ffffff;font-size:19px;font-weight:700;letter-spacing:-.01em\">" + esc(company) + "</div>"
+            + "<div style=\"color:#94a3b8;font-size:12px;margin-top:2px\">Car rental</div></td></tr>"
+            + "<tr><td style=\"padding:30px\">"
+            + (blank(r.badge()) ? "" : "<span style=\"display:inline-block;margin-bottom:12px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.08em;color:" + tone[0] + ";background:" + tone[1] + ";border:1px solid " + tone[2] + "\">" + esc(r.badge()) + "</span>")
+            + "<h1 style=\"margin:0 0 12px;font-size:22px;line-height:1.3;color:#0f172a\">" + esc(r.heading()) + "</h1>"
+            + "<p style=\"margin:0 0 22px;font-size:14px;line-height:1.65;color:#334155;white-space:pre-line\">" + esc(r.intro()) + "</p>"
+            + (blank(r.highlightValue()) ? "" : "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:0 0 22px;background:" + tone[1] + ";border:1px solid " + tone[2] + ";border-radius:12px\"><tr>"
+                + "<td style=\"padding:16px 18px;font-size:13px;color:" + tone[0] + ";font-weight:600\">" + esc(nz(r.highlightLabel())) + "</td>"
+                + "<td style=\"padding:16px 18px;text-align:right;font-size:22px;font-weight:800;color:#0f172a\">" + esc(r.highlightValue()) + "</td></tr></table>")
             + (rows.length() > 0 ? "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">" + rows + "</table>" : "")
-            + (blank(r.closing()) ? "" : "<p style=\"margin:20px 0 0;font-size:14px;line-height:1.6;color:#334155;white-space:pre-line\">" + esc(r.closing()) + "</p>")
+            + (files.length() > 0 ? "<div style=\"margin-top:22px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:12px\"><div style=\"font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:4px\">Attached</div>"
+                + "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">" + files + "</table></div>" : "")
+            + (blank(r.closing()) ? "" : "<p style=\"margin:22px 0 0;font-size:14px;line-height:1.65;color:#334155;white-space:pre-line\">" + esc(r.closing()) + "</p>")
+            + "<p style=\"margin:22px 0 0;font-size:14px;color:#334155\">Kind regards,<br><strong>" + esc(company) + "</strong></p>"
             + "</td></tr>"
-            + "<tr><td style=\"padding:16px 28px;background:#f8fafc;color:#64748b;font-size:12px\">" + contact + "</td></tr>"
+            + "<tr><td style=\"padding:16px 30px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5\">" + contact + "</td></tr>"
             + "</table></td></tr></table></body></html>";
     }
 
     static String renderText(CustomerEmailRequest r) {
         StringBuilder sb = new StringBuilder();
         sb.append(nz(r.heading())).append("\n\n").append(nz(r.intro())).append("\n\n");
+        if (!blank(r.highlightValue())) sb.append(nz(r.highlightLabel())).append(": ").append(r.highlightValue()).append("\n\n");
         if (r.rows() != null) for (List<String> row : r.rows()) if (row != null && row.size() >= 2) sb.append(row.get(0)).append(": ").append(row.get(1)).append('\n');
         if (!blank(r.closing())) sb.append('\n').append(r.closing()).append('\n');
         sb.append("\n").append(nz(r.companyName())).append('\n');

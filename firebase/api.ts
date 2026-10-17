@@ -197,6 +197,10 @@ export interface CustomerEmailPayload {
   companyEmail?: string;
   replyTo?: string;
   attachments?: { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string }[];
+  badge?: string;
+  tone?: 'success' | 'warning' | 'info';
+  highlightLabel?: string;
+  highlightValue?: string;
 }
 
 export interface EmailOutcome { ok: boolean; reason?: 'unconfigured' | 'invalid' | 'failed'; message?: string }

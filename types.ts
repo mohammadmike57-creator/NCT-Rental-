@@ -261,6 +261,7 @@ export interface Reservation {
   confirmedBy?: string;
   confirmedAt?: string;
   agreementEmails?: { to: string; kind: 'checkout' | 'checkin' | 'exchange' | 'extension'; sentAt: string }[];
+  returnCharges?: ReturnCharges;
   upgradeHistory?: { date: string; fromCar?: string; toCar: string; fee: number; pricing?: 'free' | 'daily' | 'flat'; dailyRate?: number; days?: number; by?: string }[];
   deferredPaymentCollectedOn?: string;
   pickupPaymentCollected?: boolean;
@@ -568,4 +569,35 @@ export interface ReservationFilters {
   dateFilter: DateFilter;
   voucherSubmitted?: boolean;
   dropOffCompleted?: boolean;
+}
+
+// --- Charges raised when the car comes back (damage, traffic tickets, fuel…) ---
+export type ReturnChargeKind = 'damage' | 'ticket' | 'fuel' | 'cleaning' | 'late' | 'other';
+
+export interface ReturnChargeItem {
+  id: string;
+  kind: ReturnChargeKind;
+  description: string;
+  amount: number;
+  view?: CarView;            // side of the car, for damage
+  markerNumber?: number;     // matches the numbered mark on the return damage diagram
+  photos?: string[];         // compressed JPEG data URLs
+  ticketId?: string;         // existing TrafficTicket this line settles
+  ticketDate?: string;
+  ticketReference?: string;
+}
+
+export interface ReturnCharges {
+  items: ReturnChargeItem[];
+  currency: 'JOD' | 'USD';
+  settlement?: 'paid' | 'claim';
+  paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'deposit';
+  paymentReference?: string;
+  dueDate?: string;
+  documentNumber?: string;
+  issuedAt?: string;
+  customerSignature?: string;
+  signedAt?: string;
+  issuedBy?: string;
+  emails?: { to: string; sentAt: string }[];
 }

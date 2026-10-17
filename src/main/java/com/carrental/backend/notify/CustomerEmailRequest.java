@@ -18,7 +18,11 @@ public record CustomerEmailRequest(
         String companyPhone,
         String companyEmail,
         String replyTo,
-        List<Attachment> attachments
+        List<Attachment> attachments,
+        String badge,                 // short status pill under the heading, e.g. "PAID"
+        String tone,                  // success | warning | info (badge and highlight colour)
+        String highlightLabel,        // optional large figure, e.g. "Amount due"
+        String highlightValue
 ) {
     public record Attachment(String fileName, String contentType, String base64) {}
 }

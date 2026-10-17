@@ -113,6 +113,10 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
       companyPhone: companyDetails.phone,
       companyEmail: companyDetails.email,
       replyTo: companyDetails.email,
+      badge: 'RENTAL EXTENDED',
+      tone: payNow ? 'success' : 'warning',
+      highlightLabel: payNow ? 'Extension paid' : 'Due on return',
+      highlightValue: money(extensionCost),
     });
     setBusy(false);
     if (outcome.ok) finish();

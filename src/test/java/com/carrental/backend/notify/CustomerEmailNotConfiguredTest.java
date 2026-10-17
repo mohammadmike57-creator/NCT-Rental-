@@ -20,7 +20,7 @@ class CustomerEmailNotConfiguredTest {
     void reportsNotConfiguredInsteadOfPretendingToSend() {
         assertFalse(service.isConfigured());
         CustomerEmailService.EmailException e = assertThrows(CustomerEmailService.EmailException.class, () ->
-            service.send(new CustomerEmailRequest("a@b.co", "Subject", "H", "I", List.of(), null, null, null, null, null, null, null)));
+            service.send(new CustomerEmailRequest("a@b.co", "Subject", "H", "I", List.of(), null, null, null, null, null, null, null, null, null, null, null)));
         assertEquals(503, e.status());
     }
 }
