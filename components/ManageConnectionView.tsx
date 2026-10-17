@@ -3,6 +3,7 @@ import { Aggregator, AggregatorConnectionDetails, ChannelStatus } from '../types
 import { SaveIcon, LockClosedIcon, EyeIcon, CheckCircleIcon, AlertIcon } from './icons';
 import { SUPPORTED_CURRENCIES, validateChannel, generateFeedKey, sha256Hex, partnerEndpoints } from '../services/channelManager';
 import { API_URL } from '../firebase/api';
+import { Panel, Button, inputCls, selectCls, labelCls } from './ui/Crm';
 
 interface ManageConnectionViewProps {
   aggregator: Aggregator;
@@ -38,22 +39,16 @@ const toDraft = (agg: Aggregator): Draft => ({
   contactEmail: agg.contactEmail || '',
 });
 
-const inputCls = 'w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white';
+const selCls = `${selectCls} w-full`;
 const Label: React.FC<{ children: React.ReactNode; hint?: string }> = ({ children, hint }) => (
-  <label className="block text-sm font-medium text-slate-700 mb-1">
+  <label className={labelCls}>
     {children}
     {hint && <span className="ml-1 font-normal text-slate-400">{hint}</span>}
   </label>
 );
 
 const Section: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <section className="bg-white rounded-xl border border-slate-200 shadow-sm">
-    <div className="px-5 py-4 border-b border-slate-100">
-      <h4 className="font-bold text-slate-800">{title}</h4>
-      <p className="text-xs text-slate-500">{subtitle}</p>
-    </div>
-    <div className="p-5 space-y-5">{children}</div>
-  </section>
+  <Panel title={title} subtitle={subtitle} bodyClassName="p-4 space-y-4">{children}</Panel>
 );
 
 const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator, onUpdate, showConfirmation }) => {
@@ -136,24 +131,20 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-bold text-slate-800">Connection & channel settings</h3>
-          <p className="text-sm text-slate-500">Credentials and identifiers used when exchanging XML with {aggregator.name}.</p>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-slate-900">Connection & channel settings</h3>
+          <p className="text-xs text-slate-500">Credentials and identifiers used when exchanging XML with {aggregator.name}.</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={runCheck} className="px-4 py-2.5 text-sm font-semibold border border-slate-300 rounded-lg text-slate-700 bg-white hover:bg-slate-50">
-            Check configuration
-          </button>
-          <button onClick={handleSave} disabled={!dirty} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark disabled:bg-slate-300 disabled:cursor-not-allowed">
-            <SaveIcon className="w-4 h-4" /> Save
-          </button>
+        <div className="flex gap-2 [&>*]:max-sm:flex-1">
+          <Button onClick={runCheck}>Check configuration</Button>
+          <Button variant="primary" onClick={handleSave} disabled={!dirty} icon={<SaveIcon className="w-4 h-4" />}>Save</Button>
         </div>
       </div>
 
       {checkResult && (
-        <div className={`rounded-xl border p-4 text-sm ${checkResult.length === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+        <div className={`rounded-xl border px-4 py-3 text-[13px] ${checkResult.length === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
           <p className="font-semibold flex items-center gap-2">
             {checkResult.length === 0 ? <CheckCircleIcon className="w-4 h-4" /> : <AlertIcon className="w-4 h-4" />}
             {checkResult.length === 0 ? 'Configuration looks complete.' : 'Configuration needs attention:'}
@@ -173,9 +164,9 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
             <button
               key={value}
               onClick={() => set('status', value)}
-              className={`text-left p-3 rounded-lg border transition-all ${draft.status === value ? 'border-primary ring-2 ring-primary/15 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}`}
+              className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${draft.status === value ? 'border-indigo-500 ring-2 ring-indigo-500/15 bg-indigo-50/40' : 'border-slate-200 hover:border-slate-300'}`}
             >
-              <p className="text-sm font-semibold text-slate-800">{label}</p>
+              <p className="text-[13px] font-semibold text-slate-900">{label}</p>
               <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
             </button>
           ))}
@@ -183,14 +174,14 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
       </Section>
 
       <Section title="Endpoint & credentials" subtitle="Provided by the partner during onboarding.">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2">
             <Label>Endpoint URL</Label>
             <input type="url" value={draft.connection.apiUrl} onChange={e => setConn('apiUrl', e.target.value)} className={`${inputCls} font-mono`} placeholder="https://xml.partner.com/ota/v1" />
           </div>
           <div>
             <Label>Environment</Label>
-            <select value={draft.connection.environment} onChange={e => setConn('environment', e.target.value as 'test' | 'production')} className={inputCls}>
+            <select value={draft.connection.environment} onChange={e => setConn('environment', e.target.value as 'test' | 'production')} className={selCls}>
               <option value="test">Test / sandbox</option>
               <option value="production">Production</option>
             </select>
@@ -209,8 +200,8 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
                 className={`${inputCls} pl-9 pr-10 font-mono`}
                 autoComplete="new-password"
               />
-              <LockClosedIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <button type="button" onClick={() => setShowKey(s => !s)} className="absolute right-2 top-2 p-1 text-slate-400 hover:text-slate-700" title={showKey ? 'Hide' : 'Show'}>
+              <LockClosedIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <button type="button" onClick={() => setShowKey(s => !s)} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700" title={showKey ? 'Hide' : 'Show'}>
                 <EyeIcon className="w-4 h-4" />
               </button>
             </div>
@@ -232,16 +223,16 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
             <div key={url} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
               <span className="text-xs text-slate-500 sm:w-64 shrink-0">{label}</span>
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{method}</span>
+                <span className="text-[10px] font-semibold font-mono px-1.5 py-px rounded border border-slate-200 bg-slate-50 text-slate-600">{method}</span>
                 <code className="text-xs font-mono text-slate-800 truncate flex-1" title={url}>{url}</code>
-                <button onClick={() => copy(url, url)} className="text-xs font-semibold text-primary hover:underline shrink-0">{copied === url ? 'Copied ✓' : 'Copy'}</button>
+                <Button size="sm" variant="ghost" onClick={() => copy(url, url)} className="shrink-0">{copied === url ? 'Copied' : 'Copy'}</Button>
               </div>
             </div>
           ))}
         </div>
-        <div className="rounded-lg border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="rounded-lg border border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-800">Feed key</p>
+            <p className="text-[13px] font-semibold text-slate-900">Feed key</p>
             <p className="text-xs text-slate-500">
               {aggregator.feedKeyHash
                 ? <>Active key ending in <span className="font-mono font-semibold">…{aggregator.feedKeyHint}</span>{aggregator.feedKeyCreatedAt && <> · created {new Date(aggregator.feedKeyCreatedAt).toLocaleDateString()}</>}. Sent as <span className="font-mono">Authorization: Bearer &lt;key&gt;</span> or <span className="font-mono">X-Api-Key</span>.</>
@@ -250,26 +241,26 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
           </div>
           <div className="flex gap-2 shrink-0">
             {aggregator.feedKeyHash && (
-              <button onClick={handleRevokeKey} className="px-3 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50">Revoke</button>
+              <Button variant="danger" onClick={handleRevokeKey}>Revoke</Button>
             )}
-            <button onClick={handleGenerateKey} className="px-3 py-2 text-sm font-semibold text-white bg-slate-800 rounded-lg hover:bg-slate-900">
+            <Button variant="primary" onClick={handleGenerateKey}>
               {aggregator.feedKeyHash ? 'Rotate key' : 'Create key'}
-            </button>
+            </Button>
           </div>
         </div>
         {newKey && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-            <p className="text-sm font-semibold text-amber-900">Copy this key now and send it to the partner securely. It will not be shown again.</p>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-[13px] font-semibold text-amber-900">Copy this key now and send it to the partner securely. It will not be shown again.</p>
             <div className="mt-2 flex items-center gap-2">
-              <code className="flex-1 min-w-0 break-all text-xs font-mono bg-white border border-amber-200 rounded px-2 py-1.5 text-slate-800">{newKey}</code>
-              <button onClick={() => copy('key', newKey)} className="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded hover:bg-amber-700 shrink-0">{copied === 'key' ? 'Copied ✓' : 'Copy'}</button>
+              <code className="flex-1 min-w-0 break-all text-xs font-mono bg-white border border-amber-200 rounded-md px-2 py-1.5 text-slate-800">{newKey}</code>
+              <Button size="sm" onClick={() => copy('key', newKey)} className="shrink-0">{copied === 'key' ? 'Copied' : 'Copy'}</Button>
             </div>
           </div>
         )}
       </Section>
 
       <Section title="XML identifiers & commercial terms" subtitle="Values written into every XML message for this channel.">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <Label hint="(Vendor Code)">Supplier code</Label>
             <input value={draft.vendorCode} onChange={e => set('vendorCode', e.target.value.toUpperCase().slice(0, 8))} className={`${inputCls} font-mono`} placeholder="NCT" />
@@ -284,7 +275,7 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
           </div>
           <div>
             <Label>Rate currency</Label>
-            <select value={draft.currency} onChange={e => set('currency', e.target.value)} className={inputCls}>
+            <select value={draft.currency} onChange={e => set('currency', e.target.value)} className={selCls}>
               {SUPPORTED_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>

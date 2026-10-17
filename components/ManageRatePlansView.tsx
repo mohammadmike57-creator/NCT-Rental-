@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RatePlan, Fleet, Aggregator, RatePlanSubmission, StopSale } from '../types';
-import { PlusIcon, TrashIcon, EditIcon, SaveIcon, AlertIcon, CheckCircleIcon, CloseIcon } from './icons';
+import { PlusIcon, TrashIcon, EditIcon, SaveIcon, AlertIcon, CheckCircleIcon, ChevronRightIcon } from './icons';
+import { Panel, Badge, Button, Field, EmptyState, Dialog, textareaCls } from './ui/Crm';
 import ManagePeriodModal from './ManagePeriodModal';
 import {
   channelCurrency, diffPlans, fingerprint, formatMoney, generateRateSheetXml, hasUnpublishedChanges,
@@ -20,9 +21,9 @@ interface ManageRatePlansViewProps {
 }
 
 const periodState = (plan: RatePlan, today: string) => {
-  if (plan.endDate < today) return { label: 'Expired', cls: 'bg-slate-100 text-slate-500 border-slate-200' };
-  if (plan.startDate <= today) return { label: 'Current', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-  return { label: 'Upcoming', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
+  if (plan.endDate < today) return { label: 'Expired', tone: 'muted' as const };
+  if (plan.startDate <= today) return { label: 'Current', tone: 'success' as const };
+  return { label: 'Upcoming', tone: 'info' as const };
 };
 
 const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
@@ -109,173 +110,166 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
     }
   };
 
+  const issueCls = (level: string) => (level === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-amber-50 border-amber-200 text-amber-800');
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
         <div className="min-w-0">
-          <h3 className="text-lg font-bold text-slate-800">Rate periods</h3>
-          <p className="text-sm text-slate-500">Seasonal pricing by SIPP group and length of rental for {aggregator.name}, in {currency}.</p>
+          <h3 className="text-sm font-semibold text-slate-900">Rate periods</h3>
+          <p className="text-xs text-slate-500">Seasonal pricing by SIPP group and length of rental for {aggregator.name}, in {currency}.</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto shrink-0">
-          <button onClick={handleAddPeriod} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50">
-            <PlusIcon className="w-4 h-4" /> Add period
-          </button>
-          <button
-            onClick={() => setPublishOpen(true)}
-            disabled={ratePlans.length === 0}
-            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg shadow-sm transition-all disabled:bg-slate-300 disabled:cursor-not-allowed ${pending ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-700 hover:bg-slate-800 text-white'}`}
-          >
-            <SaveIcon className="w-4 h-4" /> {pending ? 'Review & publish' : 'Re-publish'}
-          </button>
+        <div className="flex gap-2 w-full sm:w-auto shrink-0 [&>*]:max-sm:flex-1">
+          <Button onClick={handleAddPeriod} icon={<PlusIcon className="w-4 h-4" />}>Add period</Button>
+          <Button variant={pending ? 'success' : 'primary'} onClick={() => setPublishOpen(true)} disabled={ratePlans.length === 0} icon={<SaveIcon className="w-4 h-4" />}>
+            {pending ? 'Review & publish' : 'Re-publish'}
+          </Button>
         </div>
       </div>
 
       {/* Publish status strip */}
-      <div className={`rounded-xl border px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm ${pending ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
-        <span className={`font-semibold ${pending ? 'text-amber-800' : 'text-emerald-700'}`}>{pending ? 'Unpublished changes' : 'Rates in sync with last publish'}</span>
-        {pending && latest && <span className="text-amber-800">{diff.increased} up · {diff.decreased} down · {diff.added} added · {diff.removed} removed</span>}
-        <span className="text-slate-500">{latest ? `Last published ${new Date(latest.submittedAt).toLocaleString()}` : 'Never published'}</span>
-        {rateIssues.length > 0 && <span className="ml-auto text-red-700 font-semibold">{validation.errors} error{validation.errors === 1 ? '' : 's'} · {validation.warnings} warning{validation.warnings === 1 ? '' : 's'}</span>}
+      <div className={`rounded-xl border px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] ${pending ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+        <Badge tone={pending ? 'warning' : 'success'}>{pending ? 'Unpublished changes' : 'Rates in sync with last publish'}</Badge>
+        {pending && latest && <span className="text-amber-800 tabular-nums">{diff.increased} up · {diff.decreased} down · {diff.added} added · {diff.removed} removed</span>}
+        <span className="text-slate-500 tabular-nums">{latest ? `Last published ${new Date(latest.submittedAt).toLocaleString()}` : 'Never published'}</span>
+        {rateIssues.length > 0 && <span className="sm:ml-auto text-rose-700 font-semibold tabular-nums">{validation.errors} error{validation.errors === 1 ? '' : 's'} · {validation.warnings} warning{validation.warnings === 1 ? '' : 's'}</span>}
       </div>
 
-      <div className="grid gap-4">
-        {ratePlans.map(plan => {
-          const st = periodState(plan, today);
-          const isOpen = expanded === plan.id;
-          const planIssues = rateIssues.filter(i => i.message.startsWith(`${plan.name}:`) || i.message.startsWith(`${plan.name} /`));
-          return (
-            <div key={plan.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${planIssues.some(i => i.level === 'error') ? 'border-red-200' : 'border-slate-200'}`}>
-              <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <button onClick={() => setExpanded(isOpen ? null : plan.id)} className="flex items-center gap-4 min-w-0 text-left">
-                  <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold shrink-0">
-                    {(plan.name || '?').charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-slate-800 truncate">{plan.name}</h4>
-                      <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border ${st.cls}`}>{st.label}</span>
+      <Panel>
+        {ratePlans.length === 0 ? (
+          <EmptyState
+            title="No rate periods defined yet."
+            hint="Add a season to start pricing vehicle groups for this channel."
+            action={<Button variant="primary" onClick={handleAddPeriod} icon={<PlusIcon className="w-4 h-4" />}>Create your first season</Button>}
+          />
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {ratePlans.map(plan => {
+              const st = periodState(plan, today);
+              const isOpen = expanded === plan.id;
+              const planIssues = rateIssues.filter(i => i.message.startsWith(`${plan.name}:`) || i.message.startsWith(`${plan.name} /`));
+              const hasError = planIssues.some(i => i.level === 'error');
+              return (
+                <li key={plan.id} className={hasError ? 'border-l-2 border-rose-400' : 'border-l-2 border-transparent'}>
+                  <div className="px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <button onClick={() => setExpanded(isOpen ? null : plan.id)} className="flex items-start gap-2 min-w-0 text-left flex-1" aria-expanded={isOpen}>
+                      <ChevronRightIcon className={`w-4 h-4 mt-0.5 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-[13px] font-semibold text-slate-900 truncate">{plan.name}</h4>
+                          <Badge tone={st.tone}>{st.label}</Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
+                          <span className="font-mono text-[11px] px-1.5 py-px bg-slate-50 rounded border border-slate-200">{plan.startDate} → {plan.endDate}</span>
+                          <span className="tabular-nums">{plan.sippRates?.length ?? 0} vehicle group{plan.sippRates?.length === 1 ? '' : 's'}</span>
+                          {planIssues.length > 0 && <span className="text-rose-600 font-semibold">{planIssues.length} issue{planIssues.length > 1 ? 's' : ''}</span>}
+                        </div>
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1 w-full sm:w-auto justify-end shrink-0">
+                      <Button size="sm" onClick={() => setEditingPlan(plan)} icon={<EditIcon className="w-3.5 h-3.5" />}>Edit rates</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDuplicate(plan)}>Duplicate</Button>
+                      <button onClick={() => handleDeletePlan(plan)} className="w-8 h-8 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md" title="Delete period" aria-label="Delete period">
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
-                      <span className="font-mono px-2 py-0.5 bg-slate-50 rounded border border-slate-200">{plan.startDate} → {plan.endDate}</span>
-                      <span>{plan.sippRates?.length ?? 0} vehicle group{plan.sippRates?.length === 1 ? '' : 's'}</span>
-                      {planIssues.length > 0 && <span className="text-red-600 font-semibold">{planIssues.length} issue{planIssues.length > 1 ? 's' : ''}</span>}
-                    </div>
                   </div>
-                </button>
-                <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
-                  <button onClick={() => setEditingPlan(plan)} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider rounded-md hover:bg-blue-100 flex items-center gap-1">
-                    <EditIcon className="w-3 h-3" /> Edit rates
-                  </button>
-                  <button onClick={() => handleDuplicate(plan)} className="px-3 py-1.5 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-md hover:bg-slate-100">Duplicate</button>
-                  <button onClick={() => handleDeletePlan(plan)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md" title="Delete period">
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              {isOpen && (
-                <div className="border-t border-slate-100 bg-slate-50/50 p-4 space-y-3">
-                  {planIssues.length > 0 && (
-                    <ul className="space-y-1">
-                      {planIssues.map((i, k) => (
-                        <li key={k} className={`text-xs px-3 py-1.5 rounded border ${i.level === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>{i.message}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {(plan.sippRates || []).length === 0 ? (
-                    <p className="text-sm text-slate-500">No vehicle groups priced yet.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm bg-white border border-slate-200 rounded-lg overflow-hidden">
-                        <tbody className="divide-y divide-slate-100">
-                          {plan.sippRates.map(rate => (
-                            <tr key={rate.id}>
-                              <td className="px-3 py-2 font-mono font-bold text-slate-800 w-20">{rate.sippCode}</td>
-                              <td className="px-3 py-2">
-                                <div className="flex flex-wrap gap-2">
-                                  {[...(rate.tiers || [])].sort((a, b) => (a.fromDay ?? 0) - (b.fromDay ?? 0)).map(t => (
-                                    <span key={t.id} className="inline-flex text-xs border border-slate-200 rounded overflow-hidden">
-                                      <span className="px-2 py-1 bg-slate-50 text-slate-500">{tierLabel(t)}</span>
-                                      <span className="px-2 py-1 font-semibold text-slate-800 tabular-nums">{t.dailyPrice != null ? formatMoney(t.dailyPrice, currency) : '—'}</span>
-                                    </span>
-                                  ))}
-                                </div>
-                              </td>
-                            </tr>
+                  {isOpen && (
+                    <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-3 space-y-3">
+                      {planIssues.length > 0 && (
+                        <ul className="space-y-1">
+                          {planIssues.map((i, k) => (
+                            <li key={k} className={`text-xs px-3 py-1.5 rounded-md border ${issueCls(i.level)}`}>{i.message}</li>
                           ))}
-                        </tbody>
-                      </table>
+                        </ul>
+                      )}
+                      {(plan.sippRates || []).length === 0 ? (
+                        <p className="text-[13px] text-slate-500">No vehicle groups priced yet.</p>
+                      ) : (
+                        <div className="overflow-x-auto bg-white border border-slate-200 rounded-lg">
+                          <table className="w-full text-[13px]">
+                            <tbody className="divide-y divide-slate-100">
+                              {plan.sippRates.map(rate => (
+                                <tr key={rate.id}>
+                                  <td className="px-3 py-2 font-mono font-semibold text-slate-800 w-20 align-top">{rate.sippCode}</td>
+                                  <td className="px-3 py-2">
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {[...(rate.tiers || [])].sort((a, b) => (a.fromDay ?? 0) - (b.fromDay ?? 0)).map(t => (
+                                        <span key={t.id} className="inline-flex text-xs border border-slate-200 rounded-md overflow-hidden">
+                                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500">{tierLabel(t)}</span>
+                                          <span className="px-1.5 py-0.5 font-semibold text-slate-800 tabular-nums">{t.dailyPrice != null ? formatMoney(t.dailyPrice, currency) : '—'}</span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {ratePlans.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-slate-200">
-            <p className="text-slate-500 font-medium">No rate periods defined yet.</p>
-            <button onClick={handleAddPeriod} className="mt-2 text-primary font-bold hover:underline">Create your first season</button>
-          </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </div>
+      </Panel>
 
       {editingPlan && (
         <ManagePeriodModal plan={editingPlan} onSave={handleSavePlan} onClose={() => setEditingPlan(null)} fleet={fleet} currency={currency} />
       )}
 
       {publishOpen && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setPublishOpen(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h4 className="font-bold text-slate-800">Publish rates to {aggregator.name}</h4>
-                <p className="text-xs text-slate-500">Version {nextVersion(aggregator)} · {currency} · {ratePlans.length} period{ratePlans.length === 1 ? '' : 's'}</p>
-              </div>
-              <button onClick={() => setPublishOpen(false)} className="p-1 text-slate-400 hover:text-slate-700"><CloseIcon /></button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="relative z-[100]">
+          <Dialog
+            open={publishOpen}
+            onClose={() => setPublishOpen(false)}
+            size="md"
+            title={`Publish rates to ${aggregator.name}`}
+            subtitle={`Version ${nextVersion(aggregator)} · ${currency} · ${ratePlans.length} period${ratePlans.length === 1 ? '' : 's'}`}
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setPublishOpen(false)}>Cancel</Button>
+                <Button variant="success" onClick={handlePublish} disabled={!validation.canPublish}>Publish version {nextVersion(aggregator)}</Button>
+              </>
+            }
+          >
+            <div className="space-y-4">
               {latest && (
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  {([['Up', diff.increased, 'text-red-600'], ['Down', diff.decreased, 'text-emerald-600'], ['Added', diff.added, 'text-blue-600'], ['Removed', diff.removed, 'text-slate-600']] as [string, number, string][]).map(([l, n, c]) => (
-                    <div key={l} className="rounded-lg border border-slate-200 py-2">
-                      <p className={`text-lg font-bold ${c}`}>{n}</p>
-                      <p className="text-[11px] uppercase tracking-wider text-slate-400">{l}</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {([['Up', diff.increased, 'text-rose-600'], ['Down', diff.decreased, 'text-emerald-700'], ['Added', diff.added, 'text-sky-700'], ['Removed', diff.removed, 'text-slate-600']] as [string, number, string][]).map(([l, n, c]) => (
+                    <div key={l} className="rounded-lg border border-slate-200 px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{l}</p>
+                      <p className={`text-base font-semibold tabular-nums ${c}`}>{n}</p>
                     </div>
                   ))}
                 </div>
               )}
               {validation.canPublish ? (
-                <p className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                  <CheckCircleIcon className="w-4 h-4" /> Validation passed{validation.warnings ? ` with ${validation.warnings} warning${validation.warnings === 1 ? '' : 's'}` : ''}.
+                <p className="flex items-center gap-2 text-[13px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <CheckCircleIcon className="w-4 h-4 shrink-0" /> Validation passed{validation.warnings ? ` with ${validation.warnings} warning${validation.warnings === 1 ? '' : 's'}` : ''}.
                 </p>
               ) : (
-                <p className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                  <AlertIcon className="w-4 h-4" /> {validation.errors} blocking error{validation.errors === 1 ? '' : 's'} must be fixed before publishing.
+                <p className="flex items-center gap-2 text-[13px] text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                  <AlertIcon className="w-4 h-4 shrink-0" /> {validation.errors} blocking error{validation.errors === 1 ? '' : 's'} must be fixed before publishing.
                 </p>
               )}
               {validation.issues.filter(i => i.level !== 'info').length > 0 && (
                 <ul className="space-y-1 text-xs">
                   {validation.issues.filter(i => i.level !== 'info').map((i, k) => (
-                    <li key={k} className={`px-3 py-1.5 rounded border ${i.level === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                    <li key={k} className={`px-3 py-1.5 rounded-md border ${issueCls(i.level)}`}>
                       <span className="font-semibold">{i.area}:</span> {i.message}
                     </li>
                   ))}
                 </ul>
               )}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Change note <span className="text-slate-400 font-normal">(optional)</span></label>
-                <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={280} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="e.g. Summer prices +8% for SUVs" />
-              </div>
+              <Field label={<>Change note <span className="text-slate-400 font-normal">(optional)</span></>}>
+                <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={280} className={textareaCls} placeholder="e.g. Summer prices +8% for SUVs" />
+              </Field>
             </div>
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
-              <button onClick={() => setPublishOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 rounded-lg hover:bg-slate-100">Cancel</button>
-              <button onClick={handlePublish} disabled={!validation.canPublish} className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
-                Publish version {nextVersion(aggregator)}
-              </button>
-            </div>
-          </div>
+          </Dialog>
         </div>,
         document.body,
       )}

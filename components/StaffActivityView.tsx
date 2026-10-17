@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { User } from '../types';
 import { fetchActivity, fetchActivitySummary, StaffActivityEntry, StaffActivitySummary } from '../firebase/api';
+import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, EmptyState, inputCls } from './ui/Crm';
 
 interface Props {
   users: User[];
@@ -132,37 +133,37 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
   };
 
   return (
-    <div className="space-y-5 mb-10">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Staff activity</h2>
-            <p className="text-sm text-slate-500">What each staff member did — recorded by the server with their account and the time.</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl">
-            {PERIODS.map(p => (
-              <button key={p.key} onClick={() => setDays(p.key)} className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${days === p.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{p.label}</button>
-            ))}
-          </div>
-          <button onClick={load} className="px-3 py-2 text-sm font-semibold rounded-xl ring-1 ring-slate-200 bg-white text-slate-700 hover:bg-slate-50">Refresh</button>
-          <button onClick={exportCsv} disabled={!events.length} className="px-3 py-2 text-sm font-semibold rounded-xl ring-1 ring-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40">Export CSV</button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        section="Administration"
+        title="Activity Log"
+        subtitle="What each staff member did, recorded by the server with their account and the time."
+        actions={
+          <>
+            <Segmented options={PERIODS.map(p => ({ key: String(p.key), label: p.label }))} value={String(days)} onChange={k => setDays(Number(k))} />
+            <Button onClick={load}>Refresh</Button>
+            <Button onClick={exportCsv} disabled={!events.length}>Export CSV</Button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 items-start">
+      <StatGrid items={[
+        { label: 'Events', value: totals.all, sub: person ? person.name : 'All staff' },
+        { label: 'Check-outs', value: totals.checkouts },
+        { label: 'Check-ins', value: totals.checkins },
+        { label: 'Emails sent', value: totals.emails },
+        { label: 'Sign-ins', value: totals.logins },
+        { label: 'Problems', value: totals.issues, tone: totals.issues > 0 ? 'danger' : 'default' },
+      ]} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
         {/* Staff list */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden lg:sticky lg:top-4">
-          <div className="px-4 py-3 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Staff · {staff.length}</div>
-          <ul className="max-h-[70vh] overflow-y-auto divide-y divide-slate-100">
+        <Panel title="Staff" subtitle={`${staff.length} accounts`} className="lg:sticky lg:top-4">
+          <ul className="max-h-[40vh] lg:max-h-[70vh] overflow-y-auto divide-y divide-slate-100">
             <li>
-              <button onClick={() => setSelected('')} className={`w-full flex items-center gap-3 px-4 py-3 text-left ${!selected ? 'bg-indigo-50/70' : 'hover:bg-slate-50'}`}>
-                <span className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">ALL</span>
-                <span className="flex-1 min-w-0"><span className="block text-sm font-semibold text-slate-900">All staff</span><span className="block text-xs text-slate-500">{summary.reduce((s, x) => s + x.events, 0)} events</span></span>
+              <button onClick={() => setSelected('')} className={`w-full flex items-center gap-3 px-4 py-2.5 text-left border-l-2 ${!selected ? 'bg-indigo-50/60 border-indigo-600' : 'border-transparent hover:bg-slate-50'}`}>
+                <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-semibold">ALL</span>
+                <span className="flex-1 min-w-0"><span className="block text-[13px] font-semibold text-slate-900">All staff</span><span className="block text-xs text-slate-500 tabular-nums">{summary.reduce((s, x) => s + x.events, 0)} events</span></span>
               </button>
             </li>
             {staff.map(s => {
@@ -170,20 +171,20 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
               const active = s.email.toLowerCase() === selected.toLowerCase();
               return (
                 <li key={s.email}>
-                  <button onClick={() => setSelected(s.email)} className={`w-full px-4 py-3 text-left ${active ? 'bg-indigo-50/70' : 'hover:bg-slate-50'}`}>
+                  <button onClick={() => setSelected(s.email)} className={`w-full px-4 py-2.5 text-left border-l-2 ${active ? 'bg-indigo-50/60 border-indigo-600' : 'border-transparent hover:bg-slate-50'}`}>
                     <div className="flex items-center gap-3">
-                      <span className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${s.events ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>{initials(s.name)}</span>
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${s.events ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>{initials(s.name)}</span>
                       <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-semibold text-slate-900 truncate">{s.name}</span>
+                        <span className="block text-[13px] font-semibold text-slate-900 truncate">{s.name}</span>
                         <span className="block text-xs text-slate-500 truncate">{s.position || s.email}</span>
                       </span>
                       <span className="text-right shrink-0">
-                        <span className="block text-sm font-bold tabular-nums text-slate-900">{s.events}</span>
+                        <span className="block text-[13px] font-semibold tabular-nums text-slate-900">{s.events}</span>
                         <span className="block text-[11px] text-slate-400">{ago(s.last)}</span>
                       </span>
                     </div>
                     {s.events > 0 && (
-                      <div className="mt-2 ml-12 flex h-1.5 rounded-full overflow-hidden bg-slate-100">
+                      <div className="mt-2 ml-11 flex h-1 rounded-full overflow-hidden bg-slate-100">
                         {Object.entries(s.byCategory).sort((a, b) => b[1] - a[1]).map(([c, n]) => <span key={c} className={meta(c).dot} style={{ width: `${(n / total) * 100}%` }} title={`${meta(c).label}: ${n}`} />)}
                       </div>
                     )}
@@ -192,76 +193,54 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
               );
             })}
           </ul>
-        </div>
+        </Panel>
 
         {/* Timeline */}
-        <div className="space-y-4 min-w-0">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-            <div className="p-5 flex items-center gap-4 border-b border-slate-100">
-              <span className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{person ? initials(person.name) : 'ALL'}</span>
-              <div className="min-w-0">
-                <p className="text-lg font-bold text-slate-900 truncate">{person ? person.name : 'All staff'}</p>
-                <p className="text-sm text-slate-500 truncate">{person ? `${person.position ? person.position + ' · ' : ''}${person.email} · last active ${ago(person.last)}` : `Everything recorded in the last ${days === 1 ? 'day' : `${days} days`}`}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-slate-100">
-              {[
-                ['Events', totals.all], ['Check-outs', totals.checkouts], ['Check-ins', totals.checkins],
-                ['Emails sent', totals.emails], ['Sign-ins', totals.logins], ['Problems', totals.issues],
-              ].map(([l, v]) => (
-                <div key={l as string} className="px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{l}</p>
-                  <p className={`text-xl font-bold tabular-nums ${l === 'Problems' && (v as number) > 0 ? 'text-rose-600' : 'text-slate-900'}`}>{v as number}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 flex flex-col md:flex-row md:items-center gap-3">
+        <Panel
+          title={person ? person.name : 'All staff'}
+          subtitle={person ? `${person.position ? person.position + ' · ' : ''}${person.email} · last active ${ago(person.last)}` : `Everything recorded in the last ${days === 1 ? 'day' : `${days} days`}`}
+          actions={loading && events.length ? <span className="text-xs text-slate-400">Refreshing…</span> : undefined}
+        >
+          <Toolbar>
             <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => setCategory('')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ring-1 whitespace-nowrap ${!category ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>Everything</button>
+              <button onClick={() => setCategory('')} className={`h-7 px-2.5 rounded-md text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${!category ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>Everything</button>
               {['agreement', 'reservation', 'charges', 'email', 'invoice', 'finance', 'auth', 'staff', 'settings'].map(c => (
-                <button key={c} onClick={() => setCategory(category === c ? '' : c)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${category === c ? meta(c).chip : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>{meta(c).label}</button>
+                <button key={c} onClick={() => setCategory(category === c ? '' : c)} className={`h-7 px-2.5 rounded-md text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${category === c ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>{meta(c).label}</button>
               ))}
             </div>
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search text or booking ref" className="md:ml-auto md:w-64 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
-          </div>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search text or booking ref" className={`${inputCls} md:ml-auto md:w-64`} />
+          </Toolbar>
 
           {error ? (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-5 text-sm">{error}</div>
+            <div className="m-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg p-4 text-[13px]">{error}</div>
           ) : loading && !events.length ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center text-sm text-slate-500">Loading activity…</div>
+            <div className="py-14 text-center text-[13px] text-slate-500">Loading activity…</div>
           ) : !events.length ? (
-            <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-16 text-center">
-              <p className="font-semibold text-slate-700">No activity in this period</p>
-              <p className="text-sm text-slate-500">Try a longer period or clear the filters.</p>
-            </div>
+            <EmptyState title="No activity in this period" hint="Try a longer period or clear the filters." />
           ) : (
             groups.map(g => (
-              <div key={g.day} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-600">{dayLabel(g.day)}</span>
-                  <span className="text-xs text-slate-400">{g.items.length} event{g.items.length === 1 ? '' : 's'}</span>
+              <div key={g.day}>
+                <div className="px-4 py-2 bg-slate-50 border-y border-slate-100 first:border-t-0 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{dayLabel(g.day)}</span>
+                  <span className="text-xs text-slate-400 tabular-nums">{g.items.length} event{g.items.length === 1 ? '' : 's'}</span>
                 </div>
                 <ul className="divide-y divide-slate-100">
                   {g.items.map(e => {
                     const m = meta(e.category);
                     const bad = e.action.endsWith('_FAILED');
                     return (
-                      <li key={e.id} className="px-5 py-3 flex gap-3">
-                        <span className={`w-8 h-8 shrink-0 rounded-lg ring-1 ring-inset flex items-center justify-center ${bad ? 'bg-rose-50 text-rose-600 ring-rose-200' : m.chip}`}>
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d={m.icon} /></svg>
-                        </span>
+                      <li key={e.id} className="px-4 py-2.5 flex gap-3">
+                        <span className="w-12 shrink-0 pt-0.5 text-xs text-slate-500 tabular-nums">{new Date(e.occurredAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm ${bad ? 'text-rose-700' : 'text-slate-900'}`}>{e.summary || e.action}</p>
+                          <p className={`text-[13px] ${bad ? 'text-rose-700 font-medium' : 'text-slate-900'}`}>{e.summary || e.action}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                            <span className="tabular-nums">{new Date(e.occurredAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-                            {!selected && <><span>·</span><button onClick={() => setSelected(e.userEmail)} className="font-semibold text-slate-700 hover:underline">{e.userName || e.userEmail}</button></>}
-                            <span>·</span><span className="font-mono text-[11px] text-slate-400">{e.action}</span>
-                            {e.bookingId && <button onClick={() => setQuery(e.bookingId!)} className="px-1.5 py-0.5 rounded bg-slate-100 font-mono text-[11px] text-slate-600 hover:bg-slate-200">#{e.bookingId}</button>}
+                            <Badge tone={bad ? 'danger' : 'muted'} dot={false} className="!font-medium"><span className={`w-1.5 h-1.5 rounded-full ${bad ? 'bg-rose-500' : m.dot}`} />{m.label}</Badge>
+                            {!selected && <button onClick={() => setSelected(e.userEmail)} className="font-semibold text-slate-700 hover:text-indigo-700 hover:underline">{e.userName || e.userEmail}</button>}
+                            <span className="font-mono text-[11px] text-slate-400">{e.action}</span>
+                            {e.bookingId && <button onClick={() => setQuery(e.bookingId!)} className="px-1.5 py-px rounded border border-slate-200 bg-slate-50 font-mono text-[11px] text-slate-600 hover:bg-slate-100">#{e.bookingId}</button>}
                             {e.details && <button onClick={() => setOpenId(openId === e.id ? null : e.id)} className="text-indigo-600 font-semibold hover:underline">{openId === e.id ? 'Hide details' : 'Details'}</button>}
                           </div>
-                          {openId === e.id && e.details && <p className="mt-2 text-xs text-slate-600 bg-slate-50 rounded-lg p-2.5 whitespace-pre-wrap">{e.details}</p>}
+                          {openId === e.id && e.details && <p className="mt-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2.5 whitespace-pre-wrap break-words">{e.details}</p>}
                         </div>
                       </li>
                     );
@@ -270,9 +249,9 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
               </div>
             ))
           )}
-        </div>
+        </Panel>
       </div>
-    </div>
+    </Page>
   );
 };
 

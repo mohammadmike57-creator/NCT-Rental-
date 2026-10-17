@@ -7,6 +7,7 @@ import {
 import {
   PERMISSION_GROUPS, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate,
 } from '../services/permissionCatalog';
+import { Page, PageHeader, StatGrid, Panel, Toolbar, Tabs, Badge, Button, Field, SectionLabel, EmptyState, inputCls, table } from './ui/Crm';
 
 interface UserManagementProps {
   users: User[];
@@ -18,27 +19,25 @@ type Account = User & { hasLogin: boolean };
 type DrawerMode = { kind: 'create'; prefill?: Partial<User> } | { kind: 'edit'; account: Account };
 
 const initials = (name?: string) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('');
-const AVATAR_COLORS = ['from-indigo-500 to-violet-500', 'from-sky-500 to-cyan-500', 'from-emerald-500 to-teal-500', 'from-amber-500 to-orange-500', 'from-rose-500 to-pink-500'];
+const AVATAR_COLORS = ['bg-indigo-50 text-indigo-700', 'bg-sky-50 text-sky-700', 'bg-emerald-50 text-emerald-700', 'bg-amber-50 text-amber-700', 'bg-slate-100 text-slate-700'];
 const avatarColor = (s: string) => AVATAR_COLORS[Math.abs([...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)) % AVATAR_COLORS.length];
 const isAdmin = (u: Partial<User>) => (u.permissions || []).includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);
 const isActive = (u: Partial<User>) => (u.status || UserStatus.ACTIVE) === UserStatus.ACTIVE && u.webAppAccess !== false;
 
-const inputCls = 'w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:bg-slate-50 disabled:text-slate-500';
-
-const Avatar: React.FC<{ name?: string; email?: string; size?: string }> = ({ name, email, size = 'w-10 h-10 text-sm' }) => (
-  <div className={`${size} rounded-full bg-gradient-to-br ${avatarColor(email || name || '?')} text-white font-bold flex items-center justify-center shrink-0`}>{initials(name)}</div>
+const Avatar: React.FC<{ name?: string; email?: string; size?: string }> = ({ name, email, size = 'w-8 h-8 text-[11px]' }) => (
+  <div className={`${size} rounded-full ${avatarColor(email || name || '?')} font-semibold flex items-center justify-center shrink-0`}>{initials(name)}</div>
 );
 
 const RoleBadge: React.FC<{ perms: string[] }> = ({ perms }) => {
   const role = matchRole(perms);
-  if (role) return <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700"><span className={`w-2 h-2 rounded-full ${role.color}`} />{role.name}</span>;
-  return <span className="text-xs font-semibold text-slate-600">Custom · {perms.length} permission{perms.length === 1 ? '' : 's'}</span>;
+  if (role) return <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-700"><span className={`w-1.5 h-1.5 rounded-full ${role.color}`} />{role.name}</span>;
+  return <span className="text-[13px] font-medium text-slate-600">Custom · {perms.length} permission{perms.length === 1 ? '' : 's'}</span>;
 };
 
 const StatusChip: React.FC<{ account: Account }> = ({ account }) => {
-  if (!account.hasLogin) return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">No login</span>;
-  if (!isActive(account)) return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">Disabled</span>;
-  return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">Active</span>;
+  if (!account.hasLogin) return <Badge tone="warning">No login</Badge>;
+  if (!isActive(account)) return <Badge tone="muted">Disabled</Badge>;
+  return <Badge tone="success">Active</Badge>;
 };
 
 // ---------------------------------------------------------------------------
@@ -69,16 +68,16 @@ const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPe
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Start from a role</p>
+        <SectionLabel className="mb-2">Start from a role</SectionLabel>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {ROLE_TEMPLATES.map(r => {
             const active = role?.id === r.id;
             return (
               <button key={r.id} type="button" disabled={disabled} onClick={() => applyRole(r)}
-                className={`text-left p-3 rounded-xl border transition-all ${active ? 'border-indigo-500 ring-2 ring-indigo-500/15 bg-indigo-50/40' : 'border-slate-200 hover:border-slate-300'} disabled:opacity-60`}>
+                className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${active ? 'border-indigo-500 ring-2 ring-indigo-500/15 bg-indigo-50/40' : 'border-slate-200 hover:border-slate-300'} disabled:opacity-60`}>
                 <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${r.color}`} />
-                  <span className="text-sm font-semibold text-slate-900">{r.name}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${r.color}`} />
+                  <span className="text-[13px] font-semibold text-slate-900">{r.name}</span>
                   {active && <CheckCircleIcon className="w-4 h-4 text-indigo-600 ml-auto" />}
                 </div>
                 <p className="text-xs text-slate-500 mt-1">{r.description}</p>
@@ -90,10 +89,10 @@ const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPe
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Permissions <span className="normal-case tracking-normal font-medium text-slate-400">· {value.length} selected{role ? '' : ' · custom'}</span></p>
-          <div className="relative w-48">
+          <SectionLabel>Permissions <span className="normal-case tracking-normal font-medium text-slate-400">· {value.length} selected{role ? '' : ' · custom'}</span></SectionLabel>
+          <div className="relative w-44 sm:w-52">
             <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a permission" className="w-full pl-8 pr-2 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-indigo-500" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a permission" className={`${inputCls} !h-8 pl-8 text-xs`} />
           </div>
         </div>
         <div className="space-y-2">
@@ -104,17 +103,17 @@ const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPe
             const count = keys.filter(k => set.has(k)).length;
             const isOpen = open[g.id] || !!q;
             return (
-              <div key={g.id} className="rounded-xl border border-slate-200 overflow-hidden">
-                <div className="flex items-center gap-3 px-3 py-2.5 bg-slate-50/70">
+              <div key={g.id} className="rounded-lg border border-slate-200 overflow-hidden">
+                <div className="flex items-center gap-3 px-3 py-2 bg-slate-50">
                   <button type="button" onClick={() => setOpen(o => ({ ...o, [g.id]: !isOpen }))} className="flex-1 text-left min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">{g.title} <span className="ml-1 text-xs font-medium text-slate-400">{count}/{keys.length}</span></p>
+                    <p className="text-[13px] font-semibold text-slate-900">{g.title} <span className="ml-1 text-xs font-medium text-slate-400 tabular-nums">{count}/{keys.length}</span></p>
                     <p className="text-xs text-slate-500 truncate">{g.description}</p>
                   </button>
                   <button type="button" disabled={disabled} onClick={() => setGroup(keys, count < keys.length)}
                     className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:text-slate-400 whitespace-nowrap">
                     {count < keys.length ? 'Select all' : 'Clear'}
                   </button>
-                  <span className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>▾</span>
+                  <svg className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
                 </div>
                 {isOpen && (
                   <ul className="divide-y divide-slate-100">
@@ -122,11 +121,11 @@ const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPe
                       const on = set.has(x.key);
                       return (
                         <li key={x.key}>
-                          <label className={`flex items-center gap-3 px-3 py-2.5 ${disabled ? '' : 'cursor-pointer hover:bg-slate-50'}`}>
+                          <label className={`flex items-center gap-3 px-3 py-2 ${disabled ? '' : 'cursor-pointer hover:bg-slate-50'}`}>
                             <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                              <span className="flex items-center gap-2 text-[13px] font-medium text-slate-800">
                                 {x.label}
-                                {SENSITIVE_PERMISSIONS.has(x.key) && <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-bold uppercase tracking-wide">Sensitive</span>}
+                                {SENSITIVE_PERMISSIONS.has(x.key) && <Badge tone="danger" dot={false} className="!text-[10px] uppercase tracking-wide">Sensitive</Badge>}
                               </span>
                               <span className="block text-xs text-slate-500">{x.description}</span>
                             </span>
@@ -159,20 +158,19 @@ const PasswordField: React.FC<{ value: string; onChange: (v: string) => void; la
   const problems = passwordProblems(value);
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+      <span className="block text-[13px] font-medium text-slate-700 mb-1">{label}</span>
+      <div className="flex flex-wrap sm:flex-nowrap gap-2">
+        <div className="relative flex-1 min-w-full sm:min-w-0">
           <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)} className={`${inputCls} font-mono pr-14`} autoComplete="new-password" />
           <button type="button" onClick={() => setShow(s => !s)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 hover:text-slate-800">{show ? 'Hide' : 'Show'}</button>
         </div>
-        <button type="button" onClick={() => onChange(generatePassword())} className="px-3 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 whitespace-nowrap">Generate</button>
-        <button type="button" disabled={!value} onClick={async () => { try { await navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch { /* ignore */ } }}
-          className="px-3 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40">{copied ? 'Copied' : 'Copy'}</button>
+        <Button onClick={() => onChange(generatePassword())} className="flex-1 sm:flex-none">Generate</Button>
+        <Button disabled={!value} onClick={async () => { try { await navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch { /* ignore */ } }} className="flex-1 sm:flex-none">{copied ? 'Copied' : 'Copy'}</Button>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {['At least 8 characters', 'A letter', 'A number'].map(rule => {
           const ok = value.length > 0 && !problems.includes(rule);
-          return <span key={rule} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{ok ? '✓ ' : ''}{rule}</span>;
+          return <Badge key={rule} tone={ok ? 'success' : 'muted'} dot={ok}>{rule}</Badge>;
         })}
       </div>
     </div>
@@ -275,56 +273,52 @@ const StaffDrawer: React.FC<{
   ];
 
   return (
-    <div className="fixed inset-0 z-[70] flex justify-end">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="relative w-full max-w-2xl h-full bg-white shadow-2xl flex flex-col">
-        <header className="px-6 py-4 border-b border-slate-200 flex items-center gap-4">
-          <Avatar name={form.fullName || 'New'} email={form.email} size="w-11 h-11 text-sm" />
+    <div className="fixed inset-0 z-[70] flex justify-end" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
+      <aside className="relative w-full sm:max-w-2xl h-full bg-white shadow-2xl flex flex-col">
+        <header className="px-5 py-4 border-b border-slate-200 flex items-start gap-3">
+          <Avatar name={form.fullName || 'New'} email={form.email} size="w-10 h-10 text-xs" />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{editing ? (editing.hasLogin ? 'Edit staff member' : 'Create login') : 'New staff member'}</p>
-            <p className="text-lg font-bold text-slate-900 truncate">{form.fullName || 'Unnamed'}{isSelf && <span className="ml-2 text-xs font-semibold text-indigo-600">You</span>}</p>
+            <p className="text-xs font-medium text-slate-500">{editing ? (editing.hasLogin ? 'Edit staff member' : 'Create login') : 'New staff member'}</p>
+            <p className="text-lg font-semibold text-slate-900 truncate">{form.fullName || 'Unnamed'}{isSelf && <Badge tone="info" dot={false} className="ml-2 align-middle">You</Badge>}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"><CloseIcon className="w-5 h-5" /></button>
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100"><CloseIcon className="w-5 h-5" /></button>
         </header>
-        <nav className="px-6 border-b border-slate-200 flex gap-1">
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 py-3 text-sm font-semibold border-b-2 -mb-px ${tab === t.key ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>{t.label}</button>
-          ))}
-        </nav>
+        <Tabs tabs={tabs} value={tab} onChange={k => setTab(k as typeof tab)} />
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {error && <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-800"><AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />{error}</div>}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {error && <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-50 border border-rose-200 text-[13px] text-rose-800"><AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />{error}</div>}
 
           {tab === 'profile' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2"><label className="block text-xs font-medium text-slate-500 mb-1">Full name *</label><input value={form.fullName} onChange={e => set('fullName', e.target.value)} className={inputCls} placeholder="e.g. Sara Haddad" /></div>
-              <div><label className="block text-xs font-medium text-slate-500 mb-1">Email (used to sign in) *</label><input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} disabled={isSelf} placeholder="name@company.com" /></div>
-              <div><label className="block text-xs font-medium text-slate-500 mb-1">Username <span className="text-slate-400">(optional)</span></label><input value={form.username} onChange={e => set('username', e.target.value)} className={inputCls} placeholder="defaults to email name" /></div>
-              <div><label className="block text-xs font-medium text-slate-500 mb-1">Job title</label><input value={form.position} onChange={e => set('position', e.target.value)} className={inputCls} placeholder="e.g. Reservations agent" /></div>
-              <div><label className="block text-xs font-medium text-slate-500 mb-1">Hire date</label><input type="date" value={form.hireDate} onChange={e => set('hireDate', e.target.value)} className={inputCls} /></div>
-              <div><label className="block text-xs font-medium text-slate-500 mb-1">National ID</label><input value={form.nationalId} onChange={e => set('nationalId', e.target.value)} className={inputCls} /></div>
-              <div><label className="block text-xs font-medium text-slate-500 mb-1">Social security no.</label><input value={form.sscNumber} onChange={e => set('sscNumber', e.target.value)} className={inputCls} /></div>
-              <div><label className="block text-xs font-medium text-slate-500 mb-1">Base salary (JOD / month)</label><input type="number" min={0} value={form.baseSalaryJOD} onChange={e => set('baseSalaryJOD', e.target.value)} className={inputCls} /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Full name" required className="sm:col-span-2"><input value={form.fullName} onChange={e => set('fullName', e.target.value)} className={inputCls} placeholder="e.g. Sara Haddad" /></Field>
+              <Field label="Email (used to sign in)" required><input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} disabled={isSelf} placeholder="name@company.com" /></Field>
+              <Field label={<>Username <span className="text-slate-400 font-normal">(optional)</span></>}><input value={form.username} onChange={e => set('username', e.target.value)} className={inputCls} placeholder="defaults to email name" /></Field>
+              <Field label="Job title"><input value={form.position} onChange={e => set('position', e.target.value)} className={inputCls} placeholder="e.g. Reservations agent" /></Field>
+              <Field label="Hire date"><input type="date" value={form.hireDate} onChange={e => set('hireDate', e.target.value)} className={inputCls} /></Field>
+              <Field label="National ID"><input value={form.nationalId} onChange={e => set('nationalId', e.target.value)} className={inputCls} /></Field>
+              <Field label="Social security no."><input value={form.sscNumber} onChange={e => set('sscNumber', e.target.value)} className={inputCls} /></Field>
+              <Field label="Base salary (JOD / month)"><input type="number" min={0} value={form.baseSalaryJOD} onChange={e => set('baseSalaryJOD', e.target.value)} className={`${inputCls} tabular-nums`} /></Field>
             </div>
           )}
 
           {tab === 'access' && (
             <>
-              {isSelf && <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">You can't remove your own access to staff management — another administrator has to do that.</p>}
+              {isSelf && <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">You can't remove your own access to staff management — another administrator has to do that.</p>}
               <PermissionEditor value={permissions} onChange={setPermissions} />
             </>
           )}
 
           {tab === 'security' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {needsLogin ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-slate-600">{editing ? `${editing.fullName} is listed as staff but has no account to sign in with. Set a starting password to create one.` : 'Set a starting password. Share it with the staff member securely; they can change it later.'}</p>
+                  <p className="text-[13px] text-slate-600">{editing ? `${editing.fullName} is listed as staff but has no account to sign in with. Set a starting password to create one.` : 'Set a starting password. Share it with the staff member securely; they can change it later.'}</p>
                   <PasswordField label="Starting password" value={password} onChange={setPassword} />
                 </div>
               ) : (
                 <>
-                  <section className="rounded-xl border border-slate-200 p-4">
+                  <section className="rounded-lg border border-slate-200 p-4">
                     <h3 className="text-sm font-semibold text-slate-900">Account status</h3>
                     <p className="text-xs text-slate-500 mb-3">Disabled accounts are signed out and can't sign in until re-enabled.</p>
                     <div className="grid grid-cols-2 gap-2">
@@ -333,39 +327,38 @@ const StaffDrawer: React.FC<{
                         return (
                           <button key={o.label} type="button" disabled={isSelf}
                             onClick={() => { setStatus(o.v ? UserStatus.ACTIVE : UserStatus.INACTIVE); setWebAccess(o.v); }}
-                            className={`text-left p-3 rounded-xl border ${on ? (o.v ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-500 bg-slate-50') : 'border-slate-200 hover:border-slate-300'} disabled:opacity-50`}>
-                            <p className="text-sm font-semibold text-slate-900">{o.label}</p><p className="text-xs text-slate-500">{o.d}</p>
+                            className={`text-left px-3 py-2.5 rounded-lg border ${on ? 'border-indigo-500 ring-2 ring-indigo-500/15 bg-indigo-50/40' : 'border-slate-200 hover:border-slate-300'} disabled:opacity-50`}>
+                            <p className="text-[13px] font-semibold text-slate-900">{o.label}</p><p className="text-xs text-slate-500">{o.d}</p>
                           </button>
                         );
                       })}
                     </div>
                   </section>
-                  <section className="rounded-xl border border-slate-200 p-4">
+                  <section className="rounded-lg border border-slate-200 p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2"><KeyIcon className="w-4 h-4 text-slate-400" /> Password</h3>
                         <p className="text-xs text-slate-500">Last changed {editing?.passwordLastChanged ? new Date(editing.passwordLastChanged).toLocaleDateString() : 'unknown'}.</p>
                       </div>
-                      <button type="button" disabled={busy} onClick={doReset} className="px-3 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 whitespace-nowrap">Reset password</button>
+                      <Button disabled={busy} onClick={doReset}>Reset password</Button>
                     </div>
                     {resetResult && (
-                      <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                      <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
                         <p className="text-xs font-semibold text-amber-900">New password — copy it now, it won't be shown again:</p>
                         <div className="mt-1.5 flex items-center gap-2">
-                          <code className="flex-1 px-2 py-1.5 bg-white border border-amber-200 rounded font-mono text-sm">{resetResult}</code>
-                          <button type="button" onClick={() => navigator.clipboard?.writeText(resetResult).catch(() => {})} className="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded">Copy</button>
+                          <code className="flex-1 min-w-0 break-all px-2 py-1.5 bg-white border border-amber-200 rounded-md font-mono text-[13px]">{resetResult}</code>
+                          <Button size="sm" onClick={() => navigator.clipboard?.writeText(resetResult).catch(() => {})}>Copy</Button>
                         </div>
                       </div>
                     )}
                   </section>
                   {!isSelf && (
-                    <section className="rounded-xl border border-rose-200 p-4">
+                    <section className="rounded-lg border border-rose-200 p-4">
                       <h3 className="text-sm font-semibold text-rose-700">Delete account</h3>
                       <p className="text-xs text-slate-500 mb-3">Removes the login permanently. Prefer “Disabled” if they may return. Type <strong>{editing?.email}</strong> to confirm.</p>
                       <div className="flex gap-2">
                         <input value={confirmDelete} onChange={e => setConfirmDelete(e.target.value)} className={inputCls} placeholder={editing?.email} />
-                        <button type="button" disabled={busy || confirmDelete.trim().toLowerCase() !== editing?.email?.toLowerCase()} onClick={doDelete}
-                          className="px-4 py-2 text-sm font-semibold bg-rose-600 text-white rounded-xl hover:bg-rose-700 disabled:bg-slate-300 whitespace-nowrap">Delete</button>
+                        <Button variant="danger" disabled={busy || confirmDelete.trim().toLowerCase() !== editing?.email?.toLowerCase()} onClick={doDelete}>Delete</Button>
                       </div>
                     </section>
                   )}
@@ -375,16 +368,16 @@ const StaffDrawer: React.FC<{
           )}
         </div>
 
-        <footer className="px-6 py-4 border-t border-slate-200 flex items-center justify-between gap-3 bg-slate-50/60">
-          <p className="text-xs text-slate-500 hidden sm:block">{createProblems.length ? `Still needed: ${createProblems.join(', ')}` : 'Changes apply the next time the staff member opens the app.'}</p>
+        <footer className="px-5 py-3 border-t border-slate-200 flex items-center justify-between gap-3 bg-slate-50">
+          <p className="text-xs text-slate-500 hidden sm:block min-w-0">{createProblems.length ? `Still needed: ${createProblems.join(', ')}` : 'Changes apply the next time the staff member opens the app.'}</p>
           <div className="flex gap-2 ml-auto">
-            <button onClick={onClose} className="px-4 py-2.5 text-sm font-semibold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
-            <button onClick={save} disabled={busy} className="px-5 py-2.5 text-sm font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:bg-slate-300">
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" onClick={save} disabled={busy}>
               {busy ? 'Saving…' : needsLogin ? 'Create account' : 'Save changes'}
-            </button>
+            </Button>
           </div>
         </footer>
-      </div>
+      </aside>
     </div>
   );
 };
@@ -467,117 +460,134 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
     admins: accounts.filter(isAdmin).length,
   };
 
-  return (
-    <div className="space-y-5">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><UsersIcon className="w-6 h-6" /></div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Staff & permissions</h2>
-              <p className="text-sm text-slate-500">Who can sign in, and what each person can see and do.</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[220px] lg:w-72 lg:flex-none">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name, email or job title" className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
-            </div>
-            <button onClick={() => setDrawer({ kind: 'create' })} disabled={!!loadError} className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:bg-slate-300">
-              <PlusIcon className="w-4 h-4" /> Add staff member
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-          {[
-            { label: 'Staff', value: counts.all, sub: `${counts.active} can sign in` },
-            { label: 'Administrators', value: counts.admins, sub: 'can manage staff' },
-            { label: 'Disabled', value: counts.disabled, sub: 'blocked from signing in' },
-            { label: 'Without login', value: counts.nologin, sub: counts.nologin ? 'need an account' : 'everyone has one', warn: counts.nologin > 0 },
-          ].map(k => (
-            <div key={k.label} className="px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
-              <p className={`mt-1 text-2xl font-bold tabular-nums ${k.warn ? 'text-amber-600' : 'text-slate-900'}`}>{k.value}</p>
-              <p className="text-xs text-slate-400">{k.sub}</p>
-            </div>
-          ))}
-        </div>
-        <div className="px-3 sm:px-5 border-t border-slate-100 flex gap-1 overflow-x-auto no-scrollbar">
-          {([['all', 'All'], ['active', 'Active'], ['admins', 'Administrators'], ['disabled', 'Disabled'], ['nologin', 'Without login']] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setFilter(k)} className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 -mb-px ${filter === k ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-              {label}<span className={`ml-2 px-1.5 py-0.5 rounded-md text-[11px] ${filter === k ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{counts[k]}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+  const filterTabs = ([['all', 'All'], ['active', 'Active'], ['admins', 'Administrators'], ['disabled', 'Disabled'], ['nologin', 'Without login']] as const)
+    .map(([k, label]) => ({ key: k, label, count: counts[k] }));
+  const openAccount = (a: Account) => !loadError && setDrawer({ kind: 'edit', account: a });
+  const lastSeen = (a: Account) => a.isOnline ? <span className="text-emerald-700 font-medium">Online now</span> : a.lastSeen ? new Date(a.lastSeen).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 
-      {notice && <div className="flex items-start gap-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900"><CheckCircleIcon className="w-5 h-5 shrink-0" />{notice}</div>}
+  return (
+    <Page>
+      <PageHeader
+        section="Administration"
+        title="User & Staff Management"
+        subtitle="Who can sign in, and what each person can see and do."
+        actions={
+          <Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setDrawer({ kind: 'create' })} disabled={!!loadError}>
+            Add staff member
+          </Button>
+        }
+      />
+
+      <StatGrid items={[
+        { label: 'Staff', value: counts.all, sub: `${counts.active} can sign in`, active: filter === 'all', onClick: () => setFilter('all') },
+        { label: 'Administrators', value: counts.admins, sub: 'can manage staff', active: filter === 'admins', onClick: () => setFilter('admins') },
+        { label: 'Disabled', value: counts.disabled, sub: 'blocked from signing in', active: filter === 'disabled', onClick: () => setFilter('disabled') },
+        { label: 'Without login', value: counts.nologin, sub: counts.nologin ? 'need an account' : 'everyone has one', tone: counts.nologin > 0 ? 'warning' : 'default', active: filter === 'nologin', onClick: () => setFilter('nologin') },
+      ]} />
+
+      {notice && <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[13px] text-emerald-900"><CheckCircleIcon className="w-4 h-4 mt-0.5 shrink-0" />{notice}</div>}
       {loadError && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-sm text-amber-900">
-          <AlertIcon className="w-5 h-5 shrink-0" />
-          <div className="flex-1"><p className="font-semibold">Staff accounts could not be loaded from the server</p><p className="text-xs">{loadError} Showing the app's staff list read-only.</p></div>
-          <button onClick={load} className="text-xs font-semibold underline">Retry</button>
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-[13px] text-amber-900">
+          <AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0"><p className="font-semibold">Staff accounts could not be loaded from the server</p><p className="text-xs">{loadError} Showing the app's staff list read-only.</p></div>
+          <Button size="sm" onClick={load}>Retry</Button>
         </div>
       )}
       {counts.nologin > 0 && !loadError && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl bg-white border border-amber-200 text-sm">
-          <ShieldCheckIcon className="w-5 h-5 text-amber-600 shrink-0" />
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-white border border-amber-200 text-[13px]">
+          <ShieldCheckIcon className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
           <p className="text-slate-700"><strong>{counts.nologin}</strong> staff record{counts.nologin === 1 ? ' has' : 's have'} no sign-in account, so {counts.nologin === 1 ? 'this person' : 'these people'} cannot log in. Open them and choose <strong>Create account</strong>.</p>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <Panel footer={<span className="tabular-nums">{visible.length} of {accounts.length} staff shown</span>}>
+        <Tabs tabs={filterTabs} value={filter} onChange={k => setFilter(k as typeof filter)} />
+        <Toolbar>
+          <div className="relative w-full md:w-80">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name, email or job title" className={`${inputCls} pl-9`} />
+          </div>
+          {loading && serverAccounts && <span className="text-xs text-slate-400 md:ml-auto">Refreshing…</span>}
+        </Toolbar>
         {loading && !serverAccounts ? (
-          <p className="py-14 text-center text-sm text-slate-500">Loading staff…</p>
+          <p className="py-14 text-center text-[13px] text-slate-500">Loading staff…</p>
         ) : visible.length === 0 ? (
-          <p className="py-14 text-center text-sm text-slate-500">No staff match this view.</p>
+          <EmptyState icon={<UsersIcon />} title="No staff match this view." hint="Try another tab or clear the search." />
         ) : (
-          <table className="w-full text-sm">
-            <thead className="hidden md:table-header-group">
-              <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                <th className="text-left font-semibold px-5 py-3">Staff member</th>
-                <th className="text-left font-semibold px-4 py-3">Role</th>
-                <th className="text-left font-semibold px-4 py-3">Job title</th>
-                <th className="text-left font-semibold px-4 py-3">Status</th>
-                <th className="text-left font-semibold px-4 py-3">Last seen</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+          <>
+            <table className={`hidden md:table ${table.wrap}`}>
+              <thead className={table.head}>
+                <tr>
+                  <th className={table.th}>Staff member</th>
+                  <th className={table.th}>Role</th>
+                  <th className={table.th}>Job title</th>
+                  <th className={table.th}>Status</th>
+                  <th className={table.th}>Last seen</th>
+                  <th className={table.th} />
+                </tr>
+              </thead>
+              <tbody className={table.body}>
+                {visible.map(a => {
+                  const self = a.email?.toLowerCase() === currentUser?.email?.toLowerCase();
+                  return (
+                    <tr key={a.id || a.email} className={`${table.row} cursor-pointer`} onClick={() => openAccount(a)}>
+                      <td className={table.td}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative">
+                            <Avatar name={a.fullName} email={a.email} />
+                            {a.isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900 truncate">{a.fullName || a.username}{self && <Badge tone="info" dot={false} className="ml-2 !text-[10px]">You</Badge>}</p>
+                            <p className="text-xs text-slate-500 truncate">{a.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className={table.td}><RoleBadge perms={a.permissions || []} /></td>
+                      <td className={`${table.td} text-slate-600`}>{a.position || '—'}</td>
+                      <td className={table.td}><StatusChip account={a} /></td>
+                      <td className={`${table.td} text-xs text-slate-500 tabular-nums whitespace-nowrap`}>{lastSeen(a)}</td>
+                      <td className={`${table.td} text-right`}>
+                        <Button size="sm" variant={a.hasLogin ? 'ghost' : 'secondary'} className={a.hasLogin ? '' : '!text-amber-700'} onClick={e => { e.stopPropagation(); openAccount(a); }}>{a.hasLogin ? 'Manage' : 'Create login'}</Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <ul className="md:hidden divide-y divide-slate-100">
               {visible.map(a => {
                 const self = a.email?.toLowerCase() === currentUser?.email?.toLowerCase();
                 return (
-                  <tr key={a.id || a.email} className="hover:bg-slate-50/70 cursor-pointer" onClick={() => !loadError && setDrawer({ kind: 'edit', account: a })}>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative">
-                          <Avatar name={a.fullName} email={a.email} />
-                          {a.isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-900 truncate">{a.fullName || a.username}{self && <span className="ml-2 text-[10px] font-bold uppercase text-indigo-600">You</span>}</p>
-                          <p className="text-xs text-slate-500 truncate">{a.email}</p>
-                          <div className="md:hidden mt-1 flex items-center gap-2"><StatusChip account={a} /><RoleBadge perms={a.permissions || []} /></div>
-                        </div>
+                  <li key={a.id || a.email}>
+                    <button type="button" onClick={() => openAccount(a)} className="w-full px-4 py-3 flex items-start gap-3 text-left active:bg-slate-50">
+                      <div className="relative">
+                        <Avatar name={a.fullName} email={a.email} />
+                        {a.isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell"><RoleBadge perms={a.permissions || []} /></td>
-                    <td className="px-4 py-3 hidden md:table-cell text-slate-600">{a.position || '—'}</td>
-                    <td className="px-4 py-3 hidden md:table-cell"><StatusChip account={a} /></td>
-                    <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-500">{a.isOnline ? <span className="text-emerald-600 font-semibold">Online now</span> : a.lastSeen ? new Date(a.lastSeen).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                    <td className="px-5 py-3 text-right">
-                      <span className={`text-xs font-semibold ${a.hasLogin ? 'text-indigo-600' : 'text-amber-700'}`}>{a.hasLogin ? 'Manage' : 'Create login'} →</span>
-                    </td>
-                  </tr>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[13px] font-semibold text-slate-900 truncate">{a.fullName || a.username}{self && <Badge tone="info" dot={false} className="ml-2 !text-[10px]">You</Badge>}</p>
+                          <StatusChip account={a} />
+                        </div>
+                        <p className="text-xs text-slate-500 truncate">{a.email}{a.position ? ` · ${a.position}` : ''}</p>
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <RoleBadge perms={a.permissions || []} />
+                          <span className={`text-xs font-semibold ${a.hasLogin ? 'text-indigo-600' : 'text-amber-700'}`}>{a.hasLogin ? 'Manage' : 'Create login'}</span>
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-slate-400 tabular-nums">Last seen {lastSeen(a)}</p>
+                      </div>
+                    </button>
+                  </li>
                 );
               })}
-            </tbody>
-          </table>
+            </ul>
+          </>
         )}
-      </div>
+      </Panel>
 
       {drawer && <StaffDrawer key={drawer.kind === 'edit' ? drawer.account.id : 'new'} mode={drawer} currentUser={currentUser} onClose={() => setDrawer(null)} onSaved={handleSaved} />}
-    </div>
+    </Page>
   );
 };
 

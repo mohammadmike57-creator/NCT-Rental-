@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Aggregator, AggregatorExtra, AvailableExtra } from '../types';
 import { PlusIcon, TrashIcon } from './icons';
 import { channelCurrency, formatMoney } from '../services/channelManager';
+import { Button, EmptyState, inputCls, selectCls, labelCls } from './ui/Crm';
 
 interface ManageAggregatorExtrasViewProps {
     aggregator: Aggregator;
@@ -56,20 +57,20 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
     };
     
     return (
-        <div className="max-w-3xl">
-             <div className="mb-6">
-                 <h3 className="text-lg font-bold text-slate-800">Mapped Extras</h3>
-                 <p className="text-sm text-slate-500">Extras sold on this channel, their daily price in {currency}, and the OTA equipment code the partner expects.</p>
+        <div>
+             <div className="mb-4">
+                 <h3 className="text-sm font-semibold text-slate-900">Mapped Extras</h3>
+                 <p className="text-xs text-slate-500">Extras sold on this channel, their daily price in {currency}, and the OTA equipment code the partner expects.</p>
             </div>
             
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6 flex flex-col sm:flex-row items-end gap-4">
-                <div className="flex-grow w-full">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Select Extra</label>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg mb-4 flex flex-col sm:flex-row items-end gap-2">
+                <div className="flex-grow w-full min-w-0">
+                    <label className={labelCls}>Select Extra</label>
                     <div className="relative">
                         <select
                             value={selectedExtraId}
                             onChange={e => setSelectedExtraId(e.target.value)}
-                            className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white appearance-none"
+                            className={`${selectCls} w-full`}
                         >
                             <option value="">Select from global list...</option>
                             {availableOptions.map(opt => (
@@ -78,28 +79,26 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
                         </select>
                     </div>
                 </div>
-                <button onClick={handleAddExtra} disabled={!selectedExtraId} className="w-full sm:w-auto h-[42px] px-6 bg-secondary text-white font-medium rounded-lg hover:bg-secondary/90 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
-                    <PlusIcon className="w-4 h-4" /> Add Map
-                </button>
+                <Button variant="primary" onClick={handleAddExtra} disabled={!selectedExtraId} className="w-full sm:w-auto" icon={<PlusIcon className="w-4 h-4" />}>Add Map</Button>
             </div>
             
-            <div className="space-y-3">
+            <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
                 {aggregatorExtras.map(extra => (
-                    <div key={extra.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-primary/30 transition-colors gap-3">
+                    <div key={extra.id} className="flex flex-col sm:flex-row sm:items-center justify-between px-3 py-2.5 bg-white hover:bg-slate-50 transition-colors gap-3">
                         <div className="min-w-0">
-                            <p className="font-semibold text-slate-700">{extra.name}</p>
+                            <p className="text-[13px] font-semibold text-slate-900">{extra.name}</p>
                             <div className="flex flex-wrap items-center gap-3 mt-1.5">
-                                <label className="flex items-center gap-1.5 text-[11px] text-slate-400 uppercase font-medium">
+                                <label className="flex items-center gap-1.5 text-[11px] text-slate-500 uppercase tracking-wider font-semibold">
                                     OTA code
                                     <input
                                         type="text"
                                         value={extra.otaEquipType || ''}
                                         onChange={e => handleUpdateField(extra.id, { otaEquipType: e.target.value.trim() || undefined })}
                                         placeholder={extra.id}
-                                        className="w-24 p-1 border border-slate-300 rounded text-xs font-mono normal-case text-slate-700"
+                                        className={`${inputCls} !h-7 !w-24 !px-2 text-xs font-mono normal-case`}
                                     />
                                 </label>
-                                <label className="flex items-center gap-1.5 text-[11px] text-slate-400 uppercase font-medium">
+                                <label className="flex items-center gap-1.5 text-[11px] text-slate-500 uppercase tracking-wider font-semibold">
                                     Max / rental
                                     <input
                                         type="number"
@@ -107,34 +106,32 @@ const ManageAggregatorExtrasView: React.FC<ManageAggregatorExtrasViewProps> = ({
                                         value={extra.maxPerRental ?? ''}
                                         onChange={e => { const v = parseFloat(e.target.value); handleUpdateField(extra.id, { maxPerRental: v > 0 ? v : undefined }); }}
                                         placeholder="no cap"
-                                        className="w-20 p-1 border border-slate-300 rounded text-xs text-right normal-case text-slate-700"
+                                        className={`${inputCls} !h-7 !w-20 !px-2 text-xs text-right tabular-nums normal-case`}
                                     />
                                 </label>
                             </div>
                         </div>
                         <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
                              <div className="flex items-center gap-2">
-                                <label className="text-xs font-medium text-slate-400 uppercase">Per day</label>
+                                <label className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Per day</label>
                                 <div className="relative w-32">
                                     <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-[10px] text-slate-400 font-semibold">{currency}</span>
                                     <input
                                         type="number"
                                         value={extra.price}
                                         onChange={e => handleUpdatePrice(extra.id, parseFloat(e.target.value) || 0)}
-                                        className="w-full p-1.5 pl-10 border border-slate-300 rounded-md text-sm text-right font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        className={`${inputCls} !h-8 pl-10 text-right font-semibold tabular-nums`}
                                     />
                                 </div>
                             </div>
-                            <button onClick={() => handleDeleteExtra(extra.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                            <button onClick={() => handleDeleteExtra(extra.id)} aria-label={`Remove ${extra.name}`} className="w-8 h-8 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors">
                                 <TrashIcon className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                 ))}
                 {aggregatorExtras.length === 0 && (
-                    <div className="text-center py-10 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                        <p className="text-slate-400">No extras mapped yet.</p>
-                    </div>
+                    <EmptyState className="!py-8" title="No extras mapped yet." hint="Pick an extra from the global list above." />
                 )}
             </div>
         </div>

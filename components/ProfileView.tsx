@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, UserPermission } from '../types';
 import { MailIcon, KeyIcon } from './icons';
 import { API_URL } from '../firebase/api';
+import { Page, PageHeader, Panel, Badge, Button, Field, DetailList, inputCls } from './ui/Crm';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -51,75 +52,60 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, firebaseUser, on
     }
   };
 
+  const isAdmin = currentUser.permissions?.includes(UserPermission.VIEW_ADMIN_PANEL);
+  const initials = (currentUser.username || currentUser.email || '?').slice(0, 2).toUpperCase();
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">My Profile</h2>
+    <Page className="max-w-3xl">
+      <PageHeader section="Account" title="My Profile" subtitle="Your sign-in details and password." />
 
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <MailIcon className="w-5 h-5 text-gray-500" />
-          <div>
-            <div className="text-sm text-gray-500">Email</div>
-            <div className="font-medium">{currentUser.email}</div>
+      <Panel title="Account details">
+        <div className="px-4 py-4 flex items-center gap-3 border-b border-slate-100">
+          <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center text-sm font-semibold shrink-0">{initials}</div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900 truncate">{currentUser.username || currentUser.email}</p>
+            <p className="text-[13px] text-slate-500 truncate">{currentUser.email}</p>
           </div>
+          <div className="ml-auto"><Badge tone={isAdmin ? 'info' : 'muted'}>{isAdmin ? 'Admin' : 'Staff'}</Badge></div>
         </div>
+        <div className="px-4">
+          <DetailList rows={[
+            { label: <span className="inline-flex items-center gap-2"><MailIcon className="w-4 h-4 text-slate-400" />Email</span>, value: currentUser.email },
+            { label: <span className="inline-flex items-center gap-2"><KeyIcon className="w-4 h-4 text-slate-400" />Role</span>, value: <span className="capitalize">{isAdmin ? 'Admin' : 'Staff'}</span> },
+          ]} />
+        </div>
+      </Panel>
 
-        <div className="flex items-center gap-3">
-          <KeyIcon className="w-5 h-5 text-gray-500" />
-          <div>
-            <div className="text-sm text-gray-500">Role</div>
-            <div className="font-medium capitalize">
-              {currentUser.permissions?.includes(UserPermission.VIEW_ADMIN_PANEL) ? 'Admin' : 'Staff'}
+      <form onSubmit={handlePasswordChange}>
+        <Panel
+          title="Change password"
+          subtitle="Enter your current password, then choose a new one."
+          footer={
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                {passwordError && <p className="text-[13px] text-rose-600">{passwordError}</p>}
+                {passwordSuccess && <p className="text-[13px] text-emerald-700">{passwordSuccess}</p>}
+              </div>
+              <Button type="submit" variant="primary" disabled={isChangingPassword}>
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
+              </Button>
             </div>
+          }
+        >
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Current Password" required>
+              <input type="password" value={passwordForm.current} onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })} required className={inputCls} />
+            </Field>
+            <Field label="New Password" required>
+              <input type="password" value={passwordForm.new} onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })} required className={inputCls} />
+            </Field>
+            <Field label="Confirm New Password" required>
+              <input type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })} required className={inputCls} />
+            </Field>
           </div>
-        </div>
-
-        <div className="pt-4 border-t">
-          <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Current Password</label>
-              <input
-                type="password"
-                value={passwordForm.current}
-                onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
-                required
-                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">New Password</label>
-              <input
-                type="password"
-                value={passwordForm.new}
-                onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
-                required
-                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
-              <input
-                type="password"
-                value={passwordForm.confirm}
-                onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
-                required
-                className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-            {passwordSuccess && <p className="text-sm text-green-600">{passwordSuccess}</p>}
-            <button
-              type="submit"
-              disabled={isChangingPassword}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {isChangingPassword ? 'Updating...' : 'Update Password'}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
+        </Panel>
+      </form>
+    </Page>
   );
 };
 

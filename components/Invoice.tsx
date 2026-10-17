@@ -7,6 +7,7 @@ import { printHtml } from '../services/printDocs';
 import {
   TERMS_DAYS, TERMS_LABEL, amountInWords, billableAmount, buildInvoiceHtml, invoiceState, InvoiceState, linesOf, money, priceLine, rentalDays,
 } from '../services/invoiceDoc';
+import { Page, PageHeader, StatGrid, Panel, Toolbar, Tabs, Segmented, Badge, Button, Field, EmptyState, inputCls, selectCls, textareaCls, table } from './ui/Crm';
 
 interface InvoiceProps {
   yearData: YearData;
@@ -35,7 +36,6 @@ const writePref = (k: string, v: string) => { try { localStorage.setItem(k, v); 
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const fmtDay = (s?: string) => (s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
-const inputCls = 'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500';
 
 /** Shows a printable HTML document as a scaled A4 page. */
 const DocPreview: React.FC<{ html: string; className?: string }> = ({ html, className }) => {
@@ -184,74 +184,61 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
 
   const open = invoices.find(i => i.id === openId) || null;
 
+  const sel = `${selectCls} w-full`;
+  const stateTone: Record<InvoiceState, 'info' | 'danger' | 'success' | 'muted'> = { unpaid: 'info', overdue: 'danger', paid: 'success', void: 'muted' };
+  const toggleLine = (id: string) => setExcluded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
   return (
-    <div className="space-y-5 mb-10">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Partner invoices</h2>
-              <p className="text-sm text-slate-500">Bill prepaid booking partners, track payment and send invoices by email.</p>
-            </div>
-          </div>
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl">
-            {([['new', 'New invoice'], ['history', `Invoices (${invoices.length})`]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)} className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${tab === k ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{l}</button>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-          {[
-            { label: `Invoiced ${new Date().getFullYear()}`, value: money(kpi.yearSum), sub: `${kpi.yearCount} invoice${kpi.yearCount === 1 ? '' : 's'}` },
-            { label: 'Awaiting payment', value: money(kpi.unpaid), sub: `${kpi.unpaidN} not yet due` },
-            { label: 'Overdue', value: money(kpi.overdue), sub: `${kpi.overdueN} past due date`, warn: kpi.overdueN > 0 },
-            { label: 'Collected', value: money(kpi.paid), sub: `${kpi.paidN} paid this year`, good: true },
-          ].map(k => (
-            <div key={k.label} className="px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
-              <p className={`mt-1 text-2xl font-bold tabular-nums ${k.warn ? 'text-rose-600' : k.good ? 'text-emerald-700' : 'text-slate-900'}`}>{k.value}</p>
-              <p className="text-xs text-slate-400">{k.sub}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        section="Reports"
+        title="Invoice Generation"
+        subtitle="Bill prepaid booking partners, track payment and send invoices by email."
+        actions={
+          <Segmented
+            options={[{ key: 'new', label: 'New invoice' }, { key: 'history', label: `Invoices (${invoices.length})` }]}
+            value={tab}
+            onChange={k => setTab(k as 'new' | 'history')}
+          />
+        }
+      />
+
+      <StatGrid items={[
+        { label: `Invoiced ${new Date().getFullYear()}`, value: money(kpi.yearSum), sub: `${kpi.yearCount} invoice${kpi.yearCount === 1 ? '' : 's'}` },
+        { label: 'Awaiting payment', value: money(kpi.unpaid), sub: `${kpi.unpaidN} not yet due`, tone: 'info' },
+        { label: 'Overdue', value: money(kpi.overdue), sub: `${kpi.overdueN} past due date`, tone: kpi.overdueN > 0 ? 'danger' : 'default' },
+        { label: 'Collected', value: money(kpi.paid), sub: `${kpi.paidN} paid this year`, tone: 'success' },
+      ]} />
 
       {tab === 'new' ? (
         prepaidSources.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-16 text-center">
-            <p className="font-semibold text-slate-700">No prepaid partners yet</p>
-            <p className="text-sm text-slate-500">Mark a booking source as “Prepaid” in Manage Sources to invoice it here.</p>
-          </div>
+          <Panel>
+            <EmptyState title="No prepaid partners yet" hint="Mark a booking source as “Prepaid” in Manage Sources to invoice it here." />
+          </Panel>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-5 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-4 items-start">
             {/* Builder */}
-            <div className="space-y-5 min-w-0">
-              <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Bill to</h3>
+            <div className="space-y-4 min-w-0">
+              <Panel title="Bill to" bodyClassName="p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="block sm:col-span-2"><span className="block text-xs font-medium text-slate-500 mb-1">Partner</span>
-                    <select className={inputCls} value={sourceId} onChange={e => setSourceId(e.target.value)}>
+                  <Field label="Partner" className="sm:col-span-2">
+                    <select className={sel} value={sourceId} onChange={e => setSourceId(e.target.value)}>
                       {prepaidSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
-                  </label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Legal name on invoice</span>
-                    <input className={inputCls} value={billTo.name} onChange={e => setBillTo(b => ({ ...b, name: e.target.value }))} /></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Billing email</span>
-                    <input className={inputCls} value={billTo.email} onChange={e => setBillTo(b => ({ ...b, email: e.target.value }))} placeholder="accounts@partner.com" inputMode="email" /></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Address</span>
-                    <textarea rows={2} className={inputCls} value={billTo.address} onChange={e => setBillTo(b => ({ ...b, address: e.target.value }))} placeholder="Street, city, country" /></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Partner tax number</span>
-                    <input className={inputCls} value={billTo.taxNumber} onChange={e => setBillTo(b => ({ ...b, taxNumber: e.target.value }))} placeholder="Optional" /></label>
+                  </Field>
+                  <Field label="Legal name on invoice">
+                    <input className={inputCls} value={billTo.name} onChange={e => setBillTo(b => ({ ...b, name: e.target.value }))} /></Field>
+                  <Field label="Billing email">
+                    <input className={inputCls} value={billTo.email} onChange={e => setBillTo(b => ({ ...b, email: e.target.value }))} placeholder="accounts@partner.com" inputMode="email" /></Field>
+                  <Field label="Address">
+                    <textarea rows={2} className={textareaCls} value={billTo.address} onChange={e => setBillTo(b => ({ ...b, address: e.target.value }))} placeholder="Street, city, country" /></Field>
+                  <Field label="Partner tax number">
+                    <input className={inputCls} value={billTo.taxNumber} onChange={e => setBillTo(b => ({ ...b, taxNumber: e.target.value }))} placeholder="Optional" /></Field>
                 </div>
-              </section>
+              </Panel>
 
-              <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Period & terms</h3>
-                <div className="flex flex-wrap gap-2">
+              <Panel title="Period & terms" footer={<span className="tabular-nums">Due {fmtDay(dueDate)} · invoice number {nextNumber}</span>} bodyClassName="p-4 space-y-3">
+                <div className="flex flex-wrap gap-1.5">
                   {(() => {
                     const now = new Date();
                     const presets: [string, readonly [string, string]][] = [
@@ -260,47 +247,46 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
                       ['Last month', monthRange(now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear(), (now.getMonth() + 11) % 12)],
                       ['Year to date', [iso(new Date(now.getFullYear(), 0, 1)), iso(now)] as const],
                     ];
-                    return presets.map(([label, r]) => (
-                      <button key={label} onClick={() => setRange(r)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ring-1 ${startDate === r[0] && endDate === r[1] ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'}`}>{label}</button>
-                    ));
+                    return presets.map(([label, r]) => {
+                      const on = startDate === r[0] && endDate === r[1];
+                      return (
+                        <button key={label} onClick={() => setRange(r)} aria-pressed={on} className={`h-7 px-2.5 rounded-md text-xs font-semibold ring-1 ring-inset ${on ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>{label}</button>
+                      );
+                    });
                   })()}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">From</span><input type="date" className={inputCls} value={startDate} onChange={e => setRange([e.target.value, endDate])} /></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">To</span><input type="date" className={inputCls} value={endDate} onChange={e => setRange([startDate, e.target.value])} /></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Payment terms</span>
-                    <select className={inputCls} value={terms} onChange={e => setTerms(e.target.value as typeof terms)}>{Object.entries(TERMS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Currency</span>
-                    <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value as typeof currency)}><option>USD</option><option>JOD</option><option>EUR</option></select></label>
+                  <Field label="From"><input type="date" className={inputCls} value={startDate} onChange={e => setRange([e.target.value, endDate])} /></Field>
+                  <Field label="To"><input type="date" className={inputCls} value={endDate} onChange={e => setRange([startDate, e.target.value])} /></Field>
+                  <Field label="Payment terms">
+                    <select className={sel} value={terms} onChange={e => setTerms(e.target.value as typeof terms)}>{Object.entries(TERMS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+                  <Field label="Currency">
+                    <select className={sel} value={currency} onChange={e => setCurrency(e.target.value as typeof currency)}><option>USD</option><option>JOD</option><option>EUR</option></select></Field>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px_1fr] gap-3 items-end">
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">VAT</span>
-                    <select className={inputCls} value={taxMode} onChange={e => setTaxMode(e.target.value as typeof taxMode)}>
+                  <Field label="VAT">
+                    <select className={sel} value={taxMode} onChange={e => setTaxMode(e.target.value as typeof taxMode)}>
                       <option value="included">Rates include VAT</option><option value="added">Add VAT on top</option><option value="none">No VAT (exempt / export)</option>
-                    </select></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Rate %</span>
-                    <input type="number" min={0} max={50} step="0.5" disabled={taxMode === 'none'} className={`${inputCls} disabled:bg-slate-50`} value={taxPct} onChange={e => setTaxPct(parseFloat(e.target.value) || 0)} /></label>
-                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">PO / partner reference</span>
-                    <input className={inputCls} value={poNumber} onChange={e => setPoNumber(e.target.value)} placeholder="Optional" /></label>
+                    </select></Field>
+                  <Field label="Rate %">
+                    <input type="number" min={0} max={50} step="0.5" disabled={taxMode === 'none'} className={`${inputCls} tabular-nums`} value={taxPct} onChange={e => setTaxPct(parseFloat(e.target.value) || 0)} /></Field>
+                  <Field label="PO / partner reference">
+                    <input className={inputCls} value={poNumber} onChange={e => setPoNumber(e.target.value)} placeholder="Optional" /></Field>
                 </div>
-                <p className="text-xs text-slate-400">Due {fmtDay(dueDate)} · invoice number {nextNumber}</p>
-              </section>
+              </Panel>
 
-              <section className="bg-white rounded-2xl border border-slate-200">
-                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Bookings</h3>
-                    <p className="text-xs text-slate-500">{lines.length} of {candidates.length} selected · extras are excluded (charged to the renter)</p>
-                  </div>
-                  {candidates.length > 0 && (
-                    <div className="flex gap-2 text-xs font-semibold">
-                      <button onClick={() => setExcluded(new Set(candidates.filter(r => invoicedBy.has(r.id)).map(r => r.id)))} className="text-indigo-600 hover:underline">Select uninvoiced</button>
-                      <button onClick={() => setExcluded(new Set(candidates.map(r => r.id)))} className="text-slate-500 hover:underline">Clear</button>
-                    </div>
-                  )}
-                </div>
+              <Panel
+                title="Bookings"
+                subtitle={`${lines.length} of ${candidates.length} selected · extras are excluded (charged to the renter)`}
+                actions={candidates.length > 0 ? (
+                  <>
+                    <Button size="sm" variant="ghost" className="!text-indigo-600" onClick={() => setExcluded(new Set(candidates.filter(r => invoicedBy.has(r.id)).map(r => r.id)))}>Select uninvoiced</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setExcluded(new Set(candidates.map(r => r.id)))}>Clear</Button>
+                  </>
+                ) : undefined}
+              >
                 {candidates.length === 0 ? (
-                  <p className="px-5 py-10 text-center text-sm text-slate-500">No {source?.name} bookings start in this period.</p>
+                  <EmptyState className="!py-10" title={`No ${source?.name || ''} bookings start in this period.`} hint="Pick another period or partner." />
                 ) : (
                   <ul className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
                     {candidates.map(r => {
@@ -309,85 +295,112 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
                       const p = priceLine(billableAmount(r), rate, taxMode);
                       return (
                         <li key={r.id}>
-                          <label className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer ${on ? '' : 'opacity-60'} hover:bg-slate-50`}>
-                            <input type="checkbox" checked={on} onChange={() => setExcluded(prev => { const n = new Set(prev); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                          <label className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer ${on ? '' : 'opacity-60'} hover:bg-slate-50`}>
+                            <input type="checkbox" checked={on} onChange={() => toggleLine(r.id)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0" />
                             <span className="flex-1 min-w-0">
-                              <span className="block text-sm font-semibold text-slate-900 truncate">{r.personName} <span className="font-mono text-xs font-normal text-slate-400">#{r.bookingId}</span></span>
+                              <span className="block text-[13px] font-semibold text-slate-900 truncate">{r.personName} <span className="font-mono text-xs font-normal text-slate-400">#{r.bookingId}</span></span>
                               <span className="block text-xs text-slate-500 truncate">{fmtDay(r.startDate)} → {fmtDay(r.endDate)} · {rentalDays(r.startDate, r.endDate)} days · {r.carModel}</span>
+                              {(prior || r.status === ReservationStatus.PENDING) && (
+                                <span className="mt-1 flex flex-wrap gap-1 sm:hidden">
+                                  {prior && <Badge tone="warning" dot={false}>On {prior}</Badge>}
+                                  {r.status === ReservationStatus.PENDING && <Badge tone="muted" dot={false}>Pending</Badge>}
+                                </span>
+                              )}
                             </span>
-                            {prior && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 whitespace-nowrap">On {prior}</span>}
-                            {r.status === ReservationStatus.PENDING && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Pending</span>}
-                            <span className="w-24 text-right text-sm font-semibold tabular-nums text-slate-900">{money(p.total, currency)}</span>
+                            {prior && <Badge tone="warning" dot={false} className="hidden sm:inline-flex">On {prior}</Badge>}
+                            {r.status === ReservationStatus.PENDING && <Badge tone="muted" dot={false} className="hidden sm:inline-flex">Pending</Badge>}
+                            <span className="w-20 sm:w-24 text-right text-[13px] font-semibold tabular-nums text-slate-900 shrink-0">{money(p.total, currency)}</span>
                           </label>
                         </li>
                       );
                     })}
                   </ul>
                 )}
-              </section>
+              </Panel>
 
-              <section className="bg-white rounded-2xl border border-slate-200 p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Payment instructions <span className="text-slate-400">(remembered)</span></span>
-                  <textarea rows={4} className={inputCls} value={payInstr} onChange={e => setPayInstr(e.target.value)} placeholder={'Bank: …\nIBAN: …\nSWIFT: …\nPlease quote the invoice number.'} /></label>
-                <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Notes to partner</span>
-                  <textarea rows={4} className={inputCls} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" /></label>
-              </section>
+              <Panel title="Payment & notes" bodyClassName="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={<>Payment instructions <span className="text-slate-400 font-normal">(remembered)</span></>}>
+                  <textarea rows={4} className={textareaCls} value={payInstr} onChange={e => setPayInstr(e.target.value)} placeholder={'Bank: …\nIBAN: …\nSWIFT: …\nPlease quote the invoice number.'} /></Field>
+                <Field label="Notes to partner">
+                  <textarea rows={4} className={textareaCls} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" /></Field>
+              </Panel>
             </div>
 
             {/* Preview */}
-            <div className="xl:sticky xl:top-4 space-y-4 min-w-0">
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center gap-4">
+            <div className="xl:sticky xl:top-4 space-y-3 min-w-0">
+              <Panel bodyClassName="px-4 py-3 flex flex-wrap items-center gap-3">
                 <div className="flex-1 min-w-[180px]">
-                  <p className="text-xs text-slate-500">Total · {lines.length} booking{lines.length === 1 ? '' : 's'}</p>
-                  <p className="text-2xl font-bold text-slate-900 tabular-nums">{money(totals.total, currency)}</p>
-                  <p className="text-xs text-slate-400 tabular-nums">Net {money(totals.sub, currency)}{taxMode !== 'none' ? ` · VAT ${money(totals.tax, currency)}` : ''}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total · {lines.length} booking{lines.length === 1 ? '' : 's'}</p>
+                  <p className="text-xl font-semibold text-slate-900 tabular-nums">{money(totals.total, currency)}</p>
+                  <p className="text-xs text-slate-500 tabular-nums">Net {money(totals.sub, currency)}{taxMode !== 'none' ? ` · VAT ${money(totals.tax, currency)}` : ''}</p>
                 </div>
-                <button onClick={issue} disabled={!lines.length} className="px-5 py-3 text-sm font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 disabled:opacity-40 shadow-sm">Issue invoice {nextNumber}</button>
-              </div>
+                <Button variant="primary" onClick={issue} disabled={!lines.length} className="max-sm:w-full">Issue invoice {nextNumber}</Button>
+              </Panel>
               <DocPreview html={draftHtml} />
               <p className="text-xs text-slate-400 text-center">Live preview — this is exactly what the partner receives.</p>
             </div>
           </div>
         )
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-4 sm:px-5 pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100">
-            <div className="flex gap-1 overflow-x-auto no-scrollbar">
-              {(['all', 'unpaid', 'overdue', 'paid', 'void'] as const).map(k => (
-                <button key={k} onClick={() => setFilter(k)} className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 -mb-px ${filter === k ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-                  {k === 'all' ? 'All' : STATE_META[k].label}<span className={`ml-2 px-1.5 py-0.5 rounded-md text-[11px] ${filter === k ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{counts[k] ?? 0}</span>
-                </button>
-              ))}
-            </div>
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search number, partner, PO" className={`${inputCls} sm:w-64 mb-3 sm:mb-0`} />
-          </div>
+        <Panel footer={<span className="tabular-nums">{visible.length} of {invoices.length} invoices shown</span>}>
+          <Tabs
+            tabs={(['all', 'unpaid', 'overdue', 'paid', 'void'] as const).map(k => ({ key: k, label: k === 'all' ? 'All' : STATE_META[k].label, count: counts[k] ?? 0 }))}
+            value={filter}
+            onChange={k => setFilter(k as typeof filter)}
+          />
+          <Toolbar>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search number, partner, PO" className={`${inputCls} md:w-72`} />
+          </Toolbar>
           {visible.length === 0 ? (
-            <p className="py-16 text-center text-sm text-slate-500">{invoices.length ? 'No invoices match.' : 'No invoices yet — issue your first one from “New invoice”.'}</p>
+            <EmptyState title={invoices.length ? 'No invoices match.' : 'No invoices yet'} hint={invoices.length ? 'Try another tab or clear the search.' : 'Issue your first one from “New invoice”.'} />
           ) : (
-            <table className="w-full text-sm">
-              <thead><tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                <th className="text-left font-semibold px-5 py-3">Invoice</th><th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Period</th>
-                <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Issued</th><th className="text-left font-semibold px-4 py-3">Due</th>
-                <th className="text-left font-semibold px-4 py-3">Status</th><th className="text-right font-semibold px-5 py-3">Amount</th>
-              </tr></thead>
-              <tbody className="divide-y divide-slate-100">
+            <>
+              <table className={`hidden md:table ${table.wrap}`}>
+                <thead className={table.head}><tr>
+                  <th className={table.th}>Invoice</th><th className={table.th}>Period</th>
+                  <th className={`${table.th} hidden lg:table-cell`}>Issued</th><th className={table.th}>Due</th>
+                  <th className={table.th}>Status</th><th className={`${table.th} text-right`}>Amount</th>
+                </tr></thead>
+                <tbody className={table.body}>
+                  {visible.map(inv => {
+                    const st = invoiceState(inv);
+                    return (
+                      <tr key={inv.id} onClick={() => setOpenId(inv.id)} className={`${table.row} cursor-pointer`}>
+                        <td className={table.td}><p className="font-mono text-xs font-semibold text-slate-900">{inv.invoiceNumber}</p><p className="text-xs text-slate-500">{inv.billToName} · {linesOf(inv).length} booking{linesOf(inv).length === 1 ? '' : 's'}</p></td>
+                        <td className={`${table.td} text-xs text-slate-600 whitespace-nowrap`}>{fmtDay(inv.startDate)} – {fmtDay(inv.endDate)}</td>
+                        <td className={`${table.td} text-xs text-slate-600 hidden lg:table-cell whitespace-nowrap`}>{fmtDay(inv.generatedAt)}{inv.emails?.length ? <span className="ml-1.5 text-emerald-700">· sent</span> : ''}</td>
+                        <td className={`${table.td} text-xs whitespace-nowrap ${st === 'overdue' ? 'text-rose-600 font-semibold' : 'text-slate-600'}`}>{inv.dueDate ? fmtDay(inv.dueDate) : '—'}</td>
+                        <td className={table.td}><Badge tone={stateTone[st]}>{STATE_META[st].label}</Badge></td>
+                        <td className={`${table.td} text-right font-semibold tabular-nums ${st === 'void' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{money(inv.grandTotal, inv.currency)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <ul className="md:hidden divide-y divide-slate-100">
                 {visible.map(inv => {
                   const st = invoiceState(inv);
                   return (
-                    <tr key={inv.id} onClick={() => setOpenId(inv.id)} className="hover:bg-slate-50 cursor-pointer">
-                      <td className="px-5 py-3"><p className="font-mono text-xs font-semibold text-slate-900">{inv.invoiceNumber}</p><p className="text-xs text-slate-500">{inv.billToName} · {linesOf(inv).length} booking{linesOf(inv).length === 1 ? '' : 's'}</p></td>
-                      <td className="px-4 py-3 text-xs text-slate-600 hidden md:table-cell">{fmtDay(inv.startDate)} – {fmtDay(inv.endDate)}</td>
-                      <td className="px-4 py-3 text-xs text-slate-600 hidden lg:table-cell">{fmtDay(inv.generatedAt)}{inv.emails?.length ? <span className="ml-1.5 text-emerald-600">· sent</span> : ''}</td>
-                      <td className={`px-4 py-3 text-xs ${st === 'overdue' ? 'text-rose-600 font-semibold' : 'text-slate-600'}`}>{inv.dueDate ? fmtDay(inv.dueDate) : '—'}</td>
-                      <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${STATE_META[st].cls}`}><span className={`w-1.5 h-1.5 rounded-full ${STATE_META[st].dot}`} />{STATE_META[st].label}</span></td>
-                      <td className={`px-5 py-3 text-right font-bold tabular-nums ${st === 'void' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{money(inv.grandTotal, inv.currency)}</td>
-                    </tr>
+                    <li key={inv.id}>
+                      <button type="button" onClick={() => setOpenId(inv.id)} className="w-full text-left px-4 py-3 active:bg-slate-50">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-semibold text-slate-900">{inv.invoiceNumber}</span>
+                          <span className={`text-[13px] font-semibold tabular-nums ${st === 'void' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{money(inv.grandTotal, inv.currency)}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 truncate">{inv.billToName} · {linesOf(inv).length} booking{linesOf(inv).length === 1 ? '' : 's'} · {fmtDay(inv.startDate)} – {fmtDay(inv.endDate)}</p>
+                        <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                          <Badge tone={stateTone[st]}>{STATE_META[st].label}</Badge>
+                          <span className={st === 'overdue' ? 'text-rose-600 font-semibold' : ''}>Due {inv.dueDate ? fmtDay(inv.dueDate) : '—'}</span>
+                          {inv.emails?.length ? <span className="text-emerald-700">· sent</span> : null}
+                        </div>
+                      </button>
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
+              </ul>
+            </>
           )}
-        </div>
+        </Panel>
       )}
 
       {open && (
@@ -401,8 +414,8 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
         />
       )}
 
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm shadow-xl">{toast}</div>}
-    </div>
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-lg bg-slate-900 text-white text-[13px] shadow-xl max-w-[calc(100vw-32px)]">{toast}</div>}
+    </Page>
   );
 };
 
@@ -480,46 +493,46 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
     flash(`${invoice.invoiceNumber} voided.`);
   };
 
-  const btn = 'inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold rounded-xl ring-1 ring-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50';
+  const stTone = st === 'paid' ? 'success' : st === 'overdue' ? 'danger' : st === 'void' ? 'muted' : 'info';
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-4xl h-full bg-slate-50 shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2"><p className="font-mono text-sm font-bold text-slate-900">{invoice.invoiceNumber}</p>
-              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${STATE_META[st].cls}`}><span className={`w-1.5 h-1.5 rounded-full ${STATE_META[st].dot}`} />{STATE_META[st].label}</span></div>
-            <p className="text-sm text-slate-500">{invoice.billToName} · {money(invoice.grandTotal, invoice.currency)} · due {invoice.dueDate ? fmtDay(invoice.dueDate) : 'on receipt'}</p>
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30" onClick={onClose} role="dialog" aria-modal="true">
+      <aside className="w-full max-w-4xl h-full bg-slate-50 shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 bg-white border-b border-slate-200 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2"><p className="font-mono text-sm font-semibold text-slate-900">{invoice.invoiceNumber}</p>
+              <Badge tone={stTone}>{STATE_META[st].label}</Badge></div>
+            <p className="text-[13px] text-slate-500 tabular-nums">{invoice.billToName} · {money(invoice.grandTotal, invoice.currency)} · due {invoice.dueDate ? fmtDay(invoice.dueDate) : 'on receipt'}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 shrink-0">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        <div className="px-6 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2">
-          <button onClick={pdf} disabled={!!busy} className={btn}>{busy === 'pdf' ? 'Preparing…' : 'Download PDF'}</button>
-          <button onClick={print} className={btn}>Print</button>
-          <button onClick={csv} className={btn}>CSV</button>
-          {canUpdate && st !== 'void' && st !== 'paid' && <button onClick={() => setPay(p => ({ ...p, open: !p.open }))} className={`${btn} !ring-emerald-300 !text-emerald-700`}>Record payment</button>}
-          {canUpdate && st !== 'void' && <button onClick={voidIt} className={`${btn} !text-rose-600`}>Void</button>}
+        <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={pdf} disabled={!!busy}>{busy === 'pdf' ? 'Preparing…' : 'Download PDF'}</Button>
+          <Button size="sm" onClick={print}>Print</Button>
+          <Button size="sm" onClick={csv}>CSV</Button>
+          {canUpdate && st !== 'void' && st !== 'paid' && <Button size="sm" className="!text-emerald-700 !border-emerald-200" onClick={() => setPay(p => ({ ...p, open: !p.open }))} aria-expanded={pay.open}>Record payment</Button>}
+          {canUpdate && st !== 'void' && <Button size="sm" variant="danger" className="sm:ml-auto" onClick={voidIt}>Void</Button>}
         </div>
         {pay.open && (
-          <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 grid grid-cols-1 sm:grid-cols-[150px_1fr_1fr_auto] gap-2 items-end">
-            <label className="block"><span className="block text-xs text-emerald-800 mb-1">Received on</span><input type="date" className={inputCls} value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))} /></label>
-            <label className="block"><span className="block text-xs text-emerald-800 mb-1">Method</span>
-              <select className={inputCls} value={pay.method} onChange={e => setPay(p => ({ ...p, method: e.target.value }))}><option>Bank transfer</option><option>Card</option><option>Cheque</option><option>Cash</option><option>Offset against commission</option></select></label>
-            <label className="block"><span className="block text-xs text-emerald-800 mb-1">Reference</span><input className={inputCls} value={pay.ref} onChange={e => setPay(p => ({ ...p, ref: e.target.value }))} placeholder="Transfer ID" /></label>
-            <button onClick={markPaid} className="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Mark paid</button>
+          <div className="px-5 py-3 bg-emerald-50/60 border-b border-emerald-200 grid grid-cols-1 sm:grid-cols-[150px_1fr_1fr_auto] gap-2 items-end">
+            <Field label="Received on"><input type="date" className={inputCls} value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))} /></Field>
+            <Field label="Method">
+              <select className={`${selectCls} w-full`} value={pay.method} onChange={e => setPay(p => ({ ...p, method: e.target.value }))}><option>Bank transfer</option><option>Card</option><option>Cheque</option><option>Cash</option><option>Offset against commission</option></select></Field>
+            <Field label="Reference"><input className={inputCls} value={pay.ref} onChange={e => setPay(p => ({ ...p, ref: e.target.value }))} placeholder="Transfer ID" /></Field>
+            <Button variant="success" onClick={markPaid}>Mark paid</Button>
           </div>
         )}
-        <div className="px-6 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2">
-          <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="partner@company.com" className={`${inputCls} flex-1 min-w-[220px]`} />
-          <button onClick={email} disabled={!!busy || st === 'void'} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40">
-            {busy === 'email' && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}{busy === 'email' ? 'Sending…' : 'Email invoice'}
-          </button>
+        <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2">
+          <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="partner@company.com" className={`${inputCls} flex-1 min-w-[200px] !w-auto`} />
+          <Button variant="primary" onClick={email} disabled={!!busy || st === 'void'} icon={busy === 'email' ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : undefined}>
+            {busy === 'email' ? 'Sending…' : 'Email invoice'}
+          </Button>
           {invoice.emails?.length ? <span className="text-xs text-slate-500 w-full">Sent {invoice.emails.map(e => `${new Date(e.sentAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} to ${e.to}`).join(' · ')}</span> : null}
           {st === 'paid' && <span className="text-xs text-emerald-700 w-full">Paid {fmtDay(invoice.paidAt)}{invoice.paymentMethod ? ` by ${invoice.paymentMethod}` : ''}{invoice.paymentReference ? ` · ref ${invoice.paymentReference}` : ''}</span>}
         </div>
-        <div className="flex-1 overflow-y-auto p-6"><DocPreview html={html} /></div>
-      </div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5"><DocPreview html={html} /></div>
+      </aside>
     </div>
   );
 };

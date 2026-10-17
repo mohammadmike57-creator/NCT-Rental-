@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { StopSale, Fleet } from '../types';
 import { PlusIcon, TrashIcon, StopIcon } from './icons';
 import { CAR_CATEGORIES } from '../constants';
+import { Panel, Segmented, Button, Field, EmptyState, inputCls, selectCls, table } from './ui/Crm';
 
 interface ManageStopSaleViewProps {
     stopSales: StopSale[];
@@ -51,44 +52,42 @@ const ManageStopSaleView: React.FC<ManageStopSaleViewProps> = ({ stopSales, onUp
     
     const getTargetName = (ss: StopSale) => {
         if (ss.type === 'category') {
-            return <span className="font-bold text-purple-700">Category: {ss.target}</span>;
+            return <span className="font-semibold text-slate-900">Category: {ss.target}</span>;
         }
         const vehicle = fleet.find(v => v.id === ss.target);
-        return vehicle ? <span className="font-medium text-slate-700">{vehicle.modelName} <span className="text-slate-400 text-xs font-normal">({vehicle.licensePlate})</span></span> : 'Unknown Vehicle';
+        return vehicle ? <span className="font-medium text-slate-900">{vehicle.modelName} <span className="text-slate-400 text-xs font-normal">({vehicle.licensePlate})</span></span> : 'Unknown Vehicle';
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8">
-             <div className="flex items-start gap-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm">
-                <div className="p-2 bg-red-100 rounded-full text-red-600 hidden sm:block">
-                    <StopIcon className="w-6 h-6" />
-                </div>
-                <div>
-                    <h3 className="text-lg font-bold text-red-800">Global Stop Sale</h3>
-                    <p className="text-sm text-red-700">
+        <div className="space-y-4">
+            <div className="flex items-start gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <StopIcon className="w-4 h-4 mt-0.5 text-rose-600 shrink-0" />
+                <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-rose-800">Global Stop Sale</h3>
+                    <p className="text-[13px] text-rose-700">
                         Blocked inventory will not be sent to any partner via XML. This overrides all availability settings.
                     </p>
                 </div>
             </div>
 
-            <div className="p-4 sm:p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Create New Block</h3>
-                
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-6">
-                     <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border transition-all ${type === 'vehicle' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                        <input type="radio" name="stopSaleType" value="vehicle" checked={type === 'vehicle'} onChange={() => { setType('vehicle'); setTarget(''); }} className="hidden"/>
-                        <span>Block Specific Vehicle</span>
-                    </label>
-                    <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border transition-all ${type === 'category' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                        <input type="radio" name="stopSaleType" value="category" checked={type === 'category'} onChange={() => { setType('category'); setTarget(''); }} className="hidden"/>
-                        <span>Block Entire Category</span>
-                    </label>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                    <div className="sm:col-span-2 lg:col-span-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Target</label>
-                        <select value={target} onChange={e => setTarget(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+            <Panel
+                title="Create New Block"
+                actions={
+                    <Segmented
+                        options={[{ key: 'vehicle', label: 'Specific vehicle' }, { key: 'category', label: 'Entire category' }]}
+                        value={type}
+                        onChange={k => { setType(k as 'vehicle' | 'category'); setTarget(''); }}
+                    />
+                }
+                footer={
+                    <div className="flex justify-end">
+                        <Button variant="primary" onClick={handleAddStopSale} icon={<PlusIcon className="w-4 h-4" />} className="w-full sm:w-auto">Apply Block</Button>
+                    </div>
+                }
+            >
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+                    <Field label={type === 'vehicle' ? 'Vehicle' : 'Category'} required className="sm:col-span-2 lg:col-span-1">
+                        <select value={target} onChange={e => setTarget(e.target.value)} className={`${selectCls} w-full`}>
                             <option value="">Select...</option>
                             {type === 'vehicle' ? (
                                 fleet.map(v => <option key={v.id} value={v.id}>{v.modelName} ({v.licensePlate})</option>)
@@ -96,63 +95,63 @@ const ManageStopSaleView: React.FC<ManageStopSaleViewProps> = ({ stopSales, onUp
                                 CAR_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)
                             )}
                         </select>
-                    </div>
-                     <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Start Date</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm" />
-                    </div>
-                     <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">End Date</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm" />
-                    </div>
-                    <div className="sm:col-span-2 lg:col-span-1">
-                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Reason (Optional)</label>
-                         <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Maintenance..." className="w-full p-2.5 border border-slate-300 rounded-lg text-sm"/>
-                    </div>
+                    </Field>
+                    <Field label="Start Date" required>
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
+                    </Field>
+                    <Field label="End Date" required>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
+                    </Field>
+                    <Field label="Reason (Optional)" className="sm:col-span-2 lg:col-span-1">
+                        <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Maintenance..." className={inputCls} />
+                    </Field>
                 </div>
-                <div className="mt-6 text-right">
-                     <button onClick={handleAddStopSale} className="w-full sm:w-auto px-6 py-2.5 bg-primary text-white font-bold rounded-lg hover:bg-primary-dark shadow-md transition-all flex items-center justify-center gap-2 ml-auto">
-                        <PlusIcon className="w-5 h-5"/> Apply Block
-                    </button>
-                </div>
-            </div>
+            </Panel>
 
-            <div>
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Active Blocks</h3>
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-100">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Target</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Period</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Reason</th>
-                                <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {stopSales.map(ss => (
-                                <tr key={ss.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap">{getTargetName(ss)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-mono">
-                                         <span className="bg-slate-50/50 rounded px-2 py-1 border border-slate-100">{ss.startDate} &rarr; {ss.endDate}</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600">{ss.reason || '-'}</td>
-                                    <td className="px-6 py-4 text-center">
-                                        <button onClick={() => handleDelete(ss.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all" title="Remove Block">
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {stopSales.length === 0 && (
+            <Panel title="Active Blocks" subtitle={`${stopSales.length} block${stopSales.length === 1 ? '' : 's'}`}>
+                {stopSales.length === 0 ? (
+                    <EmptyState icon={<StopIcon />} title="No active stop sales found." hint="All inventory is currently offered to partners." />
+                ) : (
+                    <>
+                        <table className={`hidden md:table ${table.wrap}`}>
+                            <thead className={table.head}>
                                 <tr>
-                                    <td colSpan={4} className="text-center py-12 text-slate-400">No active stop sales found.</td>
+                                    <th className={table.th}>Target</th>
+                                    <th className={table.th}>Period</th>
+                                    <th className={table.th}>Reason</th>
+                                    <th className={`${table.th} text-right`}>Action</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                            </thead>
+                            <tbody className={table.body}>
+                                {stopSales.map(ss => (
+                                    <tr key={ss.id} className={table.row}>
+                                        <td className={`${table.td} whitespace-nowrap`}>{getTargetName(ss)}</td>
+                                        <td className={`${table.td} whitespace-nowrap font-mono text-xs text-slate-600 tabular-nums`}>{ss.startDate} &rarr; {ss.endDate}</td>
+                                        <td className={`${table.td} text-slate-600`}>{ss.reason || '-'}</td>
+                                        <td className={`${table.td} text-right`}>
+                                            <Button size="sm" variant="ghost" className="hover:!text-rose-600 hover:!bg-rose-50" onClick={() => handleDelete(ss.id)} title="Remove Block" icon={<TrashIcon className="w-4 h-4" />}>Remove</Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <ul className="md:hidden divide-y divide-slate-100">
+                            {stopSales.map(ss => (
+                                <li key={ss.id} className="px-4 py-3 flex items-start gap-3">
+                                    <div className="min-w-0 flex-1 text-[13px]">
+                                        <div className="truncate">{getTargetName(ss)}</div>
+                                        <p className="mt-0.5 font-mono text-xs text-slate-600 tabular-nums">{ss.startDate} &rarr; {ss.endDate}</p>
+                                        {ss.reason && <p className="mt-0.5 text-xs text-slate-500">{ss.reason}</p>}
+                                    </div>
+                                    <button onClick={() => handleDelete(ss.id)} title="Remove Block" aria-label="Remove Block" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </>
+                )}
+            </Panel>
         </div>
     );
 };
