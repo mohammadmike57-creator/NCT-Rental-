@@ -187,11 +187,11 @@ const SidebarSection: React.FC<{ title: string, children: React.ReactNode }> = (
     const [isOpen, setIsOpen] = useState(true);
     return (
         <div>
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-700/50 rounded-md">
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-1.5 text-[10.5px] font-semibold text-slate-500 uppercase tracking-[0.08em] hover:text-slate-300">
                 {title}
-                <ChevronDownIcon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDownIcon className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`} />
             </button>
-            {isOpen && <div className="pl-3 pt-1 space-y-1">{children}</div>}
+            {isOpen && <div className="pt-0.5 space-y-px">{children}</div>}
         </div>
     );
 };
@@ -1843,21 +1843,65 @@ ${currentUser?.fullName}
   const currentViewHasAccess = mainView === 'Agreement' ? true : hasPermission(currentUser, mainViews[mainView]?.permission);
   const showDateSelectors = ['Reservations', 'Agreement', 'Invoice Generation', 'Fleet Availability', 'Yearly Summary'].includes(mainView);
 
+  const userInitials = (currentUser?.fullName || currentUser?.username || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('');
+  const runGlobalSearch = (q: string) => {
+    const term = q.trim();
+    if (!term) return;
+    // Search every stored month and open the month of the best match.
+    const t = term.toLowerCase();
+    let best: { year: number; month: string; score: number } | null = null;
+    Object.entries(reservations || {}).forEach(([y, months]) => Object.entries(months || {}).forEach(([m, list]) => {
+      (Array.isArray(list) ? list : []).forEach((r: Reservation) => {
+        const score = (r.bookingId || '').toLowerCase() === t ? 3
+          : (r.bookingId || '').toLowerCase().includes(t) || (r.licensePlate || '').toLowerCase().includes(t) ? 2
+          : (r.personName || '').toLowerCase().includes(t) || (r.contactNumber || '').toLowerCase().includes(t) ? 1 : 0;
+        if (score && (!best || score > best.score)) best = { year: Number(y), month: m, score };
+      });
+    }));
+    const hit = best as { year: number; month: string; score: number } | null;
+    if (hit) { handleSetSelectedYear(hit.year); handleSetSelectedMonth(hit.month); }
+    else addNotification(`No booking matches "${term}".`, 'info');
+    handleNavigation('Reservations', { bookingIdSearch: term });
+  };
+  const DateSelectors: React.FC<{ compact?: boolean }> = ({ compact }) => (
+    <div className="flex items-center gap-2">
+      <select value={String(selectedYear)} onChange={e => handleSetSelectedYear(Number(e.target.value))} aria-label="Select year"
+        className={`${compact ? 'h-8 text-xs' : 'h-9 text-[13px]'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
+        {years.map(y => <option key={y} value={y}>{y}</option>)}
+      </select>
+      {mainView !== 'Yearly Summary' && (
+        <select value={selectedMonth} onChange={e => handleSetSelectedMonth(e.target.value)} aria-label="Select month"
+          className={`${compact ? 'h-8 text-xs w-28' : 'h-9 text-[13px] w-36'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
+          {MONTHS.map(month => <option key={month} value={month}>{month}</option>)}
+        </select>
+      )}
+    </div>
+  );
+  const SaveState = () => (
+    saveStatus === 'saving' ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />Saving…</span>
+    : saveStatus === 'error' ? <span className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" />Save failed</span>
+    : saveStatus === 'saved' && lastSaved ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500" title={`Last saved ${lastSaved}`}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Saved {lastSaved}</span>
+    : null
+  );
+
   return (
-    <div className="flex h-screen bg-slate-100">
-      {isSidebarOpen && <div className="fixed inset-0 z-30 bg-black bg-opacity-50 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
-      
-      <aside className={`absolute md:relative z-40 md:z-auto w-64 bg-slate-800 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full`}>
-         <div className="flex items-center justify-between p-4 border-b border-slate-700 h-16 flex-shrink-0">
-            <div className="flex items-center gap-2">
-                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-8 w-8" />
-                <h1 className="text-xl font-bold text-white font-serif-professional">NCT Rental</h1>
+    <div className="flex h-screen bg-slate-50">
+      {isSidebarOpen && <div className="fixed inset-0 z-30 bg-slate-900/50 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
+
+      <aside className={`absolute md:relative z-40 md:z-auto w-60 bg-slate-900 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full border-r border-slate-800`}>
+         <div className="flex items-center justify-between px-4 h-14 border-b border-white/5 flex-shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-7 w-7 rounded bg-white/5" />
+                <div className="min-w-0 leading-tight">
+                    <h1 className="text-[15px] font-semibold text-white tracking-tight">NCT Rental</h1>
+                    <p className="text-[10.5px] text-slate-400 truncate">Rental management</p>
+                </div>
             </div>
-            <button className="text-slate-300 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)}><CloseIcon /></button>
+            <button className="text-slate-400 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu"><CloseIcon /></button>
          </div>
-        
+
          <div className="flex-1 overflow-y-auto flex flex-col">
-            <nav className="px-2 py-4 space-y-4 flex-1">
+            <nav className="px-2.5 py-3 space-y-3 flex-1 [&_svg]:w-[18px] [&_svg]:h-[18px]">
                 {Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
                     const visibleLinks = links.filter(link => {
                         if (link.name === 'Agreement') {
@@ -1878,14 +1922,15 @@ ${currentUser?.fullName}
                                     key={name}
                                     href="#"
                                     onClick={(e) => { e.preventDefault(); handleNavigation(name); }}
-                                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${mainView === name ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                                    aria-current={mainView === name ? 'page' : undefined}
+                                    className={`relative flex items-center justify-between gap-3 px-3 py-[7px] rounded-md text-[13px] font-medium transition-colors ${mainView === name ? 'bg-white/10 text-white before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-indigo-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
                                 >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
                                     <Icon />
-                                    <span>{name}</span>
+                                    <span className="truncate">{name}</span>
                                     </div>
                                     {typeof badge === 'number' && badge > 0 && (
-                                    <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">{badge}</span>
+                                    <span className="min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center text-[11px] font-semibold text-white bg-rose-500 rounded-full tabular-nums">{badge}</span>
                                     )}
                                 </a>
                             ))}
@@ -1894,170 +1939,85 @@ ${currentUser?.fullName}
                 })}
             </nav>
 
-            <div className="p-4 border-t border-slate-700 flex-shrink-0">
+            <div className="p-2.5 border-t border-white/5 flex-shrink-0 space-y-1 [&_svg]:w-[18px] [&_svg]:h-[18px]">
                 {notificationPermission === 'denied' ? (
-                    <div className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-400 bg-slate-900/50 rounded-md cursor-not-allowed" title="Notifications are blocked in your browser settings.">
+                    <div className="flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-500 rounded-md cursor-not-allowed" title="Notifications are blocked in your browser settings.">
                         <BellSlashIcon />
-                        <span>Notifications Blocked</span>
+                        <span>Notifications blocked</span>
                     </div>
                 ) : isPushSubscribed ? (
-                    <button onClick={handleDisableNotifications} className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-300 bg-red-800/70 hover:bg-red-600 hover:text-white rounded-md transition-colors">
+                    <button onClick={handleDisableNotifications} className="flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-400 hover:bg-white/5 hover:text-white rounded-md transition-colors">
                         <BellSlashIcon />
-                        <span>Disable Notifications</span>
+                        <span>Turn off notifications</span>
                     </button>
                 ) : (
-                    <button onClick={handleEnableNotifications} className="flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium text-slate-300 bg-slate-700/50 hover:bg-secondary hover:text-white rounded-md transition-colors">
+                    <button onClick={handleEnableNotifications} className="flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-400 hover:bg-white/5 hover:text-white rounded-md transition-colors">
                         <BellIcon />
-                        <span>Enable Notifications</span>
+                        <span>Turn on notifications</span>
                     </button>
                 )}
-                {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); handleNavigation('My Profile'); }}
-                        className={`flex items-center w-full gap-3 px-3 py-2.5 mb-3 text-sm font-medium rounded-md transition-colors ${mainView === 'My Profile' ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
-                    >
-                        <UserCircleIcon />
-                        <span>My Profile</span>
-                    </a>
-                )}
-                <div className="px-3 py-2 rounded-md bg-slate-900/50">
-                    <p className="text-xs text-slate-400">Logged in as</p>
-                    <p className="text-sm font-semibold text-white">{currentUser?.fullName}</p>
+                <div className="mt-1 flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.04]">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/90 text-white text-xs font-semibold flex items-center justify-center shrink-0">{userInitials}</div>
+                    <div className="min-w-0 flex-1 leading-tight">
+                        <p className="text-[13px] font-medium text-white truncate">{currentUser?.fullName}</p>
+                        <p className="text-[11px] text-slate-400 truncate capitalize">{(currentUser?.role || 'staff').toLowerCase()}</p>
+                    </div>
+                    {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
+                        <button onClick={() => handleNavigation('My Profile')} title="My profile" aria-label="My profile"
+                            className={`p-1.5 rounded-md ${mainView === 'My Profile' ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}><UserCircleIcon /></button>
+                    )}
+                    <button onClick={handleLogout} title="Log out" aria-label="Log out" className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10"><LogoutIcon /></button>
                 </div>
-                <button onClick={handleLogout} className="flex items-center w-full gap-3 px-3 py-2.5 mt-3 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white rounded-md">
-                    <LogoutIcon />
-                    <span>Logout</span>
-                </button>
             </div>
          </div>
       </aside>
-      
+
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="flex items-center justify-between p-4 bg-white shadow-sm no-print h-16 flex-shrink-0">
-            <div className="flex items-center flex-1 gap-4 min-w-0">
-                <button className="text-slate-600 md:hidden" onClick={() => setIsSidebarOpen(true)}><MenuIcon /></button>
-                <div className="min-w-0">
-                    <h2 className="text-xl md:text-lg font-bold text-slate-800 truncate" title={mainView}>{mainView}</h2>
-                    <p className="text-xs text-slate-500 truncate md:hidden" title="UR-Drive Jordan">UR-Drive Jordan</p>
-                    <div className="hidden md:flex items-center gap-2">
-                         <p className="text-xs text-slate-500 truncate" title="UR-Drive Jordan">UR-Drive Jordan</p>
-                         {saveStatus === 'saving' && (
-                             <span className="text-xs text-blue-600 font-medium animate-pulse flex items-center gap-1">
-                                 <div className="w-2 h-2 bg-blue-600 rounded-full"></div> Auto-saving...
-                             </span>
-                         )}
-                         {saveStatus === 'error' && (
-                             <span className="text-xs text-red-600 font-medium flex items-center gap-1">
-                                 Save failed
-                             </span>
-                         )}
-                         {saveStatus === 'saved' && lastSaved && (
-                             <span className="text-xs text-green-600 font-medium flex items-center gap-1 transition-opacity duration-1000">
-                                 <CheckCircleIcon className="w-3 h-3"/> Auto-saved at {lastSaved}
-                             </span>
-                         )}
-                        <button
-                          onClick={() => { console.log("Manual refresh triggered"); fetchAllData(); }}
-                          className="ml-4 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          ⟳ Refresh
-                        </button>
-                        <button
-                          onClick={() => { console.log("Manual save triggered"); executeAutoSave(); }}
-                          className="ml-2 px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                        >
-                          💾 Save All
-                        </button>
-                    </div>
-                </div>
+        <header className="flex items-center gap-3 px-4 sm:px-6 bg-white border-b border-slate-200 no-print h-14 flex-shrink-0">
+            <button className="text-slate-600 md:hidden -ml-1 p-1" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu"><MenuIcon /></button>
+            <div className="min-w-0 md:w-56 shrink-0">
+                <h2 className="text-[15px] font-semibold text-slate-900 truncate leading-tight" title={mainView}>{mainView}</h2>
+                <p className="text-[11px] text-slate-500 truncate" title="UR-Drive Jordan">UR-Drive Jordan</p>
             </div>
-            <div className="flex items-center gap-4">
-                 <button 
+            <form className="hidden md:block flex-1 max-w-md" onSubmit={e => { e.preventDefault(); const f = e.currentTarget.elements.namedItem('q') as HTMLInputElement; runGlobalSearch(f.value); f.value = ''; }} role="search">
+                <div className="relative">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                    <input name="q" type="search" placeholder="Find a booking — number, customer, phone or plate" aria-label="Find a booking"
+                        className="w-full h-9 pl-9 pr-3 bg-slate-100 border border-transparent rounded-lg text-[13px] text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none" />
+                </div>
+            </form>
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+                <div className="hidden lg:block mr-1"><SaveState /></div>
+                <button onClick={() => { fetchAllData(); }} title="Reload data from the server" aria-label="Reload data"
+                    className="hidden md:inline-flex w-9 h-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100">
+                    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                </button>
+                <button onClick={() => { executeAutoSave(); }} title="Save all changes now"
+                    className="hidden md:inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border border-slate-200 text-[13px] font-medium text-slate-700 hover:bg-slate-50">
+                    <SaveIcon className="w-4 h-4 text-slate-500" />Save
+                </button>
+                {showDateSelectors && <div className="hidden md:block pl-2 ml-1 border-l border-slate-200"><DateSelectors /></div>}
+                <button
                     onClick={() => handleNavigation('Internal Messages')}
-                    className="relative p-2 text-slate-600 rounded-full hover:bg-slate-100"
+                    className="relative w-9 h-9 inline-flex items-center justify-center text-slate-500 rounded-lg hover:text-slate-900 hover:bg-slate-100"
                     aria-label={`Open Inbox (${unreadCount} unread)`}
                 >
-                    <InboxIcon className="w-6 h-6" />
+                    <InboxIcon className="w-5 h-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex w-3 h-3">
-                            <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-red-400"></span>
-                            <span className="relative inline-flex items-center justify-center w-3 h-3 text-white rounded-full bg-red-500 text-[8px]">{unreadCount}</span>
-                        </span>
+                        <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 inline-flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-semibold tabular-nums">{unreadCount}</span>
                     )}
                 </button>
-                <div className="hidden md:flex items-center gap-4">
-                    {showDateSelectors && (
-                        <>
-                            <Tabs tabs={years.map(String)} selectedTab={String(selectedYear)} onSelectTab={(year) => handleSetSelectedYear(Number(year))} />
-                            {mainView !== 'Yearly Summary' && (
-                                <div className="relative">
-                                    <select
-                                        value={selectedMonth}
-                                        onChange={(e) => handleSetSelectedMonth(e.target.value)}
-                                        className="w-36 py-2 pl-3 pr-8 leading-tight text-gray-700 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
-                                        aria-label="Select month"
-                                    >
-                                        {MONTHS.map(month => (
-                                            <option key={month} value={month}>{month}</option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 pointer-events-none">
-                                        <svg className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
             </div>
         </header>
 
-        {/* Global Mobile Sub-header */}
-        <div className="md:hidden flex items-center justify-between p-2 bg-slate-100 border-b border-slate-200">
-            <div className="flex items-center gap-2">
-                {saveStatus === 'saving' && (
-                     <span className="text-xs text-blue-600 font-medium animate-pulse flex items-center gap-1">
-                         <div className="w-2 h-2 bg-blue-600 rounded-full"></div> Saving...
-                     </span>
-                 )}
-                 {saveStatus === 'error' && (
-                     <span className="text-xs text-red-600 font-medium flex items-center gap-1">
-                         Error
-                     </span>
-                 )}
-                 {saveStatus === 'saved' && lastSaved && (
-                     <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                         <CheckCircleIcon className="w-3 h-3"/> Saved {lastSaved}
-                     </span>
-                 )}
-            </div>
-            {showDateSelectors && (
-                <div className="flex items-center gap-2">
-                     <Tabs tabs={years.map(String)} selectedTab={String(selectedYear)} onSelectTab={(year) => handleSetSelectedYear(Number(year))} size="sm"/>
-                    {mainView !== 'Yearly Summary' && (
-                        <div className="relative">
-                            <select
-                                value={selectedMonth}
-                                onChange={(e) => handleSetSelectedMonth(e.target.value)}
-                                className="w-full py-1 pl-2 pr-7 text-sm leading-tight text-gray-700 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:bg-white focus:border-primary-dark"
-                                aria-label="Select month"
-                            >
-                                {MONTHS.map(month => (
-                                    <option key={month} value={month}>{month}</option>
-                                ))}
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-1.5 text-gray-700 pointer-events-none">
-                                <svg className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+        {/* Mobile sub-header */}
+        <div className="md:hidden flex items-center justify-between gap-2 px-4 py-2 bg-white border-b border-slate-200">
+            <SaveState />
+            {showDateSelectors && <DateSelectors compact />}
         </div>
 
-        <main className="flex-1 p-4 overflow-y-auto sm:p-6 bg-slate-100 min-w-0">
-            <div className="max-w-7xl mx-auto">
+        <main className="flex-1 p-4 overflow-y-auto sm:p-6 bg-slate-50 min-w-0">
+            <div className="max-w-[1500px] mx-auto">
             <Suspense fallback={<div className="flex items-center justify-center h-64"><LoadingSpinner /></div>}>
               {currentViewHasAccess 
                 ? mainViews[mainView]?.component
