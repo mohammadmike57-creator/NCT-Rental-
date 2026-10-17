@@ -46,7 +46,7 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
 
     // Places where a page may end without cutting through a row, card or photo (in CSS px from the top).
     const bodyTop = body.getBoundingClientRect().top;
-    const breaks = Array.from(doc.querySelectorAll('tr, figure, .card, .avoid, .sec, h2, p, table, .totals, .note'))
+    const breaks = Array.from(doc.querySelectorAll('tr, .card, .avoid, .sec, table, .totals, .note, .band, .photos, .sign, .info, .parties, .sum'))
       .map(el => (el as HTMLElement).getBoundingClientRect().bottom - bodyTop)
       .filter(b => b > 0)
       .sort((a, b) => a - b);
@@ -64,7 +64,7 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     while (y < canvas.height - 2) {
       let end = Math.min(y + sliceH, canvas.height);
       if (end < canvas.height) {
-        const fit = breaks.map(b => Math.round(b * scale) + 4).filter(b => b > y + sliceH * 0.55 && b <= y + sliceH);
+        const fit = breaks.map(b => Math.round((b + 5) * scale)).filter(b => b > y + sliceH * 0.55 && b <= y + sliceH);
         if (fit.length) end = fit[fit.length - 1];
       }
       const h = end - y;

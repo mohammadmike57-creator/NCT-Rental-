@@ -7,6 +7,7 @@ import { URDRIVE_LOGO_B64 } from '../constants';
 import { sendCustomerEmail } from '../firebase/api';
 import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
 import ReturnChargesPanel from './ReturnChargesPanel';
+import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
 import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
 
 interface VoucherProps {
@@ -457,158 +458,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
   const RETURN_TERMS = "By signing, the Renter confirms the return of the vehicle. The final condition and any additional charges (such as fuel shortage or new damage) have been reviewed and accepted. The Company Representative confirms receipt of the vehicle and the accuracy of the return inspection.";
   // ====================== PRINTABLE RENTAL AGREEMENT ======================
-  const buildAgreementHtml = (r: Reservation = localReservation): string => {
-    const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const money = (n: number) => `$${(n || 0).toFixed(2)}`;
-    const when = (iso?: string) => {
-      if (!iso) return '—';
-      const d = new Date(iso);
-      return Number.isNaN(d.getTime()) ? esc(iso) : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    };
-    const sourceName = sources.find(s => s.id === r.source)?.name || r.source || '—';
-    const loc = location?.name || r.locationName || '—';
-    const pickupMarks = r.pickupDamageMarkers || [];
-    const returnMarks = r.dropOffDamageMarkers || [];
-    // Inspection views are 100x60 drawings centred in a square box; markers are % of that square.
-    const diagram = (view: CarView) => {
-      const dots = (marks: DamageMarker[], color: string, filled: boolean) => marks
-        .map((m, i) => ({ m, i }))
-        .filter(({ m }) => m.view === view)
-        .map(({ m, i }) => `<g><circle cx="${m.x.toFixed(1)}" cy="${(m.y - 20).toFixed(1)}" r="4.2" fill="${filled ? color : '#fff'}" stroke="${color}" stroke-width="1.2"/><text x="${m.x.toFixed(1)}" y="${(m.y - 20 + 1.6).toFixed(1)}" font-size="4.6" text-anchor="middle" font-family="Arial" font-weight="700" fill="${filled ? '#fff' : color}">${i + 1}</text></g>`)
-        .join('');
-      return `<div class="view"><svg viewBox="0 -12 100 84">${INSPECTION_SVG[view]}${dots(pickupMarks, '#0284c7', false)}${dots(returnMarks, '#e11d48', true)}</svg><div class="view-label">${INSPECTION_LABEL[view]}</div></div>`;
-    };
-    const check = (on?: boolean) => (on ? '<span class="ok">✔</span>' : '<span class="no">—</span>');
-    const sig = (img?: string, label?: string, sub?: string) => `
-      <div class="sig">
-        <div class="sig-img">${img ? `<img src="${esc(img)}"/>` : ''}</div>
-        <div class="sig-line">${esc(label)}</div>
-        <div class="muted">${esc(sub || '')}</div>
-      </div>`;
-    const extrasRows = (r.extras || []).map(ex => `<tr><td>${esc(ex.name)}</td><td class="num">${ex.isComplementary ? 'Included' : money(ex.dailyPrice * rentalDays)}</td></tr>`).join('');
-    const kmDriven = r.dropOffKmIn && r.pickupKmOut && r.dropOffKmIn > r.pickupKmOut ? r.dropOffKmIn - r.pickupKmOut : null;
-
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rental Agreement ${esc(r.bookingId)}</title>
-<style>
-  @page { size: A4; margin: 12mm; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Inter, Arial, sans-serif; color: #0f172a; font-size: 9pt; line-height: 1.4; }
-  .top { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10px; border-bottom: 2px solid #0f172a; }
-  .top img { height: 30px; }
-  .co { font-size: 8pt; color: #475569; margin-top: 4px; }
-  .doc { text-align: right; }
-  .doc h1 { font-size: 16pt; letter-spacing: -0.02em; }
-  .pill { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-  .pill.open { background: #ecfdf5; color: #047857; } .pill.closed { background: #f1f5f9; color: #334155; } .pill.new { background: #eff6ff; color: #1d4ed8; }
-  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-  .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; break-inside: avoid; }
-  h2 { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 6px; }
-  .kv { display: flex; justify-content: space-between; gap: 8px; padding: 1.5px 0; }
-  .kv span:first-child { color: #64748b; } .kv span:last-child { font-weight: 600; text-align: right; }
-  .big { font-size: 11pt; font-weight: 700; }
-  table { width: 100%; border-collapse: separate; border-spacing: 0; }
-  td, th { padding: 3px 0; border-bottom: 1px solid #f1f5f9; text-align: left; }
-  th { font-size: 7pt; text-transform: uppercase; letter-spacing: .06em; color: #64748b; font-weight: 600; }
-  .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .total td { border-top: 1.5px solid #0f172a; border-bottom: none; font-weight: 700; font-size: 10.5pt; padding-top: 5px; }
-  .ok { color: #059669; font-weight: 700; } .no { color: #cbd5e1; }
-  .views { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .view { border: 1px solid #e2e8f0; border-radius: 6px; padding: 2px; text-align: center; }
-  .view svg { width: 100%; height: auto; display: block; }
-  .view-label { font-size: 7pt; color: #64748b; padding-bottom: 2px; }
-  .legend { margin-top: 5px; font-size: 7.5pt; color: #475569; }
-  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px -1px 10px; }
-  .notes { white-space: pre-wrap; color: #334155; min-height: 14px; }
-  .terms { font-size: 7.5pt; color: #475569; text-align: justify; }
-  .sigs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 8px; }
-  .sig-img { height: 38px; display: flex; align-items: flex-end; justify-content: center; }
-  .sig-img img { max-height: 38px; max-width: 100%; }
-  .sig-line { border-top: 1px solid #0f172a; margin-top: 3px; padding-top: 2px; font-size: 7.5pt; font-weight: 600; text-align: center; }
-  .muted { color: #64748b; font-size: 7pt; text-align: center; }
-  .foot { margin-top: 10px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 7pt; color: #64748b; }
-</style></head><body>
-  <div class="top">
-    <div>
-      <img src="${URDRIVE_LOGO_B64}" alt="">
-      <div class="co"><strong>${esc(companyDetails.name)}</strong>${companyDetails.subName ? ' · ' + esc(companyDetails.subName) : ''}<br>${esc(companyDetails.address)}<br>Tel ${esc(companyDetails.phone)} · ${esc(companyDetails.email)}${companyDetails.taxNumber ? ' · Tax No. ' + esc(companyDetails.taxNumber) : ''}</div>
-    </div>
-    <div class="doc">
-      <h1>Rental Agreement</h1>
-      <div>No. <strong>${esc(r.bookingId || '—')}</strong></div>
-      <span class="pill ${r.dropOffCompleted ? 'closed' : r.voucherSubmitted ? 'open' : 'new'}">${r.dropOffCompleted ? 'Closed' : r.voucherSubmitted ? 'Open · on rent' : 'Not yet checked out'}</span>
-    </div>
-  </div>
-
-  <div class="grid3">
-    <div class="card"><h2>Renter</h2>
-      <div class="big">${esc(r.personName)}</div>
-      <div class="kv"><span>Phone</span><span>${esc(r.contactNumber || '—')}</span></div>
-      <div class="kv"><span>Email</span><span>${esc(r.customerEmail || '—')}</span></div>
-      <div class="kv"><span>Booked via</span><span>${esc(sourceName)}</span></div>
-    </div>
-    <div class="card"><h2>Vehicle</h2>
-      <div class="big">${esc(r.carModel || '—')}</div>
-      <div class="kv"><span>Plate</span><span>${esc(r.licensePlate || '—')}</span></div>
-      <div class="kv"><span>Odometer</span><span>${r.pickupKmOut ?? '—'} → ${r.dropOffKmIn ?? '—'} km</span></div>
-      <div class="kv"><span>Fuel</span><span>${r.pickupFuelLevel ?? '—'}/8 → ${r.dropOffFuelLevel ?? '—'}/8</span></div>
-      ${kmDriven !== null ? `<div class="kv"><span>Driven</span><span>${kmDriven.toLocaleString()} km</span></div>` : ''}
-    </div>
-    <div class="card"><h2>Rental period</h2>
-      <div class="kv"><span>Pickup</span><span>${when(r.startDate)}</span></div>
-      <div class="kv"><span>Return</span><span>${when(r.endDate)}</span></div>
-      <div class="kv"><span>Duration</span><span>${rentalDays} day${rentalDays === 1 ? '' : 's'}</span></div>
-      <div class="kv"><span>Location</span><span>${esc(loc)}</span></div>
-    </div>
-  </div>
-
-  <div class="grid2">
-    <div class="card"><h2>Charges</h2>
-      <table>
-        <tr><td>Rental · ${rentalDays} day${rentalDays === 1 ? '' : 's'}</td><td class="num">${money(baseRentalFee)}</td></tr>
-        ${extrasRows}
-        <tr class="total"><td>Total</td><td class="num">${money(totalCost)}</td></tr>
-      </table>
-      <div class="kv" style="margin-top:6px"><span>Security deposit</span><span>${money(r.securityDeposit || 0)}</span></div>
-      <div class="kv"><span>Excess</span><span>${money(r.excess || 0)}</span></div>
-      <div class="kv"><span>Payment</span><span>${r.authNumber && r.finalAmountCharged ? `Paid ${money(r.finalAmountCharged)} · auth ${esc(r.authNumber)}` : 'Not authorised'}</span></div>
-    </div>
-    <div class="card"><h2>Inspection checklist</h2>
-      <table>
-        <tr><th>Item</th><th class="num">Out</th><th class="num">In</th></tr>
-        ${checklistItems.map(item => `<tr><td>${esc(item)}</td><td class="num">${check(r.pickupChecklist?.[item])}</td><td class="num">${r.voucherSubmitted && r.dropOffCompleted ? check(r.dropOffChecklist?.[item]) : '<span class="no">·</span>'}</td></tr>`).join('')}
-      </table>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:8px"><h2>Vehicle condition</h2>
-    <div class="views">${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
-    <div class="legend"><i style="border:1.5px solid #0284c7"></i>At pickup (${pickupMarks.length}) <i style="background:#e11d48"></i>New at return (${returnMarks.length})</div>
-  </div>
-
-  ${r.returnCharges && r.returnCharges.items.length ? `<div class="card" style="margin-top:8px"><h2>Charges at return · ${esc(r.returnCharges.documentNumber || '')} · ${r.returnCharges.settlement === 'paid' ? 'Paid' : 'Claimed'}</h2>
-    <table>${r.returnCharges.items.map(i => `<tr><td>${esc(CHARGE_KIND_LABEL[i.kind])} — ${esc(i.description)}</td><td class="num">${esc(formatMoney(i.amount, r.returnCharges!.currency))}</td></tr>`).join('')}
-    <tr class="total"><td>Total</td><td class="num">${esc(formatMoney(chargesTotal(r.returnCharges.items), r.returnCharges.currency))}</td></tr></table></div>` : ''}
-
-  <div class="grid2">
-    <div class="card"><h2>Pickup notes</h2><div class="notes">${esc(r.pickupNotes || '—')}</div></div>
-    <div class="card"><h2>Return notes</h2><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
-  </div>
-
-  <div class="card" style="margin-top:8px"><h2>Terms & declaration</h2>
-    <p class="terms">${esc(PICKUP_TERMS)} ${r.dropOffCompleted ? esc(RETURN_TERMS) : ''}</p>
-    <div class="sigs">
-      ${sig(r.pickupRenterSignature, 'Renter · check-out', r.pickupDateTime)}
-      ${sig(r.pickupAgentSignature, 'Agent · check-out', r.pickupAgentName)}
-      ${sig(r.dropOffRenterSignature, 'Renter · check-in', r.dropOffDateTime)}
-      ${sig(r.dropOffAgentSignature, 'Agent · check-in', r.dropOffAgentName)}
-    </div>
-  </div>
-
-  <div class="foot"><span>Thank you for choosing ${esc(companyDetails.name)}</span><span>Generated ${new Date().toLocaleString('en-GB')}</span></div>
-</body></html>`;
-    return html;
-  };
+  const buildAgreementHtml = (r: Reservation = localReservation): string => buildAgreementDoc({
+    reservation: r,
+    company: companyDetails,
+    logo: URDRIVE_LOGO_B64,
+    checklistItems,
+    rentalDays,
+    baseRentalFee,
+    locationName: location?.name || r.locationName,
+    locationAddress: location?.address,
+    prepaid: sources.find(src => src.name === r.source)?.paymentType === PaymentType.PREPAID,
+  });
 
   const handleDownloadVoucherPDF = () => {
     const html = buildAgreementHtml();
