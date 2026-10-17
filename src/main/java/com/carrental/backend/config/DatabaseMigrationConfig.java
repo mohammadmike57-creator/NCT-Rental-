@@ -50,6 +50,17 @@ public class DatabaseMigrationConfig {
                             "  END IF;\n" +
                             "END $$;");
                     logger.info("PostgreSQL migration for application state and reservation dates completed.");
+                    // Hibernate 6 adds CHECK constraints listing enum values when it creates a table.
+                    // ddl-auto=update never refreshes them, so new permissions would be rejected.
+                    jdbcTemplate.execute("DO $$\n" +
+                            "DECLARE r record;\n" +
+                            "BEGIN\n" +
+                            "  FOR r IN SELECT c.conname FROM pg_constraint c JOIN pg_class t ON c.conrelid = t.oid\n" +
+                            "           WHERE t.relname = 'user_permissions' AND c.contype = 'c' LOOP\n" +
+                            "    EXECUTE 'ALTER TABLE user_permissions DROP CONSTRAINT ' || quote_ident(r.conname);\n" +
+                            "  END LOOP;\n" +
+                            "END $$;");
+                    logger.info("Permission check constraints refreshed.");
                 }
             } catch (Exception e) {
                 logger.error("Database migration failed", e);

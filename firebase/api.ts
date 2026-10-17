@@ -127,3 +127,57 @@ export const fetchChannelDeliveries = async (channelId: string, limit = 50): Pro
   });
   return response.data;
 };
+
+// --- Staff accounts (server-side login accounts) -----------------------------
+
+const apiError = (e: any, fallback: string): Error =>
+  new Error(e?.response?.data?.error || (typeof e?.response?.data === 'string' ? e.response.data : '') || fallback);
+
+/** The signed-in user as the server sees them now (fresh permissions). */
+export const fetchCurrentAccount = async () => {
+  const response = await axios.get(`${API_URL}/api/account/me`, { headers: authHeaders() });
+  return response.data;
+};
+
+export const listStaffAccounts = async (): Promise<any[]> => {
+  try {
+    const response = await axios.get(`${API_URL}/api/admin/users`, { headers: authHeaders() });
+    return response.data;
+  } catch (e: any) {
+    throw apiError(e, 'Could not load staff accounts.');
+  }
+};
+
+export const createStaffAccount = async (payload: Record<string, unknown>) => {
+  try {
+    const response = await axios.post(`${API_URL}/api/admin/users`, payload, { headers: authHeaders() });
+    return response.data;
+  } catch (e: any) {
+    throw apiError(e, 'Could not create the account.');
+  }
+};
+
+export const updateStaffAccount = async (id: string, payload: Record<string, unknown>) => {
+  try {
+    const response = await axios.put(`${API_URL}/api/admin/users/${encodeURIComponent(id)}`, payload, { headers: authHeaders() });
+    return response.data;
+  } catch (e: any) {
+    throw apiError(e, 'Could not save the account.');
+  }
+};
+
+export const resetStaffPassword = async (id: string, password: string) => {
+  try {
+    await axios.post(`${API_URL}/api/admin/users/${encodeURIComponent(id)}/password`, { password }, { headers: authHeaders() });
+  } catch (e: any) {
+    throw apiError(e, 'Could not reset the password.');
+  }
+};
+
+export const deleteStaffAccount = async (id: string) => {
+  try {
+    await axios.delete(`${API_URL}/api/admin/users/${encodeURIComponent(id)}`, { headers: authHeaders() });
+  } catch (e: any) {
+    throw apiError(e, 'Could not delete the account.');
+  }
+};

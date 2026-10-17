@@ -30,13 +30,21 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        // Staff can sign in with their email or their username.
+        String login = request.getEmail() == null ? "" : request.getEmail().trim();
+        User user = userRepository.findByEmail(login)
+                .or(() -> userRepository.findByEmailIgnoreCase(login))
+                .or(() -> userRepository.findFirstByUsernameIgnoreCase(login))
                 .orElse(null);
         if (user == null) {
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (user.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             return ResponseEntity.badRequest().body("Invalid credentials");
+        }
+        if ((user.getStatus() != null && user.getStatus() != com.carrental.backend.model.UserStatus.ACTIVE)
+                || Boolean.FALSE.equals(user.getWebAppAccess())) {
+            return ResponseEntity.status(403).body("This account has been disabled. Contact your administrator.");
         }
         String token = jwtUtil.generateToken(user.getEmail());
         return ResponseEntity.ok(new AuthResponse(token, user));

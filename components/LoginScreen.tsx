@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { User, UserStatus } from '../types';
+import { User } from '../types';
 import { signInUser } from '../firebase/api';
-import { MASTER_USER, NCT_LOGIN_LOGO_B64 } from '../constants';
+import { NCT_LOGIN_LOGO_B64 } from '../constants';
 import { UserCircleIcon, LockClosedIcon } from './icons';
 
 interface LoginScreenProps {
@@ -20,49 +20,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ users }) => {
     setIsLoading(true);
 
     const enteredInput = username.trim();
-    let emailToAuth = '';
-
-    if (enteredInput.toLowerCase() === MASTER_USER.username.toLowerCase()) {
-      emailToAuth = MASTER_USER.email;
-    } else {
-      const userProfile = users.find(u => u.username.toLowerCase() === enteredInput.toLowerCase());
-      if (userProfile) {
-        if (userProfile.status !== UserStatus.ACTIVE) {
-          setError('This user account is inactive.');
-          setIsLoading(false);
-          return;
-        }
-        emailToAuth = userProfile.email;
-      } else if (enteredInput.includes('@')) {
-        emailToAuth = enteredInput;
-      } else {
-        setError('Username not found. Please check your credentials.');
-        setIsLoading(false);
-        return;
-      }
+    if (!enteredInput || !password) {
+      setError('Enter your username or email and your password.');
+      setIsLoading(false);
+      return;
     }
 
     try {
-      await signInUser(emailToAuth, password);
+      // The server accepts either email or username and checks the account is active.
+      await signInUser(enteredInput, password);
       window.location.reload();
     } catch (err: any) {
-      console.warn('Backend login failed, trying local fallback', err);
-      const localUser = users.find(u => 
-        (u.email === emailToAuth || u.username === emailToAuth) && 
-        u.password === password
-      );
-      if (localUser && localUser.status === UserStatus.ACTIVE) {
-        const fakeToken = `fake-token-${Date.now()}`;
-        localStorage.setItem('token', fakeToken);
-        localStorage.setItem('user', JSON.stringify(localUser));
-        window.location.reload();
-      } else if (emailToAuth === MASTER_USER.email && password === 'admin2024') {
-        localStorage.setItem('token', `fake-token-${Date.now()}`);
-        localStorage.setItem('user', JSON.stringify(MASTER_USER));
-        window.location.reload();
-      } else {
-        setError('Invalid username/email or password.');
-      }
+      const status = err?.response?.status;
+      if (status === 403) setError(typeof err.response.data === 'string' ? err.response.data : 'This account has been disabled.');
+      else if (!err?.response) setError('Cannot reach the server. Check your connection and try again.');
+      else setError('Invalid username/email or password.');
     } finally {
       setIsLoading(false);
     }

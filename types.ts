@@ -417,6 +417,8 @@ export interface FranchisePayment {
   datePaid: string;
   paidBy: string;
   referenceNote?: string;
+  method?: 'card' | 'bank_transfer' | 'cash' | 'cheque';
+  recordedAt?: string;
 }
 
 export interface ActivityLog {

@@ -16,7 +16,8 @@ public class User {
 
     private String fullName;
     private String username;
-    private String password;
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
+    private String password; // BCrypt hash, never serialised to clients
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)

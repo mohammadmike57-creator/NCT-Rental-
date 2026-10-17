@@ -8,7 +8,7 @@ import Tabs from './components/Tabs';
 import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import Notifications from './components/Notifications';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData } from './firebase/api';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData, fetchCurrentAccount } from './firebase/api';
 
 // Lazy load components
 const ReservationTable = React.lazy(() => import('./components/ReservationTable'));
@@ -447,6 +447,15 @@ export const App: React.FC = () => {
       setCurrentUser(user);
       setAuthChecked(true);
       if (user) {
+        // Pick up permission/status changes made by an administrator since login.
+        fetchCurrentAccount()
+          .then(fresh => {
+            if (fresh && fresh.id) {
+              localStorage.setItem('user', JSON.stringify(fresh));
+              setCurrentUser(fresh);
+            }
+          })
+          .catch(() => { /* offline or older backend: keep the cached profile */ });
         setIsLoading(false);
         fetchAllData(); // Fetch immediately after login
         pollingIntervalRef.current = setInterval(() => {

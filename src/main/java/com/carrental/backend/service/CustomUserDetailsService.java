@@ -23,7 +23,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        List<SimpleGrantedAuthority> authorities = user.getPermissions().stream()
+        List<SimpleGrantedAuthority> authorities = (user.getPermissions() == null ? java.util.List.<com.carrental.backend.model.UserPermission>of() : user.getPermissions()).stream()
                 .map(permission -> new SimpleGrantedAuthority(permission.name()))
                 .collect(Collectors.toList());
 
@@ -31,6 +31,8 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .username(user.getEmail())
                 .password(user.getPassword())
                 .authorities(authorities)
+                .disabled(user.getStatus() != null && user.getStatus() != com.carrental.backend.model.UserStatus.ACTIVE
+                        || Boolean.FALSE.equals(user.getWebAppAccess()))
                 .build();
     }
 }
