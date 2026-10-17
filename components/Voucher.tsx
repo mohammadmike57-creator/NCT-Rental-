@@ -903,8 +903,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="relative bg-slate-50 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[96vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="relative bg-slate-50 rounded-none sm:rounded-2xl shadow-2xl max-w-6xl w-full h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[96vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center gap-4">
           <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-7 hidden sm:block" />

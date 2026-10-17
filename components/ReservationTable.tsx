@@ -645,34 +645,40 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <p className="text-sm text-slate-500">{selectedMonth} {selectedYear} · {filteredReservations.length} booking{filteredReservations.length === 1 ? '' : 's'}</p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[220px] sm:flex-none sm:w-72">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 w-full xl:w-auto">
+              <div className="relative w-full sm:w-72">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input type="text" placeholder="Search name or booking ID" value={localBookingIdSearch} onChange={handleSearchChange}
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
               </div>
-              <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)} aria-label="Sort"
-                className="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none">
-                <option value="pickup">Sort: pickup date</option>
-                <option value="return">Sort: return date</option>
-                <option value="name">Sort: customer</option>
-                <option value="amount">Sort: amount</option>
-              </select>
-              <button onClick={handleExportCSV} disabled={filteredReservations.length === 0} title="Export CSV" className="p-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-slate-800 disabled:opacity-40"><ExportIcon className="w-4 h-4" /></button>
-              <button onClick={handleExportExcel} disabled={filteredReservations.length === 0} title="Export Excel" className="p-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-slate-800 disabled:opacity-40"><PdfIcon className="w-4 h-4" /></button>
-              {(currentUser?.email === 'nadeenalnahas@gmail.com' || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin') && (
-                <button onClick={() => onDeleteMonth(selectedYear, selectedMonth)} disabled={allDisplayReservations.length === 0} title={`Delete all reservations for ${selectedMonth} ${selectedYear}`}
-                  className="p-2.5 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 disabled:opacity-40"><CloseIcon className="w-4 h-4" /></button>
-              )}
-              {onOpenUnlistedAgreement && canViewVoucherActions && (
-                <button onClick={onOpenUnlistedAgreement} title="Open a rental agreement for a booking that is not in the list"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-amber-300 text-amber-800 text-sm font-semibold rounded-xl hover:bg-amber-50">
-                  <DocumentReportIcon className="w-4 h-4" /> Unlisted agreement
+              <div className="flex items-center gap-2">
+                <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)} aria-label="Sort"
+                  className="flex-1 sm:flex-none min-w-0 py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                  <option value="pickup">Sort: pickup date</option>
+                  <option value="return">Sort: return date</option>
+                  <option value="name">Sort: customer</option>
+                  <option value="amount">Sort: amount</option>
+                </select>
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white divide-x divide-slate-200 overflow-hidden shrink-0">
+                  <button onClick={handleExportCSV} disabled={filteredReservations.length === 0} title="Export CSV" aria-label="Export CSV" className="p-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-800 disabled:opacity-40"><ExportIcon className="w-4 h-4" /></button>
+                  <button onClick={handleExportExcel} disabled={filteredReservations.length === 0} title="Export Excel" aria-label="Export Excel" className="p-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-800 disabled:opacity-40"><PdfIcon className="w-4 h-4" /></button>
+                  {(currentUser?.email === 'nadeenalnahas@gmail.com' || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin') && (
+                    <button onClick={() => onDeleteMonth(selectedYear, selectedMonth)} disabled={allDisplayReservations.length === 0} title={`Delete all reservations for ${selectedMonth} ${selectedYear}`} aria-label="Delete month"
+                      className="p-2.5 text-rose-500 hover:bg-rose-50 disabled:opacity-40"><CloseIcon className="w-4 h-4" /></button>
+                  )}
+                </div>
+              </div>
+              <div className={`grid gap-2 sm:flex ${onOpenUnlistedAgreement && canViewVoucherActions ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {onOpenUnlistedAgreement && canViewVoucherActions && (
+                  <button onClick={onOpenUnlistedAgreement} title="Open a rental agreement for a booking that is not in the list"
+                    className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-amber-300 text-amber-800 text-sm font-semibold rounded-xl hover:bg-amber-50 whitespace-nowrap">
+                    <DocumentReportIcon className="w-4 h-4 shrink-0" /> Unlisted agreement
+                  </button>
+                )}
+                <button onClick={openAddModal} className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm whitespace-nowrap">
+                  <PlusCircleIcon className="w-4 h-4 shrink-0" /> New reservation
                 </button>
-              )}
-              <button onClick={openAddModal} className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm">
-                <PlusCircleIcon className="w-4 h-4" /> New reservation
-              </button>
+              </div>
             </div>
           </div>
 
