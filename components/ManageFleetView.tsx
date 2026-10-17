@@ -236,10 +236,10 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                     </div>
                     {actionBtns(vehicle)}
                   </div>
-                  <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">
                     <div className="min-w-0"><dt className="text-slate-500">Deposit</dt><dd className="font-semibold text-slate-900 tabular-nums">{money(vehicle.securityDeposit)}</dd></div>
                     <div className="min-w-0"><dt className="text-slate-500">Excess</dt><dd className="font-semibold text-slate-900 tabular-nums">{money(vehicle.excess)}</dd></div>
-                    <div className="min-w-0"><dt className="text-slate-500">Reg. expiry</dt><dd className="truncate">{regBadge(vehicle.registrationExpiry)}</dd></div>
+                    <div className="col-span-2 min-w-0 flex items-center justify-between gap-2"><dt className="text-slate-500">Reg. expiry</dt><dd>{regBadge(vehicle.registrationExpiry)}</dd></div>
                   </dl>
                 </li>
               ))}
