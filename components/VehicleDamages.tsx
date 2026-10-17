@@ -1,4 +1,3 @@
-// FIX: Updated the component to conditionally render fields based on whether a police report is involved, streamlining data entry for different incident types.
 import React, { useState, useMemo, useEffect } from 'react';
 import { VehicleDamage, VehicleDamageStatus, AppData, Reservation, User, UserPermission, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, CancelIcon, PaperAirplaneIcon, ShieldExclamationIcon, UploadIcon, DocumentTextIcon, ShareIcon, ExportIcon } from './icons';
@@ -83,28 +82,36 @@ const handleShare = async (base64Data: string, filename: string) => {
 
 const FileActions: React.FC<{ fileData?: string; fileName?: string; }> = ({ fileData, fileName }) => {
     if (!fileData || !fileName) {
-        return <span className="text-gray-400">-</span>;
+        return <span className="text-slate-300">-</span>;
     }
 
     const showShare = 'share' in navigator && 'canShare' in navigator;
+    const btn = "p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800";
 
     return (
-        <div className="flex items-center justify-center gap-2">
-            <a href={fileData} target="_blank" rel="noopener noreferrer" title={`View ${fileName}`} className="text-blue-600 hover:text-blue-800 p-1">
-                <DocumentTextIcon />
+        <div className="inline-flex items-center gap-0.5">
+            <a href={fileData} target="_blank" rel="noopener noreferrer" title={`View ${fileName}`} aria-label={`View ${fileName}`} className={btn}>
+                <DocumentTextIcon className="w-4 h-4" />
             </a>
-            <button onClick={() => handleDownload(fileData, fileName)} title={`Download ${fileName}`} className="text-green-600 hover:text-green-800 p-1">
-                <ExportIcon />
+            <button type="button" onClick={() => handleDownload(fileData, fileName)} title={`Download ${fileName}`} aria-label={`Download ${fileName}`} className={btn}>
+                <ExportIcon className="w-4 h-4" />
             </button>
             {showShare && (
-                 <button onClick={() => handleShare(fileData, fileName)} title={`Share ${fileName}`} className="text-purple-600 hover:text-purple-800 p-1">
-                    <ShareIcon />
+                 <button type="button" onClick={() => handleShare(fileData, fileName)} title={`Share ${fileName}`} aria-label={`Share ${fileName}`} className={btn}>
+                    <ShareIcon className="w-4 h-4" />
                 </button>
             )}
         </div>
     );
 };
 
+const inputCls = "w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none";
+const editCls = "w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none";
+const labelCls = "block text-xs font-semibold text-slate-600 mb-1.5";
+const money = (v: unknown) => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+    return (Number.isFinite(n) ? n : 0).toFixed(2);
+};
 
 const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAddDamage, onUpdateDamage, onDeleteDamage, currentUser, companyDetails }) => {
   const [newDamageData, setNewDamageData] = useState<Omit<VehicleDamage, 'id'>>(emptyDamage);
@@ -118,6 +125,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: 'edit' | 'delete'; payload: any } | null>(null);
   const [statusFilter, setStatusFilter] = useState<VehicleDamageStatus | ''>('');
+  const [showAddForm, setShowAddForm] = useState(false);
   
   const hasManagePermission = currentUser?.permissions.includes(UserPermission.ACTION_VEHICLE_DAMAGES_MANAGE);
 
@@ -284,6 +292,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
     setNewDamageData(emptyDamage);
     setHasPoliceReport(false);
     setFoundReservation(null);
+    setShowAddForm(false);
   };
 
   const handleEditClick = (damage: VehicleDamage) => {
@@ -339,324 +348,417 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
         : `Receipt for Vehicle Damage Payment - Rental ${renter.bookingId}`;
     
     const body = type === 'claim'
-        ? `Dear ${renter.personName},\n\nThis notice is regarding vehicle damage reported during your rental of a ${renter.carModel} (Booking ID: ${renter.bookingId}).\n\nDamage Details:\n- Description: ${damage.details}\n${damage.policeReportNumber ? `- Police Report #: ${damage.policeReportNumber}\n` : ''}\n- Amount Due: ${claimableAmount.toFixed(2)} JOD\n\nPlease contact our office to discuss this matter and arrange for payment.${signature.replace('Sincerely', 'Thank you')}`
-        : `Dear ${renter.personName},\n\nThis email confirms your payment for the vehicle damage claim associated with your rental (Booking ID: ${renter.bookingId}).\n\nPayment Details:\n- Amount Paid: ${claimableAmount.toFixed(2)} JOD\n- Status: COLLECTED\n\nWe appreciate your cooperation.${signature}`;
+        ? `Dear ${renter.personName},\n\nThis notice is regarding vehicle damage reported during your rental of a ${renter.carModel} (Booking ID: ${renter.bookingId}).\n\nDamage Details:\n- Description: ${damage.details}\n${damage.policeReportNumber ? `- Police Report #: ${damage.policeReportNumber}\n` : ''}\n- Amount Due: ${money(claimableAmount)} JOD\n\nPlease contact our office to discuss this matter and arrange for payment.${signature.replace('Sincerely', 'Thank you')}`
+        : `Dear ${renter.personName},\n\nThis email confirms your payment for the vehicle damage claim associated with your rental (Booking ID: ${renter.bookingId}).\n\nPayment Details:\n- Amount Paid: ${money(claimableAmount)} JOD\n- Status: COLLECTED\n\nWe appreciate your cooperation.${signature}`;
 
     window.location.href = `mailto:${renter.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  const headers = ['Booking ID', 'Renter', 'Car', 'Period', 'Repair Cost (JOD)', 'Police Report #', 'Collected Amount (JOD)', 'Status', 'Details', 'Damage Image', 'Invoice', 'Police Report', 'Actions'];
+
+  const num = (v: unknown) => parseFloat(money(v));
+  const claimableOf = (damage: VehicleDamage) => (damage.policeReportNumber ? num(damage.policeReportAmount) : num(damage.amount));
+
+  const stats = useMemo(() => {
+    let collected = 0, outstanding = 0, outstandingCount = 0;
+    damages.forEach(d => {
+      const amt = claimableOf(d);
+      if (amt <= 0) return;
+      if (d.status === VehicleDamageStatus.COLLECTED) collected += amt;
+      else { outstanding += amt; outstandingCount += 1; }
+    });
+    return { total: damages.length, collected, outstanding, outstandingCount };
+  }, [damages]);
+
+  const rows = filteredDamages.map(damage => ({ damage, res: findReservationByBookingId(damage.bookingId) }));
+
+  type FileField = 'repairInvoice' | 'policeReportFile' | 'damageImage';
+  const FILE_META: Record<FileField, { label: string; name: 'repairInvoiceFilename' | 'policeReportFilename' | 'damageImageFilename'; accept: string; idPrefix: string }> = {
+    damageImage: { label: 'Damage image', name: 'damageImageFilename', accept: 'image/*', idPrefix: 'edit-damage-image' },
+    repairInvoice: { label: 'Repair invoice', name: 'repairInvoiceFilename', accept: 'image/*,.pdf', idPrefix: 'edit-invoice' },
+    policeReportFile: { label: 'Police report', name: 'policeReportFilename', accept: 'image/*,.pdf', idPrefix: 'edit-report' },
+  };
+
+  const statusPill = (damage: VehicleDamage) => {
+    const claimable = claimableOf(damage);
+    if (claimable <= 0) {
+      return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset whitespace-nowrap bg-slate-100 text-slate-600 ring-slate-200">Nothing to collect</span>;
+    }
+    const done = damage.status === VehicleDamageStatus.COLLECTED;
+    return (
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${done ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+        {done ? 'Collected' : 'Not collected'}
+      </span>
+    );
+  };
+
+  const statusSelect = (damage: VehicleDamage) => (
+    <select value={damage.status} onChange={e => handleUpdateChange(damage.id, 'status', e.target.value)} className={editCls}>
+      <option value={VehicleDamageStatus.NOT_COLLECTED}>Not Collected</option>
+      <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
+    </select>
+  );
+
+  // One file slot (image / invoice / police report) in view or edit mode.
+  const renderFile = (damage: VehicleDamage, field: FileField, editable: boolean, view: 'd' | 'm') => {
+    const meta = FILE_META[field];
+    const data = damage[field];
+    const name = damage[meta.name];
+    let control: React.ReactNode;
+    if (editable) {
+      control = data ? (
+        <div className="inline-flex items-center gap-0.5">
+          <a href={data} target="_blank" rel="noopener noreferrer" title={name} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"><DocumentTextIcon className="w-4 h-4" /></a>
+          <button type="button" onClick={() => handleRemoveFile(damage.id, field)} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50" title={`Remove ${meta.label.toLowerCase()}`}><TrashIcon className="w-4 h-4" /></button>
+        </div>
+      ) : (
+        <>
+          <input type="file" id={`${meta.idPrefix}-${view}-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, field, e)} accept={meta.accept} />
+          <label htmlFor={`${meta.idPrefix}-${view}-${damage.id}`} className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 ring-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50" title={`Upload ${meta.label.toLowerCase()}`}><UploadIcon className="w-4 h-4" /> Upload</label>
+        </>
+      );
+    } else {
+      control = <FileActions fileData={data} fileName={name} />;
+    }
+    return (
+      <div key={field} className="flex items-center justify-between gap-3 min-h-[32px]">
+        <span className="text-xs text-slate-500 whitespace-nowrap">{meta.label}</span>
+        {control}
+      </div>
+    );
+  };
+
+  const renderFiles = (damage: VehicleDamage, isEditing: boolean, view: 'd' | 'm') => {
+    const hasReport = !!damage.policeReportNumber;
+    const edit = isEditing && !!hasManagePermission;
+    return (
+      <div className="space-y-0.5">
+        {renderFile(damage, 'damageImage', edit, view)}
+        {renderFile(damage, 'repairInvoice', edit && !hasReport, view)}
+        {renderFile(damage, 'policeReportFile', edit && hasReport, view)}
+      </div>
+    );
+  };
+
+  const renderActions = (damage: VehicleDamage, res: Reservation | null, isEditing: boolean, full = false) => {
+    const canSendEmail = !!(res && res.customerEmail);
+    if (isEditing && hasManagePermission) {
+      return (
+        <div className={`${full ? 'grid grid-cols-2' : 'inline-flex'} gap-2`}>
+          <button type="button" onClick={handleSaveEdit} className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700" title="Save"><SaveIcon className="w-4 h-4" /> Done</button>
+          <button type="button" onClick={handleCancelEdit} className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white ring-1 ring-slate-200 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50" title="Cancel"><CancelIcon className="w-4 h-4" /> Cancel</button>
+        </div>
+      );
+    }
+    const isClaim = damage.status === VehicleDamageStatus.NOT_COLLECTED;
+    return (
+      <div className={`flex items-center gap-2 ${full ? '' : 'justify-end'}`}>
+        {claimableOf(damage) > 0 && (
+          <button
+            type="button"
+            onClick={() => handleSendEmail(isClaim ? 'claim' : 'receipt', damage, res!)}
+            disabled={!canSendEmail}
+            className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold ring-1 ring-inset whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed ${full ? 'flex-1' : ''} ${isClaim ? 'bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100'}`}
+            title={canSendEmail ? (isClaim ? 'Send claim email to renter' : 'Send receipt email to renter') : 'Renter email not found in voucher'}
+          >
+            <PaperAirplaneIcon className="w-4 h-4" /> {isClaim ? 'Send claim' : 'Send receipt'}
+          </button>
+        )}
+        {full && claimableOf(damage) <= 0 && <span className="flex-1" />}
+        {hasManagePermission && (
+          <>
+            <button type="button" onClick={() => handleEditClick(damage)} className="p-2 rounded-lg text-slate-500 hover:bg-indigo-50 hover:text-indigo-600" title="Edit" aria-label="Edit damage report"><EditIcon className="w-4 h-4" /></button>
+            <button type="button" onClick={() => handleDeleteClick(damage.id)} className="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600" title="Delete" aria-label="Delete damage report"><TrashIcon className="w-4 h-4" /></button>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const repairCostCell = (damage: VehicleDamage, isEditing: boolean) => {
+    const hasReport = !!damage.policeReportNumber;
+    if (isEditing && !hasReport && hasManagePermission) {
+      return <input type="number" value={damage.amount || ''} placeholder="0.00" onChange={e => handleUpdateChange(damage.id, 'amount', parseFloat(e.target.value) || 0)} className={`${editCls} w-28 text-right`} />;
+    }
+    return hasReport ? <span className="text-slate-300">-</span> : `${money(damage.amount)} JOD`;
+  };
+
+  const reportNumberCell = (damage: VehicleDamage, isEditing: boolean) => {
+    const hasReport = !!damage.policeReportNumber;
+    if (isEditing && hasManagePermission) {
+      return <input type="text" value={damage.policeReportNumber || ''} onChange={e => handleUpdateChange(damage.id, 'policeReportNumber', e.target.value)} placeholder={!hasReport ? 'N/A' : 'Report #'} disabled={!hasReport} className={`${editCls} w-32 disabled:bg-slate-100 disabled:text-slate-400`} />;
+    }
+    return damage.policeReportNumber ? <span className="font-mono text-xs">{damage.policeReportNumber}</span> : <span className="text-slate-300">-</span>;
+  };
+
+  const excessCell = (damage: VehicleDamage, isEditing: boolean) => {
+    if (isEditing && hasManagePermission) {
+      return <input type="number" readOnly value={damage.policeReportAmount || 0} className={`${editCls} w-28 text-right bg-slate-100 text-slate-500`} />;
+    }
+    return damage.policeReportAmount ? `${money(damage.policeReportAmount)} JOD` : <span className="text-slate-300">-</span>;
+  };
+
+  const filterOptions: { key: VehicleDamageStatus | ''; label: string }[] = [
+    { key: '', label: 'All' },
+    { key: VehicleDamageStatus.NOT_COLLECTED, label: 'Not collected' },
+    { key: VehicleDamageStatus.COLLECTED, label: 'Collected' },
+  ];
+
+  const headers = ['Booking / renter', 'Rental period', 'Repair cost', 'Police report #', 'Excess collected', 'Status', 'Details', 'Files', ''];
+
+  const fileSlot = (field: FileField, id: string, accept: string, label: string) => (
+    <div>
+      <label className={labelCls}>{label}</label>
+      {newDamageData[field] ? (
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          <DocumentTextIcon className="w-4 h-4 text-slate-400 shrink-0" />
+          <span className="text-sm text-slate-700 truncate flex-1 min-w-0" title={newDamageData[FILE_META[field].name]}>{newDamageData[FILE_META[field].name]}</span>
+          <button type="button" onClick={() => handleClearFile(field)} className="p-1 rounded-lg text-rose-500 hover:bg-rose-50" aria-label="Remove file"><TrashIcon className="w-4 h-4" /></button>
+        </div>
+      ) : (
+        <>
+          <input type="file" id={id} className="hidden" onChange={(e) => handleFileChange(e, field)} accept={accept} />
+          <label htmlFor={id} className="cursor-pointer flex items-center justify-center gap-2 px-3 py-2.5 bg-white text-slate-600 border border-dashed border-slate-300 rounded-xl hover:bg-slate-50 text-sm font-semibold">
+            <UploadIcon className="w-4 h-4" /> {field === 'damageImage' ? 'Select image' : 'Select file'}
+          </label>
+        </>
+      )}
+    </div>
+  );
 
   return (
-    <div className="p-4 sm:p-6 bg-white">
-      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <ShieldExclamationIcon /> Vehicle Damage Management
-      </h3>
-      
-      {hasManagePermission && (
-          <form onSubmit={handleAddSubmit} className="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-6 space-y-4">
-            <h4 className="text-lg font-semibold text-gray-700">Add New Damage Report</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Booking ID</label>
-                    <input type="text" value={newDamageData.bookingId} onChange={e => handleInputChange('bookingId', e.target.value)} placeholder="Enter Booking ID to link" className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required/>
-                 </div>
-                 <div>
-                     <label className="block text-sm font-medium text-gray-700 invisible">Has Police Report</label>
-                     <div className="flex items-center mt-1 p-2 h-[42px]">
-                        <input
-                            type="checkbox"
-                            id="hasPoliceReport"
-                            checked={hasPoliceReport}
-                            onChange={e => handleHasReportChange(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-secondary"
-                        />
-                        <label htmlFor="hasPoliceReport" className="ml-2 text-sm font-medium text-gray-700">Incident involves a police report</label>
-                    </div>
-                 </div>
+    <div className="space-y-5 mb-10">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <ShieldExclamationIcon className="w-6 h-6" />
             </div>
-            
-            {foundReservation ? (
-                <div className="p-2 text-sm bg-green-100 border border-green-200 text-green-800 rounded-md">
-                    <strong>Reservation Found:</strong> {foundReservation.personName} ({foundReservation.carModel}) - <strong>Vehicle Excess: {vehicleExcessJOD.toFixed(2)} JOD</strong>
-                </div>
-            ) : newDamageData.bookingId ? (
-                 <div className="p-2 text-sm bg-red-100 border border-red-200 text-red-800 rounded-md">
-                    No reservation found with this Booking ID.
-                </div>
-            ) : null}
-
-            {/* Conditional Fields */}
-            {hasPoliceReport ? (
-                <div className="space-y-4 pt-2 border-t">
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Police Report #</label>
-                            <input type="text" value={newDamageData.policeReportNumber} onChange={e => handleInputChange('policeReportNumber', e.target.value)} className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required={hasPoliceReport} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Amount to Collect (Vehicle Excess)</label>
-                            <div className="w-full p-2 mt-1 bg-gray-200 border border-gray-300 rounded-md text-sm">
-                                {vehicleExcessJOD.toFixed(2)} JOD
-                            </div>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Police Report Document</label>
-                            {newDamageData.policeReportFile ? (
-                                <div className="flex items-center gap-2 mt-1 p-2 bg-white border rounded-md">
-                                    <DocumentTextIcon />
-                                    <span className="text-sm text-gray-600 truncate flex-grow" title={newDamageData.policeReportFilename}>{newDamageData.policeReportFilename}</span>
-                                    <button type="button" onClick={() => handleClearFile('policeReportFile')} className="text-red-500 hover:text-red-700 p-1"><TrashIcon /></button>
-                                </div>
-                            ) : (
-                                <>
-                                    <input type="file" id="report-upload" className="hidden" onChange={(e) => handleFileChange(e, 'policeReportFile')} accept="image/*,.pdf" />
-                                    <label htmlFor="report-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
-                                        <UploadIcon /> Select File
-                                    </label>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="space-y-4 pt-2 border-t">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Damage Repair Cost (JOD)</label>
-                            <input type="number" step="0.01" value={newDamageData.amount || ''} placeholder="0.00" onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)} className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Repair Invoice</label>
-                            {newDamageData.repairInvoice ? (
-                                <div className="flex items-center gap-2 mt-1 p-2 bg-white border rounded-md">
-                                    <DocumentTextIcon />
-                                    <span className="text-sm text-gray-600 truncate flex-grow" title={newDamageData.repairInvoiceFilename}>{newDamageData.repairInvoiceFilename}</span>
-                                    <button type="button" onClick={() => handleClearFile('repairInvoice')} className="text-red-500 hover:text-red-700 p-1"><TrashIcon /></button>
-                                </div>
-                            ) : (
-                                <>
-                                    <input type="file" id="invoice-upload" className="hidden" onChange={(e) => handleFileChange(e, 'repairInvoice')} accept="image/*,.pdf" />
-                                    <label htmlFor="invoice-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
-                                        <UploadIcon /> Select File
-                                    </label>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Damage Details</label>
-                    <textarea value={newDamageData.details} onChange={e => handleInputChange('details', e.target.value)} rows={3} placeholder="e.g., Large scratch on passenger door" className="w-full p-2 mt-1 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary" required></textarea>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Car Damage Image</label>
-                    {newDamageData.damageImage ? (
-                        <div className="flex items-center gap-2 mt-1 p-2 bg-white border rounded-md">
-                            <DocumentTextIcon />
-                            <span className="text-sm text-gray-600 truncate flex-grow" title={newDamageData.damageImageFilename}>{newDamageData.damageImageFilename}</span>
-                            <button type="button" onClick={() => handleClearFile('damageImage')} className="text-red-500 hover:text-red-700 p-1"><TrashIcon /></button>
-                        </div>
-                    ) : (
-                        <>
-                            <input type="file" id="damage-image-upload" className="hidden" onChange={(e) => handleFileChange(e, 'damageImage')} accept="image/*" />
-                            <label htmlFor="damage-image-upload" className="cursor-pointer mt-1 inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
-                                <UploadIcon /> Select Image
-                            </label>
-                        </>
-                    )}
-                </div>
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Vehicle damages</h2>
+              <p className="text-sm text-slate-500">Damage reports per booking, repair costs, police reports and excess collection.</p>
             </div>
-            
-            <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Collection Status
-                </label>
-                <p className="text-xs text-gray-500 mb-1">
-                  Applies to {hasPoliceReport ? 'Vehicle Excess Amount' : 'Repair Cost'}.
-                </p>
-                <select value={newDamageData.status} onChange={e => handleInputChange('status', e.target.value)} className="w-full md:w-1/3 p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary">
-                    <option value={VehicleDamageStatus.NOT_COLLECTED}>Not Collected</option>
-                    <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
-                </select>
-            </div>
-            {validationError && <p className="text-sm text-red-600">{validationError}</p>}
-            <div className="text-right">
-                <button type="submit" disabled={!foundReservation} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    <PlusIcon /> Add Damage Report
-                </button>
-            </div>
-          </form>
-      )}
-      
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pt-6 border-t border-gray-200 mt-6">
-          <h4 className="text-lg font-semibold text-gray-700">Recorded Damages</h4>
-          <div className="flex items-center gap-4 mt-3 sm:mt-0">
-              <div>
-                  <label htmlFor="damage-status-filter" className="text-sm font-medium text-gray-700 mr-2">Filter by status:</label>
-                  <select
-                      id="damage-status-filter"
-                      value={statusFilter}
-                      onChange={e => setStatusFilter(e.target.value as VehicleDamageStatus | '')}
-                      className="p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
-                  >
-                      <option value="">All Statuses</option>
-                      <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
-                      <option value={VehicleDamageStatus.NOT_COLLECTED}>Not Collected</option>
-                  </select>
-              </div>
           </div>
+          {hasManagePermission && (
+            <button onClick={() => setShowAddForm(true)} className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm whitespace-nowrap">
+              <PlusIcon className="w-4 h-4" /> Add damage report
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
+          {[
+            { label: 'Reports', value: String(stats.total), tone: 'text-slate-900' },
+            { label: 'Outstanding', value: String(stats.outstandingCount), tone: stats.outstandingCount ? 'text-amber-600' : 'text-slate-900' },
+            { label: 'To collect (JOD)', value: stats.outstanding.toFixed(2), tone: stats.outstanding ? 'text-amber-600' : 'text-slate-900' },
+            { label: 'Collected (JOD)', value: stats.collected.toFixed(2), tone: 'text-emerald-600' },
+          ].map(k => (
+            <div key={k.label} className="px-4 sm:px-5 py-4 min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
+              <p className={`mt-1 text-2xl font-bold tabular-nums truncate ${k.tone}`}>{k.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>)}</tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredDamages.map(damage => {
-              const res = findReservationByBookingId(damage.bookingId);
-              const isEditing = editingId === damage.id;
-              const canSendEmail = res && res.customerEmail;
-              const hasReport = !!damage.policeReportNumber;
-              const claimableAmount = hasReport ? (damage.policeReportAmount || 0) : damage.amount;
+      {/* List */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-5 py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Recorded damages · {filteredDamages.length}</p>
+          <div className="grid grid-cols-3 sm:inline-flex p-1 bg-slate-100 rounded-xl" role="group" aria-label="Filter by status">
+            {filterOptions.map(o => (
+              <button key={o.label} onClick={() => setStatusFilter(o.key)}
+                className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg whitespace-nowrap ${statusFilter === o.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-              return (
-                <tr key={damage.id} className={isEditing ? 'bg-yellow-50' : ''}>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{damage.bookingId}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res?.personName || <span className="text-gray-400">N/A</span>}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res?.carModel || <span className="text-gray-400">N/A</span>}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{res ? `${res.startDate} to ${res.endDate}` : <span className="text-gray-400">N/A</span>}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    {isEditing && !hasReport && hasManagePermission ? <input type="number" value={damage.amount || ''} placeholder="0.00" onChange={e => handleUpdateChange(damage.id, 'amount', parseFloat(e.target.value) || 0)} className="w-24 p-1 border rounded"/> : (hasReport ? 'N/A' : `${damage.amount.toFixed(2)} JOD`)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{isEditing && hasManagePermission ? <input type="text" value={damage.policeReportNumber || ''} onChange={e => handleUpdateChange(damage.id, 'policeReportNumber', e.target.value)} placeholder={!hasReport ? 'N/A' : 'Report #'} disabled={!hasReport} className="w-32 p-1 border rounded disabled:bg-gray-200" /> : damage.policeReportNumber || 'N/A'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">{isEditing && hasManagePermission ? <input type="number" readOnly value={damage.policeReportAmount || 0} className="w-24 p-1 border rounded bg-gray-200"/> : (damage.policeReportAmount ? `${damage.policeReportAmount.toFixed(2)} JOD` : 'N/A')}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    {isEditing && hasManagePermission ? (
-                        <select value={damage.status} onChange={e => handleUpdateChange(damage.id, 'status', e.target.value)} className="w-full p-1 border rounded">
-                            <option value={VehicleDamageStatus.NOT_COLLECTED}>Not Collected</option>
-                            <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
-                        </select>
-                    ) : (
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${claimableAmount > 0 ? (damage.status === VehicleDamageStatus.COLLECTED ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800') : 'bg-gray-100 text-gray-800'}`}>
-                            {claimableAmount > 0 ? damage.status.replace('_', ' ') : 'N/A'}
-                        </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm" style={{minWidth: '200px', whiteSpace: 'normal'}}>
-                      {isEditing && hasManagePermission ? <textarea value={damage.details} onChange={e => handleUpdateChange(damage.id, 'details', e.target.value)} className="w-full p-1 border rounded" rows={2}/> : damage.details}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {isEditing && hasManagePermission ? (
-                         <div>
-                            {damage.damageImage ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <a href={damage.damageImage} target="_blank" rel="noopener noreferrer" title={damage.damageImageFilename} className="text-blue-600 p-1"><DocumentTextIcon /></a>
-                                    <button onClick={() => handleRemoveFile(damage.id, 'damageImage')} className="text-red-500 p-1" title="Remove Image"><TrashIcon /></button>
-                                </div>
-                            ) : (
-                                <><input type="file" id={`edit-damage-image-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'damageImage', e)} accept="image/*"/><label htmlFor={`edit-damage-image-${damage.id}`} className="cursor-pointer text-blue-600 p-1" title="Upload Image"><UploadIcon /></label></>
-                            )}
-                        </div>
-                    ) : (
-                        <FileActions fileData={damage.damageImage} fileName={damage.damageImageFilename} />
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {isEditing && !hasReport && hasManagePermission ? (
-                         <div>
-                            {damage.repairInvoice ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <a href={damage.repairInvoice} target="_blank" rel="noopener noreferrer" title={damage.repairInvoiceFilename} className="text-blue-600 p-1"><DocumentTextIcon /></a>
-                                    <button onClick={() => handleRemoveFile(damage.id, 'repairInvoice')} className="text-red-500 p-1" title="Remove Invoice"><TrashIcon /></button>
-                                </div>
-                            ) : (
-                                <><input type="file" id={`edit-invoice-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'repairInvoice', e)} accept="image/*,.pdf"/><label htmlFor={`edit-invoice-${damage.id}`} className="cursor-pointer text-blue-600 p-1" title="Upload Invoice"><UploadIcon /></label></>
-                            )}
-                        </div>
-                    ) : (
-                       <FileActions fileData={damage.repairInvoice} fileName={damage.repairInvoiceFilename} />
-                    )}
-                  </td>
-                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {isEditing && hasReport && hasManagePermission ? (
-                         <div>
-                            {damage.policeReportFile ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <a href={damage.policeReportFile} target="_blank" rel="noopener noreferrer" title={damage.policeReportFilename} className="text-blue-600 p-1"><DocumentTextIcon /></a>
-                                    <button onClick={() => handleRemoveFile(damage.id, 'policeReportFile')} className="text-red-500 p-1" title="Remove Report"><TrashIcon /></button>
-                                </div>
-                            ) : (
-                                <><input type="file" id={`edit-report-${damage.id}`} className="hidden" onChange={(e) => handleUpdateFileChange(damage.id, 'policeReportFile', e)} accept="image/*,.pdf"/><label htmlFor={`edit-report-${damage.id}`} className="cursor-pointer text-blue-600 p-1" title="Upload Report"><UploadIcon /></label></>
-                            )}
-                        </div>
-                    ) : (
-                       <FileActions fileData={damage.policeReportFile} fileName={damage.policeReportFilename} />
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {isEditing && hasManagePermission ? (
-                        <>
-                          <button onClick={handleSaveEdit} className="text-green-600 hover:text-green-700" title="Save"><SaveIcon /></button>
-                          <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700" title="Cancel"><CancelIcon /></button>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                            {claimableAmount > 0 && (
-                                <>
-                                {damage.status === VehicleDamageStatus.NOT_COLLECTED ? (
-                                    <button 
-                                        onClick={() => handleSendEmail('claim', damage, res!)}
-                                        disabled={!canSendEmail}
-                                        className="flex items-center gap-1.5 px-2 py-1 bg-orange-500 text-white rounded-md text-xs hover:bg-orange-600 disabled:bg-gray-400"
-                                        title={canSendEmail ? "Send claim email to renter" : "Renter email not found in voucher"}
-                                    >
-                                        <PaperAirplaneIcon /> Send Claim
-                                    </button>
-                                ) : (
-                                    <button 
-                                        onClick={() => handleSendEmail('receipt', damage, res!)}
-                                        disabled={!canSendEmail}
-                                        className="flex items-center gap-1.5 px-2 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 disabled:bg-gray-400"
-                                        title={canSendEmail ? "Send receipt email to renter" : "Renter email not found in voucher"}
-                                    >
-                                        <PaperAirplaneIcon /> Send Receipt
-                                    </button>
-                                )}
-                                </>
-                            )}
-                             {hasManagePermission && (
-                                <div className="flex items-center border-l pl-2 ml-1">
-                                    <button onClick={() => handleEditClick(damage)} className="p-1 text-blue-500 hover:text-blue-700" title="Edit"><EditIcon /></button>
-                                    <button onClick={() => handleDeleteClick(damage.id)} className="p-1 text-red-500 hover:text-red-700" title="Delete"><TrashIcon /></button>
-                                </div>
-                            )}
+        {filteredDamages.length === 0 ? (
+          <div className="px-6 py-14 text-center">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+              <ShieldExclamationIcon className="w-6 h-6" />
+            </div>
+            <p className="mt-3 font-semibold text-slate-700">{damages.length > 0 ? 'No damages match this filter' : 'No vehicle damages recorded'}</p>
+            <p className="text-sm text-slate-500">{damages.length > 0 ? 'Choose a different status to see more reports.' : 'Damage reports will appear here, linked to their booking.'}</p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                  <tr>{headers.map((h, i) => <th key={i} className={`px-4 py-3 font-semibold ${i === 2 || i === 4 ? 'text-right' : 'text-left'}`}>{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map(({ damage, res }) => {
+                    const isEditing = editingId === damage.id;
+                    return (
+                      <tr key={damage.id} className={`align-top ${isEditing ? 'bg-amber-50/50' : 'hover:bg-slate-50/70'}`}>
+                        <td className="px-4 py-3 min-w-[160px]">
+                          <p className="font-semibold text-slate-900">{res?.personName || <span className="text-slate-400 font-normal">Unknown renter</span>}</p>
+                          <p className="text-xs text-slate-500"><span className="font-mono">#{damage.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600 tabular-nums">{res ? <>{res.startDate}<br />{res.endDate}</> : <span className="text-slate-400">-</span>}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-slate-900 tabular-nums">{repairCostCell(damage, isEditing)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-slate-700">{reportNumberCell(damage, isEditing)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-slate-900 tabular-nums">{excessCell(damage, isEditing)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{isEditing && hasManagePermission ? statusSelect(damage) : statusPill(damage)}</td>
+                        <td className="px-4 py-3 text-slate-600 min-w-[200px] max-w-xs">{isEditing && hasManagePermission ? <textarea value={damage.details} onChange={e => handleUpdateChange(damage.id, 'details', e.target.value)} className={editCls} rows={2} /> : (damage.details || <span className="text-slate-300">-</span>)}</td>
+                        <td className="px-4 py-3 min-w-[190px]">{renderFiles(damage, isEditing, 'd')}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right">{renderActions(damage, res, isEditing)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <ul className="md:hidden divide-y divide-slate-100">
+              {rows.map(({ damage, res }) => {
+                const isEditing = editingId === damage.id;
+                const hasReport = !!damage.policeReportNumber;
+                const editing = isEditing && !!hasManagePermission;
+                return (
+                  <li key={damage.id} className={`px-4 py-4 space-y-3 ${isEditing ? 'bg-amber-50/50' : ''}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{res?.personName || 'Unknown renter'}</p>
+                        <p className="text-xs text-slate-500 truncate"><span className="font-mono">#{damage.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
+                      </div>
+                      {!editing && (
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-slate-900 tabular-nums">{money(claimableOf(damage))} JOD</p>
+                          <div className="mt-1">{statusPill(damage)}</div>
                         </div>
                       )}
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredDamages.length === 0 && (
-                <tr>
-                    <td colSpan={headers.length} className="text-center py-10 text-gray-500">
-                        {damages.length > 0 ? 'No damages match the current filter.' : 'No vehicle damages have been recorded yet.'}
-                    </td>
-                </tr>
-            )}
-          </tbody>
-        </table>
+                    {editing ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {!hasReport && <div className="col-span-2"><label className={labelCls}>Repair cost (JOD)</label>{repairCostCell(damage, isEditing)}</div>}
+                        {hasReport && <div><label className={labelCls}>Police report #</label>{reportNumberCell(damage, isEditing)}</div>}
+                        {hasReport && <div><label className={labelCls}>Excess (JOD)</label>{excessCell(damage, isEditing)}</div>}
+                        <div className="col-span-2"><label className={labelCls}>Status</label>{statusSelect(damage)}</div>
+                        <div className="col-span-2"><label className={labelCls}>Details</label><textarea value={damage.details} onChange={e => handleUpdateChange(damage.id, 'details', e.target.value)} className={editCls} rows={2} /></div>
+                      </div>
+                    ) : (
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                        <dt className="text-slate-400">Type</dt><dd className="text-slate-700 text-right">{hasReport ? 'Police report' : 'Repair'}</dd>
+                        {hasReport
+                          ? <><dt className="text-slate-400">Report #</dt><dd className="text-slate-700 text-right font-mono truncate">{damage.policeReportNumber}</dd></>
+                          : <><dt className="text-slate-400">Repair cost</dt><dd className="text-slate-700 text-right tabular-nums">{money(damage.amount)} JOD</dd></>}
+                        <dt className="text-slate-400">Rental</dt><dd className="text-slate-700 text-right tabular-nums">{res ? `${res.startDate} – ${res.endDate}` : '-'}</dd>
+                        {damage.details && <dd className="col-span-2 mt-1 text-sm text-slate-600 break-words">{damage.details}</dd>}
+                      </dl>
+                    )}
+                    <div className="rounded-xl bg-slate-50 px-3 py-1.5">{renderFiles(damage, isEditing, 'm')}</div>
+                    {renderActions(damage, res, isEditing, true)}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </div>
 
+      {/* Add damage modal */}
+      {hasManagePermission && showAddForm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 sm:p-4" onClick={() => setShowAddForm(false)}>
+          <form onSubmit={handleAddSubmit} onClick={e => e.stopPropagation()} className="w-full sm:max-w-3xl max-h-[92vh] flex flex-col bg-white rounded-t-2xl sm:rounded-2xl shadow-xl">
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-slate-900">Add damage report</h3>
+                <p className="text-sm text-slate-500">Link the damage to an existing booking.</p>
+              </div>
+              <button type="button" onClick={() => setShowAddForm(false)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close"><CancelIcon className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 sm:px-6 py-5 space-y-5 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Booking ID</label>
+                  <input type="text" value={newDamageData.bookingId} onChange={e => handleInputChange('bookingId', e.target.value)} placeholder="Enter booking ID" className={inputCls} required autoFocus />
+                </div>
+                <div className="sm:pt-6">
+                  <label htmlFor="hasPoliceReport" className="flex items-center gap-3 px-3 py-2.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      id="hasPoliceReport"
+                      checked={hasPoliceReport}
+                      onChange={e => handleHasReportChange(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium text-slate-700">Incident involves a police report</span>
+                  </label>
+                </div>
+              </div>
+
+              {foundReservation ? (
+                <div className="px-3 py-2.5 text-sm bg-emerald-50 ring-1 ring-inset ring-emerald-200 text-emerald-800 rounded-xl">
+                  <span className="font-semibold">Reservation found:</span> {foundReservation.personName} ({foundReservation.carModel}) · Vehicle excess <span className="font-semibold tabular-nums">{vehicleExcessJOD.toFixed(2)} JOD</span>
+                </div>
+              ) : newDamageData.bookingId ? (
+                <div className="px-3 py-2.5 text-sm bg-rose-50 ring-1 ring-inset ring-rose-200 text-rose-700 rounded-xl">
+                  No reservation found with this booking ID.
+                </div>
+              ) : null}
+
+              <div className="pt-4 border-t border-slate-100">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3">{hasPoliceReport ? 'Police report' : 'Repair'}</p>
+                {hasPoliceReport ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelCls}>Police report #</label>
+                      <input type="text" value={newDamageData.policeReportNumber} onChange={e => handleInputChange('policeReportNumber', e.target.value)} className={inputCls} required={hasPoliceReport} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Amount to collect (vehicle excess)</label>
+                      <div className="px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 tabular-nums">{vehicleExcessJOD.toFixed(2)} JOD</div>
+                    </div>
+                    {fileSlot('policeReportFile', 'report-upload', 'image/*,.pdf', 'Police report document')}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}>Damage repair cost (JOD)</label>
+                      <input type="number" step="0.01" value={newDamageData.amount || ''} placeholder="0.00" onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)} className={inputCls} />
+                    </div>
+                    {fileSlot('repairInvoice', 'invoice-upload', 'image/*,.pdf', 'Repair invoice')}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Damage details</label>
+                  <textarea value={newDamageData.details} onChange={e => handleInputChange('details', e.target.value)} rows={3} placeholder="e.g. Large scratch on passenger door" className={inputCls} required></textarea>
+                </div>
+                <div className="space-y-4">
+                  {fileSlot('damageImage', 'damage-image-upload', 'image/*', 'Car damage image')}
+                  <div>
+                    <label className={labelCls}>Collection status</label>
+                    <select value={newDamageData.status} onChange={e => handleInputChange('status', e.target.value)} className={inputCls}>
+                      <option value={VehicleDamageStatus.NOT_COLLECTED}>Not Collected</option>
+                      <option value={VehicleDamageStatus.COLLECTED}>Collected</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">Applies to the {hasPoliceReport ? 'vehicle excess amount' : 'repair cost'}.</p>
+                  </div>
+                </div>
+              </div>
+              {validationError && <p className="text-sm font-medium text-rose-600">{validationError}</p>}
+            </div>
+            <div className="px-5 sm:px-6 py-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+              <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50">Cancel</button>
+              <button type="submit" disabled={!foundReservation} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                <PlusIcon className="w-4 h-4" /> Add damage report
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {damageToDelete && (
-        <ConfirmationDialog 
+        <ConfirmationDialog
             message="Are you sure you want to delete this damage report? This action cannot be undone."
             onConfirm={handleConfirmDelete}
             onCancel={() => setDamageToDelete(null)}
