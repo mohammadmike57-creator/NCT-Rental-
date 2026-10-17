@@ -76,6 +76,8 @@ public class SecurityConfig {
                     "/auth/signup",
                     "/auth/change-password",
                     "/",
+                    "/index.html",
+                    "/index.tsx",
                     "/health",
                     "/api/state",
                     "/stripe/**",
@@ -95,9 +97,15 @@ public class SecurityConfig {
                     "/*.png",
                     "/*.jpg",
                     "/*.ico",
-                    "/*.svg"
+                    "/*.svg",
+                    "/*.js",
+                    "/*.css",
+                    "/*.tsx",
+                    "/*.ts",
+                    "/*.html"
                 ).permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

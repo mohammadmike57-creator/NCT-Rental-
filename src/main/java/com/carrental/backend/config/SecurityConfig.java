@@ -80,6 +80,8 @@ public class SecurityConfig {
                     "/auth/signup",
                     "/auth/change-password",
                     "/",
+                    "/index.html",
+                    "/index.tsx",
                     "/health",
                     "/stripe/**",
                     // Partner XML API: authenticated per channel with a feed key (see OtaPartnerController)
@@ -99,9 +101,15 @@ public class SecurityConfig {
                     "/*.png",
                     "/*.jpg",
                     "/*.ico",
-                    "/*.svg"
+                    "/*.svg",
+                    "/*.js",
+                    "/*.css",
+                    "/*.tsx",
+                    "/*.ts",
+                    "/*.html"
                 ).permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
