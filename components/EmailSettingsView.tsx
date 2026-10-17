@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { getMailSettings, MailSettingsView, saveMailSettings, sendTestEmail } from '../firebase/api';
 
 const PROVIDERS: { key: string; label: string; sub: string; host: string; port: number; security: 'STARTTLS' | 'SSL'; user?: string; help: string }[] = [
-  { key: 'brevo', label: 'Brevo', sub: 'Sending service · no inbox', host: 'smtp-relay.brevo.com', port: 587, security: 'STARTTLS', help: 'Free plan available. In Brevo: Senders & IP → add and verify your domain or sender address, then SMTP & API → create an SMTP key. Username = your Brevo SMTP login, password = the SMTP key.' },
-  { key: 'sendgrid', label: 'SendGrid', sub: 'Sending service · no inbox', host: 'smtp.sendgrid.net', port: 587, security: 'STARTTLS', user: 'apikey', help: 'In SendGrid: verify a sender or your domain, then create an API key with "Mail Send" permission. Username is the word apikey, password is the API key.' },
-  { key: 'mailgun', label: 'Mailgun', sub: 'Sending service · no inbox', host: 'smtp.mailgun.org', port: 587, security: 'STARTTLS', help: 'In Mailgun: add and verify your sending domain, then create SMTP credentials for it (e.g. postmaster@mg.yourdomain.com).' },
-  { key: 'ses', label: 'Amazon SES', sub: 'Sending service · no inbox', host: 'email-smtp.eu-west-1.amazonaws.com', port: 587, security: 'STARTTLS', help: 'In Amazon SES: verify your domain, then create SMTP credentials. Use the SMTP endpoint of your SES region.' },
+  { key: 'domain', label: 'Your domain email', sub: 'e.g. bookings@yourcompany.com', host: '', port: 465, security: 'SSL', help: 'Use an address on your own domain (from your website hosting, cPanel, Plesk, Zoho, etc.). Your hosting panel shows the outgoing (SMTP) server — usually mail.yourdomain.com — with port 465 (SSL) or 587 (STARTTLS). Username is the full email address and the password is that email account\'s password. The system only sends from it; it never opens the inbox.' },
+  { key: 'brevo', label: 'Brevo', sub: 'Optional sending service', host: 'smtp-relay.brevo.com', port: 587, security: 'STARTTLS', help: 'Free plan available. In Brevo: Senders & IP → add and verify your domain or sender address, then SMTP & API → create an SMTP key. Username = your Brevo SMTP login, password = the SMTP key.' },
+  { key: 'sendgrid', label: 'SendGrid', sub: 'Optional sending service', host: 'smtp.sendgrid.net', port: 587, security: 'STARTTLS', user: 'apikey', help: 'In SendGrid: verify a sender or your domain, then create an API key with "Mail Send" permission. Username is the word apikey, password is the API key.' },
+  { key: 'mailgun', label: 'Mailgun', sub: 'Optional sending service', host: 'smtp.mailgun.org', port: 587, security: 'STARTTLS', help: 'In Mailgun: add and verify your sending domain, then create SMTP credentials for it (e.g. postmaster@mg.yourdomain.com).' },
+  { key: 'ses', label: 'Amazon SES', sub: 'Optional sending service', host: 'email-smtp.eu-west-1.amazonaws.com', port: 587, security: 'STARTTLS', help: 'In Amazon SES: verify your domain, then create SMTP credentials. Use the SMTP endpoint of your SES region.' },
   { key: 'gmail', label: 'Gmail / Workspace', sub: 'Existing Google account', host: 'smtp.gmail.com', port: 587, security: 'STARTTLS', help: 'Uses an existing Google account only to send. Turn on 2-Step Verification, create an App password (Google Account → Security → App passwords) and paste it as the password.' },
   { key: 'outlook', label: 'Outlook / 365', sub: 'Existing Microsoft account', host: 'smtp.office365.com', port: 587, security: 'STARTTLS', help: 'Uses an existing Microsoft 365 account only to send. SMTP AUTH must be allowed for it in Microsoft 365 admin.' },
   { key: 'custom', label: 'Other', sub: 'Any SMTP server', host: '', port: 587, security: 'STARTTLS', help: 'Ask your email or hosting provider for the SMTP server, port and login.' },
@@ -15,8 +16,8 @@ const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl
 
 const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: string }> = ({ defaultFromName, defaultTestTo }) => {
   const [loaded, setLoaded] = useState<MailSettingsView | null>(null);
-  const [form, setForm] = useState({ enabled: true, host: 'smtp-relay.brevo.com', port: 587, security: 'STARTTLS' as 'STARTTLS' | 'SSL', username: '', password: '', fromAddress: '', fromName: defaultFromName || '', replyTo: '' });
-  const [provider, setProvider] = useState('brevo');
+  const [form, setForm] = useState({ enabled: true, host: '', port: 465, security: 'SSL' as 'STARTTLS' | 'SSL', username: '', password: '', fromAddress: '', fromName: defaultFromName || '', replyTo: '' });
+  const [provider, setProvider] = useState('domain');
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [testTo, setTestTo] = useState(defaultTestTo || '');
@@ -27,7 +28,7 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
     setForm(f => ({ ...f, enabled: s.source === 'none' ? true : s.enabled, host: s.host || f.host, port: s.port || f.port, security: s.security || f.security,
       username: s.username || '', password: '', fromAddress: s.fromAddress || '', fromName: s.fromName || f.fromName, replyTo: s.replyTo || '' }));
     const p = PROVIDERS.find(x => x.host && x.host === s.host);
-    setProvider(p ? p.key : s.host ? 'custom' : 'brevo');
+    setProvider(p ? p.key : s.host ? 'domain' : 'domain');
   };
 
   useEffect(() => { getMailSettings().then(apply).catch(e => setLoadError(e.message)); }, []);
@@ -35,7 +36,10 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
   const pick = (key: string) => {
     setProvider(key);
     const p = PROVIDERS.find(x => x.key === key)!;
-    if (key !== 'custom') setForm(f => ({ ...f, host: p.host, port: p.port, security: p.security, username: p.user && !f.username ? p.user : f.username }));
+    if (key === 'domain') {
+      const dom = (form.username.split('@')[1] || form.fromAddress.split('@')[1] || '').trim();
+      setForm(f => ({ ...f, host: f.host && !PROVIDERS.some(x => x.host && x.host === f.host) ? f.host : dom ? `mail.${dom}` : '', port: 465, security: 'SSL' }));
+    } else if (key !== 'custom') setForm(f => ({ ...f, host: p.host, port: p.port, security: p.security, username: p.user && !f.username ? p.user : f.username }));
   };
 
   const save = async () => {
@@ -100,7 +104,7 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
             Send documents to customers
           </label>
         </div>
-        <p className="text-xs text-slate-500 -mt-2">A sending service (Brevo, SendGrid, Mailgun, Amazon SES) sends from an address like <b>noreply@yourcompany.com</b> without any mailbox behind it. You can also send through an existing Google or Microsoft account.</p>
+        <p className="text-xs text-slate-500 -mt-2">Use your own domain email (any address on your domain), or an existing Google / Microsoft account. Sending services like Brevo or SendGrid are optional — useful only for very high volumes.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {PROVIDERS.map(p => (
             <button key={p.key} onClick={() => pick(p.key)} className={`p-3 rounded-xl text-left ring-1 ${provider === p.key ? 'ring-2 ring-indigo-600 bg-indigo-50/50' : 'ring-slate-200 hover:bg-slate-50'}`}>
@@ -121,13 +125,14 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">SMTP username</span>
-            <input className={inputCls} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder={provider === 'sendgrid' ? 'apikey' : 'Login from your sending service'} autoComplete="off" /></label>
+            <input className={inputCls} value={form.username} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, username: v, host: provider === 'domain' && (!f.host || f.host.startsWith('mail.')) && v.includes('@') ? `mail.${v.split('@')[1]}` : f.host, fromAddress: provider === 'domain' && (!f.fromAddress || f.fromAddress === f.username) ? v : f.fromAddress })); }}
+              placeholder={provider === 'domain' ? 'bookings@yourcompany.com' : provider === 'sendgrid' ? 'apikey' : 'Login from your sending service'} autoComplete="off" /></label>
           <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Password {loaded?.passwordSet && <span className="text-emerald-600">· saved (leave empty to keep)</span>}</span>
-            <input type="password" className={inputCls} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={loaded?.passwordSet ? '••••••••••••' : provider === 'gmail' ? '16-character app password' : provider === 'custom' || provider === 'outlook' ? 'Password' : 'SMTP key / API key'} autoComplete="new-password" /></label>
+            <input type="password" className={inputCls} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={loaded?.passwordSet ? '••••••••••••' : provider === 'gmail' ? '16-character app password' : provider === 'domain' ? 'The email account\'s password' : provider === 'custom' || provider === 'outlook' ? 'Password' : 'SMTP key / API key'} autoComplete="new-password" /></label>
           <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Sender name customers see</span>
             <input className={inputCls} value={form.fromName} onChange={e => setForm(f => ({ ...f, fromName: e.target.value }))} placeholder="UR-Drive Jordan" /></label>
-          <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Sender address <span className="text-slate-400">(verified with the service)</span></span>
-            <input className={inputCls} value={form.fromAddress} onChange={e => setForm(f => ({ ...f, fromAddress: e.target.value }))} placeholder="noreply@yourcompany.com" /></label>
+          <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Sender address <span className="text-slate-400">(normally the same email)</span></span>
+            <input className={inputCls} value={form.fromAddress} onChange={e => setForm(f => ({ ...f, fromAddress: e.target.value }))} placeholder="bookings@yourcompany.com" /></label>
           <label className="block md:col-span-2"><span className="block text-xs font-medium text-slate-500 mb-1">Replies go to <span className="text-slate-400">(optional — leave empty for send-only)</span></span>
             <input className={inputCls} value={form.replyTo} onChange={e => setForm(f => ({ ...f, replyTo: e.target.value }))} placeholder="Leave empty: emails say replies are not received and show your phone number" />
             <span className="block text-xs text-slate-400 mt-1">Only fill this in if customers' replies should reach someone. The system itself never reads replies.</span></label>
