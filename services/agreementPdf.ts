@@ -46,7 +46,7 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
 
     // Places where a page may end without cutting through a row, card or photo (in CSS px from the top).
     const bodyTop = body.getBoundingClientRect().top;
-    const breaks = Array.from(doc.querySelectorAll('tr, .card, .avoid, .sec, table, .totals, .note, .band, .photos, .sign, .info, .parties, .sum'))
+    const breaks = Array.from(doc.querySelectorAll('tr, .card, .avoid, .sec, table, .totals, .note, .band, .photos, .sign, .info, .parties, .sum, .foot, .balance, .notes, .sig, .lead, .facts'))
       .map(el => (el as HTMLElement).getBoundingClientRect().bottom - bodyTop)
       .filter(b => b > 0)
       .sort((a, b) => a - b);
@@ -61,9 +61,26 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     const sliceH = Math.floor((pageH - margin * 2 - 10) / ratio);
     let y = 0;
     let page = 0;
-    while (y < canvas.height - 2) {
-      let end = Math.min(y + sliceH, canvas.height);
-      if (end < canvas.height) {
+    // Trim the blank space below the last element so it doesn't count as content.
+    const contentBottom = Math.min(canvas.height, Math.round(((breaks[breaks.length - 1] ?? height) + 12) * scale));
+    // A document that is only slightly longer than one page is shrunk onto it rather than leaving a near-empty page.
+    if (contentBottom > sliceH && contentBottom <= sliceH * 1.1) {
+      const fit = (pageH - margin * 2 - 10) / contentBottom;
+      const w = canvas.width * fit;
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = contentBottom;
+      const ctx = slice.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, 0, canvas.width, contentBottom, 0, 0, canvas.width, contentBottom);
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.9), 'JPEG', (pageW - w) / 2, margin, w, contentBottom * fit);
+      y = canvas.height;
+      page = 1;
+    }
+    while (y < Math.min(canvas.height, contentBottom) - 2) {
+      let end = Math.min(y + sliceH, contentBottom);
+      if (end < contentBottom) {
         const fit = breaks.map(b => Math.round((b + 5) * scale)).filter(b => b > y + sliceH * 0.55 && b <= y + sliceH);
         if (fit.length) end = fit[fit.length - 1];
       }

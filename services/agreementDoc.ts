@@ -70,6 +70,8 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     <div class="sig"><div class="si">${img ? `<img src="${esc(img)}"/>` : ''}</div><div class="sl">${esc(role)}</div><div class="sm">${esc([name, at].filter(Boolean).join(' · ') || ' ')}</div></div>`;
   const tick = (v?: boolean, warn?: boolean) => (v ? '<span class="ok">✔</span>' : warn ? '<span class="bad">✕</span>' : '<span class="dim">—</span>');
 
+  // Notes sit beside the rental charges when there is no charges-at-return card, to keep one page.
+  const sideNotes = !rc && (closed ? !!(r.pickupNotes || r.dropOffNotes) : !!r.pickupNotes);
   const status = closed ? ['Closed', 'closed'] : onRent ? ['On rent', 'open'] : ['Booked', 'new'];
   const paymentLine = i.prepaid
     ? `Prepaid via ${esc(r.source || 'partner')}`
@@ -108,6 +110,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   td, th { padding: 3px 4px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: middle; }
   th { font-size: 6.8pt; text-transform: uppercase; letter-spacing: .07em; color: #64748b; font-weight: 700; }
   .cmp th { background: #f8fafc; }
+  .cmp td, .cl td { padding-top: 1px; }
   .cgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px; }
   .cgrid > div > span { display: block; font-size: 6.8pt; color: #64748b; text-transform: uppercase; letter-spacing: .08em; }
   .cgrid b { font-size: 9pt; }
@@ -137,6 +140,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .sgrp { border: 1px solid #eef2f6; border-radius: 6px; padding: 5px 8px 6px; }
   .sgrp h3 { font-size: 6.8pt; text-transform: uppercase; letter-spacing: .1em; color: #64748b; margin-bottom: 2px; }
   .sgrp .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .nl + .nl { margin-top: 5px; } .nl span { display: block; font-size: 6.6pt; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; }
   .sgrp.next p { font-size: 7.4pt; color: #475569; margin-top: 3px; } .sgrp.next .due { color: #0f172a; }
   .si { height: 34px; display: flex; align-items: flex-end; justify-content: center; }
   .si img { max-height: 34px; max-width: 100%; }
@@ -208,14 +212,14 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>At check-out (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>New at check-in (${returnMarks.length})` : ''}</div>
     </div>
     <div class="card"><h2>Inspection checklist</h2>
-      <table>
+      <table class="cl">
         <tr><th>Item</th><th class="ctr">Out</th>${closed ? '<th class="ctr">In</th>' : ''}</tr>
         ${i.checklistItems.map(x => `<tr><td>${esc(x)}</td><td class="ctr">${tick(out[x])}</td>${closed ? `<td class="ctr">${tick(back[x], !!out[x])}</td>` : ''}</tr>`).join('')}
       </table>
     </div>
   </div>
 
-  <div class="${rc || (!closed && r.pickupNotes) ? 'g2' : ''}" style="${rc || (!closed && r.pickupNotes) ? '' : 'margin-top:7px'}">
+  <div class="${rc || sideNotes ? 'g2' : ''}" style="${rc || sideNotes ? '' : 'margin-top:7px'}">
     <div class="card"><h2>Rental charges</h2>
       <table>
         <tr><td>Rental · ${i.rentalDays} day${i.rentalDays === 1 ? '' : 's'}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
@@ -224,7 +228,9 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       </table>
       <div class="settle info">${paymentLine}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
-    ${!closed && r.pickupNotes ? `<div class="card"><h2>Check-out notes</h2><div class="notes">${esc(r.pickupNotes)}</div></div>` : ''}
+    ${sideNotes ? `<div class="card"><h2>${closed ? 'Notes' : 'Check-out notes'}</h2>${closed
+      ? `<div class="nl"><span>At check-out</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>At check-in</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`
+      : `<div class="notes">${esc(r.pickupNotes)}</div>`}</div>` : ''}
     ${rc ? `<div class="card"><h2>Charges at check-in · ${esc(rc.documentNumber || '')}</h2>
       <table>
         ${rc.items.map(it => `<tr><td>${esc(CHARGE_KIND_LABEL[it.kind])} — ${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
@@ -238,7 +244,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
 
   ${photos.length ? `<div class="card" style="margin-top:7px"><h2>Photo evidence at check-in</h2><div class="photos">${photos.map(p => `<figure><img src="${esc(p.src)}"/><figcaption>${esc(p.cap)}</figcaption></figure>`).join('')}</div></div>` : ''}
 
-  ${closed && (r.pickupNotes || r.dropOffNotes) ? `<div class="g2">
+  ${closed && rc && (r.pickupNotes || r.dropOffNotes) ? `<div class="g2">
     <div class="card"><h2>Check-out notes</h2><div class="notes">${esc(r.pickupNotes || '—')}</div></div>
     <div class="card"><h2>Check-in notes</h2><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
   </div>` : ''}
