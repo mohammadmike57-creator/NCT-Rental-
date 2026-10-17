@@ -92,6 +92,7 @@ public class SecurityConfig {
                     "/favicon.png",
                     "/manifest.json",
                     "/service-worker.js",
+                    "/sw.js",
                     "/offline.html",
                     "/static/**",
                     "/public/**",

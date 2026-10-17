@@ -1,12 +1,23 @@
-
 import React, { useState } from 'react';
 import { PlusIcon, TrashIcon, CalendarIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Badge, Button, Field, inputCls, EmptyState } from './ui/Crm';
 
 interface ManageYearsViewProps {
   years: number[];
   onAddYear: (year: number) => void;
   onRemoveYear: (year: number) => void;
 }
+
+/** Settings row: short description column on the left (lg), content on the right. */
+const SettingsSection: React.FC<{ title: string; description: React.ReactNode; children: React.ReactNode }> = ({ title, description, children }) => (
+  <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+    <div className="mb-3 lg:mb-0 lg:pt-1">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <p className="mt-0.5 text-[13px] text-slate-500">{description}</p>
+    </div>
+    <div className="lg:col-span-2 min-w-0">{children}</div>
+  </div>
+);
 
 const ManageYearsView: React.FC<ManageYearsViewProps> = ({ years, onAddYear, onRemoveYear }) => {
   const [newYear, setNewYear] = useState<string>('');
@@ -25,80 +36,74 @@ const ManageYearsView: React.FC<ManageYearsViewProps> = ({ years, onAddYear, onR
   const sorted = [...years].sort((a, b) => a - b);
 
   return (
-    <div className="space-y-5 mb-10 max-w-3xl">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-          <CalendarIcon className="w-6 h-6" />
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Reservation years</h2>
-          <p className="text-sm text-slate-500">Years available for storing and browsing reservations.</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        section="Administration"
+        title="Reservation Years"
+        subtitle="Years available for storing and browsing reservations."
+      />
 
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Add a year</h3>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="number"
-            inputMode="numeric"
-            value={newYear}
-            onChange={(e) => setNewYear(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleAddClick(); }}
-            placeholder={`e.g. ${currentYear + 1}`}
-            aria-label="New year"
-            className="w-full sm:flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-          />
-          <button
-            onClick={handleAddClick}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700"
-            aria-label="Add year"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Add year
-          </button>
-        </div>
-        <p className="text-xs text-slate-400 mt-2">Enter a year between 2001 and 2099.</p>
-      </section>
+      <StatGrid items={[
+        { label: 'Configured', value: years.length },
+        { label: 'Earliest', value: sorted.length ? sorted[0] : '—', tone: 'muted' },
+        { label: 'Latest', value: sorted.length ? sorted[sorted.length - 1] : '—', tone: 'muted' },
+      ]} />
 
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Configured years</h3>
-          <span className="text-xs text-slate-400">{years.length}</span>
-        </div>
-        {sorted.length === 0 ? (
-          <div className="px-5 py-12 text-center">
-            <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-              <CalendarIcon className="w-6 h-6" />
+      <SettingsSection title="Add a year" description="Make a new year available for reservations, reports and filters.">
+        <Panel
+          footer={
+            <div className="flex items-center justify-between gap-2">
+              <span>Enter a year between 2001 and 2099.</span>
+              <Button variant="primary" size="sm" onClick={handleAddClick} aria-label="Add year" icon={<PlusIcon className="w-4 h-4" />}>
+                Add year
+              </Button>
             </div>
-            <p className="text-sm font-semibold text-slate-900">No years configured</p>
-            <p className="text-sm text-slate-500 mt-1">Add a year above to start storing reservations in it.</p>
+          }
+        >
+          <div className="p-4">
+            <Field label="Year" className="sm:max-w-xs">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={newYear}
+                onChange={(e) => setNewYear(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddClick(); }}
+                placeholder={`e.g. ${currentYear + 1}`}
+                aria-label="New year"
+                className={`${inputCls} tabular-nums`}
+              />
+            </Field>
           </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {sorted.map((year) => (
-              <li key={year} className="px-5 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-base font-semibold text-slate-900 tabular-nums">{year}</span>
-                  {year === currentYear && (
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-indigo-50 text-indigo-700 ring-indigo-600/20">Current</span>
-                  )}
-                </div>
-                <button
-                  onClick={() => onRemoveYear(year)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                  aria-label={`Delete ${year}`}
-                  title={`Remove ${year}`}
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
+        </Panel>
+      </SettingsSection>
+
+      <SettingsSection title="Configured years" description="Removing a year hides it from the year selector.">
+        <Panel title="Years" subtitle={`${years.length} configured`}>
+          {sorted.length === 0 ? (
+            <EmptyState icon={<CalendarIcon />} title="No years configured" hint="Add a year above to start storing reservations in it." />
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {sorted.map((year) => (
+                <li key={year} className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[13px] font-semibold text-slate-900 tabular-nums">{year}</span>
+                    {year === currentYear && <Badge tone="info">Current</Badge>}
+                  </div>
+                  <button
+                    onClick={() => onRemoveYear(year)}
+                    className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                    aria-label={`Delete ${year}`}
+                    title={`Remove ${year}`}
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </SettingsSection>
+    </Page>
   );
 };
 

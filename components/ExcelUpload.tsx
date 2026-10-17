@@ -3,7 +3,8 @@ import * as XLSX from 'xlsx';
 import { Reservation, ImportReport } from '../types';
 import { MONTHS, INITIAL_YEARS } from '../constants';
 import { reservationService } from '../services/reservationService';
-import { UploadIcon, DocumentTextIcon, CheckCircleIcon, AlertIcon } from './icons';
+import { UploadIcon, DocumentTextIcon, AlertIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Badge, Field, selectCls as crmSelectCls } from './ui/Crm';
 
 interface ExcelUploadProps {
   onReservationsImported: (data: any, report: ImportReport) => void;
@@ -12,7 +13,18 @@ interface ExcelUploadProps {
   focusMonth?: string;
 }
 
-const selectCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
+const selectCls = `${crmSelectCls} w-full`;
+
+/** Settings row: short description column on the left (lg), content on the right. */
+const SettingsSection: React.FC<{ title: string; description: React.ReactNode; children: React.ReactNode }> = ({ title, description, children }) => (
+  <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+    <div className="mb-3 lg:mb-0 lg:pt-1">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <div className="mt-0.5 text-[13px] text-slate-500">{description}</div>
+    </div>
+    <div className="lg:col-span-2 min-w-0">{children}</div>
+  </div>
+);
 
 const formatSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
@@ -87,153 +99,129 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   ];
 
   const stats = report ? [
-    { label: 'Imported', value: report.imported, cls: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
-    { label: 'Updated', value: report.duplicates, cls: 'bg-sky-50 text-sky-700 ring-sky-600/20' },
-    { label: 'Invalid', value: report.invalidRows, cls: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
-    { label: 'Skipped', value: report.skipped, cls: 'bg-slate-50 text-slate-700 ring-slate-500/20' },
+    { label: 'Imported', value: report.imported, tone: 'success' as const },
+    { label: 'Updated', value: report.duplicates, tone: 'info' as const },
+    { label: 'Invalid', value: report.invalidRows, tone: 'warning' as const },
+    { label: 'Skipped', value: report.skipped, tone: 'muted' as const },
   ] : [];
 
   return (
-    <div className="space-y-5 mb-10 max-w-4xl">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-          <UploadIcon className="w-6 h-6" />
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Import reservations</h2>
-          <p className="text-sm text-slate-500">Bring bookings in from an Excel or CSV export and store them in a chosen month.</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        section="Data Management"
+        title="Import Reservations"
+        subtitle="Bring bookings in from an Excel or CSV export and store them in a chosen month."
+      />
 
       {/* Steps */}
-      <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <ol className="bg-white rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
         {steps.map(s => (
-          <li key={s.n} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex gap-3">
-            <span className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0 ring-1 ring-inset ring-indigo-600/20">{s.n}</span>
+          <li key={s.n} className="px-4 py-3 flex gap-3 min-w-0">
+            <span className="w-6 h-6 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold flex items-center justify-center shrink-0 tabular-nums">{s.n}</span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">{s.title}</p>
+              <p className="text-[13px] font-semibold text-slate-900">{s.title}</p>
               <p className="text-xs text-slate-500 mt-0.5">{s.text}</p>
             </div>
           </li>
         ))}
       </ol>
 
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5">
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Storage period</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="block">
-              <span className="block text-sm font-medium text-slate-700 mb-1">Year</span>
+      <SettingsSection title="Storage period" description="The year and month the imported reservations are stored under.">
+        <Panel footer={<span>Reservations will be permanently stored in <strong className="text-slate-900">{selectedMonth} {selectedYear}</strong>.</span>}>
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Year">
               <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} disabled={uploading} className={selectCls}>
                 {years.map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
-            </label>
-            <label className="block">
-              <span className="block text-sm font-medium text-slate-700 mb-1">Month</span>
+            </Field>
+            <Field label="Month">
               <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} disabled={uploading} className={selectCls}>
                 {MONTHS.map(m => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
+            </Field>
+          </div>
+        </Panel>
+      </SettingsSection>
+
+      <SettingsSection title="File" description="Excel (.xlsx, .xls) or CSV. Only the first sheet is read; existing bookings are updated.">
+        <Panel
+          footer={fileInfo ? (
+            <div className="flex items-center gap-3 min-w-0">
+              <DocumentTextIcon className="w-4 h-4 text-slate-400 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-medium text-slate-900 truncate">{fileInfo.name}</p>
+                <p className="text-xs text-slate-500">{formatSize(fileInfo.size)} · into {fileInfo.target}</p>
+              </div>
+              {uploading
+                ? <Badge tone="info" className="shrink-0">Processing</Badge>
+                : error
+                  ? <Badge tone="danger" className="shrink-0">Failed</Badge>
+                  : report && <Badge tone="success" className="shrink-0">Done</Badge>}
+            </div>
+          ) : undefined}
+        >
+          <div className="p-4">
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+              id="excel-upload-input"
+            />
+            <label
+              htmlFor="excel-upload-input"
+              onDragOver={e => { e.preventDefault(); if (!uploading) setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              className={`block border border-dashed rounded-lg px-4 py-8 text-center transition-colors ${uploading ? 'cursor-not-allowed border-slate-200 bg-slate-50' : dragOver ? 'cursor-pointer border-indigo-400 bg-indigo-50/60' : 'cursor-pointer border-slate-300 hover:border-indigo-400 hover:bg-slate-50'}`}
+            >
+              <div className="mx-auto w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
+                {uploading
+                  ? <span className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                  : <UploadIcon className="w-5 h-5" />}
+              </div>
+              <p className="text-[13px] font-semibold text-slate-900">{uploading ? 'Importing reservations...' : 'Drop your file here, or click to browse'}</p>
+              <p className="text-xs text-slate-500 mt-0.5">.xlsx, .xls or .csv</p>
+              <span className={`mt-3 inline-flex items-center justify-center gap-1.5 h-9 px-3.5 text-[13px] font-semibold text-white bg-indigo-600 rounded-lg shadow-sm ${uploading ? 'opacity-40' : 'hover:bg-indigo-700'}`}>
+                {uploading ? 'Uploading...' : 'Choose Excel file'}
+              </span>
             </label>
           </div>
-        </div>
-
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">File</h3>
-          <input
-            type="file"
-            accept=".xlsx, .xls, .csv"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="hidden"
-            id="excel-upload-input"
-          />
-          <label
-            htmlFor="excel-upload-input"
-            onDragOver={e => { e.preventDefault(); if (!uploading) setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            className={`block border-2 border-dashed rounded-2xl px-4 py-10 sm:py-12 text-center transition-colors ${uploading ? 'cursor-not-allowed border-slate-200 bg-slate-50' : dragOver ? 'cursor-pointer border-indigo-400 bg-indigo-50/60' : 'cursor-pointer border-slate-300 hover:border-indigo-400 hover:bg-slate-50'}`}
-          >
-            <div className={`mx-auto w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${uploading ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-600'}`}>
-              {uploading
-                ? <span className="w-5 h-5 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                : <UploadIcon className="w-6 h-6" />}
-            </div>
-            <p className="text-sm font-semibold text-slate-900">{uploading ? 'Importing reservations...' : 'Drop your file here, or click to browse'}</p>
-            <p className="text-xs text-slate-500 mt-1">.xlsx, .xls or .csv</p>
-            <span className={`mt-4 inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl ${uploading ? 'opacity-50' : 'hover:bg-indigo-700'}`}>
-              {uploading ? 'Uploading...' : 'Choose Excel file'}
-            </span>
-            <p className="mt-4 text-sm text-slate-500">
-              Reservations will be permanently stored in <strong className="text-slate-900">{selectedMonth} {selectedYear}</strong>
-            </p>
-          </label>
-        </div>
-
-        {fileInfo && (
-          <div className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center shrink-0">
-              <DocumentTextIcon className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900 truncate">{fileInfo.name}</p>
-              <p className="text-xs text-slate-500">{formatSize(fileInfo.size)} · into {fileInfo.target}</p>
-            </div>
-            {uploading
-              ? <span className="text-xs font-semibold text-indigo-600 shrink-0">Processing</span>
-              : error
-                ? <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-rose-50 text-rose-700 ring-rose-600/20 shrink-0">Failed</span>
-                : report && <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-600/20 shrink-0">Done</span>}
-          </div>
-        )}
-      </section>
+        </Panel>
+      </SettingsSection>
 
       {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 flex gap-3 text-sm text-rose-700">
-          <AlertIcon className="w-5 h-5 shrink-0" />
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex gap-3 text-[13px] text-rose-700">
+          <AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />
           <p className="whitespace-pre-wrap break-words min-w-0">{error}</p>
         </div>
       )}
 
       {report && (
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Import report</h3>
+        <SettingsSection title="Import report" description="Summary of the last import. Invalid rows are listed with the reason.">
+          <div className="space-y-4">
+            <StatGrid items={stats} />
+            {report.errors.length > 0 && (
+              <Panel title="Validation errors" actions={<Badge tone="danger">{report.errors.length}</Badge>}>
+                <ul className="max-h-60 overflow-y-auto divide-y divide-slate-100 text-xs">
+                  {report.errors.map((err, i) => (
+                    <li key={i} className="px-4 py-2 flex gap-3">
+                      <span className="font-semibold text-rose-700 shrink-0 tabular-nums">Row {err.row}</span>
+                      <span className="text-slate-600 break-words min-w-0">{err.details}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {stats.map(s => (
-              <div key={s.label} className={`rounded-xl p-3 ring-1 ring-inset ${s.cls}`}>
-                <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-                <p className="text-xs font-medium opacity-80">{s.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {report.errors.length > 0 && (
-            <div className="rounded-xl border border-rose-200 overflow-hidden">
-              <div className="px-4 py-2.5 bg-rose-50 border-b border-rose-200 flex items-center justify-between gap-2">
-                <h4 className="text-sm font-semibold text-rose-700">Validation errors</h4>
-                <span className="text-xs font-semibold text-rose-600">{report.errors.length}</span>
-              </div>
-              <ul className="max-h-60 overflow-y-auto divide-y divide-rose-100 text-xs">
-                {report.errors.map((err, i) => (
-                  <li key={i} className="px-4 py-2 flex gap-3">
-                    <span className="font-semibold text-rose-700 shrink-0 tabular-nums">Row {err.row}</span>
-                    <span className="text-slate-600 break-words min-w-0">{err.details}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+        </SettingsSection>
       )}
-    </div>
+    </Page>
   );
 };
 

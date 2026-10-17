@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CompanyDetails } from '../types';
-import { TrashIcon, BuildingOfficeIcon, SaveIcon, AlertIcon } from './icons';
+import { TrashIcon, SaveIcon } from './icons';
+import { Page, PageHeader, Panel, Button, Field, inputCls } from './ui/Crm';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
@@ -8,7 +9,16 @@ interface ManageCompanyDetailsViewProps {
   onDeleteAllReservations: () => void;
 }
 
-const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
+/** Settings row: short description column on the left (lg), content on the right. */
+const SettingsSection: React.FC<{ title: string; description: React.ReactNode; children: React.ReactNode; danger?: boolean }> = ({ title, description, children, danger }) => (
+  <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+    <div className="mb-3 lg:mb-0 lg:pt-1">
+      <h3 className={`text-sm font-semibold ${danger ? 'text-rose-700' : 'text-slate-900'}`}>{title}</h3>
+      <p className="mt-0.5 text-[13px] text-slate-500">{description}</p>
+    </div>
+    <div className="lg:col-span-2 min-w-0">{children}</div>
+  </div>
+);
 
 const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
   details,
@@ -26,8 +36,7 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
   };
 
   const field = (label: string, key: keyof CompanyDetails, opts: { type?: string; placeholder?: string; full?: boolean } = {}) => (
-    <label className={`block ${opts.full ? 'sm:col-span-2' : ''}`}>
-      <span className="block text-sm font-medium text-slate-700 mb-1">{label}</span>
+    <Field label={label} className={opts.full ? 'sm:col-span-2' : ''}>
       <input
         type={opts.type || 'text'}
         value={(formData[key] as any) || ''}
@@ -35,108 +44,86 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
         placeholder={opts.placeholder}
         className={inputCls}
       />
-    </label>
+    </Field>
+  );
+
+  const saveBar = (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <span>Changes apply to newly generated documents.</span>
+      <Button variant="primary" size="sm" onClick={handleSave} icon={<SaveIcon className="w-4 h-4" />}>Save changes</Button>
+    </div>
   );
 
   return (
-    <div className="space-y-5 mb-10 max-w-4xl">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-            <BuildingOfficeIcon className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Company details</h2>
-            <p className="text-sm text-slate-500">Business information printed on agreements, invoices and customer emails.</p>
-          </div>
-        </div>
-        <button
-          onClick={handleSave}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 w-full sm:w-auto shrink-0"
-        >
-          <SaveIcon className="w-4 h-4" />
-          Save changes
-        </button>
-      </div>
+    <Page>
+      <PageHeader
+        section="Administration"
+        title="Company Details"
+        subtitle="Business information printed on agreements, invoices and customer emails."
+        actions={<Button variant="primary" onClick={handleSave} icon={<SaveIcon className="w-4 h-4" />}>Save changes</Button>}
+      />
 
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-5 space-y-6">
-          <div>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Identity</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {field('Company name', 'name')}
-              {field('Sub name', 'subName')}
-              {field('Tax number', 'taxNumber')}
-            </div>
+      <SettingsSection title="Identity" description="Legal name, trading name and tax registration shown on documents.">
+        <Panel footer={saveBar}>
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {field('Company name', 'name')}
+            {field('Sub name', 'subName')}
+            {field('Tax number', 'taxNumber')}
           </div>
+        </Panel>
+      </SettingsSection>
 
-          <div>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Contact</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {field('Address', 'address', { full: true })}
-              {field('Phone', 'phone', { type: 'tel' })}
-              {field('Email', 'email', { type: 'email' })}
-            </div>
+      <SettingsSection title="Contact" description="Address, phone and email customers use to reach you.">
+        <Panel footer={saveBar}>
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {field('Address', 'address', { full: true })}
+            {field('Phone', 'phone', { type: 'tel' })}
+            {field('Email', 'email', { type: 'email' })}
           </div>
+        </Panel>
+      </SettingsSection>
 
-          <div>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Payments</h3>
-            <label htmlFor="requirePaymentApproval" className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
-              <input
-                type="checkbox"
-                id="requirePaymentApproval"
-                checked={formData.requirePaymentApproval || false}
-                onChange={e => handleChange('requirePaymentApproval', e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium text-slate-900">Require payment approval</span>
-                <span className="block text-xs text-slate-500 mt-0.5">Pay-on-arrival reservations need a payment approval before they are finalised.</span>
-              </span>
-            </label>
-          </div>
-        </div>
+      <SettingsSection title="Payments" description="Controls for how pay-on-arrival reservations are finalised.">
+        <Panel footer={saveBar}>
+          <label htmlFor="requirePaymentApproval" className="flex items-start gap-3 p-4 hover:bg-slate-50 cursor-pointer">
+            <input
+              type="checkbox"
+              id="requirePaymentApproval"
+              checked={formData.requirePaymentApproval || false}
+              onChange={e => handleChange('requirePaymentApproval', e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
+            />
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium text-slate-900">Require payment approval</span>
+              <span className="block text-xs text-slate-500 mt-0.5">Pay-on-arrival reservations need a payment approval before they are finalised.</span>
+            </span>
+          </label>
+        </Panel>
+      </SettingsSection>
 
-        <div className="sticky bottom-0 px-5 py-4 bg-slate-50/95 backdrop-blur border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-xs text-slate-500">Changes apply to newly generated documents.</p>
-          <button
-            onClick={handleSave}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700"
-          >
-            <SaveIcon className="w-4 h-4" />
-            Save changes
-          </button>
-        </div>
-      </section>
-
-      {/* Danger zone */}
-      <section className="bg-white rounded-2xl border border-rose-200 shadow-sm p-5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-rose-600 mb-3">Danger zone</h3>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-              <AlertIcon className="w-5 h-5" />
-            </div>
+      <SettingsSection title="Danger zone" description="Irreversible actions. Use with care." danger>
+        <Panel className="border-rose-200">
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">Delete all reservations</p>
-              <p className="text-sm text-slate-500">Permanently removes every reservation in the system. This cannot be undone.</p>
+              <p className="text-[13px] font-semibold text-slate-900">Delete all reservations</p>
+              <p className="text-[13px] text-slate-500">Permanently removes every reservation in the system. This cannot be undone.</p>
             </div>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to delete ALL reservations? This action cannot be undone.')) {
+                  onDeleteAllReservations();
+                }
+              }}
+              icon={<TrashIcon className="w-4 h-4" />}
+              className="shrink-0"
+            >
+              Delete all reservations
+            </Button>
           </div>
-          <button
-            onClick={() => {
-              if (window.confirm('Are you sure you want to delete ALL reservations? This action cannot be undone.')) {
-                onDeleteAllReservations();
-              }
-            }}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 w-full sm:w-auto shrink-0"
-          >
-            <TrashIcon className="w-4 h-4" />
-            Delete all reservations
-          </button>
-        </div>
-      </section>
-    </div>
+        </Panel>
+      </SettingsSection>
+    </Page>
   );
 };
 

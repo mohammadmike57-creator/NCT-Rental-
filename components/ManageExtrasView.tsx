@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { AvailableExtra } from '../types';
 import { PlusIcon, TrashIcon, SaveIcon, PlusCircleIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Badge, Button, Field, Dialog, inputCls, table, EmptyState } from './ui/Crm';
 
 interface ManageExtrasViewProps {
   extras: AvailableExtra[];
   onUpdate: (newExtras: AvailableExtra[]) => void;
 }
 
-const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
+/** Settings row: short description column on the left (lg), content on the right. */
+const SettingsSection: React.FC<{ title: string; description: React.ReactNode; children: React.ReactNode }> = ({ title, description, children }) => (
+  <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+    <div className="mb-3 lg:mb-0 lg:pt-1">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <p className="mt-0.5 text-[13px] text-slate-500">{description}</p>
+    </div>
+    <div className="lg:col-span-2 min-w-0">{children}</div>
+  </div>
+);
 
 const ManageExtrasView: React.FC<ManageExtrasViewProps> = ({ extras, onUpdate }) => {
   const [localExtras, setLocalExtras] = useState<AvailableExtra[]>([]);
@@ -58,130 +68,138 @@ const ManageExtrasView: React.FC<ManageExtrasViewProps> = ({ extras, onUpdate })
   };
 
   const isDirty = JSON.stringify(localExtras) !== JSON.stringify(extras);
+  const avgPrice = localExtras.length
+    ? localExtras.reduce((s, e) => s + (Number(e.defaultDailyPrice) || 0), 0) / localExtras.length
+    : 0;
+
+  const deleteBtn = (ext: AvailableExtra) => (
+    <button onClick={() => handleDelete(ext.id)} className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0" aria-label={`Delete ${ext.name}`} title="Delete extra">
+      <TrashIcon className="w-4 h-4" />
+    </button>
+  );
 
   return (
     <>
-      <div className="space-y-5 mb-10 max-w-4xl">
-        {/* Header */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
-            <PlusCircleIcon className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Rental extras</h2>
-            <p className="text-sm text-slate-500">Add-ons offered with a rental and their default daily price.</p>
-          </div>
-        </div>
+      <Page>
+        <PageHeader
+          section="Administration"
+          title="Rental Extras"
+          subtitle="Add-ons offered with a rental and their default daily price."
+          actions={isDirty ? <Badge tone="warning">Unsaved changes</Badge> : undefined}
+        />
 
-        {/* Add form */}
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Add an extra</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-3 sm:items-end">
-            <label className="block" htmlFor="new-extra-name">
-              <span className="block text-sm font-medium text-slate-700 mb-1">Extra name</span>
-              <input
-                id="new-extra-name" type="text" value={newExtraName} onChange={e => setNewExtraName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
-                placeholder="e.g. Full Insurance"
-                className={inputCls}
-              />
-            </label>
-            <label className="block" htmlFor="new-extra-price">
-              <span className="block text-sm font-medium text-slate-700 mb-1">Default daily price ($)</span>
-              <input
-                id="new-extra-price" type="number" inputMode="decimal" value={newExtraPrice || ''} onChange={e => setNewExtraPrice(parseFloat(e.target.value) || 0)}
-                placeholder="0.00"
-                className={inputCls}
-              />
-            </label>
-            <button onClick={handleAdd} disabled={!newExtraName.trim()} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-40 w-full sm:w-auto">
-              <PlusIcon className="w-4 h-4" /> Add extra
-            </button>
-          </div>
-        </section>
+        <StatGrid items={[
+          { label: 'Extras', value: localExtras.length },
+          { label: 'Avg. daily price', value: `$${avgPrice.toFixed(2)}`, tone: 'muted' },
+          { label: 'Status', value: isDirty ? 'Unsaved' : 'Saved', tone: isDirty ? 'warning' : 'success' },
+        ]} />
 
-        {/* List + save bar */}
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Configured extras</h3>
-            <span className="text-xs text-slate-400">{localExtras.length}</span>
-          </div>
-
-          {localExtras.length === 0 ? (
-            <div className="px-5 py-12 text-center">
-              <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-                <PlusCircleIcon className="w-6 h-6" />
+        <SettingsSection title="Add an extra" description="New extras are added to the list below. Click Save changes to apply them.">
+          <Panel
+            footer={
+              <div className="flex items-center justify-between gap-2">
+                <span>Price is per rental day.</span>
+                <Button variant="primary" size="sm" onClick={handleAdd} disabled={!newExtraName.trim()} icon={<PlusIcon className="w-4 h-4" />}>
+                  Add extra
+                </Button>
               </div>
-              <p className="text-sm font-semibold text-slate-900">No extras configured</p>
-              <p className="text-sm text-slate-500 mt-1">Add items like insurance, child seats or GPS above.</p>
+            }
+          >
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3">
+              <Field label="Extra name" required>
+                <input
+                  id="new-extra-name" type="text" value={newExtraName} onChange={e => setNewExtraName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+                  placeholder="e.g. Full Insurance"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Default daily price ($)">
+                <input
+                  id="new-extra-price" type="number" inputMode="decimal" value={newExtraPrice || ''} onChange={e => setNewExtraPrice(parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                  className={`${inputCls} tabular-nums`}
+                />
+              </Field>
             </div>
-          ) : (
-            <>
-              <div className="hidden sm:grid grid-cols-[1fr_180px_44px] gap-3 px-5 pt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                <span>Name</span><span>Daily price ($)</span><span />
+          </Panel>
+        </SettingsSection>
+
+        <SettingsSection title="Configured extras" description="Edit names and prices inline. Changes are kept locally until saved.">
+          <Panel
+            title="Extras"
+            subtitle={`${localExtras.length} configured`}
+            footer={
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span>{isDirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
+                <div className="flex gap-2 [&>*]:max-sm:flex-1">
+                  <Button size="sm" onClick={() => setLocalExtras(extras)}>Cancel</Button>
+                  <Button variant="primary" size="sm" onClick={handleSave} icon={<SaveIcon className="w-4 h-4" />}>Save changes</Button>
+                </div>
               </div>
-              <ul className="divide-y divide-slate-100 sm:divide-y-0">
-                {localExtras.map(ext => (
-                  <li key={ext.id} className="px-5 py-4 sm:py-2 grid grid-cols-1 sm:grid-cols-[1fr_180px_44px] gap-3 sm:items-center">
-                    <label className="block">
-                      <span className="sm:hidden block text-xs font-medium text-slate-500 mb-1">Name</span>
-                      <input
-                        type="text" value={ext.name} onChange={e => handleUpdateField(ext.id, 'name', e.target.value)}
-                        aria-label="Extra name"
-                        className={inputCls}
-                      />
-                    </label>
-                    <div className="flex items-end gap-2">
-                      <label className="block flex-1">
-                        <span className="sm:hidden block text-xs font-medium text-slate-500 mb-1">Daily price ($)</span>
-                        <input
-                          type="number" inputMode="decimal" value={ext.defaultDailyPrice} onChange={e => handleUpdateField(ext.id, 'defaultDailyPrice', parseFloat(e.target.value) || 0)}
-                          aria-label="Default daily price"
-                          className={inputCls}
-                        />
-                      </label>
-                      <button onClick={() => handleDelete(ext.id)} className="sm:hidden p-2.5 rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200" aria-label={`Delete ${ext.name}`}>
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <button onClick={() => handleDelete(ext.id)} className="hidden sm:inline-flex justify-center p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50" aria-label={`Delete ${ext.name}`} title="Delete extra">
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+            }
+          >
+            {localExtras.length === 0 ? (
+              <EmptyState icon={<PlusCircleIcon />} title="No extras configured" hint="Add items like insurance, child seats or GPS above." />
+            ) : (
+              <>
+                <table className={`${table.wrap} hidden md:table`}>
+                  <thead className={table.head}>
+                    <tr>
+                      <th className={table.th}>Name</th>
+                      <th className={`${table.th} w-44`}>Daily price ($)</th>
+                      <th className={`${table.th} w-12`}><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody className={table.body}>
+                    {localExtras.map(ext => (
+                      <tr key={ext.id} className={table.row}>
+                        <td className={`${table.td} py-2`}>
+                          <input type="text" value={ext.name} onChange={e => handleUpdateField(ext.id, 'name', e.target.value)} aria-label="Extra name" className={`${inputCls} h-8`} />
+                        </td>
+                        <td className={`${table.td} py-2`}>
+                          <input type="number" inputMode="decimal" value={ext.defaultDailyPrice} onChange={e => handleUpdateField(ext.id, 'defaultDailyPrice', parseFloat(e.target.value) || 0)} aria-label="Default daily price" className={`${inputCls} h-8 tabular-nums`} />
+                        </td>
+                        <td className={`${table.td} py-2 text-right`}>{deleteBtn(ext)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <ul className="md:hidden divide-y divide-slate-100">
+                  {localExtras.map(ext => (
+                    <li key={ext.id} className="px-4 py-3 space-y-2">
+                      <div className="flex items-end gap-2">
+                        <Field label="Name" className="flex-1">
+                          <input type="text" value={ext.name} onChange={e => handleUpdateField(ext.id, 'name', e.target.value)} aria-label="Extra name" className={inputCls} />
+                        </Field>
+                        <div className="pb-1">{deleteBtn(ext)}</div>
+                      </div>
+                      <Field label="Daily price ($)">
+                        <input type="number" inputMode="decimal" value={ext.defaultDailyPrice} onChange={e => handleUpdateField(ext.id, 'defaultDailyPrice', parseFloat(e.target.value) || 0)} aria-label="Default daily price" className={`${inputCls} tabular-nums`} />
+                      </Field>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </Panel>
+        </SettingsSection>
+      </Page>
 
-          <div className="sticky bottom-0 mt-2 px-5 py-4 bg-slate-50/95 backdrop-blur border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-xs text-slate-500">{isDirty ? 'You have unsaved changes.' : 'All changes saved.'}</p>
-            <div className="flex flex-col-reverse sm:flex-row gap-2">
-              <button onClick={() => setLocalExtras(extras)} className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
-                Cancel
-              </button>
-              <button onClick={handleSave} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">
-                <SaveIcon className="w-4 h-4" /> Save changes
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {extraToDelete && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setExtraToDelete(null)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
-            <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
-              <TrashIcon className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900">Delete extra</h3>
-            <p className="text-sm text-slate-500 mt-1">Remove "{extraToDelete.name}" from the list? Click Save changes afterwards to apply.</p>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
-              <button onClick={() => setExtraToDelete(null)} className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">Cancel</button>
-              <button onClick={confirmDelete} className="px-4 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={!!extraToDelete}
+        onClose={() => setExtraToDelete(null)}
+        title="Delete extra"
+        size="md"
+        footer={
+          <>
+            <Button onClick={() => setExtraToDelete(null)}>Cancel</Button>
+            <Button variant="danger" onClick={confirmDelete} icon={<TrashIcon className="w-4 h-4" />}>Delete</Button>
+          </>
+        }
+      >
+        <p className="text-[13px] text-slate-600">Remove "{extraToDelete?.name}" from the list? Click Save changes afterwards to apply.</p>
+      </Dialog>
     </>
   );
 };

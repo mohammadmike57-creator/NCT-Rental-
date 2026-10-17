@@ -2,33 +2,12 @@ import React, { useState } from 'react';
 import { Fleet, FleetVehicle } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, CloseIcon, CarIcon, UploadIcon, SearchIcon } from './icons';
 import FleetExcelUpload from './FleetExcelUpload';
+import { Page, PageHeader, StatGrid, Panel, Toolbar, Badge, Button, Field, Dialog, Plate, EmptyState, inputCls, selectCls, table } from './ui/Crm';
 
 interface ManageFleetViewProps {
   fleet: Fleet;
   onUpdate: (newFleet: Fleet) => void;
 }
-
-const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
-const labelCls = 'block text-sm font-medium text-slate-700 mb-1';
-
-// Simple modal component
-const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true"></div>
-      <div className="relative w-full sm:max-w-2xl bg-white rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col max-h-[92vh]">
-        <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900" id="modal-title">{title}</h3>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-2 -mr-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
-            <CloseIcon className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5">{children}</div>
-      </div>
-    </div>
-  );
-};
 
 const money = (n?: number) => `$${(n || 0).toFixed(2)}`;
 
@@ -124,205 +103,196 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
   const regBadge = (d?: string) => {
     if (!d) return <span className="text-slate-400">—</span>;
     const expired = d < today;
-    return (
-      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${expired ? 'bg-rose-50 text-rose-700 ring-rose-600/20' : 'bg-slate-50 text-slate-700 ring-slate-500/20'}`}>
-        {expired ? 'Expired ' : ''}{d}
-      </span>
-    );
+    return expired
+      ? <Badge tone="danger"><span className="tabular-nums">Expired {d}</span></Badge>
+      : <span className="tabular-nums text-slate-700">{d}</span>;
   };
+
+  const expiredCount = (fleet as FleetVehicle[]).filter(v => v.registrationExpiry && v.registrationExpiry < today).length;
+  const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const expiringCount = (fleet as FleetVehicle[]).filter(v => v.registrationExpiry && v.registrationExpiry >= today && v.registrationExpiry <= in30).length;
+  const categoryCount = new Set((fleet as FleetVehicle[]).map(v => v.category).filter(Boolean)).size;
 
   const actionBtns = (vehicle: FleetVehicle) => (
     <div className="flex items-center gap-1 shrink-0">
-      <button onClick={() => openEditModal(vehicle)} className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" title="Edit" aria-label={`Edit ${vehicle.modelName}`}>
+      <button onClick={() => openEditModal(vehicle)} className="p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" title="Edit" aria-label={`Edit ${vehicle.modelName}`}>
         <PencilIcon className="w-4 h-4" />
       </button>
-      <button onClick={() => handleDelete(vehicle.id)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete" aria-label={`Delete ${vehicle.modelName}`}>
+      <button onClick={() => handleDelete(vehicle.id)} className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete" aria-label={`Delete ${vehicle.modelName}`}>
         <TrashIcon className="w-4 h-4" />
       </button>
     </div>
   );
 
   return (
-    <div className="space-y-5 mb-10">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-            <CarIcon className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Fleet management</h2>
-            <p className="text-sm text-slate-500">{fleet.length} vehicle{fleet.length === 1 ? '' : 's'} · deposits, excess and registration details</p>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-          <div className="relative w-full sm:w-64">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search model, plate, category"
-              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-          </div>
-          <div className="grid grid-cols-2 sm:flex gap-2">
-            <button
+    <Page>
+      <PageHeader
+        section="Administration"
+        title="Fleet Management"
+        subtitle={`${fleet.length} vehicle${fleet.length === 1 ? '' : 's'} · deposits, excess and registration details`}
+        actions={
+          <>
+            <Button
               onClick={() => setShowImport(!showImport)}
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border ${showImport ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+              aria-pressed={showImport}
+              className={showImport ? '!border-indigo-300 !bg-indigo-50 !text-indigo-700' : ''}
+              icon={<UploadIcon className="w-4 h-4" />}
             >
-              <UploadIcon className="w-4 h-4" />
               Import Excel
-            </button>
-            <button
-              onClick={openAddModal}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700"
-            >
-              <PlusIcon className="w-4 h-4" />
-              Add vehicle
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+            <Button variant="primary" onClick={openAddModal} icon={<PlusIcon className="w-4 h-4" />}>Add vehicle</Button>
+          </>
+        }
+      />
+
+      <StatGrid items={[
+        { label: 'Vehicles', value: fleet.length },
+        { label: 'Categories', value: categoryCount, tone: 'muted' },
+        { label: 'Reg. expiring 30d', value: expiringCount, tone: expiringCount ? 'warning' : 'muted' },
+        { label: 'Reg. expired', value: expiredCount, tone: expiredCount ? 'danger' : 'muted' },
+      ]} />
 
       {showImport && (
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Import vehicles from Excel</h3>
-            <button onClick={() => setShowImport(false)} aria-label="Close import" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"><CloseIcon className="w-4 h-4" /></button>
-          </div>
+        <Panel
+          title="Import vehicles from Excel"
+          subtitle="Imported vehicles are added to the existing fleet."
+          actions={<button onClick={() => setShowImport(false)} aria-label="Close import" className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100"><CloseIcon className="w-4 h-4" /></button>}
+          padded
+        >
           <FleetExcelUpload onFleetImported={handleImport} />
-        </section>
+        </Panel>
       )}
 
-      {fleet.length === 0 || visible.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-14 text-center">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-            <CarIcon className="w-6 h-6" />
+      <Panel
+        title="Vehicles"
+        subtitle={q ? `${visible.length} of ${fleet.length} shown` : `${fleet.length} total`}
+        footer={visible.length > 0 ? <span className="tabular-nums">{visible.length} vehicle{visible.length === 1 ? '' : 's'}</span> : undefined}
+      >
+        <Toolbar>
+          <div className="relative w-full md:w-72">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search model, plate, category"
+              aria-label="Search fleet" className={`${inputCls} pl-9`} />
           </div>
-          <p className="text-sm font-semibold text-slate-900">{fleet.length === 0 ? 'No vehicles in fleet' : 'No vehicles match your search'}</p>
-          <p className="text-sm text-slate-500 mt-1">{fleet.length === 0 ? 'Add a vehicle or import your fleet from an Excel sheet.' : 'Try a different model, plate or category.'}</p>
-          {fleet.length === 0 && (
-            <button onClick={openAddModal} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">
-              <PlusIcon className="w-4 h-4" /> Add vehicle
-            </button>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-3">Vehicle</th>
-                    <th className="px-4 py-3">Category</th>
-                    <th className="px-4 py-3">SIPP</th>
-                    <th className="px-4 py-3">Transmission</th>
-                    <th className="px-4 py-3 text-right">Deposit</th>
-                    <th className="px-4 py-3 text-right">Excess</th>
-                    <th className="px-4 py-3">Reg. expiry</th>
-                    <th className="px-4 py-3" />
+        </Toolbar>
+
+        {fleet.length === 0 || visible.length === 0 ? (
+          <EmptyState
+            icon={<CarIcon />}
+            title={fleet.length === 0 ? 'No vehicles in fleet' : 'No vehicles match your search'}
+            hint={fleet.length === 0 ? 'Add a vehicle or import your fleet from an Excel sheet.' : 'Try a different model, plate or category.'}
+            action={fleet.length === 0 ? <Button variant="primary" onClick={openAddModal} icon={<PlusIcon className="w-4 h-4" />}>Add vehicle</Button> : undefined}
+          />
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className={table.wrap}>
+                <thead className={table.head}>
+                  <tr>
+                    <th className={table.th}>Vehicle</th>
+                    <th className={table.th}>Category</th>
+                    <th className={table.th}>SIPP</th>
+                    <th className={table.th}>Transmission</th>
+                    <th className={`${table.th} text-right`}>Deposit</th>
+                    <th className={`${table.th} text-right`}>Excess</th>
+                    <th className={table.th}>Reg. expiry</th>
+                    <th className={table.th}><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className={table.body}>
                   {visible.map(vehicle => (
-                    <tr key={vehicle.id} className="hover:bg-slate-50/60">
-                      <td className="px-5 py-3">
-                        <p className="font-semibold text-slate-900">{vehicle.modelName}</p>
-                        <p className="text-xs text-slate-500 font-mono">{vehicle.licensePlate}</p>
+                    <tr key={vehicle.id} className={table.row}>
+                      <td className={table.td}>
+                        <p className="font-medium text-slate-900">{vehicle.modelName}</p>
+                        <div className="mt-0.5"><Plate value={vehicle.licensePlate} /></div>
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{vehicle.category || <span className="text-slate-400">—</span>}</td>
-                      <td className="px-4 py-3 text-slate-700 font-mono text-xs">{vehicle.sippCode || <span className="text-slate-400">—</span>}</td>
-                      <td className="px-4 py-3 text-slate-700">{vehicle.transmission || <span className="text-slate-400">—</span>}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{money(vehicle.securityDeposit)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{money(vehicle.excess)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">{regBadge(vehicle.registrationExpiry)}</td>
-                      <td className="px-4 py-3"><div className="flex justify-end">{actionBtns(vehicle)}</div></td>
+                      <td className={`${table.td} text-slate-700`}>{vehicle.category || <span className="text-slate-400">—</span>}</td>
+                      <td className={`${table.td} text-slate-700 font-mono text-xs`}>{vehicle.sippCode || <span className="text-slate-400">—</span>}</td>
+                      <td className={`${table.td} text-slate-700`}>{vehicle.transmission || <span className="text-slate-400">—</span>}</td>
+                      <td className={`${table.td} text-right tabular-nums text-slate-700`}>{money(vehicle.securityDeposit)}</td>
+                      <td className={`${table.td} text-right tabular-nums text-slate-700`}>{money(vehicle.excess)}</td>
+                      <td className={`${table.td} whitespace-nowrap`}>{regBadge(vehicle.registrationExpiry)}</td>
+                      <td className={table.td}><div className="flex justify-end">{actionBtns(vehicle)}</div></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {visible.map(vehicle => (
-              <div key={vehicle.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-base font-semibold text-slate-900 break-words">{vehicle.modelName}</p>
-                    <p className="text-xs text-slate-500 font-mono mt-0.5">{vehicle.licensePlate}</p>
+            {/* Mobile list */}
+            <ul className="md:hidden divide-y divide-slate-100">
+              {visible.map(vehicle => (
+                <li key={vehicle.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-slate-900 break-words">{vehicle.modelName}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <Plate value={vehicle.licensePlate} />
+                        {vehicle.category && <Badge tone="info" dot={false}>{vehicle.category}</Badge>}
+                        {vehicle.transmission && <Badge tone="muted" dot={false}>{vehicle.transmission}</Badge>}
+                        {vehicle.sippCode && <Badge tone="muted" dot={false} className="font-mono">{vehicle.sippCode}</Badge>}
+                      </div>
+                    </div>
+                    {actionBtns(vehicle)}
                   </div>
-                  {actionBtns(vehicle)}
-                </div>
-                {(vehicle.category || vehicle.transmission || vehicle.sippCode) && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {vehicle.category && <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-indigo-50 text-indigo-700 ring-indigo-600/20">{vehicle.category}</span>}
-                    {vehicle.transmission && <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-slate-50 text-slate-700 ring-slate-500/20">{vehicle.transmission}</span>}
-                    {vehicle.sippCode && <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-slate-50 text-slate-700 ring-slate-500/20 font-mono">{vehicle.sippCode}</span>}
-                  </div>
-                )}
-                <dl className="grid grid-cols-2 gap-x-2 gap-y-3 mt-3 pt-3 border-t border-slate-100 text-xs">
-                  <div className="min-w-0"><dt className="text-slate-500">Deposit</dt><dd className="font-semibold text-slate-900 tabular-nums mt-0.5">{money(vehicle.securityDeposit)}</dd></div>
-                  <div className="min-w-0"><dt className="text-slate-500">Excess</dt><dd className="font-semibold text-slate-900 tabular-nums mt-0.5">{money(vehicle.excess)}</dd></div>
-                  <div className="min-w-0 col-span-2"><dt className="text-slate-500">Reg. expiry</dt><dd className="mt-0.5">{regBadge(vehicle.registrationExpiry)}</dd></div>
-                </dl>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+                  <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div className="min-w-0"><dt className="text-slate-500">Deposit</dt><dd className="font-semibold text-slate-900 tabular-nums">{money(vehicle.securityDeposit)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">Excess</dt><dd className="font-semibold text-slate-900 tabular-nums">{money(vehicle.excess)}</dd></div>
+                    <div className="min-w-0"><dt className="text-slate-500">Reg. expiry</dt><dd className="truncate">{regBadge(vehicle.registrationExpiry)}</dd></div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Panel>
 
-      {/* Modal for add/edit */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingVehicle ? 'Edit vehicle' : 'Add vehicle'}>
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="block">
-              <span className={labelCls}>Model <span className="text-rose-500">*</span></span>
-              <input type="text" value={formData.modelName || ''} onChange={e => handleChange('modelName', e.target.value)} className={inputCls} required />
-            </label>
-            <label className="block">
-              <span className={labelCls}>License plate <span className="text-rose-500">*</span></span>
-              <input type="text" value={formData.licensePlate || ''} onChange={e => handleChange('licensePlate', e.target.value)} className={inputCls} required />
-            </label>
-            <label className="block">
-              <span className={labelCls}>Category</span>
-              <input type="text" value={formData.category || ''} onChange={e => handleChange('category', e.target.value)} className={inputCls} />
-            </label>
-            <label className="block">
-              <span className={labelCls}>SIPP code</span>
-              <input type="text" value={formData.sippCode || ''} onChange={e => handleChange('sippCode', e.target.value)} className={inputCls} />
-            </label>
-            <label className="block">
-              <span className={labelCls}>Security deposit ($)</span>
-              <input type="number" inputMode="decimal" value={formData.securityDeposit || 0} onChange={e => handleChange('securityDeposit', parseFloat(e.target.value) || 0)} className={inputCls} min="0" step="0.01" />
-            </label>
-            <label className="block">
-              <span className={labelCls}>Excess ($)</span>
-              <input type="number" inputMode="decimal" value={formData.excess || 0} onChange={e => handleChange('excess', parseFloat(e.target.value) || 0)} className={inputCls} min="0" step="0.01" />
-            </label>
-            <label className="block">
-              <span className={labelCls}>Transmission</span>
-              <select value={formData.transmission || ''} onChange={e => handleChange('transmission', e.target.value)} className={inputCls}>
-                <option value="">Select</option>
-                <option value="Automatic">Automatic</option>
-                <option value="Manual">Manual</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className={labelCls}>Registration expiry</span>
-              <input type="date" value={formData.registrationExpiry || ''} onChange={e => handleChange('registrationExpiry', e.target.value)} className={inputCls} />
-            </label>
-          </div>
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t border-slate-100">
-            <button onClick={() => setModalOpen(false)} className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
-              Cancel
-            </button>
-            <button onClick={handleSave} className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">
-              {editingVehicle ? 'Save changes' : 'Add vehicle'}
-            </button>
-          </div>
+      {/* Dialog for add/edit */}
+      <Dialog
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editingVehicle ? 'Edit vehicle' : 'Add vehicle'}
+        subtitle="Fields marked * are required"
+        footer={
+          <>
+            <Button onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleSave}>{editingVehicle ? 'Save changes' : 'Add vehicle'}</Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Model" required>
+            <input type="text" value={formData.modelName || ''} onChange={e => handleChange('modelName', e.target.value)} className={inputCls} required />
+          </Field>
+          <Field label="License plate" required>
+            <input type="text" value={formData.licensePlate || ''} onChange={e => handleChange('licensePlate', e.target.value)} className={inputCls} required />
+          </Field>
+          <Field label="Category">
+            <input type="text" value={formData.category || ''} onChange={e => handleChange('category', e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="SIPP code">
+            <input type="text" value={formData.sippCode || ''} onChange={e => handleChange('sippCode', e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Security deposit ($)">
+            <input type="number" inputMode="decimal" value={formData.securityDeposit || 0} onChange={e => handleChange('securityDeposit', parseFloat(e.target.value) || 0)} className={`${inputCls} tabular-nums`} min="0" step="0.01" />
+          </Field>
+          <Field label="Excess ($)">
+            <input type="number" inputMode="decimal" value={formData.excess || 0} onChange={e => handleChange('excess', parseFloat(e.target.value) || 0)} className={`${inputCls} tabular-nums`} min="0" step="0.01" />
+          </Field>
+          <Field label="Transmission">
+            <select value={formData.transmission || ''} onChange={e => handleChange('transmission', e.target.value)} className={`${selectCls} w-full`}>
+              <option value="">Select</option>
+              <option value="Automatic">Automatic</option>
+              <option value="Manual">Manual</option>
+            </select>
+          </Field>
+          <Field label="Registration expiry">
+            <input type="date" value={formData.registrationExpiry || ''} onChange={e => handleChange('registrationExpiry', e.target.value)} className={inputCls} />
+          </Field>
         </div>
-      </Modal>
-    </div>
+      </Dialog>
+    </Page>
   );
 };
 
