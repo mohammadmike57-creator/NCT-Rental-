@@ -53,7 +53,7 @@ const StatusChip: React.FC<{ status: FeeStatus }> = ({ status }) => (
 const ModalShell: React.FC<{ title: string; subtitle?: string; onClose: () => void; children: React.ReactNode; z?: string }> = ({ title, subtitle, onClose, children, z = 'z-50' }) => (
   <div className={`fixed inset-0 ${z} flex items-center justify-center p-4`} role="dialog" aria-modal="true">
     <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px]" onClick={onClose} />
-    <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div className="relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto bg-white rounded-2xl shadow-2xl">
       <header className="px-6 py-4 border-b border-slate-100 flex items-start justify-between gap-4">
         <div>
           <h3 className="text-base font-semibold text-slate-900">{title}</h3>
@@ -398,43 +398,45 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // ---- UI --------------------------------------------------------------
-  const Kpi: React.FC<{ label: string; value: React.ReactNode; sub: string; tone?: string }> = ({ label, value, sub, tone = 'text-slate-900' }) => (
-    <div className="px-5 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`mt-1 text-2xl font-bold tabular-nums ${tone}`}>{value}</p>
-      <p className="text-xs text-slate-400">{sub}</p>
+  const Kpi: React.FC<{ label: string; value: React.ReactNode; sub: string; tone?: string; className?: string }> = ({ label, value, sub, tone = 'text-slate-900', className = '' }) => (
+    <div className={`px-4 sm:px-5 py-4 min-w-0 ${className}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 truncate">{label}</p>
+      <p className={`mt-1 text-xl sm:text-2xl font-bold tabular-nums truncate ${tone}`}>{value}</p>
+      <p className="text-xs text-slate-400 truncate">{sub}</p>
     </div>
   );
 
+  const stickyCell = 'sticky left-0 z-10';
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 min-w-0">
       {/* Header */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
         <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><ChartBarIcon className="w-6 h-6" /></div>
-            <div>
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><ChartBarIcon className="w-6 h-6" /></div>
+            <div className="min-w-0">
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Financial summary {year}</h2>
               <p className="text-sm text-slate-500">Confirmed revenue, {(COMMISSION_RATE * 100).toFixed(1)}% commission and franchise fees by month.</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 w-full lg:w-auto">
             {activeTab === 'overview' && (
-              <div className="inline-flex p-1 bg-slate-100 rounded-xl">
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl shrink-0">
                 {(['USD', 'JOD'] as const).map(c => (
                   <button key={c} onClick={() => setCurrency(c)} className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${currency === c ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>{c}</button>
                 ))}
               </div>
             )}
             <button onClick={activeTab === 'overview' ? exportSummaryPDF : exportStatementPDF}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-slate-900 text-white rounded-xl hover:bg-slate-800">
+              className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-slate-900 text-white rounded-xl hover:bg-slate-800 whitespace-nowrap">
               <PdfIcon className="w-4 h-4" /> {activeTab === 'overview' ? 'Export summary' : 'Export statement'}
             </button>
           </div>
         </div>
-        <div className="px-3 sm:px-5 border-t border-slate-100 flex gap-1">
+        <div className="px-3 sm:px-5 border-t border-slate-100 flex gap-1 overflow-x-auto">
           {([['overview', 'Overview'], ['franchise', 'Franchise fees']] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setActiveTab(k)} className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px ${activeTab === k ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+            <button key={k} onClick={() => setActiveTab(k)} className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap ${activeTab === k ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
               {label}
               {k === 'franchise' && fees.overdueCount > 0 && <span className="ml-2 px-1.5 py-0.5 rounded-md text-[11px] bg-rose-100 text-rose-700">{fees.overdueCount} overdue</span>}
             </button>
@@ -444,84 +446,130 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
       {activeTab === 'overview' ? (
         <>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm grid grid-cols-2 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-slate-100">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm grid grid-cols-2 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-slate-100 overflow-hidden">
             <Kpi label="Confirmed revenue" value={money(totals.revenueUSD * rate)} sub={`${totals.confirmed} confirmed bookings`} />
             <Kpi label="Commission" value={money(totals.commissionUSD * rate)} sub={`${(COMMISSION_RATE * 100).toFixed(1)}% of revenue`} />
             <Kpi label="Average booking" value={money(avgBooking * rate)} sub="per confirmed booking" />
             <Kpi label="Cancellation rate" value={`${cancelRate.toFixed(1)}%`} sub={`${totals.cancelled} of ${totals.bookings} bookings`} tone={cancelRate > 15 ? 'text-amber-600' : 'text-slate-900'} />
-            <Kpi label="Best month" value={best ? best.month : '—'} sub={best ? money(best.revenueUSD * rate) : 'no bookings yet'} />
+            <Kpi label="Best month" value={best ? best.month : '—'} sub={best ? money(best.revenueUSD * rate) : 'no bookings yet'} className="col-span-2 lg:col-span-1" />
           </div>
 
           {/* Chart */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <h3 className="text-sm font-semibold text-slate-900">Monthly confirmed revenue</h3>
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />Revenue</span>
                 <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-200" />Commission</span>
               </div>
             </div>
-            <div className="grid grid-cols-12 gap-1.5 sm:gap-3 items-end h-56">
+            <div className="grid grid-cols-12 gap-1 sm:gap-3 items-end h-48 sm:h-56 pt-5">
               {months.map(m => {
                 const h = (m.revenueUSD / maxRevenue) * 100;
                 const ch = (m.commissionUSD / maxRevenue) * 100;
                 const current = m.idx === currentMonthIdx;
                 return (
-                  <div key={m.month} className="flex flex-col items-center h-full justify-end group" title={`${m.month}: ${money(m.revenueUSD * rate)} revenue · ${m.confirmed} confirmed`}>
-                    <span className="text-[10px] font-semibold text-slate-500 tabular-nums mb-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {m.revenueUSD ? money(m.revenueUSD * rate).replace(/\.\d+$/, '') : ''}
-                    </span>
+                  <div key={m.month} className="min-w-0 flex flex-col items-center h-full justify-end group" title={`${m.month}: ${money(m.revenueUSD * rate)} revenue · ${m.confirmed} confirmed`}>
                     <div className="relative w-full max-w-[44px] flex-1 flex items-end">
-                      <div className={`w-full rounded-t-md ${current ? 'bg-indigo-600' : 'bg-indigo-500'} group-hover:bg-indigo-700 transition-colors`} style={{ height: `${Math.max(h, m.revenueUSD ? 2 : 0)}%` }} />
+                      <div className={`relative w-full rounded-t-md ${current ? 'bg-indigo-600' : 'bg-indigo-500'} group-hover:bg-indigo-700 transition-colors`} style={{ height: `${Math.max(h, m.revenueUSD ? 2 : 0)}%` }}>
+                        {m.revenueUSD > 0 && (
+                          <span className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[10px] font-semibold text-slate-500 tabular-nums whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            {money(m.revenueUSD * rate).replace(/\.\d+$/, '')}
+                          </span>
+                        )}
+                      </div>
                       {m.commissionUSD > 0 && <div className="absolute bottom-0 left-0 right-0 bg-indigo-200 rounded-t-sm" style={{ height: `${ch}%` }} />}
                     </div>
-                    <span className={`mt-1.5 text-[11px] font-semibold ${current ? 'text-indigo-600' : 'text-slate-500'}`}>{shortMonth(m.month)}</span>
+                    <span className={`mt-1.5 text-[10px] sm:text-[11px] font-semibold ${current ? 'text-indigo-600' : 'text-slate-500'}`}>
+                      <span className="sm:hidden">{m.month.charAt(0)}</span>
+                      <span className="hidden sm:inline">{shortMonth(m.month)}</span>
+                    </span>
                   </div>
                 );
               })}
             </div>
           </section>
 
-          {/* Table */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Monthly breakdown — mobile list */}
+          <section className="md:hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+              <h3 className="text-sm font-semibold text-slate-900">Monthly breakdown</h3>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {months.map(m => (
+                <li key={m.month} className={`px-4 py-3 ${m.idx === currentMonthIdx ? 'bg-indigo-50/40' : ''} ${!m.started && m.total === 0 ? 'opacity-60' : ''}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex items-center gap-2">
+                      <p className="font-semibold text-slate-900 truncate">{m.month}</p>
+                      {m.idx === currentMonthIdx && <span className="text-[10px] font-bold uppercase text-indigo-600">Current</span>}
+                    </div>
+                    <p className="shrink-0 font-bold tabular-nums text-slate-900">{money(m.revenueUSD * rate)}</p>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div className="min-w-0"><p className="text-slate-400">Bookings</p><p className="font-semibold tabular-nums text-slate-700">{m.total}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Confirmed</p><p className="font-semibold tabular-nums text-slate-700">{m.confirmed}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Cancelled</p><p className="font-semibold tabular-nums text-slate-700">{m.cancelled}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Avg booking</p><p className="font-semibold tabular-nums text-slate-700 truncate">{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Commission</p><p className="font-semibold tabular-nums text-slate-700 truncate">{money(m.commissionUSD * rate)}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Fee</p><button onClick={() => setActiveTab('franchise')} className="mt-0.5"><StatusChip status={m.status} /></button></div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="px-4 py-3 bg-slate-900 text-white">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm font-semibold">Total {year}</p>
+                <p className="font-bold tabular-nums">{money(totals.revenueUSD * rate)}</p>
+              </div>
+              <p className="mt-1 text-xs text-slate-300 tabular-nums">
+                {totals.bookings} bookings · {totals.confirmed} confirmed · {totals.cancelled} cancelled · avg {money(avgBooking * rate)} · commission {money(totals.commissionUSD * rate)} · {usd(fees.paid)} fees paid
+              </p>
+            </div>
+          </section>
+
+          {/* Monthly breakdown — table (md+) */}
+          <section className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm whitespace-nowrap">
                 <thead>
                   <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                    <th className="text-left font-semibold px-5 py-3">Month</th>
+                    <th className={`${stickyCell} bg-slate-50 text-left font-semibold px-5 py-3`}>Month</th>
                     <th className="text-right font-semibold px-4 py-3">Bookings</th>
                     <th className="text-right font-semibold px-4 py-3">Confirmed</th>
-                    <th className="text-right font-semibold px-4 py-3 hidden md:table-cell">Cancelled</th>
+                    <th className="text-right font-semibold px-4 py-3">Cancelled</th>
                     <th className="text-right font-semibold px-4 py-3">Revenue</th>
-                    <th className="text-right font-semibold px-4 py-3 hidden lg:table-cell">Avg booking</th>
+                    <th className="text-right font-semibold px-4 py-3">Avg booking</th>
                     <th className="text-right font-semibold px-4 py-3">Commission</th>
-                    <th className="text-left font-semibold px-5 py-3 hidden md:table-cell">Franchise fee</th>
+                    <th className="text-left font-semibold px-5 py-3">Franchise fee</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {months.map(m => (
-                    <tr key={m.month} className={`${m.idx === currentMonthIdx ? 'bg-indigo-50/40' : 'hover:bg-slate-50/60'} ${!m.started && m.total === 0 ? 'text-slate-400' : ''}`}>
-                      <td className="px-5 py-3 font-medium text-slate-900">{m.month}{m.idx === currentMonthIdx && <span className="ml-2 text-[10px] font-bold uppercase text-indigo-600">Current</span>}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{m.total}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{m.confirmed}</td>
-                      <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">{m.cancelled}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">{money(m.revenueUSD * rate)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums hidden lg:table-cell">{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{money(m.commissionUSD * rate)}</td>
-                      <td className="px-5 py-3 hidden md:table-cell"><button onClick={() => setActiveTab('franchise')}><StatusChip status={m.status} /></button></td>
-                    </tr>
-                  ))}
+                  {months.map(m => {
+                    const current = m.idx === currentMonthIdx;
+                    return (
+                      <tr key={m.month} className={`group ${current ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50'} ${!m.started && m.total === 0 ? 'text-slate-400' : 'text-slate-700'}`}>
+                        <td className={`${stickyCell} ${current ? 'bg-indigo-50' : 'bg-white group-hover:bg-slate-50'} px-5 py-3 font-medium text-slate-900`}>{m.month}{current && <span className="ml-2 text-[10px] font-bold uppercase text-indigo-600">Current</span>}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{m.total}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{m.confirmed}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{m.cancelled}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">{money(m.revenueUSD * rate)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{money(m.commissionUSD * rate)}</td>
+                        <td className="px-5 py-3"><button onClick={() => setActiveTab('franchise')}><StatusChip status={m.status} /></button></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-900 text-white">
-                    <td className="px-5 py-3 font-semibold">Total {year}</td>
+                    <td className={`${stickyCell} bg-slate-900 px-5 py-3 font-semibold`}>Total {year}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-semibold">{totals.bookings}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-semibold">{totals.confirmed}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold hidden md:table-cell">{totals.cancelled}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{totals.cancelled}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-bold">{money(totals.revenueUSD * rate)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold hidden lg:table-cell">{money(avgBooking * rate)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{money(avgBooking * rate)}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-bold">{money(totals.commissionUSD * rate)}</td>
-                    <td className="px-5 py-3 hidden md:table-cell text-xs text-slate-300">{usd(fees.paid)} paid</td>
+                    <td className="px-5 py-3 text-xs text-slate-300">{usd(fees.paid)} paid</td>
                   </tr>
                 </tfoot>
               </table>
@@ -530,74 +578,125 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
         </>
       ) : (
         <>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-100">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-100 overflow-hidden">
             <Kpi label="Paid this year" value={usd(fees.paid)} sub={`${months.filter(m => m.payment).length} payments recorded`} tone="text-emerald-700" />
             <Kpi label="Outstanding" value={usd(fees.outstanding)} sub="due and overdue fees" tone={fees.outstanding > 0 ? 'text-amber-600' : 'text-slate-900'} />
             <Kpi label="Overdue" value={usd(fees.overdue)} sub={fees.overdueCount ? `${fees.overdueCount} month${fees.overdueCount === 1 ? '' : 's'} past deadline` : 'nothing overdue'} tone={fees.overdue > 0 ? 'text-rose-600' : 'text-slate-900'} />
             <Kpi label="Next deadline" value={fees.next ? fees.next.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'} sub={fees.next ? `${fees.next.month} fee · ${fees.next.status === 'ACCRUING' ? 'est. ' : ''}${usd(fees.next.feeUSD)}` : 'all settled'} />
           </div>
 
-          <div className="flex items-start gap-3 p-4 rounded-2xl bg-white border border-slate-200 text-sm text-slate-600">
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-sm text-slate-600">
             <CurrencyDollarIcon className="w-5 h-5 text-indigo-500 shrink-0" />
-            <p>Monthly fee = <strong className="text-slate-900">{(COMMISSION_RATE * 100).toFixed(1)}% of confirmed revenue</strong> + <strong className="text-slate-900">{usd(FIXED_ADDON)} fixed</strong>, due by the {DEADLINE_DAY}th of the following month.{(WAIVED_MONTHS[year] || []).length > 0 && ` Fees for ${WAIVED_MONTHS[year][0]}–${WAIVED_MONTHS[year][WAIVED_MONTHS[year].length - 1]} ${year} are waived.`}</p>
+            <p className="min-w-0">Monthly fee = <strong className="text-slate-900">{(COMMISSION_RATE * 100).toFixed(1)}% of confirmed revenue</strong> + <strong className="text-slate-900">{usd(FIXED_ADDON)} fixed</strong>, due by the {DEADLINE_DAY}th of the following month.{(WAIVED_MONTHS[year] || []).length > 0 && ` Fees for ${WAIVED_MONTHS[year][0]}–${WAIVED_MONTHS[year][WAIVED_MONTHS[year].length - 1]} ${year} are waived.`}</p>
           </div>
 
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Franchise fees — mobile list */}
+          <section className="md:hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <ul className="divide-y divide-slate-100">
+              {months.map(m => (
+                <li key={m.month} className={`px-4 py-3 ${m.status === 'OVERDUE' ? 'bg-rose-50/40' : ''}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900">{m.month}</p>
+                      {!m.waived && m.status !== 'PAID' && m.started && <p className={`text-xs ${m.status === 'OVERDUE' ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>Due {m.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-bold tabular-nums text-slate-900">{m.waived ? <span className="text-slate-400 font-normal">Waived</span> : !m.started ? <span className="text-slate-300">—</span> : usd(m.feeUSD)}</p>
+                      <div className="mt-1"><StatusChip status={m.status} /></div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500 tabular-nums">Revenue {usd(m.revenueUSD)} · Commission {usd(m.commissionUSD)} · Fixed {m.waived ? '—' : usd(FIXED_ADDON)}</p>
+                  {m.payment && (
+                    <div className="mt-2 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-xs min-w-0">
+                      <p className="font-semibold text-slate-900">{m.payment.currency} {m.payment.amount.toFixed(2)}{m.paidUSD + 0.009 < m.feeUSD && <span className="ml-1.5 text-amber-700">partial</span>}</p>
+                      <p className="text-slate-500">{new Date(m.payment.datePaid).toLocaleDateString('en-GB')}{m.payment.method ? ` · ${METHOD_LABEL[m.payment.method]}` : ''} · {m.payment.paidBy}</p>
+                      {m.payment.referenceNote && <p className="text-slate-400 break-words">{m.payment.referenceNote}</p>}
+                    </div>
+                  )}
+                  {canManage && m.payment && (
+                    <div className="mt-2 text-right">
+                      <button onClick={() => setReverseMonth(m.month)} className="text-xs font-semibold text-slate-500 hover:text-rose-600">Reverse payment</button>
+                    </div>
+                  )}
+                  {canManage && !m.payment && !m.waived && m.started && (
+                    <button onClick={() => setEntry({ month: m.month, fee: m.feeUSD })}
+                      className={`mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold ${m.status === 'OVERDUE' || m.status === 'DUE' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}`}>
+                      <CurrencyDollarIcon className="w-4 h-4" /> Record payment
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="px-4 py-3 bg-slate-900 text-white">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm font-semibold">Total {year}</p>
+                <p className="font-bold tabular-nums">{usd(fees.due)}</p>
+              </div>
+              <p className="mt-1 text-xs text-slate-300 tabular-nums">Revenue {usd(totals.revenueUSD)} · Commission {usd(totals.commissionUSD)} · {usd(fees.paid)} paid · {usd(fees.outstanding)} outstanding</p>
+            </div>
+            {!canManage && <p className="px-4 py-3 text-xs text-slate-500 border-t border-slate-100">You can view fees. Recording payments requires the “Franchise payments” permission.</p>}
+          </section>
+
+          {/* Franchise fees — table (md+) */}
+          <section className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                    <th className="text-left font-semibold px-5 py-3">Month</th>
-                    <th className="text-right font-semibold px-4 py-3 hidden md:table-cell">Revenue</th>
-                    <th className="text-right font-semibold px-4 py-3 hidden lg:table-cell">Commission</th>
-                    <th className="text-right font-semibold px-4 py-3 hidden lg:table-cell">Fixed</th>
+                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200 whitespace-nowrap">
+                    <th className={`${stickyCell} bg-slate-50 text-left font-semibold px-5 py-3`}>Month</th>
+                    <th className="text-right font-semibold px-4 py-3">Revenue</th>
+                    <th className="text-right font-semibold px-4 py-3">Commission</th>
+                    <th className="text-right font-semibold px-4 py-3">Fixed</th>
                     <th className="text-right font-semibold px-4 py-3">Fee</th>
                     <th className="text-left font-semibold px-4 py-3">Status</th>
-                    <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Payment</th>
+                    <th className="text-left font-semibold px-4 py-3">Payment</th>
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {months.map(m => (
-                    <tr key={m.month} className={m.status === 'OVERDUE' ? 'bg-rose-50/30' : 'hover:bg-slate-50/60'}>
-                      <td className="px-5 py-3">
-                        <p className="font-medium text-slate-900">{m.month}</p>
-                        {!m.waived && m.status !== 'PAID' && m.started && <p className={`text-xs ${m.status === 'OVERDUE' ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>Due {m.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">{usd(m.revenueUSD)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums hidden lg:table-cell">{usd(m.commissionUSD)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums hidden lg:table-cell text-slate-500">{m.waived ? '—' : usd(FIXED_ADDON)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">{m.waived ? <span className="text-slate-400 font-normal">Waived</span> : !m.started ? <span className="text-slate-300">—</span> : usd(m.feeUSD)}</td>
-                      <td className="px-4 py-3"><StatusChip status={m.status} /></td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        {m.payment ? (
-                          <div className="text-xs">
-                            <p className="font-semibold text-slate-900">{m.payment.currency} {m.payment.amount.toFixed(2)}{m.paidUSD + 0.009 < m.feeUSD && <span className="ml-1.5 text-amber-700">partial</span>}</p>
-                            <p className="text-slate-500">{new Date(m.payment.datePaid).toLocaleDateString('en-GB')}{m.payment.method ? ` · ${METHOD_LABEL[m.payment.method]}` : ''} · {m.payment.paidBy}</p>
-                            {m.payment.referenceNote && <p className="text-slate-400 truncate max-w-[16rem]" title={m.payment.referenceNote}>{m.payment.referenceNote}</p>}
-                          </div>
-                        ) : <span className="text-xs text-slate-300">—</span>}
-                      </td>
-                      <td className="px-5 py-3 text-right whitespace-nowrap">
-                        {canManage && m.payment && (
-                          <button onClick={() => setReverseMonth(m.month)} className="text-xs font-semibold text-slate-500 hover:text-rose-600">Reverse</button>
-                        )}
-                        {canManage && !m.payment && !m.waived && m.started && (
-                          <button onClick={() => setEntry({ month: m.month, fee: m.feeUSD })}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${m.status === 'OVERDUE' || m.status === 'DUE' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}`}>
-                            <CurrencyDollarIcon className="w-3.5 h-3.5" /> Record payment
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {months.map(m => {
+                    const rowBg = m.status === 'OVERDUE' ? 'bg-rose-50' : 'bg-white';
+                    return (
+                      <tr key={m.month} className={`group ${rowBg} ${m.status === 'OVERDUE' ? '' : 'hover:bg-slate-50'}`}>
+                        <td className={`${stickyCell} ${rowBg} ${m.status === 'OVERDUE' ? '' : 'group-hover:bg-slate-50'} px-5 py-3 whitespace-nowrap`}>
+                          <p className="font-medium text-slate-900">{m.month}</p>
+                          {!m.waived && m.status !== 'PAID' && m.started && <p className={`text-xs ${m.status === 'OVERDUE' ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>Due {m.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{usd(m.revenueUSD)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{usd(m.commissionUSD)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-slate-500">{m.waived ? '—' : usd(FIXED_ADDON)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap font-semibold text-slate-900">{m.waived ? <span className="text-slate-400 font-normal">Waived</span> : !m.started ? <span className="text-slate-300">—</span> : usd(m.feeUSD)}</td>
+                        <td className="px-4 py-3"><StatusChip status={m.status} /></td>
+                        <td className="px-4 py-3 min-w-[12rem]">
+                          {m.payment ? (
+                            <div className="text-xs">
+                              <p className="font-semibold text-slate-900">{m.payment.currency} {m.payment.amount.toFixed(2)}{m.paidUSD + 0.009 < m.feeUSD && <span className="ml-1.5 text-amber-700">partial</span>}</p>
+                              <p className="text-slate-500">{new Date(m.payment.datePaid).toLocaleDateString('en-GB')}{m.payment.method ? ` · ${METHOD_LABEL[m.payment.method]}` : ''} · {m.payment.paidBy}</p>
+                              {m.payment.referenceNote && <p className="text-slate-400 truncate max-w-[16rem]" title={m.payment.referenceNote}>{m.payment.referenceNote}</p>}
+                            </div>
+                          ) : <span className="text-xs text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                          {canManage && m.payment && (
+                            <button onClick={() => setReverseMonth(m.month)} className="text-xs font-semibold text-slate-500 hover:text-rose-600">Reverse</button>
+                          )}
+                          {canManage && !m.payment && !m.waived && m.started && (
+                            <button onClick={() => setEntry({ month: m.month, fee: m.feeUSD })}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${m.status === 'OVERDUE' || m.status === 'DUE' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}`}>
+                              <CurrencyDollarIcon className="w-3.5 h-3.5" /> Record payment
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-slate-900 text-white text-sm">
-                    <td className="px-5 py-3 font-semibold">Total {year}</td>
-                    <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell">{usd(totals.revenueUSD)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums hidden lg:table-cell">{usd(totals.commissionUSD)}</td>
-                    <td className="hidden lg:table-cell" />
+                  <tr className="bg-slate-900 text-white text-sm whitespace-nowrap">
+                    <td className={`${stickyCell} bg-slate-900 px-5 py-3 font-semibold`}>Total {year}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{usd(totals.revenueUSD)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{usd(totals.commissionUSD)}</td>
+                    <td />
                     <td className="px-4 py-3 text-right tabular-nums font-bold">{usd(fees.due)}</td>
                     <td className="px-4 py-3 text-xs text-slate-300" colSpan={3}>{usd(fees.paid)} paid · {usd(fees.outstanding)} outstanding</td>
                   </tr>

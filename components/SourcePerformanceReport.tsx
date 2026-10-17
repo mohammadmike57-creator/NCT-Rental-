@@ -2,9 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Reservation, ReservationStatus } from '../types';
 import { MONTHS } from '../constants';
-import { PdfIcon } from './icons';
-import BarChart from './BarChart';
-import PieChart from './PieChart';
+import { PdfIcon, ChartBarIcon, CalendarIcon } from './icons';
 
 interface SourcePerformanceReportProps {
   reservations: Reservation[];
@@ -85,30 +83,16 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
     }, { confirmed: 0, cancelled: 0, noShow: 0, totalAmount: 0 });
   }, [reportData]);
 
-  const revenueChartData = useMemo(() => {
-    const sortedData = [...reportData].sort((a, b) => b.totalAmount - a.totalAmount);
-    const labels = sortedData.map(row => row.source);
-    const data = sortedData.map(row => row.totalAmount);
-    
+  const statusBreakdown = useMemo(() => {
+    const total = grandTotal.confirmed + grandTotal.cancelled + grandTotal.noShow;
+    const pct = (n: number) => (total ? (n / total) * 100 : 0);
     return {
-      labels,
-      datasets: [
-        {
-          label: 'Total Revenue (Confirmed)',
-          data,
-          color: '#475569' // primary-dark
-        }
-      ]
-    };
-  }, [reportData]);
-
-  const statusChartData = useMemo(() => {
-    return {
-        labels: ['Confirmed', 'Cancelled', 'No Show'],
-        datasets: [{
-            data: [grandTotal.confirmed, grandTotal.cancelled, grandTotal.noShow],
-            backgroundColor: ['#10B981', '#EF4444', '#F59E0B'] // secondary, red, yellow
-        }]
+      total,
+      items: [
+        { key: 'confirmed', label: 'Confirmed', value: grandTotal.confirmed, pct: pct(grandTotal.confirmed), bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
+        { key: 'cancelled', label: 'Cancelled', value: grandTotal.cancelled, pct: pct(grandTotal.cancelled), bar: 'bg-rose-500', dot: 'bg-rose-500' },
+        { key: 'noShow', label: 'No show', value: grandTotal.noShow, pct: pct(grandTotal.noShow), bar: 'bg-amber-500', dot: 'bg-amber-500' },
+      ],
     };
   }, [grandTotal]);
 
@@ -171,95 +155,212 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
     doc.save(`source_performance_${startDate}_to_${endDate}.pdf`);
   };
 
-  return (
-     <div className="p-4 sm:p-6">
-       <div className="flex flex-col sm:flex-row justify-between items-start mb-6">
-        <div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-1">Source Performance Report</h3>
-          <p className="text-md text-gray-500">Analyze reservation performance by source for a selected period.</p>
-        </div>
-        <button 
-          onClick={handleExportPDF} 
-          disabled={reportData.length === 0}
-          className="mt-4 sm:mt-0 flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          <PdfIcon />
-          Export to PDF
-        </button>
-       </div>
-        <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex-1">
-                <label htmlFor="report-start-date" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                <input 
-                    type="date" 
-                    id="report-start-date"
-                    value={startDate} 
-                    onChange={e => setStartDate(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
-                />
-            </div>
-            <div className="flex-1">
-                <label htmlFor="report-end-date" className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                <input 
-                    type="date" 
-                    id="report-end-date"
-                    value={endDate} 
-                    onChange={e => setEndDate(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
-                />
-            </div>
-        </div>
+  const totalBookings = grandTotal.confirmed + grandTotal.cancelled + grandTotal.noShow;
+  const conversion = totalBookings ? (grandTotal.confirmed / totalBookings) * 100 : 0;
+  const shareOf = (amount: number) => (grandTotal.totalAmount ? (amount / grandTotal.totalAmount) * 100 : 0);
+  const maxAmount = Math.max(1, ...reportData.map(r => r.totalAmount));
+  const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
+  const rowRate = (row: ReportRow) => {
+    const t = row.confirmed + row.cancelled + row.noShow;
+    return t ? (row.confirmed / t) * 100 : 0;
+  };
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div className="lg:col-span-2">
-                <BarChart data={revenueChartData} title="Revenue by Source" unit="$" unitPosition="before" />
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <ChartBarIcon className="w-6 h-6" />
             </div>
-            <div>
-                <PieChart data={statusChartData} title="Reservation Status Breakdown" />
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Source performance</h2>
+              <p className="text-sm text-slate-500">Bookings, cancellations and confirmed revenue by rental source.</p>
             </div>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-end gap-2 w-full lg:w-auto">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-end">
+              <div className="min-w-0">
+                <label htmlFor="report-start-date" className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">From</label>
+                <input type="date" id="report-start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className={`${inputCls} min-w-0`} />
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="report-end-date" className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">To</label>
+                <input type="date" id="report-end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className={`${inputCls} min-w-0`} />
+              </div>
+            </div>
+            <button
+              onClick={handleExportPDF}
+              disabled={reportData.length === 0}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              <PdfIcon className="w-4 h-4" /> Export PDF
+            </button>
+          </div>
         </div>
-        
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rental Source</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Confirmed</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cancelled</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">No Show</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount (Confirmed)</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {reportData.length > 0 ? reportData.map((row, index) => (
-              <tr key={row.source} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.source}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{row.confirmed}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{row.cancelled}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{row.noShow}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{formatCurrency(row.totalAmount)}</td>
-              </tr>
-            )) : (
-              <tr>
-                <td colSpan={5} className="text-center py-10 text-gray-500">
-                  No data available for the selected date range.
-                </td>
-              </tr>
-            )}
-          </tbody>
-           {reportData.length > 0 && (
-              <tfoot className="bg-gray-100">
-                  <tr>
-                      <th scope="row" className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase">Grand Total</th>
-                      <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.confirmed}</td>
-                      <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.cancelled}</td>
-                      <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{grandTotal.noShow}</td>
-                      <td className="px-6 py-3 text-right text-sm font-bold text-gray-700">{formatCurrency(grandTotal.totalAmount)}</td>
-                  </tr>
-              </tfoot>
-           )}
-        </table>
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
+          <div className="px-5 py-4 min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Confirmed revenue</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-slate-900 truncate">{formatCurrency(grandTotal.totalAmount)}</p>
+            <p className="text-xs text-slate-400 truncate">{reportData.length} source{reportData.length === 1 ? '' : 's'}</p>
+          </div>
+          <div className="px-5 py-4 min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Confirmed</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-emerald-700">{grandTotal.confirmed}</p>
+            <p className="text-xs text-slate-400 truncate">{conversion.toFixed(1)}% of {totalBookings} bookings</p>
+          </div>
+          <div className="px-5 py-4 min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cancelled</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-rose-600">{grandTotal.cancelled}</p>
+            <p className="text-xs text-slate-400 truncate">{totalBookings ? ((grandTotal.cancelled / totalBookings) * 100).toFixed(1) : '0.0'}% of bookings</p>
+          </div>
+          <div className="px-5 py-4 min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">No show</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-amber-600">{grandTotal.noShow}</p>
+            <p className="text-xs text-slate-400 truncate">{totalBookings ? ((grandTotal.noShow / totalBookings) * 100).toFixed(1) : '0.0'}% of bookings</p>
+          </div>
+        </div>
       </div>
+
+      {reportData.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-16 text-center">
+          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center"><CalendarIcon className="w-6 h-6" /></div>
+          <h3 className="mt-4 text-sm font-semibold text-slate-900">No bookings in this period</h3>
+          <p className="mt-1 text-sm text-slate-500">Adjust the date range above to see how each source performed.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Revenue by source */}
+            <section className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-slate-900">Revenue by source</h3>
+                <span className="text-xs text-slate-400">Confirmed bookings</span>
+              </div>
+              <ul className="space-y-3">
+                {reportData.map(row => (
+                  <li key={row.source} className="min-w-0">
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="font-medium text-slate-700 truncate">{row.source}</span>
+                      <span className="shrink-0 tabular-nums text-slate-900 font-semibold">
+                        {formatCurrency(row.totalAmount)}
+                        <span className="ml-2 text-xs font-medium text-slate-400">{shareOf(row.totalAmount).toFixed(1)}%</span>
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-indigo-500" style={{ width: `${(row.totalAmount / maxAmount) * 100}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            {/* Status breakdown */}
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-slate-900">Status breakdown</h3>
+                <span className="text-xs text-slate-400 tabular-nums">{statusBreakdown.total} bookings</span>
+              </div>
+              <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
+                {statusBreakdown.items.map(i => i.pct > 0 && (
+                  <div key={i.key} className={i.bar} style={{ width: `${i.pct}%` }} title={`${i.label}: ${i.value}`} />
+                ))}
+              </div>
+              <ul className="mt-5 divide-y divide-slate-100">
+                {statusBreakdown.items.map(i => (
+                  <li key={i.key} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <span className="inline-flex items-center gap-2 text-slate-600"><span className={`w-2.5 h-2.5 rounded-sm ${i.dot}`} />{i.label}</span>
+                    <span className="tabular-nums">
+                      <span className="font-semibold text-slate-900">{i.value}</span>
+                      <span className="ml-2 text-xs text-slate-400">{i.pct.toFixed(1)}%</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+
+          {/* Table (md+) */}
+          <section className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                    <th scope="col" className="text-left font-semibold px-5 py-3">Rental source</th>
+                    <th scope="col" className="text-right font-semibold px-4 py-3">Confirmed</th>
+                    <th scope="col" className="text-right font-semibold px-4 py-3">Cancelled</th>
+                    <th scope="col" className="text-right font-semibold px-4 py-3">No show</th>
+                    <th scope="col" className="text-right font-semibold px-4 py-3 hidden lg:table-cell">Confirm rate</th>
+                    <th scope="col" className="text-right font-semibold px-4 py-3">Total amount</th>
+                    <th scope="col" className="text-left font-semibold px-5 py-3 w-40 hidden lg:table-cell">Share</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {reportData.map(row => (
+                    <tr key={row.source} className="hover:bg-slate-50/60">
+                      <td className="px-5 py-3 font-medium text-slate-900 whitespace-nowrap">{row.source}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.confirmed}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.cancelled}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.noShow}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-500 hidden lg:table-cell">{rowRate(row).toFixed(1)}%</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900 whitespace-nowrap">{formatCurrency(row.totalAmount)}</td>
+                      <td className="px-5 py-3 hidden lg:table-cell">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${shareOf(row.totalAmount)}%` }} />
+                          </div>
+                          <span className="w-12 text-right text-xs tabular-nums text-slate-500">{shareOf(row.totalAmount).toFixed(1)}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-900 text-white">
+                    <th scope="row" className="px-5 py-3 text-left font-semibold">Grand total</th>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{grandTotal.confirmed}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{grandTotal.cancelled}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{grandTotal.noShow}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold hidden lg:table-cell">{conversion.toFixed(1)}%</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-bold whitespace-nowrap">{formatCurrency(grandTotal.totalAmount)}</td>
+                    <td className="px-5 py-3 hidden lg:table-cell text-xs text-slate-300">100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          {/* Cards (mobile) */}
+          <div className="md:hidden space-y-3">
+            {reportData.map(row => (
+              <div key={row.source} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold text-slate-900 truncate min-w-0">{row.source}</p>
+                  <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset bg-indigo-50 text-indigo-700 ring-indigo-200 tabular-nums">{shareOf(row.totalAmount).toFixed(1)}%</span>
+                </div>
+                <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{formatCurrency(row.totalAmount)}</p>
+                <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-indigo-500" style={{ width: `${shareOf(row.totalAmount)}%` }} />
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div className="flex justify-between gap-2"><dt className="text-slate-500">Confirmed</dt><dd className="font-semibold tabular-nums text-emerald-700">{row.confirmed}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-slate-500">Cancelled</dt><dd className="font-semibold tabular-nums text-rose-600">{row.cancelled}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-slate-500">No show</dt><dd className="font-semibold tabular-nums text-amber-600">{row.noShow}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-slate-500">Rate</dt><dd className="font-semibold tabular-nums text-slate-700">{rowRate(row).toFixed(0)}%</dd></div>
+                </dl>
+              </div>
+            ))}
+            <div className="bg-slate-900 text-white rounded-2xl p-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm font-semibold">Grand total</p>
+                <p className="text-lg font-bold tabular-nums">{formatCurrency(grandTotal.totalAmount)}</p>
+              </div>
+              <p className="mt-1 text-xs text-slate-300 tabular-nums">{grandTotal.confirmed} confirmed · {grandTotal.cancelled} cancelled · {grandTotal.noShow} no show</p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
