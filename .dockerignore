@@ -1,17 +1,10 @@
-# Only pom.xml and src/ are needed to build the backend image.
+# Sent to Docker: the website sources (stage 1) plus pom.xml and src/ (stage 2).
 .git
 node_modules
 dist
 target
 screenshots
 docs
-public
-__tests__
-__mocks__
-app
-components
-services
 car-rental-backend-java
 car-rental-backend-nodejs
 *.md
-.env
