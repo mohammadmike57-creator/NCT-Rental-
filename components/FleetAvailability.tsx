@@ -2,12 +2,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Fleet, YearData, ReservationStatus, Reservation, RentalSource } from '../types';
 import { MONTHS, CAR_CATEGORIES, INITIAL_YEARS } from '../constants';
-import Tabs from './Tabs';
 import DailyAvailabilityModal from './DailyAvailabilityModal';
 import FleetCalendarView from './FleetCalendarView';
 import FleetTimelineView from './FleetTimelineView';
 import FleetStatusTracker from './FleetStatusTracker';
-import { ChartPieIcon, CarIcon, CheckCircleIcon, ClockIcon, ChevronDownIcon } from './icons';
+import { CarIcon, ClockIcon, ChevronDownIcon } from './icons';
 
 interface FleetAvailabilityProps {
   fleet: Fleet;
@@ -26,21 +25,25 @@ export interface DailyAssignments {
     [licensePlate: string]: Reservation | null;
 }
 
-const StatCard: React.FC<{ title: string; value: string | number; subtitle: string; color: string; icon: React.ReactNode }> = ({ title, value, subtitle, color, icon }) => (
-    <div className={`bg-white p-5 rounded-xl shadow-sm border-l-4 ${color} flex items-center justify-between transition-all hover:shadow-md hover:-translate-y-0.5`}>
-        <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{title}</p>
-            <p className="text-3xl font-extrabold text-gray-800 tracking-tight">{value}</p>
-            <p className="text-xs font-medium text-gray-500 mt-1">{subtitle}</p>
-        </div>
-        <div className={`p-3 rounded-lg bg-gray-50 text-gray-400 border border-gray-100`}>
-            {icon}
-        </div>
-    </div>
-);
+type ViewKey = 'calendar' | 'timeline' | 'tracker';
+
+const VIEWS: { key: ViewKey; label: string; short: string }[] = [
+  { key: 'calendar', label: 'Calendar view', short: 'Calendar' },
+  { key: 'timeline', label: 'Timeline view', short: 'Timeline' },
+  { key: 'tracker', label: 'Car tracker', short: 'Tracker' },
+];
+
+const LEGEND = [
+  { dot: 'bg-green-500', label: 'Over 70% free' },
+  { dot: 'bg-yellow-500', label: '30 to 70% free' },
+  { dot: 'bg-orange-500', label: 'Under 30% free' },
+  { dot: 'bg-red-500', label: 'Sold out' },
+];
+
+const selectClass = 'w-full appearance-none pl-3 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 cursor-pointer focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
 
 const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, year, currentMonth, onMonthChange, onYearChange, rentalSources }) => {
-  const [activeView, setActiveView] = useState<'calendar' | 'timeline' | 'tracker'>('calendar');
+  const [activeView, setActiveView] = useState<ViewKey>('calendar');
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [trackerDate, setTrackerDate] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
@@ -165,149 +168,164 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
     setModalDate(null);
   };
   
+  const selectedDateLabel = useMemo(() => {
+    if (!trackerDate) return '';
+    const [y, m, d] = trackerDate.split('-').map(Number);
+    const dt = new Date(y, (m || 1) - 1, d || 1);
+    return isNaN(dt.getTime()) ? trackerDate : dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }, [trackerDate]);
+
   return (
-    <div className="p-4 sm:p-6 bg-gray-50/50 min-h-screen">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b pb-4">
-          <div>
-              <h3 className="text-2xl font-bold text-gray-800">Fleet Dashboard</h3>
-              <p className="text-sm text-gray-500 mt-1">Real-time inventory tracking for {currentMonth} {year}</p>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-3 bg-white p-1.5 rounded-lg shadow-sm border border-gray-200">
-               <div className="relative">
-                   <select 
-                    value={currentMonth}
-                    onChange={e => onMonthChange(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
-                   >
-                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-                   </select>
-                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-               </div>
-               <div className="h-6 w-px bg-gray-300"></div>
-               <div className="relative">
-                   <select 
-                    value={year}
-                    onChange={e => onYearChange(parseInt(e.target.value))}
-                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
-                   >
-                     {INITIAL_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                   </select>
-                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-               </div>
-               <div className="h-6 w-px bg-gray-300"></div>
-               <div className="relative">
-                   <select 
-                    value={categoryFilter}
-                    onChange={e => setCategoryFilter(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2 border-none rounded-md text-sm focus:ring-0 bg-transparent font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
-                   >
-                     <option value="">All Categories</option>
-                     {CAR_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                   </select>
-                   <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-               </div>
-          </div>
-      </div>
-      
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard 
-            title="Total Fleet" 
-            value={stats.total} 
-            subtitle={categoryFilter ? `${categoryFilter} Vehicles` : "Active Inventory"}
-            color="border-blue-500" 
-            icon={<CarIcon className="w-6 h-6"/>} 
-          />
-          <StatCard 
-            title="Rented on Selected Date" 
-            value={stats.rented} 
-            subtitle={`${stats.utilization}% Utilization`}
-            color="border-orange-500" 
-            icon={<ClockIcon className="w-6 h-6"/>} 
-          />
-          <StatCard 
-            title="Available on Selected Date" 
-            value={stats.available} 
-            subtitle="Ready for booking"
-            color="border-green-500" 
-            icon={<CheckCircleIcon className="w-6 h-6"/>} 
-          />
-          <StatCard 
-            title="Utilization Rate" 
-            value={`${stats.utilization}%`} 
-            subtitle="Fleet efficiency"
-            color={stats.utilization > 80 ? "border-indigo-500" : "border-gray-400"} 
-            icon={<ChartPieIcon className="w-6 h-6"/>} 
-          />
-      </div>
-
-      <div className="mb-6">
-        <Tabs 
-          tabs={['Calendar View', 'Timeline View', 'Car Tracker']}
-          selectedTab={
-            activeView === 'calendar' ? 'Calendar View' :
-            activeView === 'timeline' ? 'Timeline View' : 'Car Tracker'
-          }
-          onSelectTab={(tab) => {
-            if (tab === 'Calendar View') setActiveView('calendar');
-            else if (tab === 'Timeline View') setActiveView('timeline');
-            else setActiveView('tracker');
-          }}
-          variant="underline"
-        />
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[500px]">
-        {activeView === 'calendar' && (
-            <FleetCalendarView 
-            year={year}
-            month={currentMonth}
-            fleet={filteredFleet}
-            dailyAssignments={dailyAssignments}
-            onDayClick={handleDayClick}
-            />
-        )}
-        {activeView === 'timeline' && (
-            <FleetTimelineView
-            year={year}
-            month={currentMonth}
-            fleet={filteredFleet}
-            reservations={reservationsForMonth}
-            />
-        )}
-        {activeView === 'tracker' && (
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 bg-slate-50 p-4 rounded-lg">
-                    <div className="flex items-center gap-4">
-                         <label htmlFor="tracker-date" className="text-sm font-bold text-gray-700">Check Status For:</label>
-                         <input
-                            type="date"
-                            id="tracker-date"
-                            value={trackerDate}
-                            onChange={(e) => setTrackerDate(e.target.value)}
-                            className="p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary shadow-sm font-medium text-gray-700"
-                        />
-                    </div>
-                    <div className="text-sm text-gray-500">
-                        Showing fleet status for specific day
-                    </div>
-                </div>
-                
-                {trackerDate && (
-                    <FleetStatusTracker
-                        fleet={filteredFleet}
-                        assignments={dailyAssignments.get(trackerDate) || {}}
-                        selectedDate={trackerDate}
-                        rentalSources={rentalSources}
-                    />
-                )}
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="p-5 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <CarIcon className="w-6 h-6" />
             </div>
-        )}
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Fleet availability</h2>
+              <p className="text-sm text-slate-500">Inventory for {currentMonth} {year}{categoryFilter ? ` · ${categoryFilter}` : ''}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full xl:w-auto">
+            <div className="relative sm:w-40">
+              <select value={currentMonth} onChange={e => onMonthChange(e.target.value)} aria-label="Month" className={selectClass}>
+                {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            </div>
+            <div className="relative sm:w-28">
+              <select value={year} onChange={e => onYearChange(parseInt(e.target.value))} aria-label="Year" className={selectClass}>
+                {INITIAL_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            </div>
+            <div className="relative col-span-2 sm:w-48">
+              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Category" className={selectClass}>
+                <option value="">All categories</option>
+                {CAR_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
+          {[
+            { label: 'Total fleet', value: stats.total, sub: categoryFilter ? `${categoryFilter} vehicles` : 'active inventory', tone: 'text-slate-900' },
+            { label: 'Rented', value: stats.rented, sub: selectedDateLabel ? `on ${selectedDateLabel}` : 'on selected date', tone: stats.rented > 0 ? 'text-amber-600' : 'text-slate-900' },
+            { label: 'Available', value: stats.available, sub: 'ready for booking', tone: stats.available > 0 ? 'text-emerald-600' : 'text-rose-600' },
+            { label: 'Utilization', value: `${stats.utilization}%`, sub: 'of fleet on rent', tone: stats.utilization > 80 ? 'text-indigo-600' : 'text-slate-900', bar: true },
+          ].map(k => (
+            <div key={k.label} className="px-5 py-4 min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
+              <p className={`mt-1 text-2xl font-bold tabular-nums ${k.tone}`}>{k.value}</p>
+              {k.bar ? (
+                <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className={`h-full rounded-full ${stats.utilization > 80 ? 'bg-indigo-500' : 'bg-slate-400'}`} style={{ width: `${Math.min(100, stats.utilization)}%` }} />
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 truncate">{k.sub}</p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-      
+
+      {/* View */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-w-0">
+        <div className="px-3 sm:px-5 py-3 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl w-full md:w-auto" role="tablist">
+            {VIEWS.map(v => (
+              <button
+                key={v.key}
+                role="tab"
+                aria-selected={activeView === v.key}
+                onClick={() => setActiveView(v.key)}
+                className={`flex-1 md:flex-none px-3 py-1.5 text-sm font-semibold rounded-lg whitespace-nowrap ${activeView === v.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                <span className="sm:hidden">{v.short}</span>
+                <span className="hidden sm:inline">{v.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {activeView === 'calendar' && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+              {LEGEND.map(l => (
+                <span key={l.label} className="inline-flex items-center gap-1.5 whitespace-nowrap"><span className={`w-2.5 h-2.5 rounded-full ${l.dot}`} />{l.label}</span>
+              ))}
+            </div>
+          )}
+          {activeView === 'tracker' && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <label htmlFor="tracker-date" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Check status for</label>
+              <input
+                type="date"
+                id="tracker-date"
+                value={trackerDate}
+                onChange={(e) => setTrackerDate(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+              />
+            </div>
+          )}
+        </div>
+
+        {activeView !== 'tracker' && (
+          <p className="md:hidden px-4 py-2 text-xs text-slate-400 bg-slate-50 border-b border-slate-100">Swipe sideways to see the whole month.</p>
+        )}
+
+        <div className="min-h-[500px]">
+          {activeView === 'calendar' && (
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px]">
+                <FleetCalendarView
+                  year={year}
+                  month={currentMonth}
+                  fleet={filteredFleet}
+                  dailyAssignments={dailyAssignments}
+                  onDayClick={handleDayClick}
+                />
+              </div>
+            </div>
+          )}
+          {activeView === 'timeline' && (
+            <div className="min-w-0 max-w-full">
+              <FleetTimelineView
+                year={year}
+                month={currentMonth}
+                fleet={filteredFleet}
+                reservations={reservationsForMonth}
+              />
+            </div>
+          )}
+          {activeView === 'tracker' && (
+            <div className="p-3 sm:p-6 min-w-0">
+              {trackerDate ? (
+                <FleetStatusTracker
+                  fleet={filteredFleet}
+                  assignments={dailyAssignments.get(trackerDate) || {}}
+                  selectedDate={trackerDate}
+                  rentalSources={rentalSources}
+                />
+              ) : (
+                <div className="py-16 text-center">
+                  <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><ClockIcon className="w-6 h-6" /></div>
+                  <p className="mt-4 font-semibold text-slate-800">Pick a date</p>
+                  <p className="text-sm text-slate-500">Choose a day above to see where every car is.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {modalDate && (
-        <DailyAvailabilityModal 
+        <DailyAvailabilityModal
           date={modalDate}
           assignments={dailyAssignments.get(modalDate) || {}}
           fleet={filteredFleet}
