@@ -1,441 +1,522 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
-import jsPDF from 'jspdf';
-import { Reservation, ReservationStatus, YearData, CompanyDetails, RentalSource, PaymentType, InvoiceData, InvoiceReservationItem } from '../types';
-import { DocumentTextIcon, PrinterIcon, PdfIcon, MailIcon, CalendarIcon, ChevronRightIcon, ExportIcon } from './icons';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AppData, Aggregator, CompanyDetails, InvoiceData, InvoiceLine, PaymentType, RentalSource, Reservation, ReservationStatus, YearData } from '../types';
 import { MONTHS, URDRIVE_LOGO_B64 } from '../constants';
-
-// Forward declaration for html2canvas from CDN
-declare const html2canvas: any;
+import { sendCustomerEmail } from '../firebase/api';
+import { downloadPdf, htmlToPdfBase64 } from '../services/agreementPdf';
+import {
+  TERMS_DAYS, TERMS_LABEL, amountInWords, billableAmount, buildInvoiceHtml, invoiceState, InvoiceState, linesOf, money, priceLine, rentalDays,
+} from '../services/invoiceDoc';
 
 interface InvoiceProps {
   yearData: YearData;
+  allData?: AppData;
   year: number;
   month: string;
   companyDetails: CompanyDetails;
   sources: RentalSource[];
+  aggregators?: Aggregator[];
   invoices: InvoiceData[];
+  currentUserName?: string;
   onSaveInvoice: (invoice: InvoiceData) => void;
+  onUpdateInvoice?: (invoice: InvoiceData) => void;
 }
 
-const TAX_RATE = 0.16;
-
-const toWords = (num: number): string => {
-    if (num === 0) return 'Zero';
-
-    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    const thousands = ['', 'Thousand', 'Million', 'Billion'];
-
-    const numToWords = (n: number): string => {
-        if (n === 0) return '';
-        if (n < 10) return ones[n];
-        if (n < 20) return teens[n - 10];
-        if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 > 0 ? ' ' + ones[n % 10] : '');
-        return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 > 0 ? ' ' + numToWords(n % 100) : '');
-    };
-
-    let words = '';
-    let i = 0;
-    let tempNum = num;
-
-    while (tempNum > 0) {
-        if (tempNum % 1000 !== 0) {
-            words = numToWords(tempNum % 1000) + ' ' + thousands[i] + ' ' + words;
-        }
-        tempNum = Math.floor(tempNum / 1000);
-        i++;
-    }
-
-    return words.trim();
+const STATE_META: Record<InvoiceState, { label: string; cls: string; dot: string }> = {
+  unpaid: { label: 'Unpaid', cls: 'bg-sky-50 text-sky-700 ring-sky-200', dot: 'bg-sky-500' },
+  overdue: { label: 'Overdue', cls: 'bg-rose-50 text-rose-700 ring-rose-200', dot: 'bg-rose-500' },
+  paid: { label: 'Paid', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500' },
+  void: { label: 'Void', cls: 'bg-slate-100 text-slate-500 ring-slate-200', dot: 'bg-slate-400' },
 };
 
+const PAY_KEY = 'nct.invoice.paymentInstructions';
+const readPref = (k: string) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
+const writePref = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } };
 
-const numberToWords = (num: number): string => {
-    const integerPart = Math.floor(num);
-    const decimalPart = Math.round((num - integerPart) * 100);
-    const integerWords = toWords(integerPart);
-    return `${integerWords} and ${decimalPart.toString().padStart(2, '0')}/100 Dollars`;
-};
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fmtDay = (s?: string) => (s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+const inputCls = 'w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500';
 
-const calculateDays = (start: string, end: string): number => {
-    if (!start || !end) return 1;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate) {
-        return 1;
-    }
-
-    const diffInMs = endDate.getTime() - startDate.getTime();
-
-    const oneDayInMs = 24 * 60 * 60 * 1000;
-    if (diffInMs <= oneDayInMs) {
-        return 1;
-    }
-
-    const gracePeriodInMs = 2 * 60 * 60 * 1000;
-
-    const fullDays = Math.floor(diffInMs / oneDayInMs);
-    const remainingMs = diffInMs % oneDayInMs;
-
-    if (remainingMs === 0) {
-        return fullDays;
-    }
-    
-    if (remainingMs >= gracePeriodInMs) {
-        return fullDays + 1;
-    }
-    
-    return fullDays;
-};
-
-const Invoice: React.FC<InvoiceProps> = ({ yearData, year, month, companyDetails, sources, invoices, onSaveInvoice }) => {
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedSourceId, setSelectedSourceId] = useState<string>('all');
-  
-  const [view, setView] = useState<'form' | 'success'>('form');
-  const [generatedInvoiceData, setGeneratedInvoiceData] = useState<InvoiceData | null>(null);
-  
-  const prepaidSources = useMemo(() => sources.filter(s => s.paymentType === PaymentType.PREPAID), [sources]);
-
+/** Shows a printable HTML document as a scaled A4 page. */
+const DocPreview: React.FC<{ html: string; className?: string }> = ({ html, className }) => {
+  const wrap = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [scale, setScale] = useState(0.6);
+  const [height, setHeight] = useState(1123);
   useEffect(() => {
-    const monthIndex = MONTHS.indexOf(month);
-    if (monthIndex !== -1) {
-        const firstDay = new Date(year, monthIndex, 1);
-        const lastDay = new Date(year, monthIndex + 1, 0);
-
-        setStartDate(firstDay.toISOString().split('T')[0]);
-        setEndDate(lastDay.toISOString().split('T')[0]);
-    }
-  }, [year, month]);
-  
-  useEffect(() => {
-    if (prepaidSources.length > 0) {
-        setSelectedSourceId('all');
-    } else {
-        setSelectedSourceId('');
-    }
-  }, [prepaidSources]);
-
-  const invoiceData = useMemo(() => {
-    const selectedSource = prepaidSources.find(s => s.id === selectedSourceId);
-    const billToName = selectedSource ? selectedSource.name : 'All Prepaid Sources';
-    const prepaidSourceNames = prepaidSources.map(s => s.name);
-
-    if (!startDate || !endDate || prepaidSources.length === 0) return null;
-
-    const allReservations = yearData ? Object.values(yearData).flat() : [];
-    
-    const billableReservations: InvoiceReservationItem[] = allReservations
-      .filter((r: Reservation) => {
-          const sourceMatch = selectedSourceId === 'all'
-            ? prepaidSourceNames.includes(r.source)
-            : selectedSource ? r.source === selectedSource.name : false;
-
-          return sourceMatch && r.status === ReservationStatus.CONFIRMED &&
-            r.amount > 0 && r.startDate && r.startDate >= startDate && r.startDate <= endDate;
-      })
-      .map((r: Reservation) => {
-          const rentalDays = calculateDays(r.startDate, r.endDate);
-          const extrasTotal = (r.extras || []).reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0);
-          const baseAmount = r.baseAmount ?? ((r.amount || 0) - extrasTotal);
-          const subtotal = baseAmount / (1 + TAX_RATE);
-          const tax = baseAmount - subtotal;
-          return { ...r, subtotal, tax, total: baseAmount };
-      });
-
-    const totalSubtotal = billableReservations.reduce((sum, r) => sum + r.subtotal, 0);
-    const totalTax = billableReservations.reduce((sum, r) => sum + r.tax, 0);
-    const grandTotal = totalSubtotal + totalTax;
-    const formattedStartDate = startDate.replace(/-/g, '');
-    const formattedEndDate = endDate.replace(/-/g, '');
-
-    return {
-      id: 'preview-id',
-      generatedAt: new Date().toISOString(),
-      reservations: billableReservations, totalSubtotal, totalTax, grandTotal,
-      grandTotalInWords: numberToWords(grandTotal),
-      invoiceNumber: `INV-${selectedSource?.name.replace(/\s+/g, '') || 'ALL'}-${formattedStartDate}-${formattedEndDate}`,
-      issueDate: new Date().toLocaleDateString(), billToName, startDate, endDate,
-    };
-  }, [yearData, startDate, endDate, sources, selectedSourceId, prepaidSources]);
-
-  const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
-  
-  const handleSubmit = () => {
-      if (!invoiceData || invoiceData.reservations.length === 0) {
-          alert("No data to generate invoice for.");
-          return;
-      }
-      const finalInvoiceData: InvoiceData = {
-          ...invoiceData,
-          id: `invoice-${Date.now()}`,
-          generatedAt: new Date().toISOString(),
-      };
-      onSaveInvoice(finalInvoiceData);
-      setGeneratedInvoiceData(finalInvoiceData);
-      setView('success');
+    const el = wrap.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setScale(Math.min(1, el.clientWidth / 794)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const measure = () => {
+    const d = frame.current?.contentDocument;
+    if (d?.body) setHeight(Math.max(1123, d.body.scrollHeight + 24));
   };
-  
-  const handleViewPrevious = (invoice: InvoiceData) => {
-    setGeneratedInvoiceData(invoice);
-    setView('success');
-  };
-
-  const handleDownloadPDF = () => {
-    if (!generatedInvoiceData) return;
-
-    const element = document.querySelector('.printable-area');
-    if (!element || typeof html2canvas === 'undefined') {
-        alert('Could not generate PDF. A required library might be missing.');
-        return;
-    }
-
-    html2canvas(element, { scale: 2 }).then((canvas: any) => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgProps= pdf.getImageProperties(imgData);
-        const imgWidth = imgProps.width;
-        const imgHeight = imgProps.height;
-        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth * ratio, imgHeight * ratio);
-        pdf.save(`invoice_${generatedInvoiceData.invoiceNumber}.pdf`);
-    });
-  };
-  
-    const handleDownloadCSV = () => {
-        if (!generatedInvoiceData || generatedInvoiceData.reservations.length === 0) {
-            alert('No invoice data to export.');
-            return;
-        }
-
-        const escapeCSV = (str: any): string => {
-            const stringified = String(str ?? '');
-            if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n')) {
-                return `"${stringified.replace(/"/g, '""')}"`;
-            }
-            return stringified;
-        };
-
-        const headers = [
-            'Renter', 'Source', 'Start Date', 'End Date', 'Days', 'Status', 'Subtotal', 'Tax (16%)', 'Total'
-        ];
-        
-        const rows = generatedInvoiceData.reservations.map(res => [
-            escapeCSV(res.personName),
-            escapeCSV(res.source),
-            escapeCSV(res.startDate),
-            escapeCSV(res.endDate),
-            escapeCSV(calculateDays(res.startDate, res.endDate)),
-            escapeCSV(res.status),
-            escapeCSV(res.subtotal.toFixed(2)),
-            escapeCSV(res.tax.toFixed(2)),
-            escapeCSV(res.total.toFixed(2)),
-        ].join(','));
-
-        const csvContent = [headers.join(','), ...rows].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        const filename = `invoice_${generatedInvoiceData.invoiceNumber}.csv`;
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
-
-
-  const handleSendEmail = () => {
-    if (!generatedInvoiceData) return;
-    const { billToName, grandTotal, invoiceNumber } = generatedInvoiceData;
-    const subject = `Invoice ${invoiceNumber} from ${companyDetails.name}`;
-    const body = `Dear ${billToName},\n\nPlease find your invoice #${invoiceNumber} for the total amount of ${formatCurrency(grandTotal)}.\n\nWe recommend downloading the PDF from the application for your records.\n\nThank you for your business!\n\nSincerely,\nThe ${companyDetails.name} Team`;
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
-
-
-  const InvoicePreview: React.FC<{data: InvoiceData}> = ({ data }) => (
-     <div className="space-y-8 font-serif-professional p-4">
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-             <img src={URDRIVE_LOGO_B64} alt={`${companyDetails.name} Logo`} className="h-10" />
-             <div className="mt-3">
-                <h2 className="text-xl font-black text-slate-900 tracking-tight">{companyDetails.name}</h2>
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">{companyDetails.subName}</p>
-             </div>
-            <p className="text-sm text-slate-600 mt-3">{companyDetails.address}</p>
-            <p className="text-sm text-slate-600">TEL: {companyDetails.phone}</p>
-            <p className="text-sm text-slate-600">EMAIL: {companyDetails.email}</p>
-          </div>
-          <div className="text-right">
-            <h2 className="text-3xl font-black uppercase text-slate-900 tracking-tight">Invoice</h2>
-            <p className="text-base text-slate-500 font-bold mt-1"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Invoice #:</span> {data.invoiceNumber}</p>
-            <p className="text-base text-slate-500 font-bold mt-0.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Date:</span> {data.issueDate}</p>
-            <p className="text-base text-slate-500 font-bold mt-0.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Tax Number:</span> {companyDetails.taxNumber}</p>
-          </div>
-        </div>
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <h5 className="font-black text-slate-400 uppercase text-[10px] tracking-widest mb-1">Bill To</h5>
-            <p className="text-lg font-black text-slate-900">{data.billToName}</p>
-        </div>
-        <div className="overflow-x-auto rounded-2xl border border-slate-100 shadow-sm">
-            <table className="min-w-full divide-y divide-slate-100">
-                <thead className="bg-slate-900 text-white">
-                    <tr>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Renter</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Source</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Period</th>
-                        <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Days</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Status</th>
-                        <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Subtotal</th>
-                        <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Tax</th>
-                        <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Total</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-100">
-                    {data.reservations.map((res) => (
-                        <tr key={res.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-900">{res.personName}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600 font-medium">{res.source}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600 font-medium">{res.startDate} to {res.endDate}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-900 text-right font-bold">{calculateDays(res.startDate, res.endDate)}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-700">
-                                <span className="px-2 py-0.5 inline-flex text-[10px] leading-5 font-black uppercase tracking-widest rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    {res.status}
-                                </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 text-right font-medium">{formatCurrency(res.subtotal)}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 text-right font-medium">{formatCurrency(res.tax)}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-base text-indigo-600 font-black text-right">{formatCurrency(res.total)}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-        <div className="flex justify-end pt-6">
-            <div className="w-full max-w-sm bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-md">
-                <div className="flex justify-between items-center py-2 border-b border-slate-200">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal:</span>
-                    <span className="text-base font-bold text-slate-900">{formatCurrency(data.totalSubtotal)}</span>
-                </div>
-                 <div className="flex justify-between items-center py-2 border-b border-slate-200">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tax (16%):</span>
-                    <span className="text-base font-bold text-slate-900">{formatCurrency(data.totalTax)}</span>
-                </div>
-                <div className="flex justify-between items-center py-4 mt-3 border-t-2 border-slate-900">
-                    <span className="text-xl font-black text-slate-900 uppercase tracking-tight">Grand Total:</span>
-                    <span className="text-2xl font-black text-indigo-600 tracking-tight">{formatCurrency(data.grandTotal)}</span>
-                </div>
-            </div>
-        </div>
-        <div className="pt-6 border-t border-slate-100">
-            <h5 className="font-black text-slate-400 uppercase text-[10px] tracking-widest mb-1">Amount in words</h5>
-            <p className="text-base font-bold text-slate-900 mt-0.5 italic">{data.grandTotalInWords}</p>
-        </div>
+  return (
+    <div ref={wrap} className={`w-full ${className || ''}`}>
+      <div style={{ height: height * scale }} className="relative overflow-hidden rounded-lg shadow-[0_8px_30px_rgba(15,23,42,0.12)] ring-1 ring-slate-200 bg-white">
+        <iframe ref={frame} title="Invoice preview" srcDoc={html} onLoad={measure}
+          style={{ width: 794, height, transform: `scale(${scale})`, transformOrigin: 'top left', border: 0 }} className="absolute top-0 left-0 bg-white" />
       </div>
+    </div>
   );
+};
+
+const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, companyDetails, sources, aggregators = [], invoices, currentUserName, onSaveInvoice, onUpdateInvoice }) => {
+  const [tab, setTab] = useState<'new' | 'history'>('new');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const flash = (t: string) => { setToast(t); setTimeout(() => setToast(null), 3500); };
+
+  // ----- data ---------------------------------------------------------------
+  const prepaidSources = useMemo(() => sources.filter(s => s.paymentType === PaymentType.PREPAID), [sources]);
+  const allReservations: Reservation[] = useMemo(() => {
+    const src = allData ? Object.values(allData).flatMap(y => Object.values(y as YearData).flat()) : Object.values(yearData || {}).flat();
+    return src as Reservation[];
+  }, [allData, yearData]);
+  const invoicedBy = useMemo(() => {
+    const map = new Map<string, string>();
+    invoices.filter(i => i.status !== 'void').forEach(inv => linesOf(inv).forEach(l => map.set(l.reservationId, inv.invoiceNumber)));
+    return map;
+  }, [invoices]);
+
+  // ----- form ---------------------------------------------------------------
+  const monthRange = (y: number, mIdx: number) => [iso(new Date(y, mIdx, 1)), iso(new Date(y, mIdx + 1, 0))] as const;
+  const [sourceId, setSourceId] = useState<string>(prepaidSources[0]?.id || '');
+  const [[startDate, endDate], setRange] = useState<readonly [string, string]>(() => monthRange(year, Math.max(0, MONTHS.indexOf(month))));
+  useEffect(() => { setRange(monthRange(year, Math.max(0, MONTHS.indexOf(month)))); }, [year, month]);
+  useEffect(() => { if (!prepaidSources.some(s => s.id === sourceId)) setSourceId(prepaidSources[0]?.id || ''); }, [prepaidSources, sourceId]);
+
+  const source = prepaidSources.find(s => s.id === sourceId);
+  const partner = aggregators.find(a => source && a.name.toLowerCase() === source.name.toLowerCase());
+  const [billTo, setBillTo] = useState({ name: '', email: '', address: '', taxNumber: '' });
+  useEffect(() => { setBillTo({ name: source?.name || '', email: partner?.contactEmail || '', address: '', taxNumber: '' }); }, [sourceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [terms, setTerms] = useState<NonNullable<InvoiceData['terms']>>('net30');
+  const [currency, setCurrency] = useState<NonNullable<InvoiceData['currency']>>('USD');
+  const [taxMode, setTaxMode] = useState<NonNullable<InvoiceData['taxMode']>>('included');
+  const [taxPct, setTaxPct] = useState(16);
+  const [poNumber, setPoNumber] = useState('');
+  const [notes, setNotes] = useState('');
+  const [payInstr, setPayInstr] = useState(() => readPref(PAY_KEY));
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+
+  const candidates = useMemo(() => {
+    if (!source || !startDate || !endDate) return [];
+    return allReservations
+      .filter(r => r.source === source.name && r.status !== ReservationStatus.CANCELLED && (r.status as string) !== 'NO_SHOW'
+        && (r.startDate || '').slice(0, 10) >= startDate && (r.startDate || '').slice(0, 10) <= endDate && billableAmount(r) > 0)
+      .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+  }, [allReservations, source, startDate, endDate]);
+
+  // Bookings already on another invoice start unticked, so nothing is billed twice by accident.
+  useEffect(() => { setExcluded(new Set(candidates.filter(r => invoicedBy.has(r.id)).map(r => r.id))); }, [candidates, invoicedBy]);
+
+  const rate = taxMode === 'none' ? 0 : taxPct / 100;
+  const lines: InvoiceLine[] = useMemo(() => candidates.filter(r => !excluded.has(r.id)).map(r => {
+    const p = priceLine(billableAmount(r), rate, taxMode);
+    return { reservationId: r.id, bookingId: r.bookingId, renter: r.personName, source: r.source, carModel: r.carModel, startDate: r.startDate, endDate: r.endDate, days: rentalDays(r.startDate, r.endDate), ...p };
+  }), [candidates, excluded, rate, taxMode]);
+
+  const totals = useMemo(() => {
+    const r2 = (n: number) => Math.round(n * 1000) / 1000;
+    const sub = r2(lines.reduce((s, l) => s + l.subtotal, 0));
+    const tax = r2(lines.reduce((s, l) => s + l.tax, 0));
+    return { sub, tax, total: r2(sub + tax) };
+  }, [lines]);
+
+  const nextNumber = useMemo(() => {
+    const issueYear = new Date().getFullYear();
+    const prefix = `INV-${issueYear}-`;
+    const used = invoices.map(i => i.invoiceNumber).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length)) || 0);
+    return `${prefix}${String((used.length ? Math.max(...used) : 0) + 1).padStart(4, '0')}`;
+  }, [invoices]);
+
+  const dueDate = useMemo(() => iso(new Date(Date.now() + TERMS_DAYS[terms] * 86400000)), [terms]);
+  const draft: InvoiceData = {
+    id: 'draft', invoiceNumber: nextNumber, issueDate: new Date().toLocaleDateString('en-GB'), generatedAt: new Date().toISOString(),
+    billToName: billTo.name || source?.name || '—', billToEmail: billTo.email.trim() || undefined, billToAddress: billTo.address.trim() || undefined, billToTaxNumber: billTo.taxNumber.trim() || undefined,
+    startDate, endDate, reservations: [], lines, totalSubtotal: totals.sub, totalTax: totals.tax, grandTotal: totals.total,
+    grandTotalInWords: amountInWords(totals.total, currency), status: 'issued', currency, taxRate: rate, taxMode, terms, dueDate,
+    poNumber: poNumber.trim() || undefined, notes: notes.trim() || undefined, paymentInstructions: payInstr.trim() || undefined, issuedBy: currentUserName,
+  };
+  const draftHtml = useMemo(() => buildInvoiceHtml(draft, companyDetails, URDRIVE_LOGO_B64),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify({ ...draft, generatedAt: draft.generatedAt.slice(0, 10) }), companyDetails]);
+
+  const issue = () => {
+    if (!lines.length) return;
+    if (billTo.email.trim() && !/^\S+@\S+\.\S+$/.test(billTo.email.trim())) { flash('The billing email address is not valid.'); return; }
+    writePref(PAY_KEY, payInstr);
+    const inv: InvoiceData = { ...draft, id: `invoice-${Date.now()}`, generatedAt: new Date().toISOString() };
+    onSaveInvoice(inv);
+    setTab('history');
+    setOpenId(inv.id);
+    setPoNumber('');
+    setNotes('');
+    flash(`Invoice ${inv.invoiceNumber} issued for ${money(inv.grandTotal, inv.currency)}.`);
+  };
+
+  // ----- history ------------------------------------------------------------
+  const [filter, setFilter] = useState<'all' | InvoiceState>('all');
+  const [query, setQuery] = useState('');
+  const sorted = useMemo(() => [...invoices].sort((a, b) => b.generatedAt.localeCompare(a.generatedAt)), [invoices]);
+  const visible = sorted.filter(i => (filter === 'all' || invoiceState(i) === filter) && (!query || `${i.invoiceNumber} ${i.billToName} ${i.poNumber || ''}`.toLowerCase().includes(query.toLowerCase())));
+
+  const kpi = useMemo(() => {
+    const thisYear = String(new Date().getFullYear());
+    const live = invoices.filter(i => invoiceState(i) !== 'void');
+    const sum = (l: InvoiceData[]) => l.reduce((s, i) => s + (i.grandTotal || 0), 0);
+    const yearL = live.filter(i => i.generatedAt.startsWith(thisYear));
+    const unpaid = live.filter(i => invoiceState(i) === 'unpaid');
+    const overdue = live.filter(i => invoiceState(i) === 'overdue');
+    const paid = yearL.filter(i => invoiceState(i) === 'paid');
+    return { yearCount: yearL.length, yearSum: sum(yearL), unpaid: sum(unpaid), unpaidN: unpaid.length, overdue: sum(overdue), overdueN: overdue.length, paid: sum(paid), paidN: paid.length };
+  }, [invoices]);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: invoices.length, unpaid: 0, overdue: 0, paid: 0, void: 0 };
+    invoices.forEach(i => { c[invoiceState(i)]++; });
+    return c;
+  }, [invoices]);
+
+  const open = invoices.find(i => i.id === openId) || null;
 
   return (
-    <div className="p-4 sm:p-6 bg-white rounded-lg shadow-md">
-      {view === 'form' ? (
-        <>
-          <div className="mb-6 pb-4 border-b border-gray-200">
-            <h3 className="text-2xl font-bold text-gray-800">Invoice for Prepaid Bookings</h3>
-            <p className="text-md text-gray-500">Select a source and date range to generate the invoice.</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-            <div>
-                <label htmlFor="invoice-source" className="block text-sm font-medium text-gray-700 mb-1">Booking Source</label>
-                <select id="invoice-source" value={selectedSourceId} onChange={e => setSelectedSourceId(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" disabled={prepaidSources.length === 0}>
-                    <option value="all">All Prepaid Sources</option>
-                    {prepaidSources.map(source => <option key={source.id} value={source.id}>{source.name}</option>)}
-                </select>
+    <div className="space-y-5 mb-10">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
             </div>
             <div>
-                <label htmlFor="invoice-start-date" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                <input type="date" id="invoice-start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
-            </div>
-            <div>
-                <label htmlFor="invoice-end-date" className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                <input type="date" id="invoice-end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Partner invoices</h2>
+              <p className="text-sm text-slate-500">Bill prepaid booking partners, track payment and send invoices by email.</p>
             </div>
           </div>
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl">
+            {([['new', 'New invoice'], ['history', `Invoices (${invoices.length})`]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setTab(k)} className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${tab === k ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
+          {[
+            { label: `Invoiced ${new Date().getFullYear()}`, value: money(kpi.yearSum), sub: `${kpi.yearCount} invoice${kpi.yearCount === 1 ? '' : 's'}` },
+            { label: 'Awaiting payment', value: money(kpi.unpaid), sub: `${kpi.unpaidN} not yet due` },
+            { label: 'Overdue', value: money(kpi.overdue), sub: `${kpi.overdueN} past due date`, warn: kpi.overdueN > 0 },
+            { label: 'Collected', value: money(kpi.paid), sub: `${kpi.paidN} paid this year`, good: true },
+          ].map(k => (
+            <div key={k.label} className="px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
+              <p className={`mt-1 text-2xl font-bold tabular-nums ${k.warn ? 'text-rose-600' : k.good ? 'text-emerald-700' : 'text-slate-900'}`}>{k.value}</p>
+              <p className="text-xs text-slate-400">{k.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
-          <h4 className="text-lg font-semibold text-gray-700 mb-2">Preview</h4>
-          {invoiceData && invoiceData.reservations.length > 0 ? (
-            <div className="p-4 border rounded-lg"><InvoicePreview data={invoiceData} /></div>
+      {tab === 'new' ? (
+        prepaidSources.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-16 text-center">
+            <p className="font-semibold text-slate-700">No prepaid partners yet</p>
+            <p className="text-sm text-slate-500">Mark a booking source as “Prepaid” in Manage Sources to invoice it here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-5 items-start">
+            {/* Builder */}
+            <div className="space-y-5 min-w-0">
+              <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Bill to</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block sm:col-span-2"><span className="block text-xs font-medium text-slate-500 mb-1">Partner</span>
+                    <select className={inputCls} value={sourceId} onChange={e => setSourceId(e.target.value)}>
+                      {prepaidSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Legal name on invoice</span>
+                    <input className={inputCls} value={billTo.name} onChange={e => setBillTo(b => ({ ...b, name: e.target.value }))} /></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Billing email</span>
+                    <input className={inputCls} value={billTo.email} onChange={e => setBillTo(b => ({ ...b, email: e.target.value }))} placeholder="accounts@partner.com" inputMode="email" /></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Address</span>
+                    <textarea rows={2} className={inputCls} value={billTo.address} onChange={e => setBillTo(b => ({ ...b, address: e.target.value }))} placeholder="Street, city, country" /></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Partner tax number</span>
+                    <input className={inputCls} value={billTo.taxNumber} onChange={e => setBillTo(b => ({ ...b, taxNumber: e.target.value }))} placeholder="Optional" /></label>
+                </div>
+              </section>
+
+              <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Period & terms</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const now = new Date();
+                    const presets: [string, readonly [string, string]][] = [
+                      [`${month} ${year}`, monthRange(year, Math.max(0, MONTHS.indexOf(month)))],
+                      ['This month', monthRange(now.getFullYear(), now.getMonth())],
+                      ['Last month', monthRange(now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear(), (now.getMonth() + 11) % 12)],
+                      ['Year to date', [iso(new Date(now.getFullYear(), 0, 1)), iso(now)] as const],
+                    ];
+                    return presets.map(([label, r]) => (
+                      <button key={label} onClick={() => setRange(r)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ring-1 ${startDate === r[0] && endDate === r[1] ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'}`}>{label}</button>
+                    ));
+                  })()}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">From</span><input type="date" className={inputCls} value={startDate} onChange={e => setRange([e.target.value, endDate])} /></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">To</span><input type="date" className={inputCls} value={endDate} onChange={e => setRange([startDate, e.target.value])} /></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Payment terms</span>
+                    <select className={inputCls} value={terms} onChange={e => setTerms(e.target.value as typeof terms)}>{Object.entries(TERMS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Currency</span>
+                    <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value as typeof currency)}><option>USD</option><option>JOD</option><option>EUR</option></select></label>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px_1fr] gap-3 items-end">
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">VAT</span>
+                    <select className={inputCls} value={taxMode} onChange={e => setTaxMode(e.target.value as typeof taxMode)}>
+                      <option value="included">Rates include VAT</option><option value="added">Add VAT on top</option><option value="none">No VAT (exempt / export)</option>
+                    </select></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Rate %</span>
+                    <input type="number" min={0} max={50} step="0.5" disabled={taxMode === 'none'} className={`${inputCls} disabled:bg-slate-50`} value={taxPct} onChange={e => setTaxPct(parseFloat(e.target.value) || 0)} /></label>
+                  <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">PO / partner reference</span>
+                    <input className={inputCls} value={poNumber} onChange={e => setPoNumber(e.target.value)} placeholder="Optional" /></label>
+                </div>
+                <p className="text-xs text-slate-400">Due {fmtDay(dueDate)} · invoice number {nextNumber}</p>
+              </section>
+
+              <section className="bg-white rounded-2xl border border-slate-200">
+                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Bookings</h3>
+                    <p className="text-xs text-slate-500">{lines.length} of {candidates.length} selected · extras are excluded (charged to the renter)</p>
+                  </div>
+                  {candidates.length > 0 && (
+                    <div className="flex gap-2 text-xs font-semibold">
+                      <button onClick={() => setExcluded(new Set(candidates.filter(r => invoicedBy.has(r.id)).map(r => r.id)))} className="text-indigo-600 hover:underline">Select uninvoiced</button>
+                      <button onClick={() => setExcluded(new Set(candidates.map(r => r.id)))} className="text-slate-500 hover:underline">Clear</button>
+                    </div>
+                  )}
+                </div>
+                {candidates.length === 0 ? (
+                  <p className="px-5 py-10 text-center text-sm text-slate-500">No {source?.name} bookings start in this period.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                    {candidates.map(r => {
+                      const on = !excluded.has(r.id);
+                      const prior = invoicedBy.get(r.id);
+                      const p = priceLine(billableAmount(r), rate, taxMode);
+                      return (
+                        <li key={r.id}>
+                          <label className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer ${on ? '' : 'opacity-60'} hover:bg-slate-50`}>
+                            <input type="checkbox" checked={on} onChange={() => setExcluded(prev => { const n = new Set(prev); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-sm font-semibold text-slate-900 truncate">{r.personName} <span className="font-mono text-xs font-normal text-slate-400">#{r.bookingId}</span></span>
+                              <span className="block text-xs text-slate-500 truncate">{fmtDay(r.startDate)} → {fmtDay(r.endDate)} · {rentalDays(r.startDate, r.endDate)} days · {r.carModel}</span>
+                            </span>
+                            {prior && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 whitespace-nowrap">On {prior}</span>}
+                            {r.status === ReservationStatus.PENDING && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Pending</span>}
+                            <span className="w-24 text-right text-sm font-semibold tabular-nums text-slate-900">{money(p.total, currency)}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
+              <section className="bg-white rounded-2xl border border-slate-200 p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Payment instructions <span className="text-slate-400">(remembered)</span></span>
+                  <textarea rows={4} className={inputCls} value={payInstr} onChange={e => setPayInstr(e.target.value)} placeholder={'Bank: …\nIBAN: …\nSWIFT: …\nPlease quote the invoice number.'} /></label>
+                <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Notes to partner</span>
+                  <textarea rows={4} className={inputCls} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" /></label>
+              </section>
+            </div>
+
+            {/* Preview */}
+            <div className="xl:sticky xl:top-4 space-y-4 min-w-0">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center gap-4">
+                <div className="flex-1 min-w-[180px]">
+                  <p className="text-xs text-slate-500">Total · {lines.length} booking{lines.length === 1 ? '' : 's'}</p>
+                  <p className="text-2xl font-bold text-slate-900 tabular-nums">{money(totals.total, currency)}</p>
+                  <p className="text-xs text-slate-400 tabular-nums">Net {money(totals.sub, currency)}{taxMode !== 'none' ? ` · VAT ${money(totals.tax, currency)}` : ''}</p>
+                </div>
+                <button onClick={issue} disabled={!lines.length} className="px-5 py-3 text-sm font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 disabled:opacity-40 shadow-sm">Issue invoice {nextNumber}</button>
+              </div>
+              <DocPreview html={draftHtml} />
+              <p className="text-xs text-slate-400 text-center">Live preview — this is exactly what the partner receives.</p>
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-5 pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+              {(['all', 'unpaid', 'overdue', 'paid', 'void'] as const).map(k => (
+                <button key={k} onClick={() => setFilter(k)} className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 -mb-px ${filter === k ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                  {k === 'all' ? 'All' : STATE_META[k].label}<span className={`ml-2 px-1.5 py-0.5 rounded-md text-[11px] ${filter === k ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{counts[k] ?? 0}</span>
+                </button>
+              ))}
+            </div>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search number, partner, PO" className={`${inputCls} sm:w-64 mb-3 sm:mb-0`} />
+          </div>
+          {visible.length === 0 ? (
+            <p className="py-16 text-center text-sm text-slate-500">{invoices.length ? 'No invoices match.' : 'No invoices yet — issue your first one from “New invoice”.'}</p>
           ) : (
-            <div className="text-center py-12 text-gray-500 border rounded-lg">
-                {prepaidSources.length > 0 ? <p>No confirmed reservations found for the selected criteria.</p> : <p>No "Prepaid" sources configured.</p>}
-            </div>
+            <table className="w-full text-sm">
+              <thead><tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <th className="text-left font-semibold px-5 py-3">Invoice</th><th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Period</th>
+                <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Issued</th><th className="text-left font-semibold px-4 py-3">Due</th>
+                <th className="text-left font-semibold px-4 py-3">Status</th><th className="text-right font-semibold px-5 py-3">Amount</th>
+              </tr></thead>
+              <tbody className="divide-y divide-slate-100">
+                {visible.map(inv => {
+                  const st = invoiceState(inv);
+                  return (
+                    <tr key={inv.id} onClick={() => setOpenId(inv.id)} className="hover:bg-slate-50 cursor-pointer">
+                      <td className="px-5 py-3"><p className="font-mono text-xs font-semibold text-slate-900">{inv.invoiceNumber}</p><p className="text-xs text-slate-500">{inv.billToName} · {linesOf(inv).length} booking{linesOf(inv).length === 1 ? '' : 's'}</p></td>
+                      <td className="px-4 py-3 text-xs text-slate-600 hidden md:table-cell">{fmtDay(inv.startDate)} – {fmtDay(inv.endDate)}</td>
+                      <td className="px-4 py-3 text-xs text-slate-600 hidden lg:table-cell">{fmtDay(inv.generatedAt)}{inv.emails?.length ? <span className="ml-1.5 text-emerald-600">· sent</span> : ''}</td>
+                      <td className={`px-4 py-3 text-xs ${st === 'overdue' ? 'text-rose-600 font-semibold' : 'text-slate-600'}`}>{inv.dueDate ? fmtDay(inv.dueDate) : '—'}</td>
+                      <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${STATE_META[st].cls}`}><span className={`w-1.5 h-1.5 rounded-full ${STATE_META[st].dot}`} />{STATE_META[st].label}</span></td>
+                      <td className={`px-5 py-3 text-right font-bold tabular-nums ${st === 'void' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{money(inv.grandTotal, inv.currency)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
-
-           <div className="mt-8 pt-4 border-t flex justify-end">
-                <button onClick={handleSubmit} disabled={!invoiceData || invoiceData.reservations.length === 0} className="px-6 py-3 bg-primary text-white font-semibold rounded-md hover:bg-secondary disabled:bg-gray-400">
-                  Generate & Finalize Invoice
-                </button>
-            </div>
-
-            <div className="mt-12">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Previously Generated Invoices</h3>
-                <div className="space-y-3">
-                    {invoices.length > 0 ? (
-                        [...invoices].sort((a,b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()).map(inv => (
-                            <button key={inv.id} onClick={() => handleViewPrevious(inv)} className="w-full flex justify-between items-center p-4 bg-white border rounded-lg hover:shadow-md transition-shadow text-left">
-                                <div>
-                                    <p className="font-semibold text-primary">{inv.invoiceNumber}</p>
-                                    <p className="text-sm text-gray-600">{inv.billToName} | {inv.startDate} to {inv.endDate}</p>
-                                    <p className="text-xs text-gray-400">Generated on {new Date(inv.generatedAt).toLocaleString()}</p>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-500">
-                                    <span className="font-bold">{formatCurrency(inv.grandTotal)}</span>
-                                    <ChevronRightIcon />
-                                </div>
-                            </button>
-                        ))
-                    ) : (
-                        <p className="text-center text-gray-500 py-6">No invoices have been generated yet.</p>
-                    )}
-                </div>
-            </div>
-        </>
-      ) : generatedInvoiceData && (
-         <div>
-            <div className="p-6 mb-6 bg-green-50 border-l-4 border-green-500 rounded-r-lg no-print">
-                <h3 className="text-xl font-bold text-green-800">Invoice Finalized!</h3>
-                <p className="text-green-700 mt-1">You can now download or email this invoice.</p>
-            </div>
-            <div className="flex justify-between items-center mb-6 pb-4 border-b no-print">
-                <button onClick={() => { setView('form'); setGeneratedInvoiceData(null); }} className="text-sm text-blue-600 hover:underline">
-                    &larr; Create New or View History
-                </button>
-                <div className="flex items-center gap-2">
-                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark text-sm font-medium">
-                      <PdfIcon /> Download PDF
-                    </button>
-                     <button onClick={handleDownloadCSV} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
-                        <ExportIcon /> Download CSV
-                    </button>
-                    <button onClick={handleSendEmail} className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 text-sm font-medium">
-                      <MailIcon /> Send Email
-                    </button>
-                </div>
-            </div>
-            <div className="printable-area">
-                <InvoicePreview data={generatedInvoiceData} />
-            </div>
         </div>
       )}
+
+      {open && (
+        <InvoiceDrawer
+          invoice={open}
+          company={companyDetails}
+          onClose={() => setOpenId(null)}
+          onUpdate={inv => { onUpdateInvoice?.(inv); }}
+          canUpdate={!!onUpdateInvoice}
+          flash={flash}
+        />
+      )}
+
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm shadow-xl">{toast}</div>}
+    </div>
+  );
+};
+
+const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; onClose: () => void; onUpdate: (i: InvoiceData) => void; canUpdate: boolean; flash: (t: string) => void }> = ({ invoice, company, onClose, onUpdate, canUpdate, flash }) => {
+  const html = useMemo(() => buildInvoiceHtml(invoice, company, URDRIVE_LOGO_B64), [invoice, company]);
+  const st = invoiceState(invoice);
+  const [busy, setBusy] = useState<'pdf' | 'email' | null>(null);
+  const [emailTo, setEmailTo] = useState(invoice.billToEmail || '');
+  const [pay, setPay] = useState<{ open: boolean; date: string; method: string; ref: string }>({ open: false, date: iso(new Date()), method: 'Bank transfer', ref: '' });
+  const fileName = `${invoice.invoiceNumber}.pdf`;
+
+  const pdf = async () => {
+    setBusy('pdf');
+    try { downloadPdf(await htmlToPdfBase64(html), fileName); } catch { flash('The PDF could not be created. Use Print instead.'); } finally { setBusy(null); }
+  };
+  const print = () => {
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+  };
+  const csv = () => {
+    const q = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const rows = [['Invoice', 'Booking', 'Renter', 'Vehicle', 'Start', 'End', 'Days', 'Net', 'VAT', 'Total', 'Currency'].join(',')]
+      .concat(linesOf(invoice).map(l => [invoice.invoiceNumber, l.bookingId, l.renter, l.carModel || '', l.startDate, l.endDate, l.days, l.subtotal.toFixed(3), l.tax.toFixed(3), l.total.toFixed(3), invoice.currency || 'USD'].map(q).join(',')));
+    const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = `${invoice.invoiceNumber}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+  const email = async () => {
+    const to = emailTo.trim();
+    if (!/^\S+@\S+\.\S+$/.test(to)) { flash('Enter a valid email address.'); return; }
+    setBusy('email');
+    try {
+      const base64 = await htmlToPdfBase64(html);
+      const cur = invoice.currency || 'USD';
+      const outcome = await sendCustomerEmail({
+        to,
+        subject: `${st === 'paid' ? 'Paid invoice' : 'Invoice'} ${invoice.invoiceNumber} from ${company.name}`,
+        heading: st === 'paid' ? `Invoice ${invoice.invoiceNumber} — paid` : `Invoice ${invoice.invoiceNumber}`,
+        intro: `Dear ${invoice.billToName} team, please find attached our invoice for ${linesOf(invoice).length} booking${linesOf(invoice).length === 1 ? '' : 's'} with a rental start between ${fmtDay(invoice.startDate)} and ${fmtDay(invoice.endDate)}.`,
+        rows: [
+          ['Invoice number', invoice.invoiceNumber],
+          ['Issue date', fmtDay(invoice.generatedAt)],
+          ['Service period', `${fmtDay(invoice.startDate)} – ${fmtDay(invoice.endDate)}`],
+          ['Bookings', String(linesOf(invoice).length)],
+          ...(invoice.poNumber ? [['Your reference', invoice.poNumber] as [string, string]] : []),
+          ['Net amount', money(invoice.totalSubtotal, cur)],
+          ...((invoice.taxMode ?? 'included') !== 'none' ? [[`VAT ${Math.round((invoice.taxRate ?? 0.16) * 100)}%`, money(invoice.totalTax, cur)] as [string, string]] : []),
+          ['Payment terms', TERMS_LABEL[invoice.terms || 'receipt']],
+        ],
+        closing: st === 'paid' ? 'Thank you — this invoice has been settled in full.' : `Please arrange payment by ${invoice.dueDate ? fmtDay(invoice.dueDate) : 'return'}, quoting ${invoice.invoiceNumber}. Payment details are on the invoice.`,
+        companyName: company.name, companyAddress: company.address, companyPhone: company.phone, companyEmail: company.email, replyTo: company.email,
+        attachments: [{ fileName, contentType: 'application/pdf', base64 }],
+        badge: st === 'paid' ? 'PAID' : st === 'overdue' ? 'OVERDUE' : 'INVOICE',
+        tone: st === 'paid' ? 'success' : st === 'overdue' ? 'warning' : 'info',
+        highlightLabel: st === 'paid' ? 'Amount paid' : `Amount due${invoice.dueDate ? ` by ${fmtDay(invoice.dueDate)}` : ''}`,
+        highlightValue: money(invoice.grandTotal, cur),
+      });
+      if (outcome.ok) {
+        onUpdate({ ...invoice, billToEmail: invoice.billToEmail || to, emails: [...(invoice.emails || []), { to, sentAt: new Date().toISOString() }] });
+        flash(`Invoice emailed to ${to}.`);
+      } else {
+        flash(outcome.reason === 'unconfigured' ? 'Outgoing email is not set up on the server yet.' : outcome.message || 'The email could not be sent.');
+      }
+    } catch { flash('The invoice PDF could not be created.'); } finally { setBusy(null); }
+  };
+  const markPaid = () => {
+    onUpdate({ ...invoice, status: 'paid', paidAt: pay.date, paymentMethod: pay.method, paymentReference: pay.ref.trim() || undefined });
+    setPay(p => ({ ...p, open: false }));
+    flash(`${invoice.invoiceNumber} marked as paid.`);
+  };
+  const voidIt = () => {
+    const reason = window.prompt(`Void ${invoice.invoiceNumber}? Its bookings become available to invoice again.\n\nReason:`);
+    if (reason === null) return;
+    onUpdate({ ...invoice, status: 'void', voidedAt: new Date().toISOString(), voidReason: reason.trim() || undefined });
+    flash(`${invoice.invoiceNumber} voided.`);
+  };
+
+  const btn = 'inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold rounded-xl ring-1 ring-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50';
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-4xl h-full bg-slate-50 shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2"><p className="font-mono text-sm font-bold text-slate-900">{invoice.invoiceNumber}</p>
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${STATE_META[st].cls}`}><span className={`w-1.5 h-1.5 rounded-full ${STATE_META[st].dot}`} />{STATE_META[st].label}</span></div>
+            <p className="text-sm text-slate-500">{invoice.billToName} · {money(invoice.grandTotal, invoice.currency)} · due {invoice.dueDate ? fmtDay(invoice.dueDate) : 'on receipt'}</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="px-6 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2">
+          <button onClick={pdf} disabled={!!busy} className={btn}>{busy === 'pdf' ? 'Preparing…' : 'Download PDF'}</button>
+          <button onClick={print} className={btn}>Print</button>
+          <button onClick={csv} className={btn}>CSV</button>
+          {canUpdate && st !== 'void' && st !== 'paid' && <button onClick={() => setPay(p => ({ ...p, open: !p.open }))} className={`${btn} !ring-emerald-300 !text-emerald-700`}>Record payment</button>}
+          {canUpdate && st !== 'void' && <button onClick={voidIt} className={`${btn} !text-rose-600`}>Void</button>}
+        </div>
+        {pay.open && (
+          <div className="px-6 py-3 bg-emerald-50 border-b border-emerald-200 grid grid-cols-1 sm:grid-cols-[150px_1fr_1fr_auto] gap-2 items-end">
+            <label className="block"><span className="block text-xs text-emerald-800 mb-1">Received on</span><input type="date" className={inputCls} value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))} /></label>
+            <label className="block"><span className="block text-xs text-emerald-800 mb-1">Method</span>
+              <select className={inputCls} value={pay.method} onChange={e => setPay(p => ({ ...p, method: e.target.value }))}><option>Bank transfer</option><option>Card</option><option>Cheque</option><option>Cash</option><option>Offset against commission</option></select></label>
+            <label className="block"><span className="block text-xs text-emerald-800 mb-1">Reference</span><input className={inputCls} value={pay.ref} onChange={e => setPay(p => ({ ...p, ref: e.target.value }))} placeholder="Transfer ID" /></label>
+            <button onClick={markPaid} className="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Mark paid</button>
+          </div>
+        )}
+        <div className="px-6 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2">
+          <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="partner@company.com" className={`${inputCls} flex-1 min-w-[220px]`} />
+          <button onClick={email} disabled={!!busy || st === 'void'} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40">
+            {busy === 'email' && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}{busy === 'email' ? 'Sending…' : 'Email invoice'}
+          </button>
+          {invoice.emails?.length ? <span className="text-xs text-slate-500 w-full">Sent {invoice.emails.map(e => `${new Date(e.sentAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} to ${e.to}`).join(' · ')}</span> : null}
+          {st === 'paid' && <span className="text-xs text-emerald-700 w-full">Paid {fmtDay(invoice.paidAt)}{invoice.paymentMethod ? ` by ${invoice.paymentMethod}` : ''}{invoice.paymentReference ? ` · ref ${invoice.paymentReference}` : ''}</span>}
+        </div>
+        <div className="flex-1 overflow-y-auto p-6"><DocPreview html={html} /></div>
+      </div>
     </div>
   );
 };

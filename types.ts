@@ -409,6 +409,41 @@ export interface InvoiceData {
     grandTotal: number;
     grandTotalInWords: string;
     generatedAt: string;
+    // Professional invoicing (optional so older saved invoices still load)
+    lines?: InvoiceLine[];
+    status?: 'issued' | 'paid' | 'void';
+    currency?: 'USD' | 'JOD' | 'EUR';
+    taxRate?: number;
+    taxMode?: 'included' | 'added' | 'none';
+    terms?: 'receipt' | 'net7' | 'net15' | 'net30' | 'net45';
+    dueDate?: string;
+    billToEmail?: string;
+    billToAddress?: string;
+    billToTaxNumber?: string;
+    poNumber?: string;
+    notes?: string;
+    paymentInstructions?: string;
+    issuedBy?: string;
+    paidAt?: string;
+    paymentMethod?: string;
+    paymentReference?: string;
+    voidedAt?: string;
+    voidReason?: string;
+    emails?: { to: string; sentAt: string }[];
+}
+
+export interface InvoiceLine {
+    reservationId: string;
+    bookingId: string;
+    renter: string;
+    source: string;
+    carModel?: string;
+    startDate: string;
+    endDate: string;
+    days: number;
+    subtotal: number;
+    tax: number;
+    total: number;
 }
 
 export interface AvailableExtra {

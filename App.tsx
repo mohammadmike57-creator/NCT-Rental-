@@ -969,6 +969,16 @@ export const App: React.FC = () => {
     });
   };
 
+  // Invoices are saved straight away so a background refresh cannot drop a just-issued invoice.
+  const persistInvoices = (next: InvoiceData[]) => {
+    setInvoices(next);
+    skipAutoSaveRef.current = true;
+    saveAllData({ invoices: next }).catch(err => {
+      console.error('Failed to save invoices:', err);
+      addNotification('The invoice could not be saved to the server. Check your connection.', 'error');
+    });
+  };
+
   const handleDeleteReservation = async (id: string, isNew?: boolean, year?: number, month?: string) => {
     if (!window.confirm("Are you sure you want to delete this reservation?")) return;
 
@@ -1545,7 +1555,9 @@ ${currentUser?.fullName}
         rentalSources={sources}
       />
     ), permission: UserPermission.VIEW_FLEET_AVAILABILITY },
-    'Invoice Generation': { component: <Invoice yearData={reservations[selectedYear]} year={selectedYear} month={selectedMonth} companyDetails={companyDetails} sources={sources} invoices={invoices} onSaveInvoice={(inv) => setInvoices(prev => [...prev, inv])} />, permission: UserPermission.VIEW_REPORTS_INVOICE_GENERATION },
+    'Invoice Generation': { component: <Invoice yearData={reservations[selectedYear]} allData={reservations} year={selectedYear} month={selectedMonth} companyDetails={companyDetails} sources={sources} aggregators={aggregators} invoices={invoices} currentUserName={currentUser?.fullName}
+        onSaveInvoice={(inv) => persistInvoices([...invoices, inv])}
+        onUpdateInvoice={(inv) => persistInvoices(invoices.map(i => i.id === inv.id ? inv : i))} />, permission: UserPermission.VIEW_REPORTS_INVOICE_GENERATION },
     'Source Performance': { component: <SourcePerformanceReport reservations={allReservationsFlat} year={selectedYear} month={selectedMonth} />, permission: UserPermission.VIEW_REPORTS_SOURCE_PERFORMANCE },
     'Accounting': { component: <AccountingDashboard allData={reservations} trafficTickets={trafficTickets} vehicleDamages={vehicleDamages} expenses={expenses} users={users} onUpdateExpenses={setExpenses} />, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },
     'Payment Approvals': { component: <PaymentApprovals allData={reservations} onUpdateReservation={handleUpdateSingleReservation} currentUser={currentUser} showConfirmation={showConfirmation} companyDetails={companyDetails} />, permission: UserPermission.VIEW_FINANCIALS_PAYMENT_APPROVALS },
