@@ -3,7 +3,8 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission } from '../types';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
-import { PdfIcon, CheckCircleIcon, ClockIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon, ChartBarIcon } from './icons';
+import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
 import SecurityKeyModal from './SecurityKeyModal';
 import { API_URL } from '../firebase/api';
 
@@ -27,13 +28,13 @@ type FeeStatus = 'PAID' | 'WAIVED' | 'OVERDUE' | 'DUE' | 'ACCRUING' | 'UPCOMING'
 
 const METHOD_LABEL: Record<Method, string> = { card: 'Card (Stripe)', bank_transfer: 'Bank transfer', cash: 'Cash', cheque: 'Cheque' };
 
-const STATUS_META: Record<FeeStatus, { label: string; chip: string; dot: string }> = {
-  PAID: { label: 'Paid', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500' },
-  WAIVED: { label: 'Waived', chip: 'bg-slate-100 text-slate-600 ring-slate-200', dot: 'bg-slate-400' },
-  OVERDUE: { label: 'Overdue', chip: 'bg-rose-50 text-rose-700 ring-rose-200', dot: 'bg-rose-500' },
-  DUE: { label: 'Due', chip: 'bg-amber-50 text-amber-700 ring-amber-200', dot: 'bg-amber-500' },
-  ACCRUING: { label: 'In progress', chip: 'bg-sky-50 text-sky-700 ring-sky-200', dot: 'bg-sky-500' },
-  UPCOMING: { label: 'Upcoming', chip: 'bg-white text-slate-400 ring-slate-200', dot: 'bg-slate-300' },
+const STATUS_META: Record<FeeStatus, { label: string; tone: 'success' | 'muted' | 'danger' | 'warning' | 'info' | 'default' }> = {
+  PAID: { label: 'Paid', tone: 'success' },
+  WAIVED: { label: 'Waived', tone: 'muted' },
+  OVERDUE: { label: 'Overdue', tone: 'danger' },
+  DUE: { label: 'Due', tone: 'warning' },
+  ACCRUING: { label: 'In progress', tone: 'info' },
+  UPCOMING: { label: 'Upcoming', tone: 'default' },
 };
 
 const usd = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
@@ -45,28 +46,24 @@ const deadlineFor = (month: string, year: number) => {
 const shortMonth = (m: string) => m.slice(0, 3);
 
 const StatusChip: React.FC<{ status: FeeStatus }> = ({ status }) => (
-  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${STATUS_META[status].chip}`}>
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_META[status].dot}`} />{STATUS_META[status].label}
-  </span>
+  <Badge tone={STATUS_META[status].tone} className={status === 'UPCOMING' ? 'bg-white text-slate-400' : ''}>{STATUS_META[status].label}</Badge>
 );
 
 const ModalShell: React.FC<{ title: string; subtitle?: string; onClose: () => void; children: React.ReactNode; z?: string }> = ({ title, subtitle, onClose, children, z = 'z-50' }) => (
-  <div className={`fixed inset-0 ${z} flex items-center justify-center p-4`} role="dialog" aria-modal="true">
-    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px]" onClick={onClose} />
-    <div className="relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto bg-white rounded-2xl shadow-2xl">
-      <header className="px-6 py-4 border-b border-slate-100 flex items-start justify-between gap-4">
-        <div>
+  <div className={`fixed inset-0 ${z} flex items-stretch sm:items-center justify-center sm:p-4`} role="dialog" aria-modal="true">
+    <div className="absolute inset-0 bg-slate-900/50" onClick={onClose} />
+    <div className="relative w-full sm:max-w-md h-[100dvh] sm:h-auto sm:max-h-[92vh] overflow-y-auto bg-white sm:rounded-xl shadow-2xl">
+      <header className="px-5 py-4 border-b border-slate-200 flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h3 className="text-base font-semibold text-slate-900">{title}</h3>
           {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
-        <button onClick={onClose} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700"><CloseIcon className="w-5 h-5" /></button>
+        <button onClick={onClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100"><CloseIcon className="w-5 h-5" /></button>
       </header>
       {children}
     </div>
   </div>
 );
-
-const inputCls = 'w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
 
 // ---------------------------------------------------------------------------
 // Payment entry
@@ -105,30 +102,29 @@ const PaymentEntryModal: React.FC<{
 
   return (
     <ModalShell title="Record franchise payment" subtitle={`${month} ${year} · fee due ${usd(fee)}`} onClose={onClose}>
-      <form onSubmit={submit} className="p-6 space-y-4">
+      <form onSubmit={submit}>
+        <div className="p-5 space-y-4">
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Payment method</label>
+          <span className="block text-[13px] font-medium text-slate-700 mb-1">Payment method</span>
           <div className="grid grid-cols-2 gap-2">
             {(Object.keys(METHOD_LABEL) as Method[]).map(m => (
               <button key={m} type="button" onClick={() => setMethod(m)}
-                className={`px-3 py-2.5 rounded-xl border text-sm font-medium text-left ${method === m ? 'border-indigo-500 ring-2 ring-indigo-500/15 bg-indigo-50/40 text-slate-900' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                className={`h-9 px-3 rounded-lg border text-[13px] font-medium text-left ${method === m ? 'border-indigo-500 ring-2 ring-indigo-500/15 bg-indigo-50/40 text-slate-900' : 'border-slate-300 text-slate-600 hover:border-slate-400'}`}>
                 {METHOD_LABEL[m]}
               </button>
             ))}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Amount</label>
-            <input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)} className={`${inputCls} text-base font-semibold tabular-nums`} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Currency</label>
-            <select value={currency} onChange={e => switchCurrency(e.target.value as 'USD' | 'JOD')} className={inputCls}>
+          <Field label="Amount" className="col-span-2">
+            <input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)} className={`${inputCls} font-semibold tabular-nums`} />
+          </Field>
+          <Field label="Currency">
+            <select value={currency} onChange={e => switchCurrency(e.target.value as 'USD' | 'JOD')} className={`${selectCls} w-full`}>
               <option value="USD">USD</option>
               <option value="JOD">JOD</option>
             </select>
-          </div>
+          </Field>
         </div>
         {value > 0 && Math.abs(value - expected) > 0.009 && (
           <p className={`text-xs font-medium ${value < expected ? 'text-amber-700' : 'text-slate-500'}`}>
@@ -137,22 +133,21 @@ const PaymentEntryModal: React.FC<{
         )}
         {method !== 'card' && (
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Payment date</label>
+            <Field label="Payment date">
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} max={new Date().toISOString().slice(0, 10)} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Reference {method === 'cash' ? '(optional)' : ''}</label>
+            </Field>
+            <Field label={`Reference ${method === 'cash' ? '(optional)' : ''}`}>
               <input value={reference} onChange={e => setReference(e.target.value)} className={inputCls} placeholder={method === 'cheque' ? 'Cheque no.' : 'Transfer ref.'} />
-            </div>
+            </Field>
           </div>
         )}
         {error && <p className="text-xs font-medium text-rose-600">{error}</p>}
-        <div className="pt-2 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm font-semibold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
-          <button type="submit" className="px-5 py-2.5 text-sm font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700">{method === 'card' ? 'Continue to card payment' : 'Continue'}</button>
-        </div>
         <p className="text-[11px] text-slate-400">A security key is required to confirm every franchise payment.</p>
+        </div>
+        <div className="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary">{method === 'card' ? 'Continue to card payment' : 'Continue'}</Button>
+        </div>
       </form>
     </ModalShell>
   );
@@ -202,9 +197,9 @@ const StripePaymentModal: React.FC<{
 
   return (
     <ModalShell title="Pay by card" subtitle={`${draft.month} ${year} · ${draft.currency} ${draft.amount.toFixed(2)}`} onClose={onClose} z="z-[60]">
-      <div className="p-6 space-y-4">
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-[#635bff]/5 border border-[#635bff]/20">
-          <span className="w-10 h-10 rounded-xl bg-[#635bff] text-white flex items-center justify-center"><CreditCardIcon className="w-5 h-5" /></span>
+      <div className="p-5 space-y-4">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+          <span className="w-8 h-8 rounded-md bg-white border border-slate-200 text-slate-500 flex items-center justify-center shrink-0"><CreditCardIcon className="w-4 h-4" /></span>
           <div>
             <p className="text-sm font-semibold text-slate-900">Secure checkout by Stripe</p>
             <p className="text-xs text-slate-500">Opens in a new tab. Come back here when the payment is complete.</p>
@@ -212,20 +207,19 @@ const StripePaymentModal: React.FC<{
         </div>
         {error ? (
           <div className="space-y-3">
-            <p className="flex items-start gap-2 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3"><AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />{error}</p>
-            <button onClick={onUseBankTransfer} className="w-full py-2.5 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50">Record a bank transfer instead</button>
+            <p className="flex items-start gap-2 text-[13px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3"><AlertIcon className="w-4 h-4 mt-0.5 shrink-0" />{error}</p>
+            <Button className="w-full" onClick={onUseBankTransfer}>Record a bank transfer instead</Button>
           </div>
         ) : (
           <>
-            <button disabled={loading || !link} onClick={() => { if (link) { window.open(link, '_blank', 'noopener'); setOpened(true); } }}
-              className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-[#635bff] hover:bg-[#534bb3] disabled:bg-slate-300">
+            <Button variant="primary" className="w-full" disabled={loading || !link} onClick={() => { if (link) { window.open(link, '_blank', 'noopener'); setOpened(true); } }}>
               {loading ? 'Preparing secure link…' : 'Open Stripe checkout'}
-            </button>
+            </Button>
             {opened && (
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-slate-500">Stripe receipt or payment ID <span className="text-slate-400">(optional)</span></label>
+                <label className="block text-[13px] font-medium text-slate-700">Stripe receipt or payment ID <span className="text-slate-400 font-normal">(optional)</span></label>
                 <input value={reference} onChange={e => setReference(e.target.value)} className={inputCls} placeholder="e.g. pi_3P… or receipt number" />
-                <button onClick={() => onPaid(reference.trim())} className="w-full py-2.5 text-sm font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700">I've completed the payment</button>
+                <Button variant="success" className="w-full" onClick={() => onPaid(reference.trim())}>I've completed the payment</Button>
               </div>
             )}
           </>
@@ -398,80 +392,70 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // ---- UI --------------------------------------------------------------
-  const Kpi: React.FC<{ label: string; value: React.ReactNode; sub: string; tone?: string; className?: string }> = ({ label, value, sub, tone = 'text-slate-900', className = '' }) => (
-    <div className={`px-4 sm:px-5 py-4 min-w-0 ${className}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 truncate">{label}</p>
-      <p className={`mt-1 text-xl sm:text-2xl font-bold tabular-nums truncate ${tone}`}>{value}</p>
-      <p className="text-xs text-slate-400 truncate">{sub}</p>
-    </div>
-  );
-
   const stickyCell = 'sticky left-0 z-10';
+  const feeNote = (
+    <>Monthly fee = {(COMMISSION_RATE * 100).toFixed(1)}% of confirmed revenue + {usd(FIXED_ADDON)} fixed, due by the {DEADLINE_DAY}th of the following month.{(WAIVED_MONTHS[year] || []).length > 0 && ` Fees for ${WAIVED_MONTHS[year][0]}–${WAIVED_MONTHS[year][WAIVED_MONTHS[year].length - 1]} ${year} are waived.`}</>
+  );
+  const noPermissionNote = <>You can view fees. Recording payments requires the “Franchise payments” permission.</>;
 
   return (
-    <div className="space-y-5 min-w-0">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><ChartBarIcon className="w-6 h-6" /></div>
-            <div className="min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Financial summary {year}</h2>
-              <p className="text-sm text-slate-500">Confirmed revenue, {(COMMISSION_RATE * 100).toFixed(1)}% commission and franchise fees by month.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 w-full lg:w-auto">
+    <Page className="min-w-0">
+      <PageHeader
+        section="Reports"
+        title="Yearly Summary"
+        subtitle={`${year} · confirmed revenue, ${(COMMISSION_RATE * 100).toFixed(1)}% commission and franchise fees by month.`}
+        actions={
+          <>
             {activeTab === 'overview' && (
-              <div className="inline-flex p-1 bg-slate-100 rounded-xl shrink-0">
-                {(['USD', 'JOD'] as const).map(c => (
-                  <button key={c} onClick={() => setCurrency(c)} className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${currency === c ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>{c}</button>
-                ))}
-              </div>
+              <Segmented value={currency} onChange={k => setCurrency(k as 'USD' | 'JOD')} options={[{ key: 'USD', label: 'USD' }, { key: 'JOD', label: 'JOD' }]} />
             )}
-            <button onClick={activeTab === 'overview' ? exportSummaryPDF : exportStatementPDF}
-              className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-slate-900 text-white rounded-xl hover:bg-slate-800 whitespace-nowrap">
-              <PdfIcon className="w-4 h-4" /> {activeTab === 'overview' ? 'Export summary' : 'Export statement'}
-            </button>
-          </div>
-        </div>
-        <div className="px-3 sm:px-5 border-t border-slate-100 flex gap-1 overflow-x-auto">
-          {([['overview', 'Overview'], ['franchise', 'Franchise fees']] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setActiveTab(k)} className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap ${activeTab === k ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-              {label}
-              {k === 'franchise' && fees.overdueCount > 0 && <span className="ml-2 px-1.5 py-0.5 rounded-md text-[11px] bg-rose-100 text-rose-700">{fees.overdueCount} overdue</span>}
-            </button>
-          ))}
-        </div>
-      </div>
+            <Button variant="primary" icon={<PdfIcon className="w-4 h-4" />} onClick={activeTab === 'overview' ? exportSummaryPDF : exportStatementPDF}>
+              {activeTab === 'overview' ? 'Export summary' : 'Export statement'}
+            </Button>
+          </>
+        }
+      />
+
+      <Tabs
+        className="px-0 sm:px-0"
+        value={activeTab}
+        onChange={k => setActiveTab(k as 'overview' | 'franchise')}
+        tabs={[
+          { key: 'overview', label: 'Overview' },
+          { key: 'franchise', label: <>Franchise fees{fees.overdueCount > 0 && <span className="ml-2 px-1.5 py-px rounded text-[11px] bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200">{fees.overdueCount} overdue</span>}</> },
+        ]}
+      />
 
       {activeTab === 'overview' ? (
         <>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm grid grid-cols-2 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-slate-100 overflow-hidden">
-            <Kpi label="Confirmed revenue" value={money(totals.revenueUSD * rate)} sub={`${totals.confirmed} confirmed bookings`} />
-            <Kpi label="Commission" value={money(totals.commissionUSD * rate)} sub={`${(COMMISSION_RATE * 100).toFixed(1)}% of revenue`} />
-            <Kpi label="Average booking" value={money(avgBooking * rate)} sub="per confirmed booking" />
-            <Kpi label="Cancellation rate" value={`${cancelRate.toFixed(1)}%`} sub={`${totals.cancelled} of ${totals.bookings} bookings`} tone={cancelRate > 15 ? 'text-amber-600' : 'text-slate-900'} />
-            <Kpi label="Best month" value={best ? best.month : '—'} sub={best ? money(best.revenueUSD * rate) : 'no bookings yet'} className="col-span-2 lg:col-span-1" />
-          </div>
+          <StatGrid items={[
+            { label: 'Confirmed revenue', value: money(totals.revenueUSD * rate), sub: `${totals.confirmed} confirmed bookings` },
+            { label: 'Commission', value: money(totals.commissionUSD * rate), sub: `${(COMMISSION_RATE * 100).toFixed(1)}% of revenue` },
+            { label: 'Average booking', value: money(avgBooking * rate), sub: 'per confirmed booking' },
+            { label: 'Cancellation rate', value: `${cancelRate.toFixed(1)}%`, sub: `${totals.cancelled} of ${totals.bookings} bookings`, tone: cancelRate > 15 ? 'warning' : 'default' },
+            { label: 'Best month', value: best ? best.month : '—', sub: best ? money(best.revenueUSD * rate) : 'no bookings yet' },
+          ]} />
 
           {/* Chart */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h3 className="text-sm font-semibold text-slate-900">Monthly confirmed revenue</h3>
+          <Panel
+            title="Monthly confirmed revenue"
+            actions={
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />Revenue</span>
                 <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-200" />Commission</span>
               </div>
-            </div>
-            <div className="grid grid-cols-12 gap-1 sm:gap-3 items-end h-48 sm:h-56 pt-5">
+            }
+            padded
+          >
+            <div className="grid grid-cols-12 gap-1 sm:gap-3 items-end h-44 sm:h-52 pt-5">
               {months.map(m => {
                 const h = (m.revenueUSD / maxRevenue) * 100;
                 const ch = (m.commissionUSD / maxRevenue) * 100;
                 const current = m.idx === currentMonthIdx;
                 return (
                   <div key={m.month} className="min-w-0 flex flex-col items-center h-full justify-end group" title={`${m.month}: ${money(m.revenueUSD * rate)} revenue · ${m.confirmed} confirmed`}>
-                    <div className="relative w-full max-w-[44px] flex-1 flex items-end">
-                      <div className={`relative w-full rounded-t-md ${current ? 'bg-indigo-600' : 'bg-indigo-500'} group-hover:bg-indigo-700 transition-colors`} style={{ height: `${Math.max(h, m.revenueUSD ? 2 : 0)}%` }}>
+                    <div className="relative w-full max-w-[40px] flex-1 flex items-end">
+                      <div className={`relative w-full rounded-t ${current ? 'bg-indigo-600' : 'bg-indigo-500'} group-hover:bg-indigo-700 transition-colors`} style={{ height: `${Math.max(h, m.revenueUSD ? 2 : 0)}%` }}>
                         {m.revenueUSD > 0 && (
                           <span className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[10px] font-semibold text-slate-500 tabular-nums whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                             {money(m.revenueUSD * rate).replace(/\.\d+$/, '')}
@@ -488,223 +472,208 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                 );
               })}
             </div>
-          </section>
+          </Panel>
 
-          {/* Monthly breakdown — mobile list */}
-          <section className="md:hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-              <h3 className="text-sm font-semibold text-slate-900">Monthly breakdown</h3>
-            </div>
-            <ul className="divide-y divide-slate-100">
+          {/* Monthly breakdown */}
+          <Panel title="Monthly breakdown" subtitle={`Amounts in ${currency}`}>
+            {/* phones */}
+            <ul className="md:hidden divide-y divide-slate-100">
               {months.map(m => (
                 <li key={m.month} className={`px-4 py-3 ${m.idx === currentMonthIdx ? 'bg-indigo-50/40' : ''} ${!m.started && m.total === 0 ? 'opacity-60' : ''}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex items-center gap-2">
-                      <p className="font-semibold text-slate-900 truncate">{m.month}</p>
-                      {m.idx === currentMonthIdx && <span className="text-[10px] font-bold uppercase text-indigo-600">Current</span>}
+                      <p className="text-[13px] font-semibold text-slate-900 truncate">{m.month}</p>
+                      {m.idx === currentMonthIdx && <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Current</span>}
                     </div>
-                    <p className="shrink-0 font-bold tabular-nums text-slate-900">{money(m.revenueUSD * rate)}</p>
+                    <p className="shrink-0 text-[13px] font-semibold tabular-nums text-slate-900">{money(m.revenueUSD * rate)}</p>
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                    <div className="min-w-0"><p className="text-slate-400">Bookings</p><p className="font-semibold tabular-nums text-slate-700">{m.total}</p></div>
-                    <div className="min-w-0"><p className="text-slate-400">Confirmed</p><p className="font-semibold tabular-nums text-slate-700">{m.confirmed}</p></div>
-                    <div className="min-w-0"><p className="text-slate-400">Cancelled</p><p className="font-semibold tabular-nums text-slate-700">{m.cancelled}</p></div>
-                    <div className="min-w-0"><p className="text-slate-400">Avg booking</p><p className="font-semibold tabular-nums text-slate-700 truncate">{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</p></div>
-                    <div className="min-w-0"><p className="text-slate-400">Commission</p><p className="font-semibold tabular-nums text-slate-700 truncate">{money(m.commissionUSD * rate)}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Bookings</p><p className="font-medium tabular-nums text-slate-700">{m.total}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Confirmed</p><p className="font-medium tabular-nums text-slate-700">{m.confirmed}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Cancelled</p><p className="font-medium tabular-nums text-slate-700">{m.cancelled}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Avg booking</p><p className="font-medium tabular-nums text-slate-700 truncate">{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Commission</p><p className="font-medium tabular-nums text-slate-700 truncate">{money(m.commissionUSD * rate)}</p></div>
                     <div className="min-w-0"><p className="text-slate-400">Fee</p><button onClick={() => setActiveTab('franchise')} className="mt-0.5"><StatusChip status={m.status} /></button></div>
                   </div>
                 </li>
               ))}
+              <li className="px-4 py-3 bg-slate-50">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-[13px] font-semibold text-slate-900">Total {year}</p>
+                  <p className="text-[13px] font-semibold tabular-nums text-slate-900">{money(totals.revenueUSD * rate)}</p>
+                </div>
+                <p className="mt-1 text-xs text-slate-500 tabular-nums">
+                  {totals.bookings} bookings · {totals.confirmed} confirmed · {totals.cancelled} cancelled · avg {money(avgBooking * rate)} · commission {money(totals.commissionUSD * rate)} · {usd(fees.paid)} fees paid
+                </p>
+              </li>
             </ul>
-            <div className="px-4 py-3 bg-slate-900 text-white">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm font-semibold">Total {year}</p>
-                <p className="font-bold tabular-nums">{money(totals.revenueUSD * rate)}</p>
-              </div>
-              <p className="mt-1 text-xs text-slate-300 tabular-nums">
-                {totals.bookings} bookings · {totals.confirmed} confirmed · {totals.cancelled} cancelled · avg {money(avgBooking * rate)} · commission {money(totals.commissionUSD * rate)} · {usd(fees.paid)} fees paid
-              </p>
-            </div>
-          </section>
 
-          {/* Monthly breakdown — table (md+) */}
-          <section className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm whitespace-nowrap">
-                <thead>
-                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                    <th className={`${stickyCell} bg-slate-50 text-left font-semibold px-5 py-3`}>Month</th>
-                    <th className="text-right font-semibold px-4 py-3">Bookings</th>
-                    <th className="text-right font-semibold px-4 py-3">Confirmed</th>
-                    <th className="text-right font-semibold px-4 py-3">Cancelled</th>
-                    <th className="text-right font-semibold px-4 py-3">Revenue</th>
-                    <th className="text-right font-semibold px-4 py-3">Avg booking</th>
-                    <th className="text-right font-semibold px-4 py-3">Commission</th>
-                    <th className="text-left font-semibold px-5 py-3">Franchise fee</th>
+            {/* md+ */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className={`${table.wrap} whitespace-nowrap`}>
+                <thead className={table.head}>
+                  <tr>
+                    <th className={`${table.th} ${stickyCell} bg-slate-50`}>Month</th>
+                    <th className={`${table.th} text-right`}>Bookings</th>
+                    <th className={`${table.th} text-right`}>Confirmed</th>
+                    <th className={`${table.th} text-right`}>Cancelled</th>
+                    <th className={`${table.th} text-right`}>Revenue</th>
+                    <th className={`${table.th} text-right`}>Avg booking</th>
+                    <th className={`${table.th} text-right`}>Commission</th>
+                    <th className={table.th}>Franchise fee</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className={table.body}>
                   {months.map(m => {
                     const current = m.idx === currentMonthIdx;
                     return (
-                      <tr key={m.month} className={`group ${current ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50'} ${!m.started && m.total === 0 ? 'text-slate-400' : 'text-slate-700'}`}>
-                        <td className={`${stickyCell} ${current ? 'bg-indigo-50' : 'bg-white group-hover:bg-slate-50'} px-5 py-3 font-medium text-slate-900`}>{m.month}{current && <span className="ml-2 text-[10px] font-bold uppercase text-indigo-600">Current</span>}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{m.total}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{m.confirmed}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{m.cancelled}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900">{money(m.revenueUSD * rate)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{money(m.commissionUSD * rate)}</td>
-                        <td className="px-5 py-3"><button onClick={() => setActiveTab('franchise')}><StatusChip status={m.status} /></button></td>
+                      <tr key={m.month} className={`group transition-colors ${current ? 'bg-indigo-50/60' : 'bg-white hover:bg-slate-50'} ${!m.started && m.total === 0 ? 'text-slate-400' : 'text-slate-700'}`}>
+                        <td className={`${table.td} ${stickyCell} ${current ? 'bg-indigo-50' : 'bg-white group-hover:bg-slate-50'} font-medium text-slate-900`}>{m.month}{current && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Current</span>}</td>
+                        <td className={`${table.td} text-right tabular-nums`}>{m.total}</td>
+                        <td className={`${table.td} text-right tabular-nums`}>{m.confirmed}</td>
+                        <td className={`${table.td} text-right tabular-nums`}>{m.cancelled}</td>
+                        <td className={`${table.td} text-right tabular-nums font-semibold text-slate-900`}>{money(m.revenueUSD * rate)}</td>
+                        <td className={`${table.td} text-right tabular-nums`}>{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</td>
+                        <td className={`${table.td} text-right tabular-nums`}>{money(m.commissionUSD * rate)}</td>
+                        <td className={table.td}><button onClick={() => setActiveTab('franchise')}><StatusChip status={m.status} /></button></td>
                       </tr>
                     );
                   })}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-slate-900 text-white">
-                    <td className={`${stickyCell} bg-slate-900 px-5 py-3 font-semibold`}>Total {year}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{totals.bookings}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{totals.confirmed}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{totals.cancelled}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-bold">{money(totals.revenueUSD * rate)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{money(avgBooking * rate)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-bold">{money(totals.commissionUSD * rate)}</td>
-                    <td className="px-5 py-3 text-xs text-slate-300">{usd(fees.paid)} paid</td>
+                <tfoot className="bg-slate-50 border-t border-slate-200 text-slate-900">
+                  <tr>
+                    <td className={`${table.td} ${stickyCell} bg-slate-50 font-semibold`}>Total {year}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{totals.bookings}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{totals.confirmed}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{totals.cancelled}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{money(totals.revenueUSD * rate)}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{money(avgBooking * rate)}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{money(totals.commissionUSD * rate)}</td>
+                    <td className={`${table.td} text-xs text-slate-500`}>{usd(fees.paid)} paid</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
-          </section>
+          </Panel>
         </>
       ) : (
         <>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-100 overflow-hidden">
-            <Kpi label="Paid this year" value={usd(fees.paid)} sub={`${months.filter(m => m.payment).length} payments recorded`} tone="text-emerald-700" />
-            <Kpi label="Outstanding" value={usd(fees.outstanding)} sub="due and overdue fees" tone={fees.outstanding > 0 ? 'text-amber-600' : 'text-slate-900'} />
-            <Kpi label="Overdue" value={usd(fees.overdue)} sub={fees.overdueCount ? `${fees.overdueCount} month${fees.overdueCount === 1 ? '' : 's'} past deadline` : 'nothing overdue'} tone={fees.overdue > 0 ? 'text-rose-600' : 'text-slate-900'} />
-            <Kpi label="Next deadline" value={fees.next ? fees.next.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'} sub={fees.next ? `${fees.next.month} fee · ${fees.next.status === 'ACCRUING' ? 'est. ' : ''}${usd(fees.next.feeUSD)}` : 'all settled'} />
-          </div>
+          <StatGrid items={[
+            { label: 'Paid this year', value: usd(fees.paid), sub: `${months.filter(m => m.payment).length} payments recorded`, tone: 'success' },
+            { label: 'Outstanding', value: usd(fees.outstanding), sub: 'due and overdue fees', tone: fees.outstanding > 0 ? 'warning' : 'default' },
+            { label: 'Overdue', value: usd(fees.overdue), sub: fees.overdueCount ? `${fees.overdueCount} month${fees.overdueCount === 1 ? '' : 's'} past deadline` : 'nothing overdue', tone: fees.overdue > 0 ? 'danger' : 'default' },
+            { label: 'Next deadline', value: fees.next ? fees.next.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—', sub: fees.next ? `${fees.next.month} fee · ${fees.next.status === 'ACCRUING' ? 'est. ' : ''}${usd(fees.next.feeUSD)}` : 'all settled' },
+          ]} />
 
-          <div className="flex items-start gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-sm text-slate-600">
-            <CurrencyDollarIcon className="w-5 h-5 text-indigo-500 shrink-0" />
-            <p className="min-w-0">Monthly fee = <strong className="text-slate-900">{(COMMISSION_RATE * 100).toFixed(1)}% of confirmed revenue</strong> + <strong className="text-slate-900">{usd(FIXED_ADDON)} fixed</strong>, due by the {DEADLINE_DAY}th of the following month.{(WAIVED_MONTHS[year] || []).length > 0 && ` Fees for ${WAIVED_MONTHS[year][0]}–${WAIVED_MONTHS[year][WAIVED_MONTHS[year].length - 1]} ${year} are waived.`}</p>
-          </div>
-
-          {/* Franchise fees — mobile list */}
-          <section className="md:hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <ul className="divide-y divide-slate-100">
+          <Panel title="Franchise fees" subtitle={feeNote} footer={!canManage ? noPermissionNote : undefined}>
+            {/* phones */}
+            <ul className="md:hidden divide-y divide-slate-100">
               {months.map(m => (
                 <li key={m.month} className={`px-4 py-3 ${m.status === 'OVERDUE' ? 'bg-rose-50/40' : ''}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold text-slate-900">{m.month}</p>
+                      <p className="text-[13px] font-semibold text-slate-900">{m.month}</p>
                       {!m.waived && m.status !== 'PAID' && m.started && <p className={`text-xs ${m.status === 'OVERDUE' ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>Due {m.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-bold tabular-nums text-slate-900">{m.waived ? <span className="text-slate-400 font-normal">Waived</span> : !m.started ? <span className="text-slate-300">—</span> : usd(m.feeUSD)}</p>
+                      <p className="text-[13px] font-semibold tabular-nums text-slate-900">{m.waived ? <span className="text-slate-400 font-normal">Waived</span> : !m.started ? <span className="text-slate-300">—</span> : usd(m.feeUSD)}</p>
                       <div className="mt-1"><StatusChip status={m.status} /></div>
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-slate-500 tabular-nums">Revenue {usd(m.revenueUSD)} · Commission {usd(m.commissionUSD)} · Fixed {m.waived ? '—' : usd(FIXED_ADDON)}</p>
                   {m.payment && (
-                    <div className="mt-2 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-xs min-w-0">
-                      <p className="font-semibold text-slate-900">{m.payment.currency} {m.payment.amount.toFixed(2)}{m.paidUSD + 0.009 < m.feeUSD && <span className="ml-1.5 text-amber-700">partial</span>}</p>
+                    <div className="mt-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs min-w-0">
+                      <p className="font-semibold text-slate-900 tabular-nums">{m.payment.currency} {m.payment.amount.toFixed(2)}{m.paidUSD + 0.009 < m.feeUSD && <span className="ml-1.5 text-amber-700">partial</span>}</p>
                       <p className="text-slate-500">{new Date(m.payment.datePaid).toLocaleDateString('en-GB')}{m.payment.method ? ` · ${METHOD_LABEL[m.payment.method]}` : ''} · {m.payment.paidBy}</p>
                       {m.payment.referenceNote && <p className="text-slate-400 break-words">{m.payment.referenceNote}</p>}
                     </div>
                   )}
                   {canManage && m.payment && (
                     <div className="mt-2 text-right">
-                      <button onClick={() => setReverseMonth(m.month)} className="text-xs font-semibold text-slate-500 hover:text-rose-600">Reverse payment</button>
+                      <button onClick={() => setReverseMonth(m.month)} className="text-xs font-semibold text-rose-600 hover:text-rose-700">Reverse payment</button>
                     </div>
                   )}
                   {canManage && !m.payment && !m.waived && m.started && (
-                    <button onClick={() => setEntry({ month: m.month, fee: m.feeUSD })}
-                      className={`mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold ${m.status === 'OVERDUE' || m.status === 'DUE' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}`}>
-                      <CurrencyDollarIcon className="w-4 h-4" /> Record payment
-                    </button>
+                    <Button className="mt-3 w-full" variant={m.status === 'OVERDUE' || m.status === 'DUE' ? 'primary' : 'secondary'} icon={<CurrencyDollarIcon className="w-4 h-4" />} onClick={() => setEntry({ month: m.month, fee: m.feeUSD })}>
+                      Record payment
+                    </Button>
                   )}
                 </li>
               ))}
+              <li className="px-4 py-3 bg-slate-50">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-[13px] font-semibold text-slate-900">Total {year}</p>
+                  <p className="text-[13px] font-semibold tabular-nums text-slate-900">{usd(fees.due)}</p>
+                </div>
+                <p className="mt-1 text-xs text-slate-500 tabular-nums">Revenue {usd(totals.revenueUSD)} · Commission {usd(totals.commissionUSD)} · {usd(fees.paid)} paid · {usd(fees.outstanding)} outstanding</p>
+              </li>
             </ul>
-            <div className="px-4 py-3 bg-slate-900 text-white">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm font-semibold">Total {year}</p>
-                <p className="font-bold tabular-nums">{usd(fees.due)}</p>
-              </div>
-              <p className="mt-1 text-xs text-slate-300 tabular-nums">Revenue {usd(totals.revenueUSD)} · Commission {usd(totals.commissionUSD)} · {usd(fees.paid)} paid · {usd(fees.outstanding)} outstanding</p>
-            </div>
-            {!canManage && <p className="px-4 py-3 text-xs text-slate-500 border-t border-slate-100">You can view fees. Recording payments requires the “Franchise payments” permission.</p>}
-          </section>
 
-          {/* Franchise fees — table (md+) */}
-          <section className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200 whitespace-nowrap">
-                    <th className={`${stickyCell} bg-slate-50 text-left font-semibold px-5 py-3`}>Month</th>
-                    <th className="text-right font-semibold px-4 py-3">Revenue</th>
-                    <th className="text-right font-semibold px-4 py-3">Commission</th>
-                    <th className="text-right font-semibold px-4 py-3">Fixed</th>
-                    <th className="text-right font-semibold px-4 py-3">Fee</th>
-                    <th className="text-left font-semibold px-4 py-3">Status</th>
-                    <th className="text-left font-semibold px-4 py-3">Payment</th>
-                    <th className="px-5 py-3" />
+            {/* md+ */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className={table.wrap}>
+                <thead className={`${table.head} whitespace-nowrap`}>
+                  <tr>
+                    <th className={`${table.th} ${stickyCell} bg-slate-50`}>Month</th>
+                    <th className={`${table.th} text-right`}>Revenue</th>
+                    <th className={`${table.th} text-right`}>Commission</th>
+                    <th className={`${table.th} text-right`}>Fixed</th>
+                    <th className={`${table.th} text-right`}>Fee</th>
+                    <th className={table.th}>Status</th>
+                    <th className={table.th}>Payment</th>
+                    <th className={table.th}><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className={table.body}>
                   {months.map(m => {
-                    const rowBg = m.status === 'OVERDUE' ? 'bg-rose-50' : 'bg-white';
+                    const overdue = m.status === 'OVERDUE';
                     return (
-                      <tr key={m.month} className={`group ${rowBg} ${m.status === 'OVERDUE' ? '' : 'hover:bg-slate-50'}`}>
-                        <td className={`${stickyCell} ${rowBg} ${m.status === 'OVERDUE' ? '' : 'group-hover:bg-slate-50'} px-5 py-3 whitespace-nowrap`}>
+                      <tr key={m.month} className={`group transition-colors text-slate-700 ${overdue ? 'bg-rose-50/60' : 'bg-white hover:bg-slate-50'}`}>
+                        <td className={`${table.td} ${stickyCell} ${overdue ? 'bg-rose-50' : 'bg-white group-hover:bg-slate-50'} whitespace-nowrap`}>
                           <p className="font-medium text-slate-900">{m.month}</p>
-                          {!m.waived && m.status !== 'PAID' && m.started && <p className={`text-xs ${m.status === 'OVERDUE' ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>Due {m.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>}
+                          {!m.waived && m.status !== 'PAID' && m.started && <p className={`text-[11px] ${overdue ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>Due {m.deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{usd(m.revenueUSD)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{usd(m.commissionUSD)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-slate-500">{m.waived ? '—' : usd(FIXED_ADDON)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap font-semibold text-slate-900">{m.waived ? <span className="text-slate-400 font-normal">Waived</span> : !m.started ? <span className="text-slate-300">—</span> : usd(m.feeUSD)}</td>
-                        <td className="px-4 py-3"><StatusChip status={m.status} /></td>
-                        <td className="px-4 py-3 min-w-[12rem]">
+                        <td className={`${table.td} text-right tabular-nums whitespace-nowrap`}>{usd(m.revenueUSD)}</td>
+                        <td className={`${table.td} text-right tabular-nums whitespace-nowrap`}>{usd(m.commissionUSD)}</td>
+                        <td className={`${table.td} text-right tabular-nums whitespace-nowrap text-slate-500`}>{m.waived ? '—' : usd(FIXED_ADDON)}</td>
+                        <td className={`${table.td} text-right tabular-nums whitespace-nowrap font-semibold text-slate-900`}>{m.waived ? <span className="text-slate-400 font-normal">Waived</span> : !m.started ? <span className="text-slate-300">—</span> : usd(m.feeUSD)}</td>
+                        <td className={table.td}><StatusChip status={m.status} /></td>
+                        <td className={`${table.td} min-w-[12rem]`}>
                           {m.payment ? (
                             <div className="text-xs">
-                              <p className="font-semibold text-slate-900">{m.payment.currency} {m.payment.amount.toFixed(2)}{m.paidUSD + 0.009 < m.feeUSD && <span className="ml-1.5 text-amber-700">partial</span>}</p>
+                              <p className="font-semibold text-slate-900 tabular-nums">{m.payment.currency} {m.payment.amount.toFixed(2)}{m.paidUSD + 0.009 < m.feeUSD && <span className="ml-1.5 text-amber-700">partial</span>}</p>
                               <p className="text-slate-500">{new Date(m.payment.datePaid).toLocaleDateString('en-GB')}{m.payment.method ? ` · ${METHOD_LABEL[m.payment.method]}` : ''} · {m.payment.paidBy}</p>
                               {m.payment.referenceNote && <p className="text-slate-400 truncate max-w-[16rem]" title={m.payment.referenceNote}>{m.payment.referenceNote}</p>}
                             </div>
                           ) : <span className="text-xs text-slate-300">—</span>}
                         </td>
-                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <td className={`${table.td} text-right whitespace-nowrap`}>
                           {canManage && m.payment && (
-                            <button onClick={() => setReverseMonth(m.month)} className="text-xs font-semibold text-slate-500 hover:text-rose-600">Reverse</button>
+                            <Button size="sm" variant="ghost" className="!text-rose-600 hover:!bg-rose-50" onClick={() => setReverseMonth(m.month)}>Reverse</Button>
                           )}
                           {canManage && !m.payment && !m.waived && m.started && (
-                            <button onClick={() => setEntry({ month: m.month, fee: m.feeUSD })}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${m.status === 'OVERDUE' || m.status === 'DUE' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}`}>
-                              <CurrencyDollarIcon className="w-3.5 h-3.5" /> Record payment
-                            </button>
+                            <Button size="sm" variant={m.status === 'OVERDUE' || m.status === 'DUE' ? 'primary' : 'secondary'} icon={<CurrencyDollarIcon className="w-3.5 h-3.5" />} onClick={() => setEntry({ month: m.month, fee: m.feeUSD })}>
+                              Record payment
+                            </Button>
                           )}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-slate-900 text-white text-sm whitespace-nowrap">
-                    <td className={`${stickyCell} bg-slate-900 px-5 py-3 font-semibold`}>Total {year}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{usd(totals.revenueUSD)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{usd(totals.commissionUSD)}</td>
-                    <td />
-                    <td className="px-4 py-3 text-right tabular-nums font-bold">{usd(fees.due)}</td>
-                    <td className="px-4 py-3 text-xs text-slate-300" colSpan={3}>{usd(fees.paid)} paid · {usd(fees.outstanding)} outstanding</td>
+                <tfoot className="bg-slate-50 border-t border-slate-200 text-slate-900 whitespace-nowrap">
+                  <tr>
+                    <td className={`${table.td} ${stickyCell} bg-slate-50 font-semibold`}>Total {year}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{usd(totals.revenueUSD)}</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{usd(totals.commissionUSD)}</td>
+                    <td className={table.td} />
+                    <td className={`${table.td} text-right tabular-nums font-semibold`}>{usd(fees.due)}</td>
+                    <td className={`${table.td} text-xs text-slate-500`} colSpan={3}>{usd(fees.paid)} paid · {usd(fees.outstanding)} outstanding</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
-            {!canManage && <p className="px-5 py-3 text-xs text-slate-500 border-t border-slate-100">You can view fees. Recording payments requires the “Franchise payments” permission.</p>}
-          </section>
+          </Panel>
         </>
       )}
 
@@ -729,13 +698,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       )}
       {reverseMonth && (
         <ModalShell title={`Reverse ${reverseMonth} payment?`} subtitle="The month goes back to unpaid. Use this to correct a mistake." onClose={() => setReverseMonth(null)}>
-          <div className="p-6 flex justify-end gap-2">
-            <button onClick={() => setReverseMonth(null)} className="px-4 py-2.5 text-sm font-semibold text-slate-600 rounded-xl hover:bg-slate-100">Keep payment</button>
-            <button onClick={() => reverse(reverseMonth)} className="px-5 py-2.5 text-sm font-semibold bg-rose-600 text-white rounded-xl hover:bg-rose-700">Reverse payment</button>
+          <div className="px-5 py-3.5 bg-slate-50 flex flex-wrap justify-end gap-2">
+            <Button variant="ghost" onClick={() => setReverseMonth(null)}>Keep payment</Button>
+            <Button variant="danger" onClick={() => reverse(reverseMonth)}>Reverse payment</Button>
           </div>
         </ModalShell>
       )}
-    </div>
+    </Page>
   );
 };
 

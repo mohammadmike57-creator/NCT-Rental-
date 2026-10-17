@@ -6,7 +6,8 @@ import DailyAvailabilityModal from './DailyAvailabilityModal';
 import FleetCalendarView from './FleetCalendarView';
 import FleetTimelineView from './FleetTimelineView';
 import FleetStatusTracker from './FleetStatusTracker';
-import { CarIcon, ClockIcon, ChevronDownIcon } from './icons';
+import { ClockIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Segmented, EmptyState, selectCls, inputCls } from './ui/Crm';
 
 interface FleetAvailabilityProps {
   fleet: Fleet;
@@ -34,13 +35,11 @@ const VIEWS: { key: ViewKey; label: string; short: string }[] = [
 ];
 
 const LEGEND = [
-  { dot: 'bg-green-500', label: 'Over 70% free' },
-  { dot: 'bg-yellow-500', label: '30 to 70% free' },
+  { dot: 'bg-emerald-500', label: 'Over 70% free' },
+  { dot: 'bg-amber-400', label: '30 to 70% free' },
   { dot: 'bg-orange-500', label: 'Under 30% free' },
-  { dot: 'bg-red-500', label: 'Sold out' },
+  { dot: 'bg-rose-500', label: 'Sold out' },
 ];
-
-const selectClass = 'w-full appearance-none pl-3 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 cursor-pointer focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
 
 const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, year, currentMonth, onMonthChange, onYearChange, rentalSources }) => {
   const [activeView, setActiveView] = useState<ViewKey>('calendar');
@@ -176,107 +175,77 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
   }, [trackerDate]);
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-5 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <CarIcon className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Fleet availability</h2>
-              <p className="text-sm text-slate-500">Inventory for {currentMonth} {year}{categoryFilter ? ` · ${categoryFilter}` : ''}</p>
-            </div>
-          </div>
+    <Page>
+      <PageHeader
+        section="Core Operations"
+        title="Fleet availability"
+        subtitle={`Inventory for ${currentMonth} ${year}${categoryFilter ? ` \u00b7 ${categoryFilter}` : ''}`}
+        actions={
+          <>
+            <select value={currentMonth} onChange={e => onMonthChange(e.target.value)} aria-label="Month" className={`${selectCls} sm:w-36`}>
+              {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select value={year} onChange={e => onYearChange(parseInt(e.target.value))} aria-label="Year" className={`${selectCls} sm:w-24`}>
+              {INITIAL_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Category" className={`${selectCls} sm:w-44`}>
+              <option value="">All categories</option>
+              {CAR_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </>
+        }
+      />
 
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full xl:w-auto">
-            <div className="relative sm:w-40">
-              <select value={currentMonth} onChange={e => onMonthChange(e.target.value)} aria-label="Month" className={selectClass}>
-                {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-            </div>
-            <div className="relative sm:w-28">
-              <select value={year} onChange={e => onYearChange(parseInt(e.target.value))} aria-label="Year" className={selectClass}>
-                {INITIAL_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-            </div>
-            <div className="relative col-span-2 sm:w-48">
-              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Category" className={selectClass}>
-                <option value="">All categories</option>
-                {CAR_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-        </div>
+      <StatGrid items={[
+        { label: 'Total fleet', value: stats.total, sub: categoryFilter ? `${categoryFilter} vehicles` : 'active inventory' },
+        { label: 'Rented', value: stats.rented, sub: selectedDateLabel ? `on ${selectedDateLabel}` : 'on selected date', tone: stats.rented > 0 ? 'warning' : 'default' },
+        { label: 'Available', value: stats.available, sub: 'ready for booking', tone: stats.available > 0 ? 'success' : 'danger' },
+        {
+          label: 'Utilization',
+          value: `${stats.utilization}%`,
+          tone: 'default',
+          sub: (
+            <span className="block mt-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+              <span className={`block h-full rounded-full ${stats.utilization > 80 ? 'bg-indigo-500' : 'bg-slate-400'}`} style={{ width: `${Math.min(100, stats.utilization)}%` }} />
+            </span>
+          ),
+        },
+      ]} />
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-          {[
-            { label: 'Total fleet', value: stats.total, sub: categoryFilter ? `${categoryFilter} vehicles` : 'active inventory', tone: 'text-slate-900' },
-            { label: 'Rented', value: stats.rented, sub: selectedDateLabel ? `on ${selectedDateLabel}` : 'on selected date', tone: stats.rented > 0 ? 'text-amber-600' : 'text-slate-900' },
-            { label: 'Available', value: stats.available, sub: 'ready for booking', tone: stats.available > 0 ? 'text-emerald-600' : 'text-rose-600' },
-            { label: 'Utilization', value: `${stats.utilization}%`, sub: 'of fleet on rent', tone: stats.utilization > 80 ? 'text-indigo-600' : 'text-slate-900', bar: true },
-          ].map(k => (
-            <div key={k.label} className="px-5 py-4 min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{k.label}</p>
-              <p className={`mt-1 text-2xl font-bold tabular-nums ${k.tone}`}>{k.value}</p>
-              {k.bar ? (
-                <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div className={`h-full rounded-full ${stats.utilization > 80 ? 'bg-indigo-500' : 'bg-slate-400'}`} style={{ width: `${Math.min(100, stats.utilization)}%` }} />
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400 truncate">{k.sub}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* View */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-w-0">
-        <div className="px-3 sm:px-5 py-3 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl w-full md:w-auto" role="tablist">
-            {VIEWS.map(v => (
-              <button
-                key={v.key}
-                role="tab"
-                aria-selected={activeView === v.key}
-                onClick={() => setActiveView(v.key)}
-                className={`flex-1 md:flex-none px-3 py-1.5 text-sm font-semibold rounded-lg whitespace-nowrap ${activeView === v.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                <span className="sm:hidden">{v.short}</span>
-                <span className="hidden sm:inline">{v.label}</span>
-              </button>
+      <Panel
+        title={VIEWS.find(v => v.key === activeView)?.label}
+        subtitle={activeView === 'tracker' ? 'Where every car is on the chosen day' : `${filteredFleet.length} vehicles \u00b7 ${currentMonth} ${year}`}
+        actions={
+          <Segmented
+            className="w-full sm:w-auto"
+            value={activeView}
+            onChange={k => setActiveView(k as ViewKey)}
+            options={VIEWS.map(v => ({ key: v.key, label: v.short }))}
+          />
+        }
+      >
+        {activeView === 'calendar' && (
+          <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+            {LEGEND.map(l => (
+              <span key={l.label} className="inline-flex items-center gap-1.5 whitespace-nowrap"><span className={`w-2 h-2 rounded-full ${l.dot}`} />{l.label}</span>
             ))}
+            <span className="md:hidden w-full text-slate-400">Swipe sideways to see the whole month.</span>
           </div>
-
-          {activeView === 'calendar' && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
-              {LEGEND.map(l => (
-                <span key={l.label} className="inline-flex items-center gap-1.5 whitespace-nowrap"><span className={`w-2.5 h-2.5 rounded-full ${l.dot}`} />{l.label}</span>
-              ))}
-            </div>
-          )}
-          {activeView === 'tracker' && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <label htmlFor="tracker-date" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Check status for</label>
-              <input
-                type="date"
-                id="tracker-date"
-                value={trackerDate}
-                onChange={(e) => setTrackerDate(e.target.value)}
-                className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-              />
-            </div>
-          )}
-        </div>
-
-        {activeView !== 'tracker' && (
-          <p className="md:hidden px-4 py-2 text-xs text-slate-400 bg-slate-50 border-b border-slate-100">Swipe sideways to see the whole month.</p>
+        )}
+        {activeView === 'timeline' && (
+          <p className="md:hidden px-4 py-2 text-xs text-slate-400 bg-slate-50/50 border-b border-slate-100">Swipe sideways to see the whole month.</p>
+        )}
+        {activeView === 'tracker' && (
+          <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2 border-b border-slate-100 bg-slate-50/50">
+            <label htmlFor="tracker-date" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Check status for</label>
+            <input
+              type="date"
+              id="tracker-date"
+              value={trackerDate}
+              onChange={(e) => setTrackerDate(e.target.value)}
+              className={`${inputCls} sm:w-auto`}
+            />
+          </div>
         )}
 
         <div className="min-h-[500px]">
@@ -304,7 +273,7 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
             </div>
           )}
           {activeView === 'tracker' && (
-            <div className="p-3 sm:p-6 min-w-0">
+            <div className="p-3 sm:p-4 min-w-0">
               {trackerDate ? (
                 <FleetStatusTracker
                   fleet={filteredFleet}
@@ -313,16 +282,12 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
                   rentalSources={rentalSources}
                 />
               ) : (
-                <div className="py-16 text-center">
-                  <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><ClockIcon className="w-6 h-6" /></div>
-                  <p className="mt-4 font-semibold text-slate-800">Pick a date</p>
-                  <p className="text-sm text-slate-500">Choose a day above to see where every car is.</p>
-                </div>
+                <EmptyState icon={<ClockIcon />} title="Pick a date" hint="Choose a day above to see where every car is." />
               )}
             </div>
           )}
         </div>
-      </div>
+      </Panel>
 
       {modalDate && (
         <DailyAvailabilityModal
@@ -332,7 +297,7 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
           onClose={handleCloseModal}
         />
       )}
-    </div>
+    </Page>
   );
 };
 

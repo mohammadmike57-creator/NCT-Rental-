@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Reservation, ReservationStatus } from '../types';
 import { MONTHS } from '../constants';
-import { PdfIcon, ChartBarIcon, CalendarIcon } from './icons';
+import { PdfIcon, CalendarIcon } from './icons';
+import { Page, PageHeader, StatGrid, Panel, Toolbar, Button, EmptyState, inputCls, table } from './ui/Crm';
 
 interface SourcePerformanceReportProps {
   reservations: Reservation[];
@@ -159,209 +160,175 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
   const conversion = totalBookings ? (grandTotal.confirmed / totalBookings) * 100 : 0;
   const shareOf = (amount: number) => (grandTotal.totalAmount ? (amount / grandTotal.totalAmount) * 100 : 0);
   const maxAmount = Math.max(1, ...reportData.map(r => r.totalAmount));
-  const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
   const rowRate = (row: ReportRow) => {
     const t = row.confirmed + row.cancelled + row.noShow;
     return t ? (row.confirmed / t) * 100 : 0;
   };
 
+  const pctOf = (n: number) => (totalBookings ? ((n / totalBookings) * 100).toFixed(1) : '0.0');
+
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <ChartBarIcon className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Source performance</h2>
-              <p className="text-sm text-slate-500">Bookings, cancellations and confirmed revenue by rental source.</p>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-end gap-2 w-full lg:w-auto">
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-end">
-              <div className="min-w-0">
-                <label htmlFor="report-start-date" className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">From</label>
-                <input type="date" id="report-start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className={`${inputCls} min-w-0`} />
-              </div>
-              <div className="min-w-0">
-                <label htmlFor="report-end-date" className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">To</label>
-                <input type="date" id="report-end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className={`${inputCls} min-w-0`} />
-              </div>
-            </div>
-            <button
-              onClick={handleExportPDF}
-              disabled={reportData.length === 0}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              <PdfIcon className="w-4 h-4" /> Export PDF
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-y lg:divide-y-0 divide-slate-100">
-          <div className="px-5 py-4 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Confirmed revenue</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-slate-900 truncate">{formatCurrency(grandTotal.totalAmount)}</p>
-            <p className="text-xs text-slate-400 truncate">{reportData.length} source{reportData.length === 1 ? '' : 's'}</p>
-          </div>
-          <div className="px-5 py-4 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Confirmed</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-emerald-700">{grandTotal.confirmed}</p>
-            <p className="text-xs text-slate-400 truncate">{conversion.toFixed(1)}% of {totalBookings} bookings</p>
-          </div>
-          <div className="px-5 py-4 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cancelled</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-rose-600">{grandTotal.cancelled}</p>
-            <p className="text-xs text-slate-400 truncate">{totalBookings ? ((grandTotal.cancelled / totalBookings) * 100).toFixed(1) : '0.0'}% of bookings</p>
-          </div>
-          <div className="px-5 py-4 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">No show</p>
-            <p className="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-amber-600">{grandTotal.noShow}</p>
-            <p className="text-xs text-slate-400 truncate">{totalBookings ? ((grandTotal.noShow / totalBookings) * 100).toFixed(1) : '0.0'}% of bookings</p>
-          </div>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        section="Reports"
+        title="Source performance"
+        subtitle="Bookings, cancellations and confirmed revenue by rental source."
+        actions={
+          <Button variant="primary" icon={<PdfIcon className="w-4 h-4" />} onClick={handleExportPDF} disabled={reportData.length === 0}>Export PDF</Button>
+        }
+      />
 
-      {reportData.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-16 text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center"><CalendarIcon className="w-6 h-6" /></div>
-          <h3 className="mt-4 text-sm font-semibold text-slate-900">No bookings in this period</h3>
-          <p className="mt-1 text-sm text-slate-500">Adjust the date range above to see how each source performed.</p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Revenue by source */}
-            <section className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">Revenue by source</h3>
-                <span className="text-xs text-slate-400">Confirmed bookings</span>
-              </div>
-              <ul className="space-y-3">
+      <StatGrid items={[
+        { label: 'Confirmed revenue', value: formatCurrency(grandTotal.totalAmount), sub: `${reportData.length} source${reportData.length === 1 ? '' : 's'}` },
+        { label: 'Confirmed', value: grandTotal.confirmed, sub: `${conversion.toFixed(1)}% of ${totalBookings} bookings`, tone: 'success' },
+        { label: 'Cancelled', value: grandTotal.cancelled, sub: `${pctOf(grandTotal.cancelled)}% of bookings`, tone: 'danger' },
+        { label: 'No show', value: grandTotal.noShow, sub: `${pctOf(grandTotal.noShow)}% of bookings`, tone: 'warning' },
+      ]} />
+
+      <Panel
+        title="Performance by source"
+        subtitle={startDate && endDate ? `Pickups from ${startDate} to ${endDate}` : 'Select a period'}
+      >
+        <Toolbar>
+          <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
+            <label htmlFor="report-start-date" className="flex items-center gap-2 min-w-0">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 shrink-0">From</span>
+              <input type="date" id="report-start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className={`${inputCls} min-w-0 md:w-auto`} />
+            </label>
+            <label htmlFor="report-end-date" className="flex items-center gap-2 min-w-0">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 shrink-0">To</span>
+              <input type="date" id="report-end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className={`${inputCls} min-w-0 md:w-auto`} />
+            </label>
+          </div>
+        </Toolbar>
+
+        {reportData.length === 0 ? (
+          <EmptyState icon={<CalendarIcon />} title="No bookings in this period" hint="Adjust the date range above to see how each source performed." />
+        ) : (
+          <>
+            <table className={`hidden md:table ${table.wrap}`}>
+              <thead className={table.head}>
+                <tr>
+                  <th scope="col" className={table.th}>Rental source</th>
+                  <th scope="col" className={`${table.th} text-right`}>Confirmed</th>
+                  <th scope="col" className={`${table.th} text-right`}>Cancelled</th>
+                  <th scope="col" className={`${table.th} text-right`}>No show</th>
+                  <th scope="col" className={`${table.th} text-right hidden lg:table-cell`}>Confirm rate</th>
+                  <th scope="col" className={`${table.th} text-right`}>Total amount</th>
+                  <th scope="col" className={`${table.th} w-44 hidden lg:table-cell`}>Share</th>
+                </tr>
+              </thead>
+              <tbody className={table.body}>
                 {reportData.map(row => (
-                  <li key={row.source} className="min-w-0">
-                    <div className="flex items-baseline justify-between gap-3 text-sm">
-                      <span className="font-medium text-slate-700 truncate">{row.source}</span>
-                      <span className="shrink-0 tabular-nums text-slate-900 font-semibold">
-                        {formatCurrency(row.totalAmount)}
-                        <span className="ml-2 text-xs font-medium text-slate-400">{shareOf(row.totalAmount).toFixed(1)}%</span>
-                      </span>
-                    </div>
-                    <div className="mt-1.5 h-2 rounded-full bg-slate-100 overflow-hidden">
-                      <div className="h-full rounded-full bg-indigo-500" style={{ width: `${(row.totalAmount / maxAmount) * 100}%` }} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            {/* Status breakdown */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">Status breakdown</h3>
-                <span className="text-xs text-slate-400 tabular-nums">{statusBreakdown.total} bookings</span>
-              </div>
-              <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
-                {statusBreakdown.items.map(i => i.pct > 0 && (
-                  <div key={i.key} className={i.bar} style={{ width: `${i.pct}%` }} title={`${i.label}: ${i.value}`} />
-                ))}
-              </div>
-              <ul className="mt-5 divide-y divide-slate-100">
-                {statusBreakdown.items.map(i => (
-                  <li key={i.key} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                    <span className="inline-flex items-center gap-2 text-slate-600"><span className={`w-2.5 h-2.5 rounded-sm ${i.dot}`} />{i.label}</span>
-                    <span className="tabular-nums">
-                      <span className="font-semibold text-slate-900">{i.value}</span>
-                      <span className="ml-2 text-xs text-slate-400">{i.pct.toFixed(1)}%</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-
-          {/* Table (md+) */}
-          <section className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                    <th scope="col" className="text-left font-semibold px-5 py-3">Rental source</th>
-                    <th scope="col" className="text-right font-semibold px-4 py-3">Confirmed</th>
-                    <th scope="col" className="text-right font-semibold px-4 py-3">Cancelled</th>
-                    <th scope="col" className="text-right font-semibold px-4 py-3">No show</th>
-                    <th scope="col" className="text-right font-semibold px-4 py-3 hidden lg:table-cell">Confirm rate</th>
-                    <th scope="col" className="text-right font-semibold px-4 py-3">Total amount</th>
-                    <th scope="col" className="text-left font-semibold px-5 py-3 w-40 hidden lg:table-cell">Share</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reportData.map(row => (
-                    <tr key={row.source} className="hover:bg-slate-50/60">
-                      <td className="px-5 py-3 font-medium text-slate-900 whitespace-nowrap">{row.source}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.confirmed}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.cancelled}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.noShow}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-500 hidden lg:table-cell">{rowRate(row).toFixed(1)}%</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-900 whitespace-nowrap">{formatCurrency(row.totalAmount)}</td>
-                      <td className="px-5 py-3 hidden lg:table-cell">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${shareOf(row.totalAmount)}%` }} />
-                          </div>
-                          <span className="w-12 text-right text-xs tabular-nums text-slate-500">{shareOf(row.totalAmount).toFixed(1)}%</span>
+                  <tr key={row.source} className={table.row}>
+                    <td className={`${table.td} font-medium text-slate-900 whitespace-nowrap`}>{row.source}</td>
+                    <td className={`${table.td} text-right tabular-nums text-slate-700`}>{row.confirmed}</td>
+                    <td className={`${table.td} text-right tabular-nums text-slate-700`}>{row.cancelled}</td>
+                    <td className={`${table.td} text-right tabular-nums text-slate-700`}>{row.noShow}</td>
+                    <td className={`${table.td} text-right tabular-nums text-slate-500 hidden lg:table-cell`}>{rowRate(row).toFixed(1)}%</td>
+                    <td className={`${table.td} text-right tabular-nums font-semibold text-slate-900 whitespace-nowrap`}>{formatCurrency(row.totalAmount)}</td>
+                    <td className={`${table.td} hidden lg:table-cell`}>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-indigo-500" style={{ width: `${shareOf(row.totalAmount)}%` }} />
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-900 text-white">
-                    <th scope="row" className="px-5 py-3 text-left font-semibold">Grand total</th>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{grandTotal.confirmed}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{grandTotal.cancelled}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{grandTotal.noShow}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold hidden lg:table-cell">{conversion.toFixed(1)}%</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-bold whitespace-nowrap">{formatCurrency(grandTotal.totalAmount)}</td>
-                    <td className="px-5 py-3 hidden lg:table-cell text-xs text-slate-300">100%</td>
+                        <span className="w-12 text-right text-xs tabular-nums text-slate-500">{shareOf(row.totalAmount).toFixed(1)}%</span>
+                      </div>
+                    </td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
-          </section>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 border-t border-slate-200 text-slate-900">
+                <tr>
+                  <th scope="row" className={`${table.td} text-left font-semibold`}>Grand total</th>
+                  <td className={`${table.td} text-right tabular-nums font-semibold`}>{grandTotal.confirmed}</td>
+                  <td className={`${table.td} text-right tabular-nums font-semibold`}>{grandTotal.cancelled}</td>
+                  <td className={`${table.td} text-right tabular-nums font-semibold`}>{grandTotal.noShow}</td>
+                  <td className={`${table.td} text-right tabular-nums font-semibold hidden lg:table-cell`}>{conversion.toFixed(1)}%</td>
+                  <td className={`${table.td} text-right tabular-nums font-semibold whitespace-nowrap`}>{formatCurrency(grandTotal.totalAmount)}</td>
+                  <td className={`${table.td} hidden lg:table-cell text-xs text-slate-500`}>100%</td>
+                </tr>
+              </tfoot>
+            </table>
 
-          {/* Cards (mobile) */}
-          <div className="md:hidden space-y-3">
-            {reportData.map(row => (
-              <div key={row.source} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-semibold text-slate-900 truncate min-w-0">{row.source}</p>
-                  <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset bg-indigo-50 text-indigo-700 ring-indigo-200 tabular-nums">{shareOf(row.totalAmount).toFixed(1)}%</span>
+            <ul className="md:hidden divide-y divide-slate-100">
+              {reportData.map(row => (
+                <li key={row.source} className="px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-[13px] font-semibold text-slate-900 truncate min-w-0">{row.source}</p>
+                    <p className="shrink-0 text-[13px] font-semibold tabular-nums text-slate-900">{formatCurrency(row.totalAmount)}</p>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-indigo-500" style={{ width: `${shareOf(row.totalAmount)}%` }} />
+                    </div>
+                    <span className="text-[11px] tabular-nums text-slate-500">{shareOf(row.totalAmount).toFixed(1)}%</span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-500 tabular-nums">
+                    <span className="text-emerald-700 font-medium">{row.confirmed} confirmed</span>
+                    <span className="text-slate-300 mx-1.5">&middot;</span>
+                    <span className="text-rose-600 font-medium">{row.cancelled} cancelled</span>
+                    <span className="text-slate-300 mx-1.5">&middot;</span>
+                    <span className="text-amber-600 font-medium">{row.noShow} no show</span>
+                    <span className="text-slate-300 mx-1.5">&middot;</span>
+                    {rowRate(row).toFixed(0)}% rate
+                  </p>
+                </li>
+              ))}
+              <li className="px-4 py-3 bg-slate-50">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-[13px] font-semibold text-slate-900">Grand total</p>
+                  <p className="text-[13px] font-semibold tabular-nums text-slate-900">{formatCurrency(grandTotal.totalAmount)}</p>
                 </div>
-                <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{formatCurrency(row.totalAmount)}</p>
-                <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-indigo-500" style={{ width: `${shareOf(row.totalAmount)}%` }} />
-                </div>
-                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div className="flex justify-between gap-2"><dt className="text-slate-500">Confirmed</dt><dd className="font-semibold tabular-nums text-emerald-700">{row.confirmed}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-slate-500">Cancelled</dt><dd className="font-semibold tabular-nums text-rose-600">{row.cancelled}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-slate-500">No show</dt><dd className="font-semibold tabular-nums text-amber-600">{row.noShow}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-slate-500">Rate</dt><dd className="font-semibold tabular-nums text-slate-700">{rowRate(row).toFixed(0)}%</dd></div>
-                </dl>
-              </div>
-            ))}
-            <div className="bg-slate-900 text-white rounded-2xl p-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm font-semibold">Grand total</p>
-                <p className="text-lg font-bold tabular-nums">{formatCurrency(grandTotal.totalAmount)}</p>
-              </div>
-              <p className="mt-1 text-xs text-slate-300 tabular-nums">{grandTotal.confirmed} confirmed · {grandTotal.cancelled} cancelled · {grandTotal.noShow} no show</p>
+                <p className="mt-1 text-xs text-slate-500 tabular-nums">{grandTotal.confirmed} confirmed &middot; {grandTotal.cancelled} cancelled &middot; {grandTotal.noShow} no show</p>
+              </li>
+            </ul>
+          </>
+        )}
+      </Panel>
+
+      {reportData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Panel className="lg:col-span-2" title="Revenue by source" subtitle="Confirmed bookings" padded>
+            <ul className="space-y-3">
+              {reportData.map(row => (
+                <li key={row.source} className="min-w-0">
+                  <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                    <span className="font-medium text-slate-700 truncate">{row.source}</span>
+                    <span className="shrink-0 tabular-nums text-slate-900 font-semibold">
+                      {formatCurrency(row.totalAmount)}
+                      <span className="ml-2 text-xs font-medium text-slate-400">{shareOf(row.totalAmount).toFixed(1)}%</span>
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-indigo-500" style={{ width: `${(row.totalAmount / maxAmount) * 100}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+
+          <Panel title="Status breakdown" subtitle={`${statusBreakdown.total} bookings`} padded>
+            <div className="flex h-2 rounded-full overflow-hidden bg-slate-100">
+              {statusBreakdown.items.map(i => i.pct > 0 && (
+                <div key={i.key} className={i.bar} style={{ width: `${i.pct}%` }} title={`${i.label}: ${i.value}`} />
+              ))}
             </div>
-          </div>
-        </>
+            <ul className="mt-4 divide-y divide-slate-100">
+              {statusBreakdown.items.map(i => (
+                <li key={i.key} className="flex items-center justify-between gap-3 py-2 text-[13px]">
+                  <span className="inline-flex items-center gap-2 text-slate-600"><span className={`w-2 h-2 rounded-full ${i.dot}`} />{i.label}</span>
+                  <span className="tabular-nums">
+                    <span className="font-semibold text-slate-900">{i.value}</span>
+                    <span className="ml-2 text-xs text-slate-400">{i.pct.toFixed(1)}%</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        </div>
       )}
-    </div>
+    </Page>
   );
 };
 
