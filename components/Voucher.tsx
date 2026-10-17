@@ -4,6 +4,8 @@ import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
+import { sendCustomerEmail } from '../firebase/api';
+import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
 
 interface VoucherProps {
   reservation: Reservation;
@@ -229,6 +231,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const [viewMode, setViewMode] = useState<'pickup' | 'dropoff'>(reservation.voucherSubmitted ? 'dropoff' : 'pickup');
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const [emailState, setEmailState] = useState<{ status: 'idle' | 'sending' | 'sent' | 'failed' | 'unconfigured'; to?: string; message?: string }>({ status: 'idle' });
 
   const [processType, setProcessType] = useState<'selection' | 'return' | 'exchange'>(
     (reservation.voucherSubmitted && !reservation.dropOffCompleted) ? 'selection' : 'return'
@@ -359,6 +362,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       onUpdate(submittedVoucher);
       setLocalReservation(submittedVoucher);
       setShowSuccessOverlay(true);
+      void emailAgreement(submittedVoucher, 'checkout');
     } else {
       if (processType === 'return') {
         if (localReservation.dropOffKmIn === undefined || localReservation.dropOffKmIn === null || localReservation.dropOffKmIn < 0) { alert("A valid returning Kilometers In is required for drop-off."); return; }
@@ -373,6 +377,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         onUpdate(submittedVoucher);
         setLocalReservation(submittedVoucher);
         setShowSuccessOverlay(true);
+        void emailAgreement(submittedVoucher, 'checkin');
       } else if (processType === 'exchange') {
         if (!currentExchange.reason?.trim()) { alert("A reason for the exchange is required."); return; }
         if (!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature) { alert("Signatures for checking in the old car are required."); return; }
@@ -415,7 +420,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
   const RETURN_TERMS = "By signing, the Renter confirms the return of the vehicle. The final condition and any additional charges (such as fuel shortage or new damage) have been reviewed and accepted. The Company Representative confirms receipt of the vehicle and the accuracy of the return inspection.";
   // ====================== PRINTABLE RENTAL AGREEMENT ======================
-  const handleDownloadVoucherPDF = () => {
+  const buildAgreementHtml = (r: Reservation = localReservation): string => {
     const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const money = (n: number) => `$${(n || 0).toFixed(2)}`;
     const when = (iso?: string) => {
@@ -423,7 +428,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       const d = new Date(iso);
       return Number.isNaN(d.getTime()) ? esc(iso) : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
-    const r = localReservation;
     const sourceName = sources.find(s => s.id === r.source)?.name || r.source || '—';
     const loc = location?.name || r.locationName || '—';
     const pickupMarks = r.pickupDamageMarkers || [];
@@ -562,7 +566,11 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   <div class="foot"><span>Thank you for choosing ${esc(companyDetails.name)}</span><span>Generated ${new Date().toLocaleString('en-GB')}</span></div>
 </body></html>`;
+    return html;
+  };
 
+  const handleDownloadVoucherPDF = () => {
+    const html = buildAgreementHtml();
     const printWindow = window.open('', '_blank', 'width=900,height=1000');
     if (printWindow) {
       printWindow.document.write(html);
@@ -614,11 +622,56 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     doc.save(`receipt-${reservation.bookingId}.pdf`);
   };
 
-  const handleSendEmail = () => {
-    const subject = `Your Rental Documents from ${companyDetails.name} - Booking #${localReservation.bookingId}`;
-    const body = `Dear ${localReservation.personName},\n\nThank you for choosing ${companyDetails.name}.\n\nPlease find your rental agreement and payment receipt attached to this email. We recommend downloading them now using the links in the previous screen.\n\nWe wish you a safe journey!\n\nSincerely,\nThe ${companyDetails.name} Team`;
-    window.location.href = `mailto:${localReservation.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  // Emails the signed agreement (as a PDF) to the customer right after check-out / check-in.
+  const emailAgreement = async (r: Reservation, kind: 'checkout' | 'checkin') => {
+    const to = r.customerEmail?.trim();
+    if (!to) return;
+    setEmailState({ status: 'sending', to });
+    const html = buildAgreementHtml(r);
+    let attachment: { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string };
+    try {
+      attachment = { fileName: `Rental-Agreement-${r.bookingId}.pdf`, contentType: 'application/pdf', base64: await agreementHtmlToPdfBase64(html) };
+    } catch {
+      attachment = { fileName: `Rental-Agreement-${r.bookingId}.html`, contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(html))) };
+    }
+    const days = calculateDaysWithGrace(r.startDate, r.endDate);
+    const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+    const isCheckout = kind === 'checkout';
+    const outcome = await sendCustomerEmail({
+      to,
+      subject: `${isCheckout ? 'Your rental agreement' : 'Vehicle return confirmation'} · Booking ${r.bookingId}`,
+      heading: isCheckout ? 'Your rental agreement' : 'Thank you — your vehicle has been returned',
+      intro: `Dear ${r.personName}, ${isCheckout
+        ? `thank you for choosing ${companyDetails.name}. Your signed rental agreement is attached to this email. Please keep it with you for the duration of the rental.`
+        : `we have checked in your vehicle. The final signed agreement, including the return inspection, is attached for your records.`}`,
+      rows: [
+        ['Booking', r.bookingId],
+        ['Vehicle', `${r.carModel || '—'}${r.licensePlate ? ` · ${r.licensePlate}` : ''}`],
+        ['Pick-up', fmt(r.startDate)],
+        ['Return', fmt(r.endDate)],
+        ['Duration', `${days} day${days === 1 ? '' : 's'}`],
+        ['Total', formatCurrency(r.amount || 0)],
+        ...(isCheckout ? [] : [['Kilometres', r.dropOffKmIn != null && r.pickupKmOut != null ? `${r.pickupKmOut} → ${r.dropOffKmIn}` : '—'] as [string, string]]),
+      ],
+      closing: isCheckout ? 'We wish you a safe journey. If you need assistance during your rental, just reply to this email or call us.' : 'We hope to see you again soon.',
+      companyName: companyDetails.name,
+      companyAddress: companyDetails.address,
+      companyPhone: companyDetails.phone,
+      companyEmail: companyDetails.email,
+      replyTo: companyDetails.email,
+      attachments: [attachment],
+    });
+    if (outcome.ok) {
+      setEmailState({ status: 'sent', to });
+      const withLog: Reservation = { ...r, agreementEmails: [...(r.agreementEmails || []), { to, kind, sentAt: new Date().toISOString() }] };
+      setLocalReservation(withLog);
+      onUpdate(withLog);
+    } else {
+      setEmailState({ status: outcome.reason === 'unconfigured' ? 'unconfigured' : 'failed', to, message: outcome.message });
+    }
   };
+
+  const handleSendEmail = () => emailAgreement(localReservation, localReservation.dropOffCompleted ? 'checkin' : 'checkout');
 
   const rentalDays = calculateDaysWithGrace(reservation.startDate, reservation.endDate);
   const extrasTotal = (reservation.extras || []).reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0);
@@ -883,7 +936,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-7 hidden sm:block" />
           <div className="hidden sm:block w-px h-8 bg-slate-200" />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Rental agreement</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Rental agreement{localReservation.awaitingConfirmation && <span className="ml-2 normal-case tracking-normal px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">Awaiting confirmation</span>}</p>
             <p className="text-base font-bold text-slate-900 truncate">#{reservation.bookingId || 'N/A'} <span className="font-normal text-slate-400">·</span> <span className="font-semibold">{reservation.personName}</span></p>
           </div>
           {/* progress */}
@@ -1149,7 +1202,38 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </button>
             </div>
             {localReservation.customerEmail && (
-              <button onClick={handleSendEmail} className="mt-3 text-sm font-semibold text-indigo-600 hover:underline">Email documents to {localReservation.customerEmail}</button>
+              <div className={`mt-4 w-full max-w-md flex items-center gap-3 p-3.5 rounded-2xl border text-left ${
+                emailState.status === 'sent' ? 'border-emerald-200 bg-emerald-50' :
+                emailState.status === 'failed' ? 'border-rose-200 bg-rose-50' :
+                emailState.status === 'unconfigured' ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+                <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${
+                  emailState.status === 'sent' ? 'bg-emerald-600 text-white' :
+                  emailState.status === 'failed' ? 'bg-rose-600 text-white' :
+                  emailState.status === 'unconfigured' ? 'bg-amber-500 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>
+                  {emailState.status === 'sending'
+                    ? <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+                    : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-slate-900">
+                    {emailState.status === 'sending' ? 'Emailing the agreement…' :
+                     emailState.status === 'sent' ? 'Agreement emailed' :
+                     emailState.status === 'failed' ? 'Email not sent' :
+                     emailState.status === 'unconfigured' ? 'Email is not set up' : 'Email the agreement'}
+                  </span>
+                  <span className="block text-xs text-slate-500 truncate">
+                    {emailState.status === 'unconfigured' ? 'Ask an administrator to configure outgoing email on the server.' :
+                     emailState.status === 'failed' ? (emailState.message || 'Please try again.') :
+                     `PDF to ${localReservation.customerEmail}`}
+                  </span>
+                </span>
+                {(emailState.status === 'failed' || emailState.status === 'idle' || emailState.status === 'unconfigured') && (
+                  <button onClick={handleSendEmail} className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-100">{emailState.status === 'idle' ? 'Send' : 'Retry'}</button>
+                )}
+                {emailState.status === 'sent' && (
+                  <button onClick={handleSendEmail} className="shrink-0 text-xs font-semibold text-emerald-700 hover:underline">Resend</button>
+                )}
+              </div>
             )}
             <button onClick={onClose} className="mt-6 px-8 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800">Done</button>
           </div>

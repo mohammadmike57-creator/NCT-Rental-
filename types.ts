@@ -254,6 +254,14 @@ export interface Reservation {
   originalAmount?: number;
   extensionHistory?: ExtensionInfo[];
   unpaidExtensionAmount?: number;
+  // Agreements opened for bookings that were not in the reservation list
+  awaitingConfirmation?: boolean;
+  unlistedCreatedBy?: string;
+  unlistedCreatedAt?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
+  agreementEmails?: { to: string; kind: 'checkout' | 'checkin' | 'exchange' | 'extension'; sentAt: string }[];
+  upgradeHistory?: { date: string; fromCar?: string; toCar: string; fee: number; pricing?: 'free' | 'daily' | 'flat'; dailyRate?: number; days?: number; by?: string }[];
   deferredPaymentCollectedOn?: string;
   pickupPaymentCollected?: boolean;
   paymentConfirmationPending?: boolean;

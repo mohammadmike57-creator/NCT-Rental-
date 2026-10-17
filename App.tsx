@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { AppData, Reservation, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
+import { AppData, Reservation, ReservationExtra, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
@@ -24,6 +24,8 @@ const TrafficTickets = React.lazy(() => import('./components/TrafficTickets'));
 const VehicleDamages = React.lazy(() => import('./components/VehicleDamages'));
 const LoginScreen = React.lazy(() => import('./components/LoginScreen'));
 const ExtendRentalModal = React.lazy(() => import('./components/ExtendRentalModal'));
+const ExtrasManagerModal = React.lazy(() => import('./components/ExtrasManagerModal'));
+const UnlistedAgreementModal = React.lazy(() => import('./components/UnlistedAgreementModal'));
 const ManageCompanyDetailsView = React.lazy(() => import('./components/ManageCompanyDetailsView'));
 const ManageYearsView = React.lazy(() => import('./components/ManageYearsView'));
 const UserManagement = React.lazy(() => import('./components/UserManagement'));
@@ -269,6 +271,7 @@ export const App: React.FC = () => {
   });
   
   const [reservationToExtend, setReservationToExtend] = useState<Reservation | null>(null);
+  const [showUnlistedAgreement, setShowUnlistedAgreement] = useState(false);
   const [reservationToAddExtras, setReservationToAddExtras] = useState<Reservation | null>(null);
   const [confirmation, setConfirmation] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -877,6 +880,51 @@ export const App: React.FC = () => {
       }
   };
 
+  // Opens a rental agreement for a booking that is not in the list (walk-in, late partner booking…).
+  // The booking is stored as PENDING + awaitingConfirmation until a supervisor confirms it.
+  const handleCreateUnlistedAgreement = async (draft: import('./components/UnlistedAgreementModal').UnlistedBookingDraft) => {
+    const start = new Date(draft.startDate);
+    const year = start.getFullYear();
+    const month = MONTHS[start.getMonth()];
+    const timestamp = new Date().toISOString();
+    const reservation: Reservation = {
+      ...draft,
+      id: uuidv4(),
+      status: ReservationStatus.PENDING,
+      awaitingConfirmation: true,
+      unlistedCreatedBy: currentUser?.fullName,
+      unlistedCreatedAt: timestamp,
+      bookingDate: timestamp.split('T')[0],
+      uploadBatchId: 'UNLISTED',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      createdBy: currentUser?.fullName,
+      storageYear: year,
+      storageMonth: month,
+      importLockedYear: year,
+      importLockedMonth: month,
+      customer: draft.personName,
+      invoice: draft.bookingId,
+      pickupDate: draft.startDate,
+      dropoffDate: draft.endDate,
+      vehicle: draft.carModel,
+    } as Reservation;
+
+    setSaveStatus('saving');
+    try {
+      const updatedData = await reservationService.updateReservation(reservation);
+      setReservations(updatedData);
+      setSaveStatus('saved');
+      setShowUnlistedAgreement(false);
+      setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }));
+      showConfirmation(`Booking ${reservation.bookingId} created and sent for confirmation.`);
+    } catch (err) {
+      setSaveStatus('error');
+      console.error('Failed to create unlisted booking:', err);
+      addNotification('Could not create the booking. Check your connection and try again.', 'error');
+    }
+  };
+
   const handleDeleteReservation = async (id: string, isNew?: boolean, year?: number, month?: string) => {
     if (!window.confirm("Are you sure you want to delete this reservation?")) return;
 
@@ -1091,38 +1139,11 @@ export const App: React.FC = () => {
     }
   }, [reservations, showConfirmation, addNotification]);
 
-  // Handler for adding extras to a reservation
-  const handleAddExtras = useCallback((reservation: Reservation) => {
-    const extraName = window.prompt("Enter extra name (e.g., GPS, Insurance):");
-    if (!extraName) return;
-
-    const extraCost = window.prompt("Enter extra cost (numeric):");
-    const cost = parseFloat(extraCost || "0");
-    if (isNaN(cost)) {
-      alert("Invalid cost. Please enter a number.");
-      return;
-    }
-
-    const newExtra = {
-      id: `extra-${Date.now()}`,
-      name: extraName,
-      price: cost,
-      addedAt: new Date().toISOString(),
-    };
-
-    console.log('Old amount:', reservation.amount);
-    const updatedReservation: Reservation = {
-      ...reservation,
-      extras: [...(reservation.extras || []), newExtra],
-      amount: (reservation.amount || 0) + cost,
-      lastEditedBy: currentUser?.fullName,
-    };
-    console.log('New amount:', updatedReservation.amount);
-
-    handleUpdateSingleReservation(updatedReservation);
+  const handleSaveExtras = (reservation: Reservation, extras: ReservationExtra[], newAmount: number) => {
+    handleUpdateSingleReservation({ ...reservation, extras, amount: newAmount, lastEditedBy: currentUser?.fullName });
     setReservationToAddExtras(null);
-    showConfirmation(`Added "${extraName}" ($${cost.toFixed(2)}) to reservation.`);
-  }, [currentUser, handleUpdateSingleReservation, showConfirmation]);
+    showConfirmation(`Extras updated for ${reservation.personName}. New total $${newAmount.toFixed(2)}.`);
+  };
 
   const handleFleetUpdate = async (newFleet: Fleet) => {
     setFleet(newFleet);
@@ -1377,16 +1398,17 @@ ${currentUser?.fullName}
       onShare={handleShareReservation}
       onRequirePaymentConfirmation={handleRequirePaymentConfirmation}
       onEditReservation={handleUpdateSingleReservation}
-      onUpgrade={(reservation, newCarId, customRate) => {
+      onUpgrade={(reservation, newCarId, customRate, details) => {
         const newCar = fleet.find(c => c.id === newCarId);
         if (!newCar) return;
 
-        const upgradeFee = customRate !== undefined && customRate !== null ? customRate : 30;
+        const upgradeFee = details?.fee ?? customRate ?? 0;
         const newTotal = (reservation.amount || 0) + upgradeFee;
 
-        const updatedReservation = {
+        const updatedReservation: Reservation = {
           ...reservation,
           carModel: newCar.modelName,
+          ...(details?.licensePlate ? { licensePlate: details.licensePlate } : {}),
           amount: newTotal,
           lastEditedBy: currentUser?.fullName,
           upgradeHistory: [
@@ -1396,17 +1418,24 @@ ${currentUser?.fullName}
               fromCar: reservation.carModel,
               toCar: newCar.modelName,
               fee: upgradeFee,
+              pricing: details?.pricing,
+              dailyRate: details?.dailyRate,
+              days: details?.days,
+              by: currentUser?.fullName,
             }
           ],
         };
 
         handleUpdateSingleReservation(updatedReservation);
-        showConfirmation(`Upgraded to ${newCar.modelName} – additional fee $${upgradeFee.toFixed(2)}. New total: $${newTotal.toFixed(2)}`);
+        showConfirmation(upgradeFee > 0
+          ? `Upgraded to ${newCar.modelName} (+$${upgradeFee.toFixed(2)}). New total $${newTotal.toFixed(2)}.`
+          : `Upgraded to ${newCar.modelName} free of charge.`);
       }}
       onAssignCar={(reservation) => {
         console.log('Assign car for', reservation.id);
       }}
       onAddExtras={(reservation) => setReservationToAddExtras(reservation)}
+      onOpenUnlistedAgreement={() => setShowUnlistedAgreement(true)}
       currentUser={currentUser}
       filters={filters}
       setFilters={setFilters}
@@ -1426,6 +1455,7 @@ ${currentUser?.fullName}
             allData={{reservations, fleet, sources, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years}}
             onNavigate={handleNavigation}
             onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
+            onOpenUnlistedAgreement={() => setShowUnlistedAgreement(true)}
         />
     ), permission: UserPermission.VIEW_HOME_DASHBOARD },
     'Reservations': { component: renderReservationView(false), permission: UserPermission.VIEW_RESERVATIONS },
@@ -1974,6 +2004,18 @@ ${currentUser?.fullName}
         {modals.viewVoucher && <Voucher reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
       </AnimatedModal>
 
+      <AnimatedModal isOpen={showUnlistedAgreement} onClose={() => setShowUnlistedAgreement(false)}>
+        {showUnlistedAgreement && (
+          <UnlistedAgreementModal
+            fleet={fleet}
+            sources={sources}
+            rentalLocations={rentalLocations}
+            existingBookingIds={new Set(Object.values(reservations).flatMap(y => Object.values(y as YearData).flat()).map(r => (r as Reservation).bookingId).filter(Boolean))}
+            onCancel={() => setShowUnlistedAgreement(false)}
+            onSubmit={handleCreateUnlistedAgreement}
+          />
+        )}
+      </AnimatedModal>
       <AnimatedModal isOpen={!!modals.viewRentalVoucher} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))}>
         {modals.viewRentalVoucher && <Voucher reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
       </AnimatedModal>
@@ -1984,23 +2026,12 @@ ${currentUser?.fullName}
 
       {reservationToExtend && <ExtendRentalModal reservation={reservationToExtend} trafficTickets={trafficTickets} companyDetails={companyDetails} onClose={() => setReservationToExtend(null)} onConfirm={handleConfirmExtension} />}
       {reservationToAddExtras && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4">Add Extra to {reservationToAddExtras.personName}</h3>
-            <button
-              onClick={() => handleAddExtras(reservationToAddExtras)}
-              className="bg-primary text-white px-4 py-2 rounded"
-            >
-              Add Extra (Prompt)
-            </button>
-            <button
-              onClick={() => setReservationToAddExtras(null)}
-              className="ml-2 text-gray-500"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <ExtrasManagerModal
+          reservation={reservationToAddExtras}
+          availableExtras={availableExtras}
+          onCancel={() => setReservationToAddExtras(null)}
+          onSave={(extras, amount) => handleSaveExtras(reservationToAddExtras, extras, amount)}
+        />
       )}
       </Suspense>
       

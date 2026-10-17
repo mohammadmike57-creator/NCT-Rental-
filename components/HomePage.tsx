@@ -8,6 +8,7 @@ interface HomePageProps {
   allData: any;
   onNavigate: (view: string, filters?: any) => void;
   onOpenAgreement?: (reservation: Reservation, year: number, month: string) => void;
+  onOpenUnlistedAgreement?: () => void;
 }
 
 type Located = { res: Reservation; year: number; month: string };
@@ -16,7 +17,7 @@ const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padSt
 const timeOf = (iso?: string) => (iso && iso.includes('T') ? iso.split('T')[1].slice(0, 5) : '—');
 const initials = (name?: string) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('');
 
-const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, onOpenAgreement }) => {
+const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, onOpenAgreement, onOpenUnlistedAgreement }) => {
   const reservations = allData.reservations || {};
   const fleet = allData.fleet || [];
 
@@ -168,6 +169,11 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
             <button onClick={() => onNavigate('Fleet Availability')} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-white text-sm font-semibold hover:bg-white/20 ring-1 ring-white/20">
               <CarIcon className="w-4 h-4" /> Fleet
             </button>
+            {onOpenUnlistedAgreement && (
+              <button onClick={onOpenUnlistedAgreement} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 text-slate-900 text-sm font-semibold hover:bg-amber-300">
+                <DocumentTextIcon className="w-4 h-4" /> Walk-in agreement
+              </button>
+            )}
           </div>
         </div>
       </div>

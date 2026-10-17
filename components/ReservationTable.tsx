@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission } from '../types';
 import { MONTHS } from '../constants';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
+import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
 import { 
   DocumentReportIcon, 
   ShareIcon, 
@@ -112,7 +113,7 @@ interface ReservationTableProps {
   onShare: (reservation: Reservation) => void;
   onRequirePaymentConfirmation: (reservation: Reservation, year: number, month: string) => void;
   onEditReservation: (reservation: Reservation) => void;
-  onUpgrade: (reservation: Reservation, newCarId: string, customRate?: number) => void;
+  onUpgrade: (reservation: Reservation, newCarId: string, customRate?: number, details?: UpgradeDetails) => void;
   onAssignCar?: (reservation: Reservation) => void;
   onAddExtras?: (reservation: Reservation) => void;
   currentUser: User | null;
@@ -122,6 +123,7 @@ interface ReservationTableProps {
   companyDetails: CompanyDetails;
   availableExtras: AvailableExtra[];
   isAgreementView?: boolean;
+  onOpenUnlistedAgreement?: () => void;
 }
 
 const ReservationTable: React.FC<ReservationTableProps> = (props) => {
@@ -154,6 +156,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     availableExtras,
     onSaveNew,
     isAgreementView = false,
+    onOpenUnlistedAgreement,
   } = props;
 
   // Helper to check permissions
@@ -181,9 +184,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const [detailsModalReservation, setDetailsModalReservation] = useState<Reservation | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeReservation, setUpgradeReservation] = useState<Reservation | null>(null);
-  const [selectedCarId, setSelectedCarId] = useState('');
-  const [customRate, setCustomRate] = useState<number | null>(null);
-  const [useCustomRate, setUseCustomRate] = useState(false);
   const [localBookingIdSearch, setLocalBookingIdSearch] = useState('');
   const [stageTab, setStageTab] = useState<'all' | 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled'>('all');
   const [sortKey, setSortKey] = useState<'pickup' | 'return' | 'name' | 'amount'>('pickup');
@@ -255,9 +255,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   useEffect(() => {
     if (!isUpgradeModalOpen) {
       setUpgradeReservation(null);
-      setSelectedCarId('');
-      setCustomRate(null);
-      setUseCustomRate(false);
     }
   }, [isUpgradeModalOpen]);
 
@@ -296,18 +293,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   const openUpgradeModal = (res: Reservation) => {
     setUpgradeReservation(res);
-    setSelectedCarId('');
-    setCustomRate(null);
-    setUseCustomRate(false);
     setIsUpgradeModalOpen(true);
-  };
-
-  const handleUpgradeSave = () => {
-    if (!upgradeReservation || !selectedCarId) return;
-    const selectedCar = fleet.find(c => c.id === selectedCarId);
-    if (!selectedCar) return;
-    onUpgrade(upgradeReservation, selectedCarId, useCustomRate ? customRate || undefined : undefined);
-    setIsUpgradeModalOpen(false);
   };
 
   const durationDays = useMemo(() => {
@@ -556,7 +542,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     if (!canViewVoucherActions) return null;
     const { year: y, month: m } = getReservationPeriod(res);
     const stage = stageOf(res);
-    const cfg = stage === 'ready' ? { label: 'Check out', cls: 'bg-slate-900 text-white hover:bg-slate-800' }
+    const cfg = stage === 'ready' || (stage === 'pending' && res.awaitingConfirmation) ? { label: 'Check out', cls: 'bg-slate-900 text-white hover:bg-slate-800' }
       : stage === 'onrent' ? { label: 'Check in', cls: 'bg-emerald-600 text-white hover:bg-emerald-700' }
       : stage === 'closed' ? { label: 'Agreement', cls: 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50' }
       : null;
@@ -566,6 +552,34 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         <DocumentReportIcon className="w-4 h-4" /> {cfg.label}
       </button>
     );
+  };
+
+  // Bookings created from an unlisted agreement, across every month, waiting for a supervisor.
+  const awaitingConfirmation = useMemo(() => {
+    const list: Reservation[] = [];
+    Object.values(allData || {}).forEach((months: any) => Object.values(months || {}).forEach((items: any) => {
+      (items as Reservation[]).forEach(r => { if (r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED) list.push(r); });
+    }));
+    return list.sort((a, b) => (b.unlistedCreatedAt || b.createdAt || '').localeCompare(a.unlistedCreatedAt || a.createdAt || ''));
+  }, [allData]);
+  const canConfirm = hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT);
+  const confirmUnlisted = (res: Reservation) => {
+    onEditReservation({ ...res, awaitingConfirmation: false, status: ReservationStatus.CONFIRMED, confirmedBy: currentUser?.fullName, confirmedAt: new Date().toISOString() });
+  };
+  const rejectUnlisted = (res: Reservation) => {
+    const msg = res.voucherSubmitted && !res.dropOffCompleted
+      ? `${res.personName} currently has the car (${res.licensePlate || res.carModel}). Reject booking ${res.bookingId} anyway? It will be marked as cancelled.`
+      : `Reject booking ${res.bookingId} for ${res.personName}? It will be marked as cancelled.`;
+    if (!window.confirm(msg)) return;
+    onEditReservation({ ...res, awaitingConfirmation: false, status: ReservationStatus.CANCELLED, confirmedBy: currentUser?.fullName, confirmedAt: new Date().toISOString() });
+  };
+  const ago = (iso?: string) => {
+    if (!iso) return '';
+    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
+    return `${Math.round(mins / 1440)} d ago`;
   };
 
   const IconAction: React.FC<{ title: string; onClick: () => void; tone?: string; children: React.ReactNode }> = ({ title, onClick, tone = 'hover:text-slate-900 hover:bg-slate-100', children }) => (
@@ -584,6 +598,9 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && <IconAction title="Edit" onClick={() => openEditModal(res)}><EditIcon className="w-4 h-4" /></IconAction>}
         {upgradePermission && stage !== 'closed' && stage !== 'cancelled' && (
           <IconAction title="Upgrade vehicle" onClick={() => openUpgradeModal(res)} tone="hover:text-orange-700 hover:bg-orange-50"><CarIcon className="w-4 h-4" /></IconAction>
+        )}
+        {onAddExtras && stage !== 'closed' && stage !== 'cancelled' && hasPermission(UserPermission.ACTION_RESERVATIONS_MANAGE_EXTRAS) && (
+          <IconAction title="Extras" onClick={() => onAddExtras(res)} tone="hover:text-violet-700 hover:bg-violet-50"><PlusCircleIcon className="w-4 h-4" /></IconAction>
         )}
         {hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT) && <IconAction title="Share" onClick={() => onShare(res)}><ShareIcon className="w-4 h-4" /></IconAction>}
         {!res.voucherSubmitted && !res.dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE) && (
@@ -627,6 +644,12 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <button onClick={() => onDeleteMonth(selectedYear, selectedMonth)} disabled={allDisplayReservations.length === 0} title={`Delete all reservations for ${selectedMonth} ${selectedYear}`}
                   className="p-2.5 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 disabled:opacity-40"><CloseIcon className="w-4 h-4" /></button>
               )}
+              {onOpenUnlistedAgreement && canViewVoucherActions && (
+                <button onClick={onOpenUnlistedAgreement} title="Open a rental agreement for a booking that is not in the list"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-amber-300 text-amber-800 text-sm font-semibold rounded-xl hover:bg-amber-50">
+                  <DocumentReportIcon className="w-4 h-4" /> Unlisted agreement
+                </button>
+              )}
               <button onClick={openAddModal} className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm">
                 <PlusCircleIcon className="w-4 h-4" /> New reservation
               </button>
@@ -660,6 +683,61 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             ))}
           </div>
         </div>
+
+        {awaitingConfirmation.length > 0 && (
+          <section className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 bg-gradient-to-r from-amber-50 to-white border-b border-amber-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="relative flex w-2.5 h-2.5"><span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60 animate-ping" /><span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-amber-500" /></span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Awaiting confirmation <span className="ml-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] tabular-nums">{awaitingConfirmation.length}</span></h3>
+                  <p className="text-xs text-slate-500">Agreements opened for bookings that were not in the list. The agreement stays usable while these wait.</p>
+                </div>
+              </div>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {awaitingConfirmation.map(res => {
+                const stage = stageOf(res);
+                const { year: y, month: m } = getReservationPeriod(res);
+                const kind = vehicleKind(res.carModel, fleet);
+                const agreementLabel = res.dropOffCompleted ? 'Returned' : res.voucherSubmitted ? 'Checked out' : 'Not checked out';
+                const agreementCls = res.dropOffCompleted ? 'bg-slate-100 text-slate-600' : res.voucherSubmitted ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700';
+                return (
+                  <li key={res.id} className="px-5 py-3.5 flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-bold shrink-0">{initials(res.personName)}</div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{res.personName} <span className="font-mono text-xs text-slate-400 font-normal">#{res.bookingId}</span></p>
+                        <p className="text-xs text-slate-500 truncate">{res.contactNumber}{res.customerEmail ? ` · ${res.customerEmail}` : ''} · by {res.unlistedCreatedBy || res.createdBy || 'staff'} {ago(res.unlistedCreatedAt || res.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600 md:w-56 min-w-0">
+                      <VehicleArt kind={kind} className="w-12 h-7 shrink-0" />
+                      <span className="truncate"><span className="font-semibold text-slate-800">{res.carModel}</span>{res.licensePlate ? ` · ${res.licensePlate}` : ''}<br />{shortDate(res.startDate)} → {shortDate(res.endDate)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 md:w-40">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${agreementCls}`}>{agreementLabel}</span>
+                      <span className="text-sm font-bold text-slate-900 tabular-nums ml-auto md:ml-0">{money(res.amount)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 md:justify-end">
+                      {canViewVoucherActions && stage !== 'cancelled' && (
+                        <button onClick={() => onShowRentalVoucher(res, y, m)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white ring-1 ring-slate-200 text-slate-700 hover:bg-slate-50">
+                          <DocumentReportIcon className="w-4 h-4" /> {res.dropOffCompleted ? 'Agreement' : res.voucherSubmitted ? 'Check in' : 'Check out'}
+                        </button>
+                      )}
+                      {canConfirm && (
+                        <>
+                          <button onClick={() => rejectUnlisted(res)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-700 hover:bg-rose-50">Reject</button>
+                          <button onClick={() => confirmUnlisted(res)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700">Confirm</button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
 
         {visibleReservations.length === 0 ? (
           <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-16 text-center">
@@ -1282,97 +1360,15 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         </div>
       </Modal>
 
-      <Modal 
-        isOpen={isUpgradeModalOpen} 
-        onClose={() => setIsUpgradeModalOpen(false)} 
-        title="Upgrade Vehicle"
-        footer={
-          <div className="flex gap-3 w-full sm:w-auto">
-            <button 
-              onClick={() => setIsUpgradeModalOpen(false)} 
-              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleUpgradeSave} 
-              disabled={!selectedCarId}
-              className="flex-1 sm:flex-none px-8 py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm shadow-lg shadow-orange-200 hover:shadow-orange-300 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
-            >
-              Confirm Upgrade
-            </button>
-          </div>
-        }
-      >
-        {upgradeReservation && (
-          <div className="space-y-6">
-            <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100 flex items-start gap-4">
-              <div className="p-2 bg-white rounded-xl shadow-sm">
-                <CarIcon className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">Current Vehicle</p>
-                <p className="text-sm font-bold text-orange-900">{upgradeReservation.carModel}</p>
-                <p className="text-xs text-orange-700 font-medium">Renter: {upgradeReservation.personName}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Select New Vehicle</label>
-                <div className="relative group">
-                  <CarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
-                  <select 
-                    value={selectedCarId} 
-                    onChange={(e) => setSelectedCarId(e.target.value)} 
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all outline-none font-medium text-slate-700 appearance-none"
-                  >
-                    <option value="">Choose a car from fleet</option>
-                    {fleet.map(car => (
-                      <option key={car.id} value={car.id}>{car.modelName} ({car.licensePlate})</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-                    useCustomRate ? 'bg-orange-600 border-orange-600' : 'bg-white border-slate-200'
-                  }`}>
-                    {useCustomRate && <CheckCircleIcon className="w-3.5 h-3.5 text-white" />}
-                  </div>
-                  <span className="text-xs font-bold text-slate-700">Apply custom daily rate for this upgrade</span>
-                  <input 
-                    type="checkbox" 
-                    className="hidden"
-                    checked={useCustomRate} 
-                    onChange={(e) => setUseCustomRate(e.target.checked)} 
-                  />
-                </label>
-
-                {useCustomRate && (
-                  <div className="space-y-1.5 animate-modal-enter">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1">Custom Daily Rate ($)</label>
-                    <div className="relative">
-                      <CurrencyDollarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500" />
-                      <input 
-                        type="number" 
-                        value={customRate || ''} 
-                        onChange={(e) => setCustomRate(parseFloat(e.target.value) || 0)} 
-                        className="w-full pl-11 pr-4 py-3 bg-white border border-orange-100 rounded-xl focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all outline-none font-bold text-slate-700"
-                        placeholder="0.00"
-                        min="0" 
-                        step="0.01" 
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {isUpgradeModalOpen && upgradeReservation && (
+        <UpgradeVehicleModal
+          reservation={upgradeReservation}
+          fleet={fleet}
+          allData={allData}
+          onCancel={() => setIsUpgradeModalOpen(false)}
+          onConfirm={(carId, details) => { onUpgrade(upgradeReservation, carId, details.fee, details); setIsUpgradeModalOpen(false); }}
+        />
+      )}
     </>
   );
 };

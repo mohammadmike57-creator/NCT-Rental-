@@ -181,3 +181,36 @@ export const deleteStaffAccount = async (id: string) => {
     throw apiError(e, 'Could not delete the account.');
   }
 };
+
+// --- Customer emails ----------------------------------------------------------
+
+export interface CustomerEmailPayload {
+  to: string;
+  subject: string;
+  heading: string;
+  intro: string;
+  rows?: [string, string][];
+  closing?: string;
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  replyTo?: string;
+  attachments?: { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string }[];
+}
+
+export interface EmailOutcome { ok: boolean; reason?: 'unconfigured' | 'invalid' | 'failed'; message?: string }
+
+/** Sends a branded customer email through the server. Never throws. */
+export const sendCustomerEmail = async (payload: CustomerEmailPayload): Promise<EmailOutcome> => {
+  try {
+    await axios.post(`${API_URL}/api/notifications/customer-email`, payload, { headers: authHeaders(), timeout: 60000 });
+    return { ok: true };
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const message = e?.response?.data?.error || (e?.response ? 'The email could not be sent.' : 'Cannot reach the server.');
+    if (status === 503) return { ok: false, reason: 'unconfigured', message };
+    if (status === 400) return { ok: false, reason: 'invalid', message };
+    return { ok: false, reason: 'failed', message };
+  }
+};
