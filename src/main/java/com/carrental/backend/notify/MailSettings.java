@@ -20,6 +20,8 @@ public class MailSettings {
     private String passwordEncrypted;
     private String fromAddress;
     private String fromName;
+    /** Optional. Empty means emails are send-only (no Reply-To; customers are told not to reply). */
+    private String replyTo;
     /** STARTTLS (usually port 587) or SSL (usually port 465). */
     private String security;
     private String updatedBy;

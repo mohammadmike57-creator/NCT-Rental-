@@ -53,17 +53,17 @@ public class CustomerEmailService {
             MimeMessage msg = new MimeMessage(session);
             msg.setFrom(new InternetAddress(cfg.from(), blank(req.companyName()) ? cfg.fromName() : req.companyName(), "UTF-8"));
             msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to, true));
-            if (!blank(req.replyTo()) && EMAIL.matcher(req.replyTo().trim()).matches()) {
-                msg.setReplyTo(InternetAddress.parse(req.replyTo().trim(), true));
-            }
+            // Send-only by default: replies go somewhere only if an administrator set a reply-to address.
+            boolean sendOnly = blank(cfg.replyTo()) || !EMAIL.matcher(cfg.replyTo().trim()).matches();
+            if (!sendOnly) msg.setReplyTo(InternetAddress.parse(cfg.replyTo().trim(), true));
             msg.setSubject(clip(req.subject(), 200), "UTF-8");
 
             MimeMultipart mixed = new MimeMultipart("mixed");
             MimeMultipart alternative = new MimeMultipart("alternative");
             MimeBodyPart text = new MimeBodyPart();
-            text.setText(renderText(req), "UTF-8");
+            text.setText(renderText(req, sendOnly), "UTF-8");
             MimeBodyPart html = new MimeBodyPart();
-            html.setContent(renderHtml(req), "text/html; charset=UTF-8");
+            html.setContent(renderHtml(req, sendOnly), "text/html; charset=UTF-8");
             alternative.addBodyPart(text);
             alternative.addBodyPart(html);
             MimeBodyPart body = new MimeBodyPart();
@@ -113,7 +113,9 @@ public class CustomerEmailService {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
     }
 
-    static String renderHtml(CustomerEmailRequest r) {
+    static String renderHtml(CustomerEmailRequest r) { return renderHtml(r, false); }
+
+    static String renderHtml(CustomerEmailRequest r, boolean sendOnly) {
         String[] tone = switch (blank(r.tone()) ? "info" : r.tone()) {
             case "success" -> new String[]{"#047857", "#ecfdf5", "#a7f3d0"};
             case "warning" -> new String[]{"#b45309", "#fffbeb", "#fde68a"};
@@ -161,17 +163,22 @@ public class CustomerEmailService {
             + (blank(r.closing()) ? "" : "<p style=\"margin:22px 0 0;font-size:14px;line-height:1.65;color:#334155;white-space:pre-line\">" + esc(r.closing()) + "</p>")
             + "<p style=\"margin:22px 0 0;font-size:14px;color:#334155\">Kind regards,<br><strong>" + esc(company) + "</strong></p>"
             + "</td></tr>"
-            + "<tr><td style=\"padding:16px 30px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5\">" + contact + "</td></tr>"
+            + "<tr><td style=\"padding:16px 30px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5\">" + contact
+            + (sendOnly ? "<div style=\"margin-top:6px;color:#94a3b8\">This is an automated email — replies to this address are not received." + (blank(r.companyPhone()) ? "" : " Please call " + esc(r.companyPhone()) + ".") + "</div>" : "")
+            + "</td></tr>"
             + "</table></td></tr></table></body></html>";
     }
 
-    static String renderText(CustomerEmailRequest r) {
+    static String renderText(CustomerEmailRequest r) { return renderText(r, false); }
+
+    static String renderText(CustomerEmailRequest r, boolean sendOnly) {
         StringBuilder sb = new StringBuilder();
         sb.append(nz(r.heading())).append("\n\n").append(nz(r.intro())).append("\n\n");
         if (!blank(r.highlightValue())) sb.append(nz(r.highlightLabel())).append(": ").append(r.highlightValue()).append("\n\n");
         if (r.rows() != null) for (List<String> row : r.rows()) if (row != null && row.size() >= 2) sb.append(row.get(0)).append(": ").append(row.get(1)).append('\n');
         if (!blank(r.closing())) sb.append('\n').append(r.closing()).append('\n');
         sb.append("\n").append(nz(r.companyName())).append('\n');
+        if (sendOnly) sb.append("\nThis is an automated email. Replies to this address are not received.").append(blank(r.companyPhone()) ? "" : " Please call " + r.companyPhone() + ".").append('\n');
         return sb.toString();
     }
 

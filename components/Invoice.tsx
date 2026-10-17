@@ -451,7 +451,7 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
           ['Payment terms', TERMS_LABEL[invoice.terms || 'receipt']],
         ],
         closing: st === 'paid' ? 'Thank you — this invoice has been settled in full.' : `Please arrange payment by ${invoice.dueDate ? fmtDay(invoice.dueDate) : 'return'}, quoting ${invoice.invoiceNumber}. Payment details are on the invoice.`,
-        companyName: company.name, companyAddress: company.address, companyPhone: company.phone, companyEmail: company.email, replyTo: company.email,
+        companyName: company.name, companyAddress: company.address, companyPhone: company.phone, companyEmail: company.email,
         attachments: [{ fileName, contentType: 'application/pdf', base64 }],
         badge: st === 'paid' ? 'PAID' : st === 'overdue' ? 'OVERDUE' : 'INVOICE',
         tone: st === 'paid' ? 'success' : st === 'overdue' ? 'warning' : 'info',

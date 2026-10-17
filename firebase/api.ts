@@ -261,7 +261,7 @@ export const fetchActivitySummary = async (days = 30): Promise<StaffActivitySumm
 
 export interface MailSettingsView {
   enabled: boolean; host: string; port: number; username: string; passwordSet: boolean;
-  fromAddress: string; fromName: string; security: 'STARTTLS' | 'SSL'; source: 'app' | 'environment' | 'none';
+  fromAddress: string; fromName: string; security: 'STARTTLS' | 'SSL'; replyTo?: string; source: 'app' | 'environment' | 'none';
   configured: boolean; updatedBy?: string; updatedAt?: string;
 }
 export const getMailSettings = async (): Promise<MailSettingsView> => {

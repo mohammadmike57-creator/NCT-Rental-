@@ -97,7 +97,23 @@ class MailSettingsApiIntegrationTest {
                 .content("{\"to\":\"owner@example.com\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.sent").value(true));
         assertTrue(smtp.waitForIncomingEmail(5000, 1));
-        assertEquals("owner@example.com", smtp.getReceivedMessages()[0].getAllRecipients()[0].toString());
+        javax.mail.internet.MimeMessage first = smtp.getReceivedMessages()[0];
+        assertEquals("owner@example.com", first.getAllRecipients()[0].toString());
+        // Send-only by default: no Reply-To header and the customer is told replies are not received.
+        assertNull(first.getHeader("Reply-To"));
+        assertTrue(com.icegreen.greenmail.util.GreenMailUtil.getWholeMessage(first).contains("automated email"));
+
+        // With a reply-to address set, replies are routed there and the notice is dropped.
+        mvc.perform(put("/api/admin/mail-settings").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                .content(body.replace("\"fromName\"", "\"replyTo\":\"desk@nct.test\",\"fromName\"")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.replyTo").value("desk@nct.test"));
+        smtp.purgeEmailFromAllMailboxes();
+        mvc.perform(post("/api/admin/mail-settings/test").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"to\":\"owner@example.com\"}")).andExpect(status().isOk());
+        assertTrue(smtp.waitForIncomingEmail(5000, 1));
+        javax.mail.internet.MimeMessage second = smtp.getReceivedMessages()[0];
+        assertEquals("desk@nct.test", second.getHeader("Reply-To")[0]);
+        assertFalse(com.icegreen.greenmail.util.GreenMailUtil.getWholeMessage(second).contains("automated email"));
     }
 
     @Test

@@ -604,14 +604,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           [rc.settlement === 'paid' ? 'Charges paid' : 'Amount due', `${formatMoney(chargesTotal(rc.items), rc.currency)}${rc.settlement === 'claim' && rc.dueDate ? ` by ${new Date(rc.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}`] as [string, string],
         ] : []),
       ],
-      closing: isCheckout ? 'We wish you a safe journey. If you need assistance during your rental, just reply to this email or call us.'
-        : rc && rc.settlement === 'claim' ? `Please settle the amount due, quoting ${rc.documentNumber}. Reply to this email if you have any questions about the charges.`
+      closing: isCheckout ? `We wish you a safe journey. If you need assistance during your rental, call us on ${companyDetails.phone}.`
+        : rc && rc.settlement === 'claim' ? `Please settle the amount due, quoting ${rc.documentNumber}. For questions about the charges, call us on ${companyDetails.phone}.`
         : 'We hope to see you again soon.',
       companyName: companyDetails.name,
       companyAddress: companyDetails.address,
       companyPhone: companyDetails.phone,
       companyEmail: companyDetails.email,
-      replyTo: companyDetails.email,
       attachments,
       badge: isCheckout ? 'RENTAL AGREEMENT' : rc ? (rc.settlement === 'paid' ? 'PAID' : 'PAYMENT DUE') : 'AGREEMENT CLOSED',
       tone: rc ? (rc.settlement === 'paid' ? 'success' : 'warning') : isCheckout ? 'info' : 'success',

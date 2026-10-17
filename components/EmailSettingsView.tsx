@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { getMailSettings, MailSettingsView, saveMailSettings, sendTestEmail } from '../firebase/api';
 
-const PROVIDERS: { key: string; label: string; host: string; port: number; security: 'STARTTLS' | 'SSL'; help: string }[] = [
-  { key: 'gmail', label: 'Gmail / Google Workspace', host: 'smtp.gmail.com', port: 587, security: 'STARTTLS', help: 'Turn on 2-Step Verification for the Google account, then create an App password (Google Account → Security → App passwords) and paste the 16-character code as the password.' },
-  { key: 'outlook', label: 'Outlook / Microsoft 365', host: 'smtp.office365.com', port: 587, security: 'STARTTLS', help: 'Use the full mailbox address and its password. SMTP AUTH must be allowed for the mailbox in Microsoft 365 admin.' },
-  { key: 'zoho', label: 'Zoho Mail', host: 'smtp.zoho.com', port: 465, security: 'SSL', help: 'Use the mailbox address; if 2FA is on, create an application-specific password in Zoho.' },
-  { key: 'custom', label: 'Other provider', host: '', port: 587, security: 'STARTTLS', help: 'Ask your email or hosting provider for the SMTP server, port and login.' },
+const PROVIDERS: { key: string; label: string; sub: string; host: string; port: number; security: 'STARTTLS' | 'SSL'; user?: string; help: string }[] = [
+  { key: 'brevo', label: 'Brevo', sub: 'Sending service · no inbox', host: 'smtp-relay.brevo.com', port: 587, security: 'STARTTLS', help: 'Free plan available. In Brevo: Senders & IP → add and verify your domain or sender address, then SMTP & API → create an SMTP key. Username = your Brevo SMTP login, password = the SMTP key.' },
+  { key: 'sendgrid', label: 'SendGrid', sub: 'Sending service · no inbox', host: 'smtp.sendgrid.net', port: 587, security: 'STARTTLS', user: 'apikey', help: 'In SendGrid: verify a sender or your domain, then create an API key with "Mail Send" permission. Username is the word apikey, password is the API key.' },
+  { key: 'mailgun', label: 'Mailgun', sub: 'Sending service · no inbox', host: 'smtp.mailgun.org', port: 587, security: 'STARTTLS', help: 'In Mailgun: add and verify your sending domain, then create SMTP credentials for it (e.g. postmaster@mg.yourdomain.com).' },
+  { key: 'ses', label: 'Amazon SES', sub: 'Sending service · no inbox', host: 'email-smtp.eu-west-1.amazonaws.com', port: 587, security: 'STARTTLS', help: 'In Amazon SES: verify your domain, then create SMTP credentials. Use the SMTP endpoint of your SES region.' },
+  { key: 'gmail', label: 'Gmail / Workspace', sub: 'Existing Google account', host: 'smtp.gmail.com', port: 587, security: 'STARTTLS', help: 'Uses an existing Google account only to send. Turn on 2-Step Verification, create an App password (Google Account → Security → App passwords) and paste it as the password.' },
+  { key: 'outlook', label: 'Outlook / 365', sub: 'Existing Microsoft account', host: 'smtp.office365.com', port: 587, security: 'STARTTLS', help: 'Uses an existing Microsoft 365 account only to send. SMTP AUTH must be allowed for it in Microsoft 365 admin.' },
+  { key: 'custom', label: 'Other', sub: 'Any SMTP server', host: '', port: 587, security: 'STARTTLS', help: 'Ask your email or hosting provider for the SMTP server, port and login.' },
 ];
 
 const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:bg-slate-50';
 
 const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: string }> = ({ defaultFromName, defaultTestTo }) => {
   const [loaded, setLoaded] = useState<MailSettingsView | null>(null);
-  const [form, setForm] = useState({ enabled: true, host: 'smtp.gmail.com', port: 587, security: 'STARTTLS' as 'STARTTLS' | 'SSL', username: '', password: '', fromAddress: '', fromName: defaultFromName || '' });
-  const [provider, setProvider] = useState('gmail');
+  const [form, setForm] = useState({ enabled: true, host: 'smtp-relay.brevo.com', port: 587, security: 'STARTTLS' as 'STARTTLS' | 'SSL', username: '', password: '', fromAddress: '', fromName: defaultFromName || '', replyTo: '' });
+  const [provider, setProvider] = useState('brevo');
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [testTo, setTestTo] = useState(defaultTestTo || '');
@@ -22,9 +25,9 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
   const apply = (s: MailSettingsView) => {
     setLoaded(s);
     setForm(f => ({ ...f, enabled: s.source === 'none' ? true : s.enabled, host: s.host || f.host, port: s.port || f.port, security: s.security || f.security,
-      username: s.username || '', password: '', fromAddress: s.fromAddress || '', fromName: s.fromName || f.fromName }));
+      username: s.username || '', password: '', fromAddress: s.fromAddress || '', fromName: s.fromName || f.fromName, replyTo: s.replyTo || '' }));
     const p = PROVIDERS.find(x => x.host && x.host === s.host);
-    setProvider(p ? p.key : s.host ? 'custom' : 'gmail');
+    setProvider(p ? p.key : s.host ? 'custom' : 'brevo');
   };
 
   useEffect(() => { getMailSettings().then(apply).catch(e => setLoadError(e.message)); }, []);
@@ -32,7 +35,7 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
   const pick = (key: string) => {
     setProvider(key);
     const p = PROVIDERS.find(x => x.key === key)!;
-    if (key !== 'custom') setForm(f => ({ ...f, host: p.host, port: p.port, security: p.security }));
+    if (key !== 'custom') setForm(f => ({ ...f, host: p.host, port: p.port, security: p.security, username: p.user && !f.username ? p.user : f.username }));
   };
 
   const save = async () => {
@@ -41,7 +44,7 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
     try {
       const s = await saveMailSettings({ ...form, password: form.password || undefined });
       apply(s);
-      setMsg({ tone: 'ok', text: s.configured ? 'Saved. Customer emails will now be sent from ' + (s.fromAddress || s.username) + '. Send a test to confirm.' : 'Saved. Outgoing email is switched off.' });
+      setMsg({ tone: 'ok', text: s.configured ? 'Saved. Customer emails will now be sent from ' + (s.fromAddress || s.username) + '. Send a test to confirm.' : 'Saved. Sending is switched off.' });
     } catch (e: any) {
       setMsg({ tone: 'err', text: e.message });
     } finally {
@@ -64,8 +67,8 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
   };
 
   const status = !loaded ? null : loaded.configured
-    ? { cls: 'bg-emerald-50 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500', title: 'Outgoing email is on', text: `Customers receive emails from ${loaded.fromName ? loaded.fromName + ' ' : ''}<${loaded.fromAddress || loaded.username}> via ${loaded.host}.${loaded.source === 'environment' ? ' (Set by the server environment — saving here takes over.)' : ''}` }
-    : { cls: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500', title: 'Outgoing email is not set up', text: 'Rental agreements, termination statements, claims and invoices cannot be emailed yet. Fill in the form below and save.' };
+    ? { cls: 'bg-emerald-50 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500', title: 'Sending is on', text: `Customers receive documents from ${loaded.fromName ? loaded.fromName + ' ' : ''}<${loaded.fromAddress || loaded.username}> via ${loaded.host}. ${loaded.replyTo ? `Replies go to ${loaded.replyTo}.` : 'Send-only: emails say replies are not received and give your phone number.'}${loaded.source === 'environment' ? ' (Set by the server environment — saving here takes over.)' : ''}` }
+    : { cls: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500', title: 'Sending is not set up', text: 'Rental agreements, termination statements, claims and invoices cannot be emailed yet. Fill in the form below and save.' };
   const providerHelp = PROVIDERS.find(p => p.key === provider)?.help;
 
   return (
@@ -76,7 +79,7 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
         </div>
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Email settings</h2>
-          <p className="text-sm text-slate-500">The mailbox the system uses to send agreements, termination statements, claims and invoices to customers.</p>
+          <p className="text-sm text-slate-500">How the system sends rental agreements, termination statements, claims and invoices to customers. It only sends — it never receives or reads email, so no inbox is needed.</p>
         </div>
       </div>
 
@@ -91,17 +94,18 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Mail provider</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sending service</h3>
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
             <input type="checkbox" checked={form.enabled} onChange={e => setForm(f => ({ ...f, enabled: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-            Send emails to customers
+            Send documents to customers
           </label>
         </div>
+        <p className="text-xs text-slate-500 -mt-2">A sending service (Brevo, SendGrid, Mailgun, Amazon SES) sends from an address like <b>noreply@yourcompany.com</b> without any mailbox behind it. You can also send through an existing Google or Microsoft account.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {PROVIDERS.map(p => (
             <button key={p.key} onClick={() => pick(p.key)} className={`p-3 rounded-xl text-left ring-1 ${provider === p.key ? 'ring-2 ring-indigo-600 bg-indigo-50/50' : 'ring-slate-200 hover:bg-slate-50'}`}>
               <p className="text-sm font-semibold text-slate-900">{p.label}</p>
-              <p className="text-xs text-slate-500">{p.host || 'Enter details'}</p>
+              <p className="text-xs text-slate-500">{p.sub}</p>
             </button>
           ))}
         </div>
@@ -116,14 +120,17 @@ const EmailSettingsView: React.FC<{ defaultFromName?: string; defaultTestTo?: st
             <select className={inputCls} value={form.security} onChange={e => setForm(f => ({ ...f, security: e.target.value as 'STARTTLS' | 'SSL' }))}><option value="STARTTLS">STARTTLS (587)</option><option value="SSL">SSL/TLS (465)</option></select></label>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Username (mailbox address)</span>
-            <input className={inputCls} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="bookings@yourcompany.com" autoComplete="off" /></label>
+          <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">SMTP username</span>
+            <input className={inputCls} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder={provider === 'sendgrid' ? 'apikey' : 'Login from your sending service'} autoComplete="off" /></label>
           <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Password {loaded?.passwordSet && <span className="text-emerald-600">· saved (leave empty to keep)</span>}</span>
-            <input type="password" className={inputCls} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={loaded?.passwordSet ? '••••••••••••' : provider === 'gmail' ? '16-character app password' : 'Mailbox password'} autoComplete="new-password" /></label>
+            <input type="password" className={inputCls} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={loaded?.passwordSet ? '••••••••••••' : provider === 'gmail' ? '16-character app password' : provider === 'custom' || provider === 'outlook' ? 'Password' : 'SMTP key / API key'} autoComplete="new-password" /></label>
           <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Sender name customers see</span>
             <input className={inputCls} value={form.fromName} onChange={e => setForm(f => ({ ...f, fromName: e.target.value }))} placeholder="UR-Drive Jordan" /></label>
-          <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Sender address <span className="text-slate-400">(usually the same mailbox)</span></span>
-            <input className={inputCls} value={form.fromAddress} onChange={e => setForm(f => ({ ...f, fromAddress: e.target.value }))} placeholder={form.username || 'bookings@yourcompany.com'} /></label>
+          <label className="block"><span className="block text-xs font-medium text-slate-500 mb-1">Sender address <span className="text-slate-400">(verified with the service)</span></span>
+            <input className={inputCls} value={form.fromAddress} onChange={e => setForm(f => ({ ...f, fromAddress: e.target.value }))} placeholder="noreply@yourcompany.com" /></label>
+          <label className="block md:col-span-2"><span className="block text-xs font-medium text-slate-500 mb-1">Replies go to <span className="text-slate-400">(optional — leave empty for send-only)</span></span>
+            <input className={inputCls} value={form.replyTo} onChange={e => setForm(f => ({ ...f, replyTo: e.target.value }))} placeholder="Leave empty: emails say replies are not received and show your phone number" />
+            <span className="block text-xs text-slate-400 mt-1">Only fill this in if customers' replies should reach someone. The system itself never reads replies.</span></label>
         </div>
         <p className="text-xs text-slate-400">The password is stored encrypted on the server and is never shown again or sent back to the browser.</p>
         <div className="flex justify-end">

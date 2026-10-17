@@ -25,7 +25,7 @@ import java.util.Map;
 public class MailSettingsService {
 
     public record MailConfig(boolean enabled, String host, int port, String username, String password,
-                             String from, String fromName, String security, String source) {
+                             String from, String fromName, String security, String replyTo, String source) {
         public boolean usable() {
             return enabled && notBlank(host) && notBlank(username) && notBlank(password);
         }
@@ -40,17 +40,18 @@ public class MailSettingsService {
     @Value("${mail.smtp.password:}") String envPassword;
     @Value("${mail.smtp.from:noreply@nctrental.com}") String envFrom;
     @Value("${mail.smtp.from.name:NCT Rental}") String envFromName;
+    @Value("${mail.smtp.reply-to:}") String envReplyTo;
     @Value("${jwt.secret}") String secret;
 
     public MailConfig effective() {
         return repo.findById(1L)
             .map(s -> new MailConfig(s.isEnabled(), nz(s.getHost()), s.getPort() == null ? 587 : s.getPort(), nz(s.getUsername()),
                 decrypt(s.getPasswordEncrypted()), notBlank(s.getFromAddress()) ? s.getFromAddress() : nz(s.getUsername()),
-                notBlank(s.getFromName()) ? s.getFromName() : envFromName, notBlank(s.getSecurity()) ? s.getSecurity() : "STARTTLS", "app"))
+                notBlank(s.getFromName()) ? s.getFromName() : envFromName, notBlank(s.getSecurity()) ? s.getSecurity() : "STARTTLS", nz(s.getReplyTo()), "app"))
             .orElseGet(() -> {
                 int port = parsePort(envPort);
                 return new MailConfig(envEnabled, nz(envHost), port, nz(envUsername), nz(envPassword), envFrom, envFromName,
-                    port == 465 ? "SSL" : "STARTTLS", envEnabled ? "environment" : "none");
+                    port == 465 ? "SSL" : "STARTTLS", nz(envReplyTo), envEnabled ? "environment" : "none");
             });
     }
 
@@ -66,6 +67,7 @@ public class MailSettingsService {
         m.put("fromAddress", c.from());
         m.put("fromName", c.fromName());
         m.put("security", c.security());
+        m.put("replyTo", c.replyTo());
         m.put("source", c.source());
         m.put("configured", c.usable());
         repo.findById(1L).ifPresent(s -> {
@@ -89,6 +91,8 @@ public class MailSettingsService {
             if (port < 1 || port > 65535) throw new IllegalArgumentException("Enter a valid port (587 or 465).");
         }
         if (notBlank(fromAddress) && !fromAddress.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) throw new IllegalArgumentException("The sender address is not a valid email.");
+        String replyTo = str(req.get("replyTo"));
+        if (notBlank(replyTo) && !replyTo.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) throw new IllegalArgumentException("The reply-to address is not a valid email.");
         s.setId(1L);
         s.setEnabled(enabled);
         s.setHost(host);
@@ -97,6 +101,7 @@ public class MailSettingsService {
         s.setSecurity(security);
         s.setFromAddress(fromAddress);
         s.setFromName(clip(str(req.get("fromName")), 120));
+        s.setReplyTo(replyTo);
         String newPassword = req.get("password") == null ? null : String.valueOf(req.get("password"));
         if (newPassword != null && !newPassword.isEmpty()) s.setPasswordEncrypted(encrypt(newPassword.replace(" ", "")));
         if (enabled && !notBlank(decrypt(s.getPasswordEncrypted()))) throw new IllegalArgumentException("Enter the SMTP password (for Gmail, an app password).");
