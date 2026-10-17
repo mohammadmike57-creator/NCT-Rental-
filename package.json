@@ -6,13 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --maxWorkers=2"
   },
   "dependencies": {
     "@types/xml2js": "^0.4.14",
     "@vitejs/plugin-react": "^5.1.1",
     "axios": "^1.13.6",
     "firebase": "^12.5.0",
+    "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "react": "^18.2.0",
@@ -27,9 +32,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@types/uuid": "^10.0.0",
-    "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0",
     "@testing-library/react": "^14.0.0",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/user-event": "^14.5.1",
@@ -40,13 +43,7 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0"
   },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --maxWorkers=2"
+  "engines": {
+    "node": ">=20.19.0"
   }
 }
