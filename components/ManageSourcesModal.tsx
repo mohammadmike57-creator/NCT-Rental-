@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusIcon, TrashIcon } from './icons';
+import { PlusIcon, TrashIcon, GlobeAltIcon } from './icons';
 import { RentalSource, PaymentType } from '../types';
 
 interface ManageSourcesViewProps {
@@ -8,6 +8,14 @@ interface ManageSourcesViewProps {
   onDelete: (sourceId: string) => void;
   onUpdate: (source: RentalSource) => void;
 }
+
+const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
+
+const PaymentPill: React.FC<{ type: PaymentType }> = ({ type }) => (
+  type === PaymentType.PREPAID
+    ? <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-600/20">Prepaid</span>
+    : <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset bg-amber-50 text-amber-700 ring-amber-600/20">Pay on arrival</span>
+);
 
 const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, onDelete, onUpdate }) => {
   const [newSourceName, setNewSourceName] = useState('');
@@ -25,99 +33,124 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
       setNewSourceType(PaymentType.PAY_ON_ARRIVAL);
     }
   };
-  
+
   const handleTypeChange = (source: RentalSource, newPaymentType: PaymentType) => {
     onUpdate({ ...source, paymentType: newPaymentType });
   };
 
+  const prepaidCount = sources.filter(s => s.paymentType === PaymentType.PREPAID).length;
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-      <header className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">Manage Rental Sources</h2>
-        <p className="text-sm text-gray-500 mt-1">Configure sources and specify if they are prepaid to auto-generate invoices.</p>
-      </header>
-      
-      {/* Add New Source Form */}
-      <div className="p-4 bg-gray-50 rounded-lg border mb-6">
-        <h3 className="font-semibold text-gray-700 mb-2">Add New Source</h3>
-        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-2">
-            <div className="flex-grow w-full">
-                <label htmlFor="new-source-name" className="text-xs font-medium text-gray-600">Source Name</label>
-                <input
-                    id="new-source-name"
-                    type="text"
-                    value={newSourceName}
-                    onChange={(e) => setNewSourceName(e.target.value)}
-                    placeholder="e.g., Corporate Partner"
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
-                />
-            </div>
-            <div className="w-full sm:w-auto">
-                 <label htmlFor="new-source-type" className="text-xs font-medium text-gray-600">Payment Type</label>
-                <select 
-                    id="new-source-type"
-                    value={newSourceType} 
-                    onChange={e => setNewSourceType(e.target.value as PaymentType)}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary"
-                >
-                    <option value={PaymentType.PAY_ON_ARRIVAL}>Pay on Arrival</option>
-                    <option value={PaymentType.PREPAID}>Prepaid</option>
-                </select>
-            </div>
-            <button
-                onClick={handleAddClick}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-secondary text-white rounded-md hover:bg-primary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary text-sm font-medium w-full sm:w-auto"
-                aria-label="Add source"
-            >
-                <PlusIcon />
-                Add
-            </button>
+    <div className="space-y-5 mb-10 max-w-4xl">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <GlobeAltIcon className="w-6 h-6" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Website sources</h2>
+          <p className="text-sm text-slate-500">
+            Booking channels and how they are paid. Prepaid sources auto-generate invoices.
+            {sources.length > 0 && <span className="text-slate-400"> · {sources.length} source{sources.length === 1 ? '' : 's'}, {prepaidCount} prepaid</span>}
+          </p>
         </div>
       </div>
 
-      {/* Existing Sources Table */}
-       <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Type</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                {sources.map((source) => (
-                    <tr key={source.id}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-800">{source.name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        <select 
-                            value={source.paymentType} 
-                            onChange={e => handleTypeChange(source, e.target.value as PaymentType)}
-                            className="w-full p-1.5 border border-gray-300 rounded-md text-sm focus:ring-secondary focus:border-secondary bg-white"
-                        >
-                            <option value={PaymentType.PAY_ON_ARRIVAL}>Pay on Arrival</option>
-                            <option value={PaymentType.PREPAID}>Prepaid</option>
-                        </select>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                        <button
-                            onClick={() => onDelete(source.id)}
-                            className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                            aria-label={`Delete ${source.name}`}
-                        >
-                            <TrashIcon />
-                        </button>
-                    </td>
-                    </tr>
-                ))}
-                {sources.length === 0 && (
-                    <tr>
-                        <td colSpan={3} className="text-center py-6 text-gray-500">No rental sources configured.</td>
-                    </tr>
-                )}
-                </tbody>
-            </table>
+      {/* Add form */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Add a source</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_200px_auto] gap-3 sm:items-end">
+          <label className="block" htmlFor="new-source-name">
+            <span className="block text-sm font-medium text-slate-700 mb-1">Source name</span>
+            <input
+              id="new-source-name"
+              type="text"
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddClick(); }}
+              placeholder="e.g. Corporate Partner"
+              className={inputCls}
+            />
+          </label>
+          <label className="block" htmlFor="new-source-type">
+            <span className="block text-sm font-medium text-slate-700 mb-1">Payment type</span>
+            <select
+              id="new-source-type"
+              value={newSourceType}
+              onChange={e => setNewSourceType(e.target.value as PaymentType)}
+              className={inputCls}
+            >
+              <option value={PaymentType.PAY_ON_ARRIVAL}>Pay on arrival</option>
+              <option value={PaymentType.PREPAID}>Prepaid</option>
+            </select>
+          </label>
+          <button
+            onClick={handleAddClick}
+            disabled={!newSourceName.trim()}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-40 w-full sm:w-auto"
+            aria-label="Add source"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add source
+          </button>
         </div>
+      </section>
+
+      {/* List */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Configured sources</h3>
+          <span className="text-xs text-slate-400">{sources.length}</span>
+        </div>
+        {sources.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+              <GlobeAltIcon className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-semibold text-slate-900">No sources yet</p>
+            <p className="text-sm text-slate-500 mt-1">Add your first booking channel using the form above.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {sources.map((source) => (
+              <li key={source.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-start sm:items-center justify-between gap-3 flex-1 min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 break-words">{source.name}</p>
+                    <div className="mt-1"><PaymentPill type={source.paymentType} /></div>
+                  </div>
+                  <button
+                    onClick={() => onDelete(source.id)}
+                    className="sm:hidden p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0"
+                    aria-label={`Delete ${source.name}`}
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={source.paymentType}
+                    onChange={e => handleTypeChange(source, e.target.value as PaymentType)}
+                    aria-label={`Payment type for ${source.name}`}
+                    className={`${inputCls} sm:w-48`}
+                  >
+                    <option value={PaymentType.PAY_ON_ARRIVAL}>Pay on arrival</option>
+                    <option value={PaymentType.PREPAID}>Prepaid</option>
+                  </select>
+                  <button
+                    onClick={() => onDelete(source.id)}
+                    className="hidden sm:inline-flex p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0"
+                    aria-label={`Delete ${source.name}`}
+                    title="Delete source"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 };

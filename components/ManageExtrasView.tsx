@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AvailableExtra } from '../types';
-import { PlusIcon, TrashIcon, SaveIcon } from './icons';
+import { PlusIcon, TrashIcon, SaveIcon, PlusCircleIcon } from './icons';
 
 interface ManageExtrasViewProps {
   extras: AvailableExtra[];
   onUpdate: (newExtras: AvailableExtra[]) => void;
 }
+
+const inputCls = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
 
 const ManageExtrasView: React.FC<ManageExtrasViewProps> = ({ extras, onUpdate }) => {
   const [localExtras, setLocalExtras] = useState<AvailableExtra[]>([]);
@@ -55,76 +57,127 @@ const ManageExtrasView: React.FC<ManageExtrasViewProps> = ({ extras, onUpdate })
     onUpdate(localExtras);
   };
 
+  const isDirty = JSON.stringify(localExtras) !== JSON.stringify(extras);
+
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-        <header className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">Manage Rental Extras</h2>
-          <p className="text-sm text-gray-500 mt-1">Add, edit, or remove available extras and their default prices.</p>
-        </header>
-
-        <div className="p-4 bg-gray-50 rounded-lg border mb-6 space-y-3">
-          <h3 className="font-semibold text-gray-700">Add New Extra</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_auto] gap-4 items-end">
-            <div>
-              <label htmlFor="new-extra-name" className="text-xs font-medium text-gray-600">Extra Name</label>
-              <input
-                id="new-extra-name" type="text" value={newExtraName} onChange={e => setNewExtraName(e.target.value)}
-                placeholder="e.g., Full Insurance"
-                className="w-full p-2 border border-gray-300 rounded-md text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="new-extra-price" className="text-xs font-medium text-gray-600">Default Daily Price ($)</label>
-              <input
-                id="new-extra-price" type="number" value={newExtraPrice || ''} onChange={e => setNewExtraPrice(parseFloat(e.target.value) || 0)}
-                placeholder="0.00"
-                className="w-full p-2 border border-gray-300 rounded-md text-sm"
-              />
-            </div>
-            <button onClick={handleAdd} className="flex items-center gap-2 px-4 py-2 bg-secondary text-white rounded-md hover:bg-primary text-sm h-[42px]">
-              <PlusIcon /> Add
-            </button>
+      <div className="space-y-5 mb-10 max-w-4xl">
+        {/* Header */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+            <PlusCircleIcon className="w-6 h-6" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Rental extras</h2>
+            <p className="text-sm text-slate-500">Add-ons offered with a rental and their default daily price.</p>
           </div>
         </div>
 
-        <div className="space-y-2">
-          {localExtras.map(ext => (
-            <div key={ext.id} className="grid grid-cols-[2fr_1fr_auto] items-center gap-2 bg-gray-50 p-2 rounded-md">
+        {/* Add form */}
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Add an extra</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-3 sm:items-end">
+            <label className="block" htmlFor="new-extra-name">
+              <span className="block text-sm font-medium text-slate-700 mb-1">Extra name</span>
               <input
-                type="text" value={ext.name} onChange={e => handleUpdateField(ext.id, 'name', e.target.value)}
-                className="w-full p-1 border border-gray-200 rounded-md text-sm"
+                id="new-extra-name" type="text" value={newExtraName} onChange={e => setNewExtraName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+                placeholder="e.g. Full Insurance"
+                className={inputCls}
               />
+            </label>
+            <label className="block" htmlFor="new-extra-price">
+              <span className="block text-sm font-medium text-slate-700 mb-1">Default daily price ($)</span>
               <input
-                type="number" value={ext.defaultDailyPrice} onChange={e => handleUpdateField(ext.id, 'defaultDailyPrice', parseFloat(e.target.value) || 0)}
-                className="w-full p-1 border border-gray-200 rounded-md text-sm"
+                id="new-extra-price" type="number" inputMode="decimal" value={newExtraPrice || ''} onChange={e => setNewExtraPrice(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+                className={inputCls}
               />
-              <button onClick={() => handleDelete(ext.id)} className="text-gray-400 hover:text-red-600 p-1">
-                <TrashIcon />
+            </label>
+            <button onClick={handleAdd} disabled={!newExtraName.trim()} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-40 w-full sm:w-auto">
+              <PlusIcon className="w-4 h-4" /> Add extra
+            </button>
+          </div>
+        </section>
+
+        {/* List + save bar */}
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Configured extras</h3>
+            <span className="text-xs text-slate-400">{localExtras.length}</span>
+          </div>
+
+          {localExtras.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                <PlusCircleIcon className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-semibold text-slate-900">No extras configured</p>
+              <p className="text-sm text-slate-500 mt-1">Add items like insurance, child seats or GPS above.</p>
+            </div>
+          ) : (
+            <>
+              <div className="hidden sm:grid grid-cols-[1fr_180px_44px] gap-3 px-5 pt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <span>Name</span><span>Daily price ($)</span><span />
+              </div>
+              <ul className="divide-y divide-slate-100 sm:divide-y-0">
+                {localExtras.map(ext => (
+                  <li key={ext.id} className="px-5 py-4 sm:py-2 grid grid-cols-1 sm:grid-cols-[1fr_180px_44px] gap-3 sm:items-center">
+                    <label className="block">
+                      <span className="sm:hidden block text-xs font-medium text-slate-500 mb-1">Name</span>
+                      <input
+                        type="text" value={ext.name} onChange={e => handleUpdateField(ext.id, 'name', e.target.value)}
+                        aria-label="Extra name"
+                        className={inputCls}
+                      />
+                    </label>
+                    <div className="flex items-end gap-2">
+                      <label className="block flex-1">
+                        <span className="sm:hidden block text-xs font-medium text-slate-500 mb-1">Daily price ($)</span>
+                        <input
+                          type="number" inputMode="decimal" value={ext.defaultDailyPrice} onChange={e => handleUpdateField(ext.id, 'defaultDailyPrice', parseFloat(e.target.value) || 0)}
+                          aria-label="Default daily price"
+                          className={inputCls}
+                        />
+                      </label>
+                      <button onClick={() => handleDelete(ext.id)} className="sm:hidden p-2.5 rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200" aria-label={`Delete ${ext.name}`}>
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <button onClick={() => handleDelete(ext.id)} className="hidden sm:inline-flex justify-center p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50" aria-label={`Delete ${ext.name}`} title="Delete extra">
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <div className="sticky bottom-0 mt-2 px-5 py-4 bg-slate-50/95 backdrop-blur border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-xs text-slate-500">{isDirty ? 'You have unsaved changes.' : 'All changes saved.'}</p>
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
+              <button onClick={() => setLocalExtras(extras)} className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={handleSave} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">
+                <SaveIcon className="w-4 h-4" /> Save changes
               </button>
             </div>
-          ))}
-          {localExtras.length === 0 && <p className="text-center py-4 text-gray-500">No extras configured.</p>}
-        </div>
-
-        <footer className="mt-6 flex justify-end gap-2">
-          <button onClick={() => setLocalExtras(extras)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
-            Cancel
-          </button>
-          <button onClick={handleSave} className="px-6 py-2 bg-primary text-white rounded-md hover:bg-secondary flex items-center gap-2">
-            <SaveIcon /> Save Changes
-          </button>
-        </footer>
+          </div>
+        </section>
       </div>
 
       {extraToDelete && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-            <h3 className="text-lg font-bold mb-4">Delete Extra</h3>
-            <p>Are you sure you want to delete "{extraToDelete.name}"?</p>
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setExtraToDelete(null)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-              <button onClick={confirmDelete} className="px-4 py-2 bg-red-600 text-white rounded">Delete</button>
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setExtraToDelete(null)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+            <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+              <TrashIcon className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Delete extra</h3>
+            <p className="text-sm text-slate-500 mt-1">Remove "{extraToDelete.name}" from the list? Click Save changes afterwards to apply.</p>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+              <button onClick={() => setExtraToDelete(null)} className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">Cancel</button>
+              <button onClick={confirmDelete} className="px-4 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700">Delete</button>
             </div>
           </div>
         </div>
