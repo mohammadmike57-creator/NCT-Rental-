@@ -1,3 +1,4 @@
+import { waitForFonts } from './docFonts';
 import { CompanyDetails, RentalLocation, RentalSource, PaymentType, Reservation } from '../types';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { buildAgreementHtml } from './agreementDoc';
@@ -73,7 +74,8 @@ export function printHtml(html: string): boolean {
   w.document.open();
   w.document.write(html);
   w.document.close();
-  const go = () => { fitPagesForPrint(w.document); w.focus(); w.print(); };
+  let printed = false;
+  const go = () => { if (printed) return; printed = true; waitForFonts(w.document).then(() => { fitPagesForPrint(w.document); w.focus(); w.print(); }); };
   const imgs = Array.from(w.document.images);
   const pending = imgs.filter(i => !i.complete);
   if (!pending.length) setTimeout(go, 250);

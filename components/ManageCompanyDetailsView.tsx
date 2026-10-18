@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CompanyDetails } from '../types';
 import { TrashIcon, SaveIcon } from './icons';
 import { Page, PageHeader, Panel, Button, Field, inputCls, textareaCls } from './ui/Crm';
-import { DEFAULT_AGREEMENT_TERMS, parseTerms } from '../services/agreementTerms';
+import { DEFAULT_AGREEMENT_TERMS, DEFAULT_AGREEMENT_TERMS_AR, parseTerms, parseTermsAr } from '../services/agreementTerms';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
@@ -115,6 +115,18 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
             </div>
             <textarea rows={14} value={formData.agreementTerms || ''} onChange={e => handleChange('agreementTerms', e.target.value)}
               placeholder={DEFAULT_AGREEMENT_TERMS.slice(0, 400) + '…'} className={`${textareaCls} font-mono text-[12px] leading-relaxed`} />
+            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-[13px] font-semibold text-slate-900">Arabic terms · الشروط والأحكام بالعربية</p>
+                <p className="text-xs text-slate-500">{formData.agreementTermsAr?.trim() ? `Custom Arabic terms · ${parseTermsAr(formData.agreementTermsAr).length} clauses` : `Using the standard Arabic terms · ${parseTermsAr('').length} clauses`} · printed beside the English text</p>
+              </div>
+              <div className="flex gap-2">
+                {!formData.agreementTermsAr?.trim() && <Button size="sm" onClick={() => handleChange('agreementTermsAr', DEFAULT_AGREEMENT_TERMS_AR)}>Edit the Arabic terms</Button>}
+                {formData.agreementTermsAr?.trim() && <Button size="sm" variant="ghost" onClick={() => { if (window.confirm('Go back to the standard Arabic terms?')) handleChange('agreementTermsAr', ''); }}>Reset to standard</Button>}
+              </div>
+            </div>
+            <textarea rows={14} dir="rtl" lang="ar" value={formData.agreementTermsAr || ''} onChange={e => handleChange('agreementTermsAr', e.target.value)}
+              placeholder={DEFAULT_AGREEMENT_TERMS_AR.slice(0, 300) + '…'} className={`${textareaCls} text-[13px] leading-relaxed`} />
           </div>
         </Panel>
       </SettingsSection>

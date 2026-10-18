@@ -98,6 +98,7 @@ public class SecurityConfig {
                     "/public/**",
                     "/assets/**",
                     "/images/**",
+                    "/fonts/**",
                     "/icons/**",
                     "/*.png",
                     "/*.jpg",

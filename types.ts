@@ -378,6 +378,8 @@ export interface CompanyDetails {
   website?: string;
   /** Terms and conditions printed on page 2 of the rental agreement. Empty = standard template. */
   agreementTerms?: string;
+  /** Arabic terms printed beside the English ones; empty = standard Arabic terms. */
+  agreementTermsAr?: string;
 }
 
 export type MonthlyReservations = Reservation[];

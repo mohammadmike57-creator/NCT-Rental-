@@ -183,6 +183,8 @@ interface SidebarLink {
     icon: React.FC<any>;
     permission: UserPermission;
     badge?: number;
+    /** Runs instead of opening a page (e.g. opens a form). */
+    action?: () => void;
 }
 
 const SidebarSection: React.FC<{ title: string, children: React.ReactNode, collapsed?: boolean }> = ({ title, children, collapsed }) => {
@@ -1810,6 +1812,7 @@ ${currentUser?.fullName}
         { name: 'Home', icon: HomeIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
         { name: 'Reservations', icon: CalendarIcon, permission: UserPermission.VIEW_RESERVATIONS },
         { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_AGREEMENTS },
+        { name: 'Open Unlisted Agreement', icon: PlusCircleIcon, permission: UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION, action: () => setShowUnlistedAgreement(true) },
         { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
@@ -1928,11 +1931,11 @@ ${currentUser?.fullName}
 
                     return (
                         <SidebarSection key={sectionTitle} title={sectionTitle} collapsed={sidebarCollapsed && !isSidebarOpen}>
-                            {visibleLinks.map(({ name, icon: Icon, badge }) => (
+                            {visibleLinks.map(({ name, icon: Icon, badge, action }) => (
                                 <a
                                     key={name}
                                     href="#"
-                                    onClick={(e) => { e.preventDefault(); handleNavigation(name); }}
+                                    onClick={(e) => { e.preventDefault(); if (action) { setIsSidebarOpen(false); action(); } else handleNavigation(name); }}
                                     aria-current={mainView === name ? 'page' : undefined}
                                     title={sidebarCollapsed ? name : undefined}
                                     className={`relative flex items-center ${sidebarCollapsed && !isSidebarOpen ? 'md:justify-center' : ''} justify-between gap-3 px-3 py-[7px] rounded-md text-[13px] font-medium transition-colors ${mainView === name ? 'bg-white/10 text-white before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-indigo-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}

@@ -35,3 +35,8 @@ export const damageSummary = (m: DamageMarker) =>
   [damageTypeLabel(m.type), m.part, m.size].filter(Boolean).join(' · ');
 
 export const isDescribed = (m: DamageMarker) => !!(m.type || m.part || m.note);
+
+export const DAMAGE_TYPE_AR: Record<DamageType, string> = {
+  scratch: 'خدش', dent: 'انبعاج', chip: 'تقشّر', crack: 'شرخ', scuff: 'احتكاك', broken: 'مكسور', missing: 'قطعة مفقودة', other: 'أخرى',
+};
+export const DAMAGE_SEVERITY_AR: Record<DamageSeverity, string> = { minor: 'بسيط', moderate: 'متوسط', major: 'كبير' };

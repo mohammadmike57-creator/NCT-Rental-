@@ -729,17 +729,34 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   className="h-9 px-3 text-rose-500 hover:bg-rose-50 disabled:opacity-40"><TrashIcon className="w-4 h-4" /></button>
               )}
             </div>
-            {onOpenUnlistedAgreement && canViewVoucherActions && (
+            {onOpenUnlistedAgreement && canViewVoucherActions && !isAgreementView && (
               <button onClick={onOpenUnlistedAgreement} title="Open a rental agreement for a booking that is not in the list"
                 className="h-9 inline-flex items-center justify-center gap-2 px-3 bg-white border border-slate-200 text-slate-700 text-[13px] font-semibold rounded-lg hover:bg-slate-50 shadow-sm whitespace-nowrap">
                 <DocumentReportIcon className="w-4 h-4 text-amber-600" /><span className="sm:hidden">Without reservation</span><span className="hidden sm:inline">Agreement without reservation</span>
               </button>
             )}
-            <button onClick={openAddModal} className={`${onOpenUnlistedAgreement && canViewVoucherActions ? '' : 'col-span-2 '}h-9 inline-flex items-center justify-center gap-2 px-3.5 bg-indigo-600 text-white text-[13px] font-semibold rounded-lg hover:bg-indigo-700 shadow-sm whitespace-nowrap`}>
+            <button onClick={openAddModal} className={`${onOpenUnlistedAgreement && canViewVoucherActions && !isAgreementView ? '' : 'col-span-2 '}h-9 inline-flex items-center justify-center gap-2 px-3.5 bg-indigo-600 text-white text-[13px] font-semibold rounded-lg hover:bg-indigo-700 shadow-sm whitespace-nowrap`}>
               <PlusIcon className="w-4 h-4" /> New reservation
             </button>
           </div>
         </div>
+
+        {/* Rental desk: customer is here but the booking is not in the list yet */}
+        {isAgreementView && onOpenUnlistedAgreement && (
+          <div className="relative overflow-hidden rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-white px-4 py-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span className="w-10 h-10 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm"><DocumentReportIcon className="w-5 h-5" /></span>
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold text-slate-900">Customer at the desk, booking not in the list?</p>
+                <p className="text-xs text-slate-600 mt-0.5">Open the rental agreement now with the website or partner booking number. The reservations team lists it later from <b>Unlisted Agreements</b>.</p>
+              </div>
+            </div>
+            <button onClick={onOpenUnlistedAgreement}
+              className="h-10 sm:h-9 shrink-0 inline-flex items-center justify-center gap-2 px-4 rounded-lg bg-indigo-600 text-white text-[13px] font-semibold hover:bg-indigo-700 shadow-sm whitespace-nowrap">
+              <PlusIcon className="w-4 h-4" /> Open unlisted agreement
+            </button>
+          </div>
+        )}
 
         {/* Operations counters */}
         <div className="grid grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">

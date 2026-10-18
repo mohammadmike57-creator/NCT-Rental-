@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { loadArabicFontInApp, waitForFonts } from './docFonts';
 
 /** Any of the printable documents (agreement, invoice, claim) as a PDF. */
 export const htmlToPdfBase64 = (html: string) => agreementHtmlToPdfBase64(html);
@@ -33,6 +34,7 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     doc.write(html);
     doc.close();
     await new Promise(r => setTimeout(r, 150));
+    await Promise.all([waitForFonts(doc), loadArabicFontInApp()]);
     await Promise.all(Array.from(doc.images).map(img => (img.complete ? null : new Promise(res => { img.onload = img.onerror = () => res(null); }))));
     // html2canvas draws text a few pixels lower than the browser lays it out, which makes
     // table rules cut through the text. Extra room under each cell keeps them clear.

@@ -1,11 +1,13 @@
 import { CarView, CompanyDetails, DamageMarker, Reservation } from '../types';
-import { damageSeverityLabel, damageTypeLabel } from './damageMarks';
+import { damageSeverityLabel, damageTypeLabel, DAMAGE_TYPE_AR, DAMAGE_SEVERITY_AR } from './damageMarks';
 import { INSPECTION_LABEL, INSPECTION_SVG } from '../components/VehicleGraphics';
 import { CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, formatMoney } from './returnChargesDoc';
-import { parseTerms } from './agreementTerms';
+import { parseTerms, parseTermsAr } from './agreementTerms';
 import { code39Svg } from './barcode';
 
 export const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
+export const PICKUP_TERMS_AR = 'بتوقيعه، يقرّ المستأجر باستلام المركبة بالحالة الموثقة أعلاه ويوافق على شروط وأحكام التأجير، ويتحمّل المسؤولية المالية عن جميع الرسوم والمخالفات المرورية والأضرار والخسائر خلال فترة الإيجار. ويؤكد ممثل الشركة صحة حالة المركبة وبيانات الإيجار عند التسليم.';
+export const RETURN_TERMS_AR = 'بتوقيعه، يؤكد المستأجر إرجاع المركبة، وقد تمت مراجعة حالتها النهائية وأي رسوم إضافية (مثل نقص الوقود أو الأضرار الجديدة) والموافقة عليها. ويؤكد ممثل الشركة استلام المركبة وصحة فحص الإرجاع.';
 export const RETURN_TERMS = "By signing, the Renter confirms the return of the vehicle. The final condition and any additional charges (such as fuel shortage or new damage) have been reviewed and accepted. The Company Representative confirms receipt of the vehicle and the accuracy of the return inspection.";
 
 export interface AgreementDocInput {
@@ -29,6 +31,15 @@ const when = (s?: string) => { const d = parse(s); return d ? d.toLocaleString('
 const km = (n?: number) => (n == null ? '—' : `${n.toLocaleString('en-US')} km`);
 const day = (s?: string) => { if (!s) return '—'; const d = new Date(s.length === 10 ? s + 'T12:00:00' : s); return Number.isNaN(d.getTime()) ? esc(s) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); };
 const ID_TYPE: Record<string, string> = { passport: 'Passport', national_id: 'National ID', residence: 'Residence permit' };
+const ID_TYPE_AR: Record<string, string> = { passport: 'جواز السفر', national_id: 'الهوية الوطنية', residence: 'الإقامة' };
+const VIEW_AR: Record<CarView, string> = { front: 'الأمام', back: 'الخلف', left: 'جهة السائق', right: 'جهة الراكب' };
+/** English label with its Arabic translation beside it. */
+const L = (en: string, ar: string) => `${en}<bdi class="ar">${ar}</bdi>`;
+/** Section header bar: number and English title on the left, Arabic title on the right. */
+const H = (n: string, en: string, ar: string) => `<h2>${n ? `<span class="n">${n}</span>` : ''}<span class="en">${en}</span><bdi class="ar h">${ar}</bdi></h2>`;
+/** The Arabic font ships with the app (public/fonts) so PDFs and prints never depend on a font service. */
+const fontBase = () => (typeof window !== 'undefined' && window.location ? window.location.origin : '');
+const arabicFontCss = () => [400, 600, 700].map(w => `@font-face { font-family: 'Plex Arabic'; font-weight: ${w}; font-style: normal; src: url('${fontBase()}/fonts/plex-arabic-${w}.woff2') format('woff2'); }`).join('\n');
 const PAY_METHOD: Record<string, string> = { card: 'Card', cash: 'Cash', bank_transfer: 'Bank transfer', prepaid: 'Prepaid by partner' };
 /** Products the renter bought that reduce their liability (named like insurance / CDW / protection). */
 const isProtection = (name: string) => /insur|cdw|scdw|waiver|protect|cover|liabil/i.test(name);
@@ -72,35 +83,37 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       .filter(({ m }) => m.view === view)
       .map(({ m, n }) => `<g><circle cx="${m.x.toFixed(1)}" cy="${(m.y - 20).toFixed(1)}" r="4.4" fill="${filled ? color : '#fff'}" stroke="${color}" stroke-width="1.3"/><text x="${m.x.toFixed(1)}" y="${(m.y - 20 + 1.7).toFixed(1)}" font-size="4.8" text-anchor="middle" font-family="Arial" font-weight="700" fill="${filled ? '#fff' : color}">${n + 1}</text></g>`)
       .join('');
-    return `<div class="view"><svg viewBox="0 -12 100 84">${INSPECTION_SVG[view]}${dots(pickupMarks, '#0284c7', false)}${closed || returnMarks.length ? dots(returnMarks, '#e11d48', true) : ''}</svg><div class="vl">${INSPECTION_LABEL[view]}</div></div>`;
+    return `<div class="view"><svg viewBox="0 -12 100 84">${INSPECTION_SVG[view]}${dots(pickupMarks, '#0284c7', false)}${closed || returnMarks.length ? dots(returnMarks, '#e11d48', true) : ''}</svg><div class="vl">${L(INSPECTION_LABEL[view], VIEW_AR[view])}</div></div>`;
   };
   const damageRows = [
     ...pickupMarks.map((m, n) => ({ m, n, kind: 'out' as const })),
     ...(closed || returnMarks.length ? returnMarks.map((m, n) => ({ m, n, kind: 'in' as const })) : []),
   ];
   const damageRegister = damageRows.length ? `<table class="dmg">
-      <tr><th style="width:7%">No.</th><th style="width:11%">View</th><th style="width:13%">Damage</th><th style="width:19%">Part / location</th><th style="width:11%">Size</th><th style="width:10%">Severity</th><th>Description</th></tr>
-      ${damageRows.map(({ m, n, kind }) => `<tr><td><span class="dn ${kind}">${n + 1}</span>${kind === 'in' ? '<span class="dk">NEW</span>' : ''}</td><td>${esc(INSPECTION_LABEL[m.view])}</td><td>${esc(damageTypeLabel(m.type) || '—')}</td><td>${esc(m.part || '—')}</td><td>${esc(m.size || '—')}</td><td>${m.severity ? `<b class="sv ${m.severity}">${esc(damageSeverityLabel(m.severity))}</b>` : '—'}</td><td>${esc(m.note || '')}</td></tr>`).join('')}
-    </table>` : `<div class="nodmg">No damage recorded on the vehicle at check-out${closed ? ' or check-in' : ''}.</div>`;
+      <tr><th style="width:7%">${L('No.', 'رقم')}</th><th style="width:11%">${L('View', 'الجهة')}</th><th style="width:13%">${L('Damage', 'الضرر')}</th><th style="width:19%">${L('Part / location', 'الجزء / الموقع')}</th><th style="width:11%">${L('Size', 'الحجم')}</th><th style="width:10%">${L('Severity', 'الشدة')}</th><th>${L('Description', 'الوصف')}</th></tr>
+      ${damageRows.map(({ m, n, kind }) => `<tr><td><span class="dn ${kind}">${n + 1}</span>${kind === 'in' ? '<span class="dk">NEW</span>' : ''}</td><td>${esc(INSPECTION_LABEL[m.view])}<bdi class="ar">${VIEW_AR[m.view]}</bdi></td><td>${m.type ? `${esc(damageTypeLabel(m.type))}<bdi class="ar">${DAMAGE_TYPE_AR[m.type]}</bdi>` : '—'}</td><td>${esc(m.part || '—')}</td><td>${esc(m.size || '—')}</td><td>${m.severity ? `<b class="sv ${m.severity}">${esc(damageSeverityLabel(m.severity))}</b><bdi class="ar">${DAMAGE_SEVERITY_AR[m.severity]}</bdi>` : '—'}</td><td>${esc(m.note || '')}</td></tr>`).join('')}
+    </table>` : `<div class="nodmg">No damage recorded on the vehicle at check-out${closed ? ' or check-in' : ''}.<bdi class="ar">${closed ? 'لا توجد أضرار مسجّلة على المركبة عند التسليم أو الإرجاع.' : 'لا توجد أضرار مسجّلة على المركبة عند التسليم.'}</bdi></div>`;
   const sig = (img: string | undefined, role: string, name?: string, at?: string) => `
-    <div class="sig"><div class="si">${img ? `<img src="${esc(img)}"/>` : ''}</div><div class="sl">${esc(role)}</div><div class="sm">${esc([name, at].filter(Boolean).join(' · ') || ' ')}</div></div>`;
+    <div class="sig"><div class="si">${img ? `<img src="${esc(img)}"/>` : ''}</div><div class="sl">${role}</div><div class="sm">${esc([name, at].filter(Boolean).join(' · ') || ' ')}</div></div>`;
   const tick = (v?: boolean, warn?: boolean) => (v ? '<span class="ok">✔</span>' : warn ? '<span class="bad">✕</span>' : '<span class="dim">—</span>');
 
   // Notes sit beside the rental charges when there is no charges-at-return card, to keep one page.
   const sideNotes = !rc && (closed ? !!(r.pickupNotes || r.dropOffNotes) : !!r.pickupNotes);
-  const status = closed ? ['Closed', 'closed'] : onRent ? ['On rent', 'open'] : ['Booked', 'new'];
+  const status = closed ? [L('Closed', 'مغلق'), 'closed'] : onRent ? [L('On rent', 'ساري'), 'open'] : [L('Booked', 'محجوز'), 'new'];
   const drv = r.driver || {};
   const extraDrivers = r.additionalDrivers || [];
   const licenceExpired = !!(drv.licenseExpiry && r.endDate && drv.licenseExpiry < r.endDate.slice(0, 10));
   const protection = (r.extras || []).filter(e => isProtection(e.name));
   const cardRef = r.cardNumber ? `•••• ${esc(String(r.cardNumber).replace(/\D/g, '').slice(-4))}` : '';
   const clauses = parseTerms(i.company.agreementTerms);
+  const clausesAr = parseTermsAr(i.company.agreementTermsAr);
   const paymentLine = i.prepaid
     ? `Prepaid via ${esc(r.source || 'partner')}`
     : r.authNumber ? `Paid${r.finalAmountCharged ? ' ' + usd(r.finalAmountCharged) : ''} · auth ${esc(r.authNumber)}` : 'Payable at the counter';
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rental Agreement ${esc(r.bookingId)}</title>
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Rental Agreement ${esc(r.bookingId)}</title>
 <style>
+  ${arabicFontCss()}
   @page { size: A4; margin: 11mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Inter, 'Segoe UI', Helvetica, Arial, sans-serif; color: #0f172a; font-size: 8.6pt; line-height: 1.4; padding: 6px; }
@@ -263,6 +276,29 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .ack { border: 1px solid #111827; border-radius: 0; }
   html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4; margin: 9mm; }
+  /* ---- Bilingual (English / Arabic) ---- */
+  .ar { font-family: 'Plex Arabic', 'Noto Naskh Arabic', Tahoma, Arial, sans-serif; font-style: normal; direction: rtl; unicode-bidi: isolate; letter-spacing: 0 !important; text-transform: none !important; margin-left: 5px; font-weight: 600; color: #6b7280; font-size: 1.04em; }
+  .card h2 { display: flex; align-items: baseline; gap: 6px; }
+  .kv span:first-child, .drv span, .ref td:first-child, .band span, .cmp td:first-child, .cgrid > div > span { white-space: nowrap; }
+  .pill .ar { color: inherit; font-size: 7.6pt; margin-left: 6px; }
+  .ref td:first-child { width: 48%; }
+  .card h2 .ar.h { margin-left: auto; color: #fff; font-size: 8.2pt; font-weight: 700; }
+  .doc .ar-title { font-family: 'Plex Arabic', Tahoma, Arial, sans-serif; direction: rtl; font-size: 15pt; font-weight: 700; line-height: 1.2; margin-top: 2px; letter-spacing: 0; }
+  .band span .ar { color: #9ca3af; font-size: 7pt; }
+  .kv span:first-child .ar, .drv span .ar, .cmp td:first-child .ar, .ref td:first-child .ar { font-size: 7.2pt; }
+  th .ar { display: block; margin-left: 0; font-size: 6.8pt; }
+  .dmg td .ar, .items td .ar { color: #4b5563; font-weight: 400; }
+  .ardecl { direction: rtl; text-align: justify; font-family: 'Plex Arabic', Tahoma, Arial, sans-serif; font-size: 7.4pt; line-height: 1.6; color: #374151; margin-top: 3px; letter-spacing: 0; }
+  .sl .ar, .sgrp h3 .ar { color: #374151; }
+  .terms-bi { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  .terms-bi > div + div { border-left: 1px solid #d1d5db; padding-left: 16px; }
+  .terms-bi .rtl { direction: rtl; font-family: 'Plex Arabic', Tahoma, Arial, sans-serif; letter-spacing: 0; font-size: 7.4pt; line-height: 1.6; }
+  .terms-bi .rtl .clause { text-align: justify; }
+  .terms-bi .rtl .clause h4 { text-transform: none; letter-spacing: 0; font-size: 7.8pt; }
+  .terms-bi .rtl .clause h4 span { margin-right: 0; margin-left: 4px; }
+  .terms-bi .lang { font-size: 6.6pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px; }
+  .terms-bi .rtl .lang { letter-spacing: 0; font-size: 7.4pt; }
+  .terms-head h1 .ar { display: block; margin: 2px 0 0; color: #111827; font-size: 13pt; font-weight: 700; }
   @media print { body { padding: 0; zoom: 0.86; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
 </style></head><body data-breaks="blocks">
 <div class="pdf-page">
@@ -272,114 +308,115 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     </div>
     <div class="doc">
       <h1>Vehicle Rental Agreement</h1>
+      <div class="ar-title">عقد تأجير مركبة</div>
       <div class="sub">${closed ? 'Closed · check-out &amp; check-in record' : onRent ? 'Open · check-out record' : 'Booking confirmation'}</div>
       <table class="ref">
-        <tr><td>Agreement no.</td><td class="mono">RA-${esc(r.bookingId)}</td></tr>
-        <tr><td>Issued</td><td>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td></tr>
-        <tr><td>Status</td><td><span class="pill ${status[1]}">${status[0]}</span></td></tr>
+        <tr><td>${L('Agreement no.', 'رقم العقد')}</td><td class="mono">RA-${esc(r.bookingId)}</td></tr>
+        <tr><td>${L('Issued', 'الإصدار')}</td><td>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td></tr>
+        <tr><td>${L('Status', 'الحالة')}</td><td><span class="pill ${status[1]}">${status[0]}</span></td></tr>
       </table>
       <div class="bc">${code39Svg('RA-' + (r.bookingId || ''))}<div>RA-${esc(r.bookingId)}</div></div>
     </div>
   </div>
 
   ${closed ? `<div class="band">
-    <div><span>Returned</span><b>${returnedAt ? when(returnedAt.toISOString()) : '—'}</b></div>
-    <div><span>Rental</span><b>${i.rentalDays} day${i.rentalDays === 1 ? '' : 's'}</b></div>
-    <div><span>Distance</span><b>${kmDriven != null ? km(kmDriven) : '—'}</b></div>
-    <div class="${lateHours > 2 ? 'warn' : ''}"><span>On time</span><b>${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'Yes'}</b></div>
-    <div class="${rc ? 'warn' : ''}"><span>Charges at return</span><b>${rc ? esc(formatMoney(chargesTotal(rc.items), rc.currency)) : 'None'}</b></div>
+    <div><span>${L('Returned', 'تاريخ الإرجاع')}</span><b>${returnedAt ? when(returnedAt.toISOString()) : '—'}</b></div>
+    <div><span>${L('Rental', 'مدة الإيجار')}</span><b>${i.rentalDays} day${i.rentalDays === 1 ? '' : 's'}</b></div>
+    <div><span>${L('Distance', 'المسافة')}</span><b>${kmDriven != null ? km(kmDriven) : '—'}</b></div>
+    <div class="${lateHours > 2 ? 'warn' : ''}"><span>${L('On time', 'في الموعد')}</span><b>${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'Yes'}</b></div>
+    <div class="${rc ? 'warn' : ''}"><span>${L('Return charges', 'رسوم الإرجاع')}</span><b>${rc ? esc(formatMoney(chargesTotal(rc.items), rc.currency)) : 'None'}</b></div>
   </div>` : ''}
 
   <div class="g2a">
-    <div class="card"><h2><span class="n">1</span>Renter &amp; main driver</h2>
+    <div class="card">${H('1', 'Renter &amp; main driver', 'المستأجر والسائق الرئيسي')}
       <div class="name">${esc(r.personName)}</div>
       <div class="cols2">
         <div>
-          <div class="drv"><span>Phone</span><b>${esc(r.contactNumber || '—')}</b></div>
-          <div class="drv"><span>Email</span><b>${esc(r.customerEmail || '—')}</b></div>
-          <div class="drv"><span>Address</span><b>${esc(drv.address || '—')}</b></div>
-          <div class="drv"><span>Date of birth</span><b>${day(drv.dateOfBirth)}</b></div>
+          <div class="drv"><span>${L('Phone', 'الهاتف')}</span><b>${esc(r.contactNumber || '—')}</b></div>
+          <div class="drv"><span>${L('Email', 'البريد')}</span><b>${esc(r.customerEmail || '—')}</b></div>
+          <div class="drv"><span>${L('Address', 'العنوان')}</span><b>${esc(drv.address || '—')}</b></div>
+          <div class="drv"><span>${L('Date of birth', 'تاريخ الميلاد')}</span><b>${day(drv.dateOfBirth)}</b></div>
         </div>
         <div>
-          <div class="drv"><span>Nationality</span><b>${esc(drv.nationality || '—')}</b></div>
-          <div class="drv"><span>Driving licence</span><b class="${drv.licenseNumber ? '' : 'missing'}">${drv.licenseNumber ? `${esc(drv.licenseNumber)}${drv.licenseCountry ? ' · ' + esc(drv.licenseCountry) : ''}` : 'Not recorded'}</b></div>
-          <div class="drv"><span>Licence expiry</span><b class="${licenceExpired ? 'missing' : ''}">${day(drv.licenseExpiry)}${licenceExpired ? ' (before return)' : ''}</b></div>
-          <div class="drv"><span>${esc(ID_TYPE[drv.idType || ''] || 'ID / passport')}</span><b>${esc(drv.idNumber || '—')}</b></div>
+          <div class="drv"><span>${L('Nationality', 'الجنسية')}</span><b>${esc(drv.nationality || '—')}</b></div>
+          <div class="drv"><span>${L('Licence', 'الرخصة')}</span><b class="${drv.licenseNumber ? '' : 'missing'}">${drv.licenseNumber ? `${esc(drv.licenseNumber)}${drv.licenseCountry ? ' · ' + esc(drv.licenseCountry) : ''}` : 'Not recorded · غير مسجّلة'}</b></div>
+          <div class="drv"><span>${L('Expiry', 'الانتهاء')}</span><b class="${licenceExpired ? 'missing' : ''}">${day(drv.licenseExpiry)}${licenceExpired ? ' (before return)' : ''}</b></div>
+          <div class="drv"><span>${L(esc(ID_TYPE[drv.idType || ''] || 'ID / passport'), ID_TYPE_AR[drv.idType || ''] || 'الهوية / الجواز')}</span><b>${esc(drv.idNumber || '—')}</b></div>
         </div>
       </div>
     </div>
-    <div class="card"><h2><span class="n">2</span>Additional drivers</h2>
-      ${extraDrivers.length ? extraDrivers.map(d => `<div class="drv"><span>${esc(d.name)}</span><b>${esc(d.licenseNumber || 'licence —')}${d.dateOfBirth ? ' · ' + day(d.dateOfBirth) : ''}</b></div>`).join('') : '<p class="dim" style="color:#64748b">None. Only the main driver may drive the vehicle.</p>'}
-      <div class="drv" style="margin-top:4px"><span>Booked via</span><b>${esc(r.source || '—')}</b></div>
+    <div class="card">${H('2', 'Additional drivers', 'السائقون الإضافيون')}
+      ${extraDrivers.length ? extraDrivers.map(d => `<div class="drv"><span>${esc(d.name)}</span><b>${esc(d.licenseNumber || 'licence —')}${d.dateOfBirth ? ' · ' + day(d.dateOfBirth) : ''}</b></div>`).join('') : '<p class="dim" style="color:#64748b">None. Only the main driver may drive the vehicle.<br><span class="ardecl" style="display:block;margin:0">لا يوجد. تقتصر قيادة المركبة على السائق الرئيسي فقط.</span></p>'}
+      <div class="drv" style="margin-top:4px"><span>${L('Booked via', 'جهة الحجز')}</span><b>${esc(r.source || '—')}</b></div>
     </div>
   </div>
 
   <div class="g3">
-    <div class="card"><h2><span class="n">3</span>Vehicle</h2><div class="name">${esc(r.carModel || '—')}</div>
-      <div class="kv"><span>Plate</span><span style="font-family:Consolas,monospace">${esc(r.licensePlate || '—')}</span></div>
-      <div class="kv"><span>Group / transmission</span><span>${esc([r.sippCode, r.transmission].filter(Boolean).join(' · ') || '—')}</span></div>
-      ${(r.carExchanges || []).length ? `<div class="kv"><span>Exchanged</span><span>${r.carExchanges!.length}×</span></div>` : ''}
-      <div class="kv"><span>Km out / fuel out</span><span>${km(r.pickupKmOut)} · ${r.pickupFuelLevel != null ? r.pickupFuelLevel + '/8' : '—'}</span></div></div>
-    <div class="card"><h2><span class="n">4</span>Pick-up</h2>
+    <div class="card">${H('3', 'Vehicle', 'المركبة')}<div class="name">${esc(r.carModel || '—')}</div>
+      <div class="kv"><span>${L('Plate', 'اللوحة')}</span><span style="font-family:Consolas,monospace">${esc(r.licensePlate || '—')}</span></div>
+      <div class="kv"><span>${L('Group / gear', 'الفئة / الناقل')}</span><span>${esc([r.sippCode, r.transmission].filter(Boolean).join(' · ') || '—')}</span></div>
+      ${(r.carExchanges || []).length ? `<div class="kv"><span>${L('Exchanged', 'استبدال')}</span><span>${r.carExchanges!.length}×</span></div>` : ''}
+      <div class="kv"><span>${L('Km / fuel out', 'العداد / الوقود')}</span><span>${km(r.pickupKmOut)} · ${r.pickupFuelLevel != null ? r.pickupFuelLevel + '/8' : '—'}</span></div></div>
+    <div class="card">${H('4', 'Pick-up', 'الاستلام')}
       <div class="name" style="font-size:9.5pt">${when(r.startDate)}</div>
-      <div class="kv"><span>Branch</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
-      ${i.locationAddress ? `<div class="kv"><span>Address</span><span>${esc(i.locationAddress)}</span></div>` : ''}
-      <div class="kv"><span>Checked out</span><span>${r.pickupDateTime ? when(r.pickupDateTime) : '—'}</span></div></div>
-    <div class="card"><h2><span class="n">5</span>Return</h2>
+      <div class="kv"><span>${L('Branch', 'الفرع')}</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
+      ${i.locationAddress ? `<div class="kv"><span>${L('Address', 'العنوان')}</span><span>${esc(i.locationAddress)}</span></div>` : ''}
+      <div class="kv"><span>${L('Checked out', 'التسليم')}</span><span>${r.pickupDateTime ? when(r.pickupDateTime) : '—'}</span></div></div>
+    <div class="card">${H('5', 'Return', 'الإرجاع')}
       <div class="name" style="font-size:9.5pt">${when(r.endDate)}</div>
-      <div class="kv"><span>Branch</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
-      <div class="kv"><span>Rental days</span><span>${i.rentalDays}${(r.extensionHistory || []).length ? ` (incl. +${r.extensionHistory!.reduce((s2, e) => s2 + e.days, 0)} extended)` : ''}</span></div>
-      <div class="kv"><span>Returned</span><span>${closed && returnedAt ? when(returnedAt.toISOString()) : '—'}</span></div></div>
+      <div class="kv"><span>${L('Branch', 'الفرع')}</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
+      <div class="kv"><span>${L('Rental days', 'أيام الإيجار')}</span><span>${i.rentalDays}${(r.extensionHistory || []).length ? ` (incl. +${r.extensionHistory!.reduce((s2, e) => s2 + e.days, 0)} extended)` : ''}</span></div>
+      <div class="kv"><span>${L('Returned', 'الإرجاع')}</span><span>${closed && returnedAt ? when(returnedAt.toISOString()) : '—'}</span></div></div>
   </div>
 
-  ${closed ? `<div class="card" style="margin-top:7px"><h2><span class="n">6</span>Check-out vs check-in</h2>
+  ${closed ? `<div class="card" style="margin-top:7px">${H('6', 'Check-out vs check-in', 'مقارنة التسليم والإرجاع')}
     <table class="cmp">
-      <tr><th></th><th>Check-out</th>${closed ? '<th>Check-in</th><th class="num">Difference</th>' : ''}</tr>
-      <tr><td>Date & time</td><td>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</td>${closed ? `<td>${returnedAt ? when(returnedAt.toISOString()) : '—'}</td><td class="num ${lateHours > 2 ? 'diff-bad' : ''}">${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'On time'}</td>` : ''}</tr>
-      <tr><td>Odometer</td><td>${km(r.pickupKmOut)}</td>${closed ? `<td>${km(r.dropOffKmIn)}</td><td class="num">${kmDriven != null ? '+' + km(kmDriven) : '—'}</td>` : ''}</tr>
-      <tr><td>Fuel</td><td>${fuel(r.pickupFuelLevel, '#111827')}</td>${closed ? `<td>${fuel(r.dropOffFuelLevel, fuelDiff != null && fuelDiff < 0 ? '#991b1b' : '#374151')}</td><td class="num ${fuelDiff != null && fuelDiff < 0 ? 'diff-bad' : 'diff-ok'}">${fuelDiff == null ? '—' : fuelDiff < 0 ? `${fuelDiff}/8 short` : fuelDiff > 0 ? `+${fuelDiff}/8` : 'Same level'}</td>` : ''}</tr>
-      <tr><td>Checklist</td><td>${okOut} of ${i.checklistItems.length} items OK</td>${closed ? `<td>${okIn} of ${i.checklistItems.length} items OK</td><td class="num ${missingAtReturn.length ? 'diff-bad' : 'diff-ok'}">${missingAtReturn.length ? `${missingAtReturn.length} missing` : 'All present'}</td>` : ''}</tr>
-      <tr><td>Damage marks</td><td>${pickupMarks.length} existing</td>${closed ? `<td>${returnMarks.length} new</td><td class="num ${returnMarks.length ? 'diff-bad' : 'diff-ok'}">${returnMarks.length ? `${returnMarks.length} new` : 'No new damage'}</td>` : ''}</tr>
-      <tr><td>Staff</td><td>${esc(r.pickupAgentName || '—')}</td>${closed ? `<td>${esc(r.dropOffAgentName || '—')}</td><td></td>` : ''}</tr>
+      <tr><th></th><th>${L('Check-out', 'التسليم')}</th>${closed ? `<th>${L('Check-in', 'الإرجاع')}</th><th class="num">${L('Difference', 'الفرق')}</th>` : ''}</tr>
+      <tr><td>${L('Date &amp; time', 'التاريخ والوقت')}</td><td>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</td>${closed ? `<td>${returnedAt ? when(returnedAt.toISOString()) : '—'}</td><td class="num ${lateHours > 2 ? 'diff-bad' : ''}">${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'On time'}</td>` : ''}</tr>
+      <tr><td>${L('Odometer', 'العداد')}</td><td>${km(r.pickupKmOut)}</td>${closed ? `<td>${km(r.dropOffKmIn)}</td><td class="num">${kmDriven != null ? '+' + km(kmDriven) : '—'}</td>` : ''}</tr>
+      <tr><td>${L('Fuel', 'الوقود')}</td><td>${fuel(r.pickupFuelLevel, '#111827')}</td>${closed ? `<td>${fuel(r.dropOffFuelLevel, fuelDiff != null && fuelDiff < 0 ? '#991b1b' : '#374151')}</td><td class="num ${fuelDiff != null && fuelDiff < 0 ? 'diff-bad' : 'diff-ok'}">${fuelDiff == null ? '—' : fuelDiff < 0 ? `${fuelDiff}/8 short` : fuelDiff > 0 ? `+${fuelDiff}/8` : 'Same level'}</td>` : ''}</tr>
+      <tr><td>${L('Checklist', 'قائمة الفحص')}</td><td>${okOut} of ${i.checklistItems.length} items OK</td>${closed ? `<td>${okIn} of ${i.checklistItems.length} items OK</td><td class="num ${missingAtReturn.length ? 'diff-bad' : 'diff-ok'}">${missingAtReturn.length ? `${missingAtReturn.length} missing` : 'All present'}</td>` : ''}</tr>
+      <tr><td>${L('Damage marks', 'علامات الأضرار')}</td><td>${pickupMarks.length} existing</td>${closed ? `<td>${returnMarks.length} new</td><td class="num ${returnMarks.length ? 'diff-bad' : 'diff-ok'}">${returnMarks.length ? `${returnMarks.length} new` : 'No new damage'}</td>` : ''}</tr>
+      <tr><td>${L('Staff', 'الموظف')}</td><td>${esc(r.pickupAgentName || '—')}</td>${closed ? `<td>${esc(r.dropOffAgentName || '—')}</td><td></td>` : ''}</tr>
     </table>
-  </div>` : `<div class="card" style="margin-top:7px"><h2><span class="n">6</span>Condition at check-out</h2>
+  </div>` : `<div class="card" style="margin-top:7px">${H('6', 'Condition at check-out', 'حالة المركبة عند التسليم')}
     <div class="cgrid">
-      <div><span>Date & time</span><b>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</b></div>
-      <div><span>Odometer</span><b>${km(r.pickupKmOut)}</b></div>
-      <div><span>Fuel</span><b>${fuel(r.pickupFuelLevel, '#111827')}</b></div>
-      <div><span>Checklist</span><b>${okOut} of ${i.checklistItems.length} items OK</b></div>
-      <div><span>Existing damage</span><b>${pickupMarks.length} mark${pickupMarks.length === 1 ? '' : 's'}</b></div>
-      <div><span>Handed over by</span><b>${esc(r.pickupAgentName || '—')}</b></div>
+      <div><span>${L('Date &amp; time', 'التاريخ والوقت')}</span><b>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</b></div>
+      <div><span>${L('Odometer', 'العداد')}</span><b>${km(r.pickupKmOut)}</b></div>
+      <div><span>${L('Fuel', 'الوقود')}</span><b>${fuel(r.pickupFuelLevel, '#111827')}</b></div>
+      <div><span>${L('Checklist', 'قائمة الفحص')}</span><b>${okOut} of ${i.checklistItems.length} items OK</b></div>
+      <div><span>${L('Existing damage', 'الأضرار الموجودة')}</span><b>${pickupMarks.length} mark${pickupMarks.length === 1 ? '' : 's'}</b></div>
+      <div><span>${L('Handed over by', 'المسلِّم')}</span><b>${esc(r.pickupAgentName || '—')}</b></div>
     </div>
   </div>`}
 
-  <div class="card" style="margin-top:7px"><h2><span class="n">7</span>Vehicle condition &amp; inspection</h2>
+  <div class="card" style="margin-top:7px">${H('7', 'Vehicle condition &amp; inspection', 'حالة المركبة والفحص')}
     <div class="views4">${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
-    <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>Existing at check-out (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>New at check-in (${returnMarks.length})` : ''}<span style="float:right">Checklist ${okOut}/${i.checklistItems.length} out${closed ? ` · ${okIn}/${i.checklistItems.length} in` : ''}</span></div>
+    <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>${L('Existing at check-out', 'موجودة عند التسليم')} (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>${L('New at check-in', 'جديدة عند الإرجاع')} (${returnMarks.length})` : ''}<span style="float:right">Checklist ${okOut}/${i.checklistItems.length} out${closed ? ` · ${okIn}/${i.checklistItems.length} in` : ''}</span></div>
     ${damageRegister}
     <div class="chips">${i.checklistItems.map(x => `<span>${tick(out[x])}${closed ? tick(back[x], !!out[x]) : ''}<em>${esc(x)}</em></span>`).join('')}</div>
   </div>
 
   <div class="${rc || sideNotes ? 'g2' : ''}" style="${rc || sideNotes ? '' : 'margin-top:7px'}">
-    <div class="card"><h2><span class="n">9</span>Charges, protection &amp; payment</h2>
+    <div class="card">${H('9', 'Charges, protection &amp; payment', 'الرسوم والحماية والدفع')}
       <table class="items">
-        <tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
-        <tr><td>Vehicle rental${r.sippCode ? ` (${esc(r.sippCode)})` : ''}</td><td class="num">${i.rentalDays} d</td><td class="num">${usd(i.rentalDays ? i.baseRentalFee / i.rentalDays : i.baseRentalFee)}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
+        <tr><th>${L('Description', 'البيان')}</th><th class="num">${L('Qty', 'الكمية')}</th><th class="num">${L('Rate', 'السعر')}</th><th class="num">${L('Amount', 'المبلغ')}</th></tr>
+        <tr><td>${L('Vehicle rental', 'أجرة المركبة')}${r.sippCode ? ` (${esc(r.sippCode)})` : ''}</td><td class="num">${i.rentalDays} d</td><td class="num">${usd(i.rentalDays ? i.baseRentalFee / i.rentalDays : i.baseRentalFee)}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
         ${(r.extras || []).map(e => `<tr><td>${esc(e.name)}</td><td class="num">${i.rentalDays} d</td><td class="num">${e.isComplementary ? '—' : usd(e.dailyPrice)}</td><td class="num">${e.isComplementary ? 'Included' : usd(e.dailyPrice * i.rentalDays)}</td></tr>`).join('')}
-        <tr class="tot"><td colspan="3">Total</td><td class="num">${usd(rentalTotal)}</td></tr>
-        <tr class="sub"><td colspan="3">Protection</td><td class="num">${protection.length ? esc(protection.map(e => e.name).join(', ')) : 'Standard cover'}</td></tr>
-        ${(r.securityDeposit || 0) > 0 ? `<tr class="sub"><td colspan="3">Security deposit (refundable)</td><td class="num">${usd(r.securityDeposit || 0)}</td></tr>` : ''}
-        ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">Damage excess (your maximum liability)</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
+        <tr class="tot"><td colspan="3">${L('Total', 'الإجمالي')}</td><td class="num">${usd(rentalTotal)}</td></tr>
+        <tr class="sub"><td colspan="3">${L('Protection', 'الحماية')}</td><td class="num">${protection.length ? esc(protection.map(e => e.name).join(', ')) : 'Standard cover · تغطية أساسية'}</td></tr>
+        ${(r.securityDeposit || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${usd(r.securityDeposit || 0)}</td></tr>` : ''}
+        ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Damage excess (your maximum liability)', 'مبلغ التحمّل (الحد الأقصى لمسؤوليتك)')}</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
       </table>
       <div class="settle info">${paymentLine}${r.paymentMethod && !i.prepaid ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && !i.prepaid ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
-    ${sideNotes ? `<div class="card"><h2><span class="n">10</span>${closed ? 'Notes' : 'Check-out notes'}</h2>${closed
-      ? `<div class="nl"><span>At check-out</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>At check-in</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`
+    ${sideNotes ? `<div class="card">${closed ? H('10', 'Notes', 'ملاحظات') : H('10', 'Check-out notes', 'ملاحظات التسليم')}${closed
+      ? `<div class="nl"><span>${L('At check-out', 'عند التسليم')}</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>${L('At check-in', 'عند الإرجاع')}</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`
       : `<div class="notes">${esc(r.pickupNotes)}</div>`}</div>` : ''}
-    ${rc ? `<div class="card"><h2><span class="n">10</span>Charges at check-in · ${esc(rc.documentNumber || '')}</h2>
+    ${rc ? `<div class="card">${H('10', `Charges at check-in · ${esc(rc.documentNumber || '')}`, 'رسوم الإرجاع')}
       <table>
         ${rc.items.map(it => `<tr><td>${esc(CHARGE_KIND_LABEL[it.kind])} — ${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
-        <tr class="tot"><td>Total</td><td class="num">${esc(formatMoney(chargesTotal(rc.items), rc.currency))}</td></tr>
+        <tr class="tot"><td>${L('Total', 'الإجمالي')}</td><td class="num">${esc(formatMoney(chargesTotal(rc.items), rc.currency))}</td></tr>
       </table>
       <div class="settle ${rc.settlement === 'paid' ? 'paid' : 'claim'}">${rc.settlement === 'paid'
         ? `Paid${rc.paymentMethod ? ' by ' + esc(PAYMENT_METHOD_LABEL[rc.paymentMethod].toLowerCase()) : ''}${rc.paymentReference ? ` · ref ${esc(rc.paymentReference)}` : ''} — see invoice ${esc(rc.documentNumber || '')}`
@@ -387,44 +424,46 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     </div>` : ''}
   </div>
 
-  ${photos.length ? `<div class="card" style="margin-top:7px"><h2>Photo evidence at check-in</h2><div class="photos">${photos.map(p => `<figure><img src="${esc(p.src)}"/><figcaption>${esc(p.cap)}</figcaption></figure>`).join('')}</div></div>` : ''}
+  ${photos.length ? `<div class="card" style="margin-top:7px">${H('', 'Photo evidence at check-in', 'صور الإثبات عند الإرجاع')}<div class="photos">${photos.map(p => `<figure><img src="${esc(p.src)}"/><figcaption>${esc(p.cap)}</figcaption></figure>`).join('')}</div></div>` : ''}
 
   ${closed && rc && (r.pickupNotes || r.dropOffNotes) ? `<div class="g2">
-    <div class="card"><h2>Check-out notes</h2><div class="notes">${esc(r.pickupNotes || '—')}</div></div>
-    <div class="card"><h2>Check-in notes</h2><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
+    <div class="card">${H('', 'Check-out notes', 'ملاحظات التسليم')}<div class="notes">${esc(r.pickupNotes || '—')}</div></div>
+    <div class="card">${H('', 'Check-in notes', 'ملاحظات الإرجاع')}<div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
   </div>` : ''}
 
-  <div class="card avoid" style="margin-top:7px"><h2><span class="n">11</span>Declaration &amp; signatures</h2>
+  <div class="card avoid" style="margin-top:7px">${H('11', 'Declaration &amp; signatures', 'الإقرار والتواقيع')}
     <p class="terms">${esc(PICKUP_TERMS)}${closed ? ' ' + esc(RETURN_TERMS) : ''} <b>The Renter confirms having read and accepted the attached Terms and Conditions of Rental.</b></p>
+    <p class="ardecl" lang="ar">${PICKUP_TERMS_AR}${closed ? ' ' + RETURN_TERMS_AR : ''} <b>ويقرّ المستأجر بأنه قرأ شروط وأحكام التأجير المرفقة ووافق عليها.</b></p>
     <div class="sg">
-      <div class="sgrp"><h3>Check-out</h3><div class="row">
-        ${sig(r.pickupRenterSignature, 'Renter', r.personName, r.pickupDateTime ? when(r.pickupDateTime) : undefined)}
-        ${sig(r.pickupAgentSignature, 'Company representative', r.pickupAgentName)}
+      <div class="sgrp"><h3>${L('Check-out', 'التسليم')}</h3><div class="row">
+        ${sig(r.pickupRenterSignature, L('Renter', 'المستأجر'), r.personName, r.pickupDateTime ? when(r.pickupDateTime) : undefined)}
+        ${sig(r.pickupAgentSignature, L('Company representative', 'ممثل الشركة'), r.pickupAgentName)}
       </div></div>
-      ${closed ? `<div class="sgrp"><h3>Check-in</h3><div class="row">
-        ${sig(r.dropOffRenterSignature, 'Renter', r.personName, returnedAt ? when(returnedAt.toISOString()) : undefined)}
-        ${sig(r.dropOffAgentSignature, 'Company representative', r.dropOffAgentName)}
-      </div></div>` : `<div class="sgrp next"><h3>At return</h3><p>When you bring the car back it is inspected with you and both of you sign the check-in. You then receive the final agreement and the rental termination statement by email.</p><p class="due">Please return by <b>${when(r.endDate)}</b>${i.locationName || r.locationName ? ` at ${esc(i.locationName || r.locationName)}` : ''}.</p></div>`}
+      ${closed ? `<div class="sgrp"><h3>${L('Check-in', 'الإرجاع')}</h3><div class="row">
+        ${sig(r.dropOffRenterSignature, L('Renter', 'المستأجر'), r.personName, returnedAt ? when(returnedAt.toISOString()) : undefined)}
+        ${sig(r.dropOffAgentSignature, L('Company representative', 'ممثل الشركة'), r.dropOffAgentName)}
+      </div></div>` : `<div class="sgrp next"><h3>${L('At return', 'عند الإرجاع')}</h3><p>When you bring the car back it is inspected with you and both of you sign the check-in. You then receive the final agreement and the rental termination statement by email.</p><p class="ardecl" lang="ar">عند إرجاع المركبة يتم فحصها بحضورك ويوقّع الطرفان على محضر الإرجاع، ثم تستلم العقد النهائي وبيان إنهاء الإيجار عبر البريد الإلكتروني.</p><p class="due">Please return by <b>${when(r.endDate)}</b>${i.locationName || r.locationName ? ` at ${esc(i.locationName || r.locationName)}` : ''}.</p></div>`}
     </div>
   </div>
 
-  <div class="foot"><span>${esc(i.company.name)}${i.company.subName ? ' · ' + esc(i.company.subName) : ''} · Agreement RA-${esc(r.bookingId)} · ${esc(i.locationAddress || i.locationName || r.locationName || '')}</span><span>Customer copy · signed electronically · ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
+  <div class="foot"><span>${esc(i.company.name)}${i.company.subName ? ' · ' + esc(i.company.subName) : ''} · Agreement RA-${esc(r.bookingId)} · ${esc(i.locationAddress || i.locationName || r.locationName || '')}</span><span>Customer copy · نسخة العميل · signed electronically · ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
 </div>
 
 <div class="pdf-page terms-page">
   <div class="terms-head">
-    <div>${i.logo ? `<img src="${i.logo}" alt="" style="height:20px">` : `<b>${esc(i.company.name)}</b>`}<h1>Terms and Conditions of Rental</h1></div>
+    <div>${i.logo ? `<img src="${i.logo}" alt="" style="height:20px">` : `<b>${esc(i.company.name)}</b>`}<h1>Terms and Conditions of Rental<bdi class="ar">شروط وأحكام التأجير</bdi></h1></div>
     <div class="meta">Agreement <b class="mono">RA-${esc(r.bookingId)}</b><br>${esc(i.company.name)}${i.company.subName ? ' · ' + esc(i.company.subName) : ''}</div>
   </div>
-  <div class="tcols">
-    ${clauses.map((c, n) => `<div class="clause">${c.title ? `<h4><span>${n + 1}.</span>${esc(c.title)}</h4>` : ''}<p>${esc(c.body)}</p></div>`).join('')}
+  <div class="terms-bi">
+    <div><div class="lang">English</div>${clauses.map((c, n) => `<div class="clause">${c.title ? `<h4><span>${n + 1}.</span>${esc(c.title)}</h4>` : ''}<p>${esc(c.body)}</p></div>`).join('')}</div>
+    <div class="rtl" lang="ar" dir="rtl"><div class="lang">العربية</div>${clausesAr.map((c, n) => `<div class="clause">${c.title ? `<h4><span>${n + 1}.</span>${esc(c.title)}</h4>` : ''}<p>${esc(c.body)}</p></div>`).join('')}</div>
   </div>
   <div class="ack avoid">
-    <p>I have read, understood and accept these Terms and Conditions and the condition of the vehicle recorded in this agreement.</p>
-    ${sig(r.pickupRenterSignature, 'Renter', r.personName, r.pickupDateTime ? when(r.pickupDateTime) : undefined)}
-    ${sig(r.pickupAgentSignature, 'For the Company', r.pickupAgentName)}
+    <p>I have read, understood and accept these Terms and Conditions and the condition of the vehicle recorded in this agreement.<span class="ardecl" style="display:block">أقرّ بأنني قرأت وفهمت هذه الشروط والأحكام وأوافق عليها وعلى حالة المركبة المسجّلة في هذا العقد.</span></p>
+    ${sig(r.pickupRenterSignature, L('Renter', 'المستأجر'), r.personName, r.pickupDateTime ? when(r.pickupDateTime) : undefined)}
+    ${sig(r.pickupAgentSignature, L('For the Company', 'عن الشركة'), r.pickupAgentName)}
   </div>
-  <div class="foot"><span>${esc(i.company.name)} · ${esc(i.company.address)} · ${esc(i.company.phone)}${i.company.website ? ' · ' + esc(i.company.website) : ''}</span><span>RA-${esc(r.bookingId)} · Terms</span></div>
+  <div class="foot"><span>${esc(i.company.name)} · ${esc(i.company.address)} · ${esc(i.company.phone)}${i.company.website ? ' · ' + esc(i.company.website) : ''}</span><span>RA-${esc(r.bookingId)} · Terms · الشروط</span></div>
 </div>
 </body></html>`;
 }
