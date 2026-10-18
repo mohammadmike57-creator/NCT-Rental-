@@ -53,15 +53,27 @@ export class ReservationService {
         const { y, m, id } = globalInvoiceMap.get(key)!;
         const index = updatedData[y][m].findIndex(r => r.id === id);
         if (index !== -1) {
+          const existing = updatedData[y][m][index];
           // Update existing, keeping its original storage bucket and ID
           updatedData[y][m][index] = { 
-            ...updatedData[y][m][index], 
+            ...existing, 
             ...res, 
             id: id, 
             storageYear: y, 
             storageMonth: m,
             updatedAt: new Date().toISOString() 
           };
+          // An agreement opened at the counter before the booking was entered: the import
+          // lists it. The car actually handed over and the counter notes are kept.
+          if (existing.awaitingConfirmation) {
+            Object.assign(updatedData[y][m][index], {
+              awaitingConfirmation: false,
+              confirmedBy: 'Excel import',
+              confirmedAt: new Date().toISOString(),
+              notes: [existing.notes, res.notes].filter(Boolean).join(' · '),
+              ...(existing.voucherSubmitted ? { carModel: existing.carModel || res.carModel, licensePlate: existing.licensePlate } : {}),
+            });
+          }
         }
       } else {
         // Create new in target bucket

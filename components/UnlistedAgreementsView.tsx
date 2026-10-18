@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AppData, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus, User } from '../types';
-import { Page, PageHeader, StatGrid, Panel, Tabs, Toolbar, Badge, Button, Plate, EmptyState, Dialog, Field, inputCls, selectCls, textareaCls, table } from './ui/Crm';
+import { Page, PageHeader, StatGrid, Panel, Tabs, Toolbar, Badge, Button, Plate, EmptyState, Dialog, Field, Segmented, inputCls, selectCls, textareaCls, table } from './ui/Crm';
+import { matchScore } from '../services/agreementLink';
 import { DocumentReportIcon, PlusIcon, SearchIcon } from './icons';
 
 type Located = { res: Reservation; year: number; month: string };
@@ -15,6 +16,8 @@ interface Props {
   onOpenAgreement: (res: Reservation, year: number, month: string) => void;
   onList: (updated: Reservation, original: Reservation) => Promise<void>;
   onSaveDraft: (updated: Reservation) => Promise<void>;
+  /** Moves the agreement onto a reservation that is already in the system and removes the temporary record. */
+  onLink: (target: Reservation, agreement: Reservation) => Promise<void>;
   onReject: (res: Reservation) => void;
   onNewWalkIn: () => void;
 }
@@ -52,7 +55,7 @@ export function missingDetails(r: Reservation, sources: RentalSource[]): { key: 
 const agreementState = (r: Reservation) =>
   r.dropOffCompleted ? { label: 'Returned', tone: 'muted' as const } : r.voucherSubmitted ? { label: 'On rent', tone: 'success' as const } : { label: 'Not checked out', tone: 'info' as const };
 
-const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocations, fleet, currentUser, canEdit, onOpenAgreement, onList, onSaveDraft, onReject, onNewWalkIn }) => {
+const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocations, fleet, currentUser, canEdit, onOpenAgreement, onList, onSaveDraft, onLink, onReject, onNewWalkIn }) => {
   const [tab, setTab] = useState<'waiting' | 'listed' | 'rejected'>('waiting');
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Located | null>(null);
@@ -104,8 +107,8 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
       <PageHeader
         section="Core Operations"
         title="Unlisted agreements"
-        subtitle="Agreements opened for bookings that were not in the reservation list. Complete the booking details and list them as reservations."
-        actions={<Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={onNewWalkIn}>New walk-in agreement</Button>}
+        subtitle="Agreements opened at the counter before the booking was entered in the system. The reservations team links each one to its booking, or creates the reservation from it."
+        actions={<Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={onNewWalkIn}>Open agreement without reservation</Button>}
       />
 
       <StatGrid items={[
@@ -133,7 +136,7 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
         {rows.length === 0 ? (
           <EmptyState icon={<DocumentReportIcon />}
             title={tab === 'waiting' ? 'Nothing waiting to be listed' : tab === 'listed' ? 'No listed agreements yet' : 'No rejected agreements'}
-            hint={tab === 'waiting' ? 'Agreements opened with “Walk-in agreement” for bookings that are not in the list appear here until you add them as reservations.' : undefined} />
+            hint={tab === 'waiting' ? 'When the counter opens an agreement for a booking that is not in the system yet, it appears here until the reservations team lists it.' : undefined} />
         ) : (
           <>
             <table className={`hidden lg:table ${table.wrap}`}>
@@ -224,6 +227,7 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
           onClose={() => setEditing(null)}
           onSaveDraft={async r => { await onSaveDraft(r); setEditing(null); }}
           onList={async r => { await onList(r, editing.res); setEditing(null); setTab('listed'); }}
+          onLink={async target => { await onLink(target, editing.res); setEditing(null); setTab('listed'); }}
         />
       )}
     </Page>
@@ -242,8 +246,26 @@ const ListReservationDialog: React.FC<{
   onClose: () => void;
   onSaveDraft: (r: Reservation) => Promise<void>;
   onList: (r: Reservation) => Promise<void>;
-}> = ({ item, allData, sources, rentalLocations, fleet, currentUser, onClose, onSaveDraft, onList }) => {
+  onLink: (target: Reservation) => Promise<void>;
+}> = ({ item, allData, sources, rentalLocations, fleet, currentUser, onClose, onSaveDraft, onList, onLink }) => {
   const original = item.res;
+  const [mode, setMode] = useState<'create' | 'link'>('create');
+  const [linkQ, setLinkQ] = useState('');
+  const [linkId, setLinkId] = useState<string | null>(null);
+  // Reservations already in the system that this agreement could belong to (no agreement of their own yet).
+  const candidates = useMemo(() => {
+    const list: { res: Reservation; score: number }[] = [];
+    Object.values(allData || {}).forEach(months => Object.values(months || {}).forEach(items => (Array.isArray(items) ? items : []).forEach((r: Reservation) => {
+      if (r.id === original.id || r.awaitingConfirmation || r.voucherSubmitted || r.status === ReservationStatus.CANCELLED) return;
+      list.push({ res: r, score: matchScore(r, original) });
+    })));
+    return list.sort((a, b) => b.score - a.score);
+  }, [allData, original]);
+  const lt = linkQ.trim().toLowerCase();
+  const shownCandidates = (lt
+    ? candidates.filter(c => [c.res.bookingId, c.res.personName, c.res.contactNumber, c.res.customerEmail].some(v => (v || '').toLowerCase().includes(lt)))
+    : candidates.filter(c => c.score >= 25)).slice(0, 8);
+  const linkTarget = candidates.find(c => c.res.id === linkId)?.res;
   // Unlisted agreements store the source by name; normal reservations store its id.
   const initialSource = sources.find(s => s.id === original.source)?.id || sources.find(s => s.name === original.source)?.id || '';
   const [f, setF] = useState({
@@ -284,7 +306,7 @@ const ListReservationDialog: React.FC<{
   if (!f.locationName) errors.locationName = 'Choose the branch';
   if (!(f.amount > 0)) errors.amount = 'Enter the rental amount';
   const warnings: string[] = [];
-  if (WALK_REF.test(f.bookingId)) warnings.push('The booking still has the temporary walk-in reference. Replace it with the partner booking number if there is one.');
+  if (WALK_REF.test(f.bookingId)) warnings.push('The booking still has the temporary counter reference. Replace it with the website or partner booking number.');
   if (!f.customerEmail.trim()) warnings.push('No customer email: the customer will not receive documents by email.');
   const canList = Object.keys(errors).length === 0;
 
@@ -311,12 +333,58 @@ const ListReservationDialog: React.FC<{
     <Dialog open onClose={onClose} size="xl"
       title="Add to reservations"
       subtitle={<>Agreement <span className="font-mono">{original.bookingId}</span> · {original.personName} · opened by {original.unlistedCreatedBy || original.createdBy || 'staff'}</>}
-      footer={<>
+      footer={mode === 'link' ? <>
+        <span className="mr-auto self-center text-xs text-slate-500">{linkTarget ? <>The agreement moves to <b className="font-mono">{linkTarget.bookingId}</b>; the temporary record <span className="font-mono">{original.bookingId}</span> is removed.</> : 'Choose the reservation this agreement belongs to.'}</span>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="primary" disabled={!linkTarget || !!busy} onClick={async () => {
+          if (!linkTarget) return;
+          if (!window.confirm(`Link agreement ${original.bookingId} to reservation ${linkTarget.bookingId} (${linkTarget.personName})?`)) return;
+          setBusy('list'); try { await onLink(linkTarget); } finally { setBusy(null); }
+        }}>{busy === 'list' ? 'Linking…' : 'Link agreement'}</Button>
+      </> : <>
         <span className="mr-auto self-center text-xs text-slate-500">{canList ? 'All required details are complete.' : `${missingCount} required detail${missingCount === 1 ? '' : 's'} missing`}</span>
         <Button onClick={onClose}>Cancel</Button>
         <Button disabled={!!busy} onClick={async () => { setBusy('draft'); try { await onSaveDraft(build(false)); } finally { setBusy(null); } }}>{busy === 'draft' ? 'Saving…' : 'Save without listing'}</Button>
         <Button variant="primary" disabled={!canList || !!busy} onClick={async () => { setBusy('list'); try { await onList(build(true)); } finally { setBusy(null); } }}>{busy === 'list' ? 'Listing…' : 'List reservation'}</Button>
       </>}>
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center gap-3">
+        <Segmented value={mode} onChange={k => setMode(k as 'create' | 'link')} options={[
+          { key: 'create', label: 'Create a new reservation' },
+          { key: 'link', label: `Link to an existing reservation${candidates.some(c => c.score >= 60) ? ' · match found' : ''}` },
+        ]} />
+        <p className="text-xs text-slate-500">{mode === 'create' ? 'Use when the booking is not in the system yet.' : 'Use when the website or partner booking has since been entered or imported.'}</p>
+      </div>
+      {mode === 'link' ? (
+        <div className="space-y-3">
+          <div className="relative max-w-md">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input value={linkQ} onChange={e => setLinkQ(e.target.value)} placeholder="Search booking number, customer, phone or email" className={`${inputCls} pl-9`} />
+          </div>
+          {shownCandidates.length === 0 ? (
+            <EmptyState title={lt ? 'No reservation matches your search' : 'No likely match found'}
+              hint={lt ? 'Check the booking number, or create a new reservation instead.' : 'Search for the booking, or use “Create a new reservation” if it has not been entered yet.'} />
+          ) : (
+            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
+              {shownCandidates.map(({ res: c, score }) => (
+                <li key={c.id}>
+                  <label className={`flex items-center gap-3 px-4 py-3 cursor-pointer ${linkId === c.id ? 'bg-indigo-50/60' : 'hover:bg-slate-50'}`}>
+                    <input type="radio" name="link-target" checked={linkId === c.id} onChange={() => setLinkId(c.id)} className="text-indigo-600 focus:ring-indigo-500" />
+                    <div className="min-w-0 flex-1 grid grid-cols-1 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-4 gap-y-0.5 items-center text-[13px]">
+                      <div className="min-w-0"><p className="font-mono font-semibold text-slate-900">{c.bookingId}</p><p className="text-[11px] text-slate-500 truncate">{sources.find(s => s.id === c.source)?.name || c.source || '—'}</p></div>
+                      <div className="min-w-0"><p className="font-medium text-slate-900 truncate">{c.personName}</p><p className="text-[11px] text-slate-500 truncate">{c.contactNumber || c.customerEmail || '—'}</p></div>
+                      <div className="min-w-0"><p className="text-slate-800 truncate">{c.carModel || '—'}</p><p className="text-[11px] text-slate-500">{dt(c.startDate)} → {dt(c.endDate)}</p></div>
+                      <div className="sm:text-right">{c.bookingId && c.bookingId.trim().toLowerCase() === (original.bookingId || '').trim().toLowerCase() ? <Badge tone="success">Same booking no.</Badge> : score >= 60 ? <Badge tone="success">Strong match</Badge> : score >= 25 ? <Badge tone="info">Possible match</Badge> : <Badge tone="muted">Search result</Badge>}<p className="text-[11px] text-slate-500 tabular-nums mt-0.5">{money(c.amount)}</p></div>
+                    </div>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            <b className="text-slate-800">What moves to the reservation:</b> check-out and check-in records, signatures, damage marks, checklist, fuel and km, driver documents, payment details, emails sent and return charges. The car actually handed over replaces the booked model. Booking details (number, source, price) stay as the reservation has them.
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           <section>
@@ -402,6 +470,7 @@ const ListReservationDialog: React.FC<{
           <p className="text-xs text-slate-500">Listing moves the agreement into Reservations under its pickup month. The agreement, signatures and documents stay attached.</p>
         </aside>
       </div>
+      )}
     </Dialog>
   );
 };

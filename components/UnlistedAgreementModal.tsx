@@ -103,9 +103,9 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
     <div className="bg-slate-50 -m-4 sm:m-0 h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-xl shadow-2xl overflow-hidden flex flex-col" role="dialog" aria-modal="true">
       <header className="px-5 py-4 bg-white border-b border-slate-200 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-slate-900">Agreement for an unlisted booking</h3>
+          <h3 className="text-base font-semibold text-slate-900">Agreement without reservation</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            <span className="font-mono">{d.bookingId || '—'}</span> · For walk-ins or bookings not yet in the list. Saved as <Badge tone="warning" dot={false} className="align-middle">Awaiting confirmation</Badge> until a supervisor confirms it.
+            For a customer whose booking (for example from the website) is not in the system yet. Saved as <Badge tone="warning" dot={false} className="align-middle">Unlisted</Badge> until the reservations team links it to the booking.
           </p>
         </div>
         <button onClick={onCancel} aria-label="Close" className="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100">
@@ -131,7 +131,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
 
           <Panel title="Booking" padded>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Booking reference" required error={err('bookingId')} hint="Auto-generated — replace with the partner reference if there is one">
+              <Field label="Website / partner booking no." required error={err('bookingId')} hint="Enter it if the customer has it, so the booking is matched automatically. Otherwise keep the temporary number.">
                 <input className={`${inputCls(!!err('bookingId'))} font-mono`} value={d.bookingId} onChange={e => set('bookingId', e.target.value)} />
               </Field>
               <Field label="Source">
@@ -204,8 +204,8 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
             <p className="font-semibold mb-1">What happens next</p>
             <ol className="list-decimal ml-4 space-y-0.5">
               <li>The rental agreement opens so you can inspect, sign and check out the car.</li>
-              <li>The booking appears under <b>Awaiting confirmation</b> in the reservation list.</li>
-              <li>A supervisor confirms or rejects it. The agreement stays fully usable meanwhile.</li>
+              <li>It appears in <b>Unlisted agreements</b> for the reservations team.</li>
+              <li>The team links it to the website booking once it is entered, or creates the reservation from it. The agreement stays fully usable meanwhile.</li>
             </ol>
           </div>
         </aside>

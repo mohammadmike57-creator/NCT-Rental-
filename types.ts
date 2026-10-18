@@ -260,6 +260,8 @@ export interface Reservation {
   unlistedCreatedAt?: string;
   confirmedBy?: string;
   confirmedAt?: string;
+  /** Reference of the counter agreement that was linked into this reservation. */
+  linkedAgreementRef?: string;
   agreementEmails?: { to: string; kind: 'checkout' | 'checkin' | 'exchange' | 'extension'; sentAt: string }[];
   returnCharges?: ReturnCharges;
   upgradeHistory?: { date: string; fromCar?: string; toCar: string; fee: number; pricing?: 'free' | 'daily' | 'flat'; dailyRate?: number; days?: number; by?: string }[];

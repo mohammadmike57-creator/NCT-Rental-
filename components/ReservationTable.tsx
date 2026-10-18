@@ -735,7 +735,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             {onOpenUnlistedAgreement && canViewVoucherActions && (
               <button onClick={onOpenUnlistedAgreement} title="Open a rental agreement for a booking that is not in the list"
                 className="h-9 inline-flex items-center justify-center gap-2 px-3 bg-white border border-slate-200 text-slate-700 text-[13px] font-semibold rounded-lg hover:bg-slate-50 shadow-sm whitespace-nowrap">
-                <DocumentReportIcon className="w-4 h-4 text-amber-600" /> Unlisted agreement
+                <DocumentReportIcon className="w-4 h-4 text-amber-600" /> Agreement without reservation
               </button>
             )}
             <button onClick={openAddModal} className={`${onOpenUnlistedAgreement && canViewVoucherActions ? '' : 'col-span-2 '}h-9 inline-flex items-center justify-center gap-2 px-3.5 bg-indigo-600 text-white text-[13px] font-semibold rounded-lg hover:bg-indigo-700 shadow-sm whitespace-nowrap`}>

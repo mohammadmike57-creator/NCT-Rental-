@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } fr
 import { v4 as uuidv4 } from 'uuid';
 import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
+import { mergeAgreementInto } from './services/agreementLink';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
@@ -660,75 +661,8 @@ export const App: React.FC = () => {
         });
     }, []);
 
-    useEffect(() => {
-        if (isLoading) return;
-    
-        const performPeriodicChecks = () => {
-            const now = new Date();
-            const nowTime = now.getTime();
-            const oneHour = 60 * 60 * 1000;
-            const twoHours = 2 * oneHour;
-            const twentyFourHours = 24 * oneHour;
-
-            const sendPushNotification = (title: string, body: string, tag: string) => {
-                if (notificationPermission === 'granted' && 'serviceWorker' in navigator && 'showNotification' in ServiceWorkerRegistration.prototype) {
-                    navigator.serviceWorker.ready.then(registration => {
-                        registration.showNotification(title, { body, icon: '/images/icons/icon-192.png', badge: '/images/icons/icon-192.png', tag });
-                    });
-                }
-            };
-    
-            const activeRecurringAlerts = new Set<string>();
-    
-            allReservationsFlat.forEach(res => {
-                if (res.status === ReservationStatus.CONFIRMED && !res.voucherSubmitted) {
-                    const startTime = new Date(res.startDate).getTime();
-                    const timeToPickup = startTime - nowTime;
-                    if (timeToPickup > 0 && timeToPickup <= twentyFourHours) {
-                        const alertKey = `pickup-${res.id}`;
-                        activeRecurringAlerts.add(alertKey);
-                        const lastAlertTime = recurringAlertsTrackerRef.current[alertKey];
-                        if (!lastAlertTime || nowTime - lastAlertTime > oneHour) {
-                            const hoursRemaining = (timeToPickup / oneHour).toFixed(0);
-                            const title = 'Upcoming Pickup Reminder';
-                            const body = `Reservation for ${res.personName} (${res.carModel}) is due for pickup in ~${hoursRemaining} hour(s).`;
-                            addNotification(body, 'info', title);
-                            sendPushNotification(title, body, alertKey);
-                            recurringAlertsTrackerRef.current[alertKey] = nowTime;
-                        }
-                    }
-                }
-    
-                if (res.status === ReservationStatus.CONFIRMED && res.voucherSubmitted && !res.dropOffCompleted) {
-                     const endTime = new Date(res.endDate).getTime();
-                     if (nowTime > endTime + twoHours) {
-                        const alertKey = `dropoff-${res.id}`;
-                        activeRecurringAlerts.add(alertKey);
-                        const lastAlertTime = recurringAlertsTrackerRef.current[alertKey];
-                        if (!lastAlertTime || nowTime - lastAlertTime > oneHour) {
-                            const hoursOverdue = ((nowTime - endTime) / oneHour).toFixed(0);
-                            const title = 'Overdue Return Alert';
-                            const body = `Rental for ${res.personName} (${res.carModel}) is overdue by ${hoursOverdue} hour(s). Please close or extend the agreement.`;
-                            addNotification(body, 'warning', title);
-                            sendPushNotification(title, body, alertKey);
-                            recurringAlertsTrackerRef.current[alertKey] = nowTime;
-                        }
-                     }
-                }
-            });
-    
-            Object.keys(recurringAlertsTrackerRef.current).forEach(key => {
-                if (!activeRecurringAlerts.has(key)) {
-                    delete recurringAlertsTrackerRef.current[key];
-                }
-            });
-        };
-    
-        const intervalId = setInterval(performPeriodicChecks, 60 * 1000);
-        performPeriodicChecks();
-    
-        return () => clearInterval(intervalId);
-    }, [isLoading, allReservationsFlat, fleet, notificationPermission, addNotification]);
+    // Automatic pickup / overdue pop-ups and browser notifications were removed on request:
+    // the dashboard, Late Returns and the planning board show the same information without interrupting staff.
   
   const handleEnableNotifications = async () => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -922,7 +856,7 @@ export const App: React.FC = () => {
       setSaveStatus('saved');
       setShowUnlistedAgreement(false);
       setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }));
-      showConfirmation(`Agreement ${reservation.bookingId} opened. It is in Unlisted agreements until you add it as a reservation.`);
+      showConfirmation(`Agreement ${reservation.bookingId} opened. The reservations team will list it from Unlisted agreements.`);
       recordActivity('UNLISTED_AGREEMENT_CREATED', 'reservation', `Opened an agreement for unlisted booking — ${reservation.personName}, ${reservation.carModel}`, reservation.bookingId);
     } catch (err) {
       setSaveStatus('error');
@@ -1451,6 +1385,23 @@ ${currentUser?.fullName}
       addNotification('Could not list the reservation. Check your connection and try again.', 'error');
     }
   };
+  /** Counter agreement → the website/partner reservation entered later; the temporary record is removed. */
+  const handleLinkUnlisted = async (target: Reservation, agreement: Reservation) => {
+    const merged = mergeAgreementInto(target, agreement, currentUser?.fullName);
+    setSaveStatus('saving');
+    try {
+      await reservationService.updateReservation({ ...merged, lastEditedBy: currentUser?.fullName, updatedAt: new Date().toISOString() });
+      const data = await reservationService.deleteReservation(agreement.id, agreement.storageYear, agreement.storageMonth);
+      setReservations(data);
+      setSaveStatus('saved');
+      showConfirmation(`Agreement ${agreement.bookingId} is now attached to reservation ${target.bookingId}.`);
+      recordActivity('UNLISTED_LINKED', 'reservation', `Linked counter agreement ${agreement.bookingId} to reservation ${target.bookingId} — ${target.personName}`, target.bookingId);
+    } catch (err) {
+      setSaveStatus('error');
+      console.error('Failed to link agreement:', err);
+      addNotification('Could not link the agreement. Check your connection and try again.', 'error');
+    }
+  };
   const handleSaveUnlistedDraft = async (updated: Reservation) => {
     await handleUpdateReservations(updated);
     showConfirmation(`Details saved for ${updated.bookingId}. It stays in Unlisted agreements until you list it.`);
@@ -1630,6 +1581,7 @@ ${currentUser?.fullName}
             onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
             onList={handleListUnlisted}
             onSaveDraft={handleSaveUnlistedDraft}
+            onLink={handleLinkUnlisted}
             onReject={handleRejectUnlisted}
             onNewWalkIn={() => setShowUnlistedAgreement(true)}
         />
@@ -1922,7 +1874,7 @@ ${currentUser?.fullName}
 
   const newItems = [
     { label: 'Reservation', hint: 'Create a booking', show: hasPermission(currentUser, UserPermission.VIEW_RESERVATIONS), run: () => { handleNavigation('Reservations'); setTimeout(() => window.dispatchEvent(new CustomEvent('nct:new-reservation')), 350); } },
-    { label: 'Walk-in agreement', hint: 'Agreement for a booking not in the list', show: true, run: () => setShowUnlistedAgreement(true) },
+    { label: 'Agreement without reservation', hint: 'Customer is here but the booking is not in the system yet', show: true, run: () => setShowUnlistedAgreement(true) },
     { label: 'Traffic ticket', hint: 'Record a fine', show: hasPermission(currentUser, UserPermission.VIEW_TRAFFIC_TICKETS), run: () => handleNavigation('Traffic Tickets') },
     { label: 'Damage report', hint: 'Record vehicle damage', show: hasPermission(currentUser, UserPermission.VIEW_TRAFFIC_TICKETS), run: () => handleNavigation('Vehicle Damages') },
     { label: 'Partner invoice', hint: 'Bill a booking partner', show: hasPermission(currentUser, UserPermission.VIEW_REPORTS_INVOICE_GENERATION), run: () => handleNavigation('Invoice Generation') },
@@ -2032,22 +1984,6 @@ ${currentUser?.fullName}
                     {!sidebarCollapsed && <span>Collapse menu</span>}
                 </button>
                 <div className={sidebarCollapsed ? 'md:hidden space-y-1' : 'space-y-1'}>
-                {notificationPermission === 'denied' ? (
-                    <div className="flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-500 rounded-md cursor-not-allowed" title="Notifications are blocked in your browser settings.">
-                        <BellSlashIcon />
-                        <span>Notifications blocked</span>
-                    </div>
-                ) : isPushSubscribed ? (
-                    <button onClick={handleDisableNotifications} className="flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-400 hover:bg-white/5 hover:text-white rounded-md transition-colors">
-                        <BellSlashIcon />
-                        <span>Turn off notifications</span>
-                    </button>
-                ) : (
-                    <button onClick={handleEnableNotifications} className="flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-400 hover:bg-white/5 hover:text-white rounded-md transition-colors">
-                        <BellIcon />
-                        <span>Turn on notifications</span>
-                    </button>
-                )}
                 <div className="mt-1 flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.04]">
                     <div className="w-8 h-8 rounded-full bg-indigo-500/90 text-white text-xs font-semibold flex items-center justify-center shrink-0">{userInitials}</div>
                     <div className="min-w-0 flex-1 leading-tight">
@@ -2135,11 +2071,6 @@ ${currentUser?.fullName}
                                 </div>
                                 {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
                                     <button role="menuitem" onClick={() => { setOpenMenu(null); handleNavigation('My Profile'); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">My profile</button>
-                                )}
-                                {notificationPermission !== 'denied' && (
-                                    <button role="menuitem" onClick={() => { setOpenMenu(null); (isPushSubscribed ? handleDisableNotifications : handleEnableNotifications)(); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">
-                                        {isPushSubscribed ? 'Turn off notifications' : 'Turn on notifications'}
-                                    </button>
                                 )}
                                 <button role="menuitem" onClick={() => { setOpenMenu(null); toggleSidebarCollapsed(); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">{sidebarCollapsed ? 'Expand side menu' : 'Collapse side menu'}</button>
                                 <div className="border-t border-slate-100 mt-1 pt-1">
