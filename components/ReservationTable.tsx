@@ -4,6 +4,8 @@ import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, Ren
 import { MONTHS } from '../constants';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
+import ReservationWizard from './reservation/ReservationWizard';
+import ReservationRecord from './reservation/ReservationRecord';
 import { recordActivity } from '../firebase/api';
 import { agreementHtmlFor, printHtml, terminationHtmlFor } from '../services/printDocs';
 import { 
@@ -39,50 +41,6 @@ import {
   EditIcon,
   ShieldExclamationIcon
 } from './icons';
-
-// Modal component (with animation)
-const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode; footer?: React.ReactNode }> = ({ isOpen, onClose, title, children, footer }) => {
-  const [shouldRender, setShouldRender] = useState(isOpen);
-  const [animationClass, setAnimationClass] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-      setShouldRender(true);
-      setAnimationClass("animate-modal-enter");
-    } else {
-      setAnimationClass("animate-modal-exit");
-      const timer = setTimeout(() => {
-        setShouldRender(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  if (!shouldRender) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className={`absolute inset-0 bg-slate-900/50 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} aria-hidden="true" />
-      <div className={`relative bg-white w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-xl shadow-2xl flex flex-col overflow-hidden ${animationClass}`}>
-        <div className="flex justify-between items-center px-5 sm:px-6 py-4 border-b border-slate-200">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 tracking-tight" id="modal-title">{title}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Fields marked * are required</p>
-          </div>
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100">
-            <CloseIcon className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-6 custom-scrollbar">{children}</div>
-        <div className="bg-slate-50 px-5 sm:px-6 py-3.5 border-t border-slate-200 flex justify-end gap-2">
-          {footer || (
-            <button type="button" onClick={onClose} className="h-9 px-4 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50">Done</button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 interface ReservationTableProps {
   allData: AppData;
@@ -292,6 +250,13 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     setModalMode('add');
     setIsModalOpen(true);
   };
+  // The top bar's "New → Reservation" opens the wizard here.
+  useEffect(() => {
+    const onNew = () => openAddModal();
+    window.addEventListener('nct:new-reservation', onNew);
+    return () => window.removeEventListener('nct:new-reservation', onNew);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openUpgradeModal = (res: Reservation) => {
     setUpgradeReservation(res);
@@ -1047,463 +1012,42 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         );
       })()}
 
-      {/* Booking detail panel */}
-      {drawerRes && (() => {
-        const res = drawerRes;
-        const stage = stageOf(res);
-        const alert = alertOf(res);
-        const kind = vehicleKind(res.carModel, fleet);
-        const days = rentalDaysOf(res);
-        const acts = actionsFor(res);
-        const quickActs = acts.filter(a => a.section === 'booking');
-        const docActs = acts.filter(a => a.section === 'documents');
-        const danger = acts.filter(a => a.section === 'danger');
-        const extras = res.extras || [];
-        const extrasTotal = extras.reduce((s, e) => s + (e.isComplementary ? 0 : (e.dailyPrice || 0) * days), 0);
-        const extensions = res.extensionHistory || [];
-        const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-          <div className="flex items-start justify-between gap-4 py-2">
-            <dt className="text-slate-500 shrink-0">{label}</dt>
-            <dd className="text-right text-slate-900 font-medium min-w-0 break-words">{children}</dd>
-          </div>
-        );
-        const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-          <section className="px-5 py-4 border-b border-slate-100">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">{title}</h4>
-            {children}
-          </section>
-        );
-        return (
-          <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={`Reservation ${res.bookingId}`}>
-            <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]" onClick={() => setDetailsModalReservation(null)} />
-            <aside className="absolute inset-y-0 right-0 w-full sm:w-[480px] bg-white shadow-2xl flex flex-col">
-              <header className="px-5 pt-4 pb-3 border-b border-slate-200">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Reservation</span>
-                    <span className="font-mono text-sm font-semibold text-slate-900">{res.bookingId || 'NO-ID'}</span>
-                  </div>
-                  <button onClick={() => setDetailsModalReservation(null)} aria-label="Close" className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100"><CloseIcon className="w-5 h-5" /></button>
-                </div>
-                <h3 className="mt-1 text-xl font-semibold text-slate-900 tracking-tight truncate">{res.personName || 'Unnamed'}</h3>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-500">
-                  {res.contactNumber && <a href={`tel:${res.contactNumber}`} className="inline-flex items-center gap-1 hover:text-indigo-600"><PhoneIcon className="w-3.5 h-3.5" />{res.contactNumber}</a>}
-                  {res.customerEmail && <a href={`mailto:${res.customerEmail}`} className="inline-flex items-center gap-1 hover:text-indigo-600 truncate"><MailIcon className="w-3.5 h-3.5" />{res.customerEmail}</a>}
-                </div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                  <StatusBadge res={res} withAlert={false} />
-                  {alert && <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${/overdue/i.test(alert.label) ? 'bg-rose-50 text-rose-700' : 'bg-sky-50 text-sky-700'}`}>{alert.label}</span>}
-                  {res.awaitingConfirmation && <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700">Awaiting confirmation</span>}
-                </div>
-              </header>
+      {/* Reservation record */}
+      {drawerRes && (
+        <ReservationRecord
+          key={drawerRes.id}
+          res={drawerRes}
+          stage={stageOf(drawerRes)}
+          statusBadge={<StatusBadge res={drawerRes} withAlert={false} />}
+          alert={alertOf(drawerRes)}
+          primaryAction={<PrimaryAction res={drawerRes} full />}
+          showPrimary={canViewVoucherActions && stageOf(drawerRes) !== 'cancelled'}
+          actions={actionsFor(drawerRes)}
+          sourceName={drawerRes.source ? getSourceName(drawerRes.source) : ''}
+          fleet={fleet}
+          onClose={() => setDetailsModalReservation(null)}
+        />
+      )}
 
-              {(canViewVoucherActions || quickActs.length > 0) && (
-                <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/60 space-y-2">
-                  {canViewVoucherActions && stage !== 'cancelled' && (
-                    <div className="flex [&>button]:flex-1 [&>button]:h-9"><PrimaryAction res={res} full /></div>
-                  )}
-                  {quickActs.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {quickActs.map(a => (
-                        <button key={a.key} onClick={a.onClick} className="h-9 inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50">
-                          <span className="text-slate-400">{a.icon}</span>{a.label.replace(' reservation', '')}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex-1 overflow-y-auto text-[13px]">
-                <Section title="Rental">
-                  <div className="grid grid-cols-2 gap-3 py-2">
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">Pickup</p>
-                      <p className="mt-1 font-semibold text-slate-900">{longDate(res.startDate)}</p>
-                      <p className="text-slate-500">{timeOf(res.startDate) || '—'}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-600">Return</p>
-                      <p className="mt-1 font-semibold text-slate-900">{longDate(res.endDate)}</p>
-                      <p className="text-slate-500">{timeOf(res.endDate) || '—'}</p>
-                    </div>
-                  </div>
-                  <dl className="divide-y divide-slate-100">
-                    <Row label="Duration">{days} day{days === 1 ? '' : 's'}</Row>
-                    <Row label="Branch">{res.locationName || '—'}</Row>
-                  </dl>
-                </Section>
-
-                <Section title="Vehicle">
-                  <div className="flex items-center gap-3 py-2">
-                    <VehicleArt kind={kind} className="w-16 h-9 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-slate-900 truncate">{res.carModel || 'Not assigned'}</p>
-                      <p className="flex items-center gap-1.5 text-slate-500"><Plate value={res.licensePlate} />{vehicleKindLabel[kind]}{res.sippCode ? ` · ${res.sippCode}` : ''}{res.transmission ? ` · ${res.transmission}` : ''}</p>
-                    </div>
-                  </div>
-                  {(res.upgradeHistory || []).length > 0 && (
-                    <dl className="divide-y divide-slate-100">
-                      {(res.upgradeHistory || []).map((u, i) => (
-                        <Row key={i} label={`Upgrade · ${dayDate(u.date)}`}>{u.fromCar ? `${u.fromCar} → ` : ''}{u.toCar}{u.fee ? ` (${money(u.fee)})` : ' (free)'}</Row>
-                      ))}
-                    </dl>
-                  )}
-                </Section>
-
-                <Section title="Charges">
-                  <dl className="divide-y divide-slate-100">
-                    <Row label={`Rental · ${days} day${days === 1 ? '' : 's'}`}><span className="tabular-nums">{money(res.baseAmount ?? Math.max(0, (res.amount || 0) - extrasTotal - extensions.reduce((s, x) => s + (x.cost || 0), 0)))}</span></Row>
-                    {extras.map(e => (
-                      <Row key={e.name} label={e.name}>{e.isComplementary ? <span className="text-emerald-600">Included</span> : <span className="tabular-nums">{money((e.dailyPrice || 0) * days)} <span className="text-slate-400 font-normal">({money(e.dailyPrice)}/day)</span></span>}</Row>
-                    ))}
-                    {extensions.map((x, i) => (
-                      <Row key={i} label={`Extension · +${x.days} day${x.days === 1 ? '' : 's'}`}><span className="tabular-nums">{money(x.cost)}</span> <span className={`text-[11px] font-semibold ${x.paymentMethod === 'payLater' ? 'text-amber-600' : 'text-emerald-600'}`}>{x.paymentMethod === 'payLater' ? 'pay later' : 'paid'}</span></Row>
-                    ))}
-                    {res.returnCharges && res.returnCharges.items.length > 0 && (
-                      <Row label={`Return charges · ${res.returnCharges.settlement === 'paid' ? 'paid' : 'claim'}`}><span className="tabular-nums">{res.returnCharges.currency} {res.returnCharges.items.reduce((s, it) => s + (Number(it.amount) || 0), 0).toFixed(2)}</span></Row>
-                    )}
-                  </dl>
-                  <div className="mt-1 pt-3 border-t border-slate-200 flex items-baseline justify-between">
-                    <span className="font-semibold text-slate-900">Total</span>
-                    <span className="text-lg font-semibold text-slate-900 tabular-nums">{money(res.amount)}</span>
-                  </div>
-                  {(res.unpaidExtensionAmount || 0) > 0 && <p className="mt-1 text-right text-xs font-semibold text-amber-600">{money(res.unpaidExtensionAmount)} outstanding</p>}
-                  {(res.securityDeposit || res.excess) ? (
-                    <dl className="mt-2 divide-y divide-slate-100">
-                      {res.securityDeposit ? <Row label="Security deposit"><span className="tabular-nums">{money(res.securityDeposit)}</span></Row> : null}
-                      {res.excess ? <Row label="Excess"><span className="tabular-nums">{money(res.excess)}</span></Row> : null}
-                    </dl>
-                  ) : null}
-                </Section>
-
-                <Section title="Agreement">
-                  <dl className="divide-y divide-slate-100">
-                    <Row label="Check-out">{res.voucherSubmitted ? `${stamp(res.pickupDateTime)}${res.pickupAgentName ? ` · ${res.pickupAgentName}` : ''}` : <span className="text-slate-400 font-normal">Not yet</span>}</Row>
-                    {res.voucherSubmitted && (res.pickupKmOut || res.pickupFuelLevel !== undefined) && <Row label="Out">{res.pickupKmOut ? `${res.pickupKmOut.toLocaleString()} km` : ''}{res.pickupFuelLevel !== undefined ? ` · fuel ${res.pickupFuelLevel}/8` : ''}</Row>}
-                    <Row label="Check-in">{res.dropOffCompleted ? `${stamp(res.dropOffDateTime)}${res.dropOffAgentName ? ` · ${res.dropOffAgentName}` : ''}` : <span className="text-slate-400 font-normal">Not yet</span>}</Row>
-                    {res.dropOffCompleted && (res.dropOffKmIn || res.dropOffFuelLevel !== undefined) && <Row label="In">{res.dropOffKmIn ? `${res.dropOffKmIn.toLocaleString()} km` : ''}{res.dropOffFuelLevel !== undefined ? ` · fuel ${res.dropOffFuelLevel}/8` : ''}</Row>}
-                    {(res.agreementEmails || []).map((m, i) => (
-                      <Row key={i} label={`Emailed · ${m.kind}`}>{m.to} <span className="text-slate-400 font-normal">{stamp(m.sentAt)}</span></Row>
-                    ))}
-                  </dl>
-                </Section>
-
-                <Section title="Booking">
-                  <dl className="divide-y divide-slate-100">
-                    <Row label="Source">{res.source ? getSourceName(res.source) : '—'}</Row>
-                    <Row label="Booked on">{longDate(res.bookingDate)}</Row>
-                    {res.createdBy && <Row label="Created by">{res.createdBy}</Row>}
-                    {res.lastEditedBy && <Row label="Last edited by">{res.lastEditedBy}</Row>}
-                    {res.confirmedBy && <Row label="Confirmed by">{res.confirmedBy}{res.confirmedAt ? ` · ${stamp(res.confirmedAt)}` : ''}</Row>}
-                  </dl>
-                </Section>
-
-                {res.notes && (
-                  <Section title="Notes">
-                    <p className="py-2 text-slate-700 whitespace-pre-wrap leading-relaxed">{res.notes}</p>
-                  </Section>
-                )}
-              </div>
-
-              {(docActs.length > 0 || danger.length > 0) && (
-                <footer className="px-5 py-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
-                  {docActs.map(a => (
-                    <button key={a.key} onClick={a.onClick} className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-md border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                      <span className="text-slate-400">{a.icon}</span>{a.label.replace('Print rental agreement', 'Print agreement').replace('Print termination statement', 'Termination').replace('Share booking', 'Share')}
-                    </button>
-                  ))}
-                  {danger.map(a => (
-                    <button key={a.key} onClick={() => { a.onClick(); }} className="ml-auto h-8 px-2.5 inline-flex items-center gap-1.5 rounded-md text-xs font-semibold text-rose-600 hover:bg-rose-50">
-                      {a.icon}Delete
-                    </button>
-                  ))}
-                </footer>
-              )}
-            </aside>
-          </div>
-        );
-      })()}
-
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title={modalMode === 'add' ? 'Add Reservation' : 'Edit Reservation'}
-        footer={
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button 
-              onClick={() => setIsModalOpen(false)} 
-              className="flex-1 sm:flex-none h-9 px-4 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-sm hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleSave} 
-              className="flex-1 sm:flex-none h-9 px-5 rounded-lg bg-indigo-600 text-white font-semibold text-sm shadow-sm hover:bg-indigo-700"
-            >
-              {modalMode === 'add' ? 'Create Reservation' : 'Save Changes'}
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-7">
-          {/* Section: Customer Information */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <UserIcon className="w-4 h-4 text-indigo-600" />
-              </div>
-              <h4 className="text-sm font-semibold text-slate-900">Customer Information</h4>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-medium text-slate-700">Renter Name <span className="text-rose-500">*</span></label>
-                <div className="relative group">
-                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                  <input 
-                    type="text" 
-                    value={formData.personName || ''} 
-                    onChange={(e) => handleChange('personName', e.target.value)} 
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-medium text-slate-700"
-                    placeholder="John Doe"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-medium text-slate-700">Contact Number</label>
-                <div className="relative group">
-                  <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                  <input 
-                    type="text" 
-                    value={formData.contactNumber || ''} 
-                    onChange={(e) => handleChange('contactNumber', e.target.value)} 
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none font-medium text-slate-700"
-                    placeholder="+1 234 567 890"
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Section: Booking Details */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-amber-50 rounded-lg">
-                <HashtagIcon className="w-4 h-4 text-amber-600" />
-              </div>
-              <h4 className="text-sm font-semibold text-slate-900">Booking Details</h4>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-medium text-slate-700">Booking ID <span className="text-rose-500">*</span></label>
-                <div className="relative group">
-                  <HashtagIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
-                  <input 
-                    type="text" 
-                    value={formData.bookingId || ''} 
-                    onChange={(e) => handleChange('bookingId', e.target.value)} 
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-medium text-slate-700"
-                    placeholder="BK-1001"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-medium text-slate-700">Booking Date</label>
-                <div className="relative group">
-                  <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
-                  <input 
-                    type="date" 
-                    value={formData.bookingDate ? formData.bookingDate.split('T')[0] : ''} 
-                    onChange={(e) => handleChange('bookingDate', e.target.value)} 
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-medium text-slate-700"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-medium text-slate-700">Source</label>
-                <div className="relative group">
-                  <GlobeAltIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
-                  <select 
-                    value={formData.source || ''} 
-                    onChange={(e) => handleChange('source', e.target.value)} 
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 transition-all outline-none font-medium text-slate-700 appearance-none"
-                  >
-                    <option value="">Select Source</option>
-                    {rentalSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Section: Vehicle & Logistics */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-emerald-50 rounded-lg">
-                <CarIcon className="w-4 h-4 text-emerald-600" />
-              </div>
-              <h4 className="text-sm font-semibold text-slate-900">Vehicle & Logistics</h4>
-            </div>
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="block text-[13px] font-medium text-slate-700">Car Model <span className="text-rose-500">*</span></label>
-                  <div className="relative group">
-                    <CarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                    <input 
-                      type="text" 
-                      value={formData.carModel || ''} 
-                      onChange={(e) => handleChange('carModel', e.target.value)} 
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
-                      placeholder="e.g. Toyota Corolla"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[13px] font-medium text-slate-700">Location</label>
-                  <div className="relative group">
-                    <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                    <select 
-                      value={formData.locationName || ''} 
-                      onChange={(e) => handleChange('locationName', e.target.value)} 
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700 appearance-none"
-                    >
-                      <option value="">Select Location</option>
-                      {rentalLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="block text-[13px] font-medium text-slate-700">Pickup Date & Time <span className="text-rose-500">*</span></label>
-                  <div className="relative group">
-                    <AirplaneLandingIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                    <input 
-                      type="datetime-local" 
-                      value={formData.startDate || ''} 
-                      onChange={(e) => handleChange('startDate', e.target.value)} 
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[13px] font-medium text-slate-700">Return Date & Time <span className="text-rose-500">*</span></label>
-                  <div className="relative group">
-                    <AirplaneTakeoffIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                    <input 
-                      type="datetime-local" 
-                      value={formData.endDate || ''} 
-                      onChange={(e) => handleChange('endDate', e.target.value)} 
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none font-medium text-slate-700"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Section: Financials & Extras */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-rose-50 rounded-lg">
-                  <CurrencyDollarIcon className="w-4 h-4 text-rose-600" />
-                </div>
-                <h4 className="text-sm font-semibold text-slate-900">Financials & Status</h4>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-[13px] font-medium text-slate-700">Amount ($)</label>
-                  <input 
-                    type="number" 
-                    value={formData.amount || 0} 
-                    onChange={(e) => handleChange('amount', parseFloat(e.target.value) || 0)} 
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-rose-500/10 focus:border-rose-500 transition-all outline-none font-bold text-slate-700"
-                    min="0" 
-                    step="0.01" 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[13px] font-medium text-slate-700">Status</label>
-                  <select 
-                    value={formData.status} 
-                    onChange={(e) => handleChange('status', e.target.value)} 
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-rose-500/10 focus:border-rose-500 transition-all outline-none font-medium text-slate-700 appearance-none"
-                  >
-                    <option value={ReservationStatus.CONFIRMED}>Confirmed</option>
-                    <option value={ReservationStatus.COMPLETED}>Completed</option>
-                    <option value={ReservationStatus.CANCELLED}>Cancelled</option>
-                    <option value="NO_SHOW">No Show</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[13px] font-medium text-slate-700">Reservation Notes</label>
-                <textarea 
-                  value={formData.notes || ''} 
-                  onChange={(e) => handleChange('notes', e.target.value)} 
-                  rows={3} 
-                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-slate-500/10 focus:border-slate-500 transition-all outline-none font-medium text-slate-700 resize-none"
-                  placeholder="Any special requests or notes..."
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-indigo-50 rounded-lg">
-                  <PlusCircleIcon className="w-4 h-4 text-indigo-600" />
-                </div>
-                <h4 className="text-sm font-semibold text-slate-900">Additional Services</h4>
-              </div>
-              <div className="bg-slate-50 rounded-xl p-6 border border-slate-100 space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar">
-                {availableExtras.map(extra => (
-                  <label 
-                    key={extra.id} 
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
-                      (formData.selectedExtras || []).includes(extra.id) 
-                        ? 'bg-white border-indigo-200 shadow-sm' 
-                        : 'bg-transparent border-transparent hover:bg-white/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-                        (formData.selectedExtras || []).includes(extra.id) 
-                          ? 'bg-indigo-600 border-indigo-600' 
-                          : 'bg-white border-slate-200'
-                      }`}>
-                        {(formData.selectedExtras || []).includes(extra.id) && <CheckCircleIcon className="w-3.5 h-3.5 text-white" />}
-                      </div>
-                      <span className={`text-xs font-bold transition-colors ${
-                        (formData.selectedExtras || []).includes(extra.id) ? 'text-slate-900' : 'text-slate-500'
-                      }`}>
-                        {extra.name}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-lg">
-                      ${extra.pricePerDay}/day
-                    </span>
-                    <input 
-                      type="checkbox" 
-                      className="hidden"
-                      checked={(formData.selectedExtras || []).includes(extra.id)} 
-                      onChange={() => handleExtraToggle(extra.id)} 
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Price summary */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 divide-y divide-slate-200 text-sm">
-            <div className="flex items-center justify-between px-4 py-2.5"><span className="text-slate-500">Duration</span><span className="font-medium text-slate-900 tabular-nums">{durationDays.toFixed(1)} days</span></div>
-            <div className="flex items-center justify-between px-4 py-2.5"><span className="text-slate-500">Base amount</span><span className="font-medium text-slate-900 tabular-nums">${(formData.amount || 0).toFixed(2)}</span></div>
-            <div className="flex items-center justify-between px-4 py-3"><span className="font-semibold text-slate-900">Estimated total</span><span className="text-xl font-semibold text-slate-900 tabular-nums">${calculatedTotal.toFixed(2)}</span></div>
-          </div>
-        </div>
-      </Modal>
+      <ReservationWizard
+        open={isModalOpen}
+        mode={modalMode}
+        formData={formData}
+        onChange={handleChange}
+        onToggleExtra={handleExtraToggle}
+        durationDays={durationDays}
+        calculatedTotal={calculatedTotal}
+        onSave={handleSave}
+        onClose={() => setIsModalOpen(false)}
+        rentalSources={rentalSources}
+        rentalLocations={rentalLocations}
+        fleet={fleet}
+        allData={allData}
+        newReservations={newReservations}
+        availableExtras={availableExtras}
+        duplicateBookingIds={duplicateBookingIds}
+        carModels={props.carModels}
+      />
 
       {isUpgradeModalOpen && upgradeReservation && (
         <UpgradeVehicleModal

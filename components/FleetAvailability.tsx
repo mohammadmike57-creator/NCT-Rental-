@@ -29,8 +29,8 @@ export interface DailyAssignments {
 type ViewKey = 'calendar' | 'timeline' | 'tracker';
 
 const VIEWS: { key: ViewKey; label: string; short: string }[] = [
+  { key: 'timeline', label: 'Planning board', short: 'Planning' },
   { key: 'calendar', label: 'Calendar view', short: 'Calendar' },
-  { key: 'timeline', label: 'Timeline view', short: 'Timeline' },
   { key: 'tracker', label: 'Car tracker', short: 'Tracker' },
 ];
 
@@ -42,7 +42,7 @@ const LEGEND = [
 ];
 
 const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, year, currentMonth, onMonthChange, onYearChange, rentalSources }) => {
-  const [activeView, setActiveView] = useState<ViewKey>('calendar');
+  const [activeView, setActiveView] = useState<ViewKey>('timeline');
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [trackerDate, setTrackerDate] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
@@ -103,6 +103,19 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
         .filter(r => r.status === ReservationStatus.CONFIRMED && r.carModel && r.startDate && r.endDate);
   }, [yearData, currentMonth, monthIndex, year]);
   
+  // Planning board: every live booking of the loaded year, any stage (pending,
+  // on rent, returned...), so bars can be coloured by where the rental is.
+  const boardReservations = useMemo(() => {
+    const all: Reservation[] = [];
+    Object.values(yearData || {}).forEach(list => { if (Array.isArray(list)) all.push(...list); });
+    return all.filter(r => r && r.startDate && r.endDate && r.status !== ReservationStatus.CANCELLED && r.status !== ReservationStatus.NO_SHOW);
+  }, [yearData]);
+
+  const handleBoardMonth = (y: number, m: string) => {
+    if (y !== year) onYearChange(y);
+    if (m !== currentMonth) onMonthChange(m);
+  };
+
   const dailyAssignments = useMemo(() => {
     const assignmentsByDate = new Map<string, DailyAssignments>();
 
@@ -188,10 +201,12 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
             <select value={year} onChange={e => onYearChange(parseInt(e.target.value))} aria-label="Year" className={`${selectCls} sm:w-24`}>
               {INITIAL_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Category" className={`${selectCls} sm:w-44`}>
-              <option value="">All categories</option>
-              {CAR_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
+            {activeView !== 'timeline' && (
+              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Category" className={`${selectCls} sm:w-44`}>
+                <option value="">All categories</option>
+                {CAR_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            )}
           </>
         }
       />
@@ -214,7 +229,7 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
 
       <Panel
         title={VIEWS.find(v => v.key === activeView)?.label}
-        subtitle={activeView === 'tracker' ? 'Where every car is on the chosen day' : `${filteredFleet.length} vehicles \u00b7 ${currentMonth} ${year}`}
+        subtitle={activeView === 'tracker' ? 'Where every car is on the chosen day' : activeView === 'timeline' ? `${filteredFleet.length} vehicles \u00b7 every booking by stage` : `${filteredFleet.length} vehicles \u00b7 ${currentMonth} ${year}`}
         actions={
           <Segmented
             className="w-full sm:w-auto"
@@ -231,9 +246,6 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
             ))}
             <span className="md:hidden w-full text-slate-400">Swipe sideways to see the whole month.</span>
           </div>
-        )}
-        {activeView === 'timeline' && (
-          <p className="md:hidden px-4 py-2 text-xs text-slate-400 bg-slate-50/50 border-b border-slate-100">Swipe sideways to see the whole month.</p>
         )}
         {activeView === 'tracker' && (
           <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2 border-b border-slate-100 bg-slate-50/50">
@@ -267,8 +279,11 @@ const FleetAvailability: React.FC<FleetAvailabilityProps> = ({ fleet, yearData, 
               <FleetTimelineView
                 year={year}
                 month={currentMonth}
-                fleet={filteredFleet}
-                reservations={reservationsForMonth}
+                fleet={fleet}
+                reservations={boardReservations}
+                categoryFilter={categoryFilter}
+                onCategoryChange={setCategoryFilter}
+                onRangeMonthChange={handleBoardMonth}
               />
             </div>
           )}
