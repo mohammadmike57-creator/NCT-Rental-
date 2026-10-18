@@ -732,7 +732,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             {onOpenUnlistedAgreement && canViewVoucherActions && (
               <button onClick={onOpenUnlistedAgreement} title="Open a rental agreement for a booking that is not in the list"
                 className="h-9 inline-flex items-center justify-center gap-2 px-3 bg-white border border-slate-200 text-slate-700 text-[13px] font-semibold rounded-lg hover:bg-slate-50 shadow-sm whitespace-nowrap">
-                <DocumentReportIcon className="w-4 h-4 text-amber-600" /> Agreement without reservation
+                <DocumentReportIcon className="w-4 h-4 text-amber-600" /><span className="sm:hidden">Without reservation</span><span className="hidden sm:inline">Agreement without reservation</span>
               </button>
             )}
             <button onClick={openAddModal} className={`${onOpenUnlistedAgreement && canViewVoucherActions ? '' : 'col-span-2 '}h-9 inline-flex items-center justify-center gap-2 px-3.5 bg-indigo-600 text-white text-[13px] font-semibold rounded-lg hover:bg-indigo-700 shadow-sm whitespace-nowrap`}>
@@ -877,36 +877,85 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 </tbody>
               </table>
 
-              {/* Mobile / tablet list */}
-              <ul className="lg:hidden divide-y divide-slate-100">
+              {/* Mobile / tablet cards */}
+              <ul className="lg:hidden bg-slate-50/70 p-3 space-y-3">
                 {pageRows.map(res => {
                   const days = rentalDaysOf(res);
+                  const stage = stageOf(res);
+                  const alert = alertOf(res);
+                  const overdue = isOverdue(res);
+                  const kind = vehicleKind(res.carModel || '');
+                  const isDuplicate = duplicateBookingIds.has(res.bookingId?.trim());
+                  const edge = { ready: 'before:bg-sky-500', onrent: 'before:bg-emerald-500', closed: 'before:bg-slate-300', pending: 'before:bg-amber-500', cancelled: 'before:bg-rose-400' }[stage];
+                  const tel = (res.contactNumber || '').replace(/[^\d+]/g, '');
                   return (
-                    <li key={res.id} className="px-4 py-3">
-                      <button onClick={() => setDetailsModalReservation(res)} className="w-full text-left">
-                        <div className="flex items-start justify-between gap-3">
+                    <li key={res.id} className={`relative overflow-hidden rounded-xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.05)] before:absolute before:inset-y-0 before:left-0 before:w-1 ${edge} ${stage === 'cancelled' ? 'opacity-80' : ''}`}>
+                      <button onClick={() => setDetailsModalReservation(res)} className="w-full text-left pl-4 pr-3.5 pt-3 pb-3 active:bg-slate-50">
+                        {/* Booking no. · source · status */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-[12.5px] font-semibold text-slate-900 tracking-tight">{res.bookingId || 'NO-ID'}</span>
+                            {isDuplicate && <span className="px-1 rounded bg-rose-100 text-rose-700 text-[10px] font-semibold uppercase">dup</span>}
+                            {res.source && <span className="px-1.5 py-px rounded bg-slate-100 text-[10.5px] font-medium text-slate-600 truncate max-w-[8.5rem]">{getSourceName(res.source)}</span>}
+                          </div>
+                          <StatusBadge res={res} withAlert={false} />
+                        </div>
+
+                        {/* Customer */}
+                        <p className="mt-2 text-[15px] font-semibold text-slate-900 truncate">{res.personName || 'Unnamed'}</p>
+                        <p className="text-xs text-slate-500 truncate">{res.contactNumber || res.customerEmail || 'No contact details'}</p>
+
+                        {/* Vehicle */}
+                        <div className="mt-2.5 flex items-center gap-2.5 min-w-0">
+                          <span className="w-11 h-7 shrink-0 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200 flex items-center justify-center"><VehicleArt kind={kind} className="w-9 h-5" /></span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[13px] font-medium text-slate-800 truncate">{res.carModel || 'No vehicle'}</span>
+                            <span className="flex items-center gap-1.5 text-[11px] text-slate-500">{res.licensePlate ? <Plate value={res.licensePlate} /> : <span className="text-amber-600 font-medium">No car assigned</span>}<span>{res.sippCode || vehicleKindLabel[kind]}</span></span>
+                          </span>
+                        </div>
+
+                        {/* Pickup → return */}
+                        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-100 px-3 py-2">
                           <div className="min-w-0">
-                            <p className="flex items-center gap-2"><span className="font-mono text-[13px] font-semibold text-slate-900">{res.bookingId || 'NO-ID'}</span><span className="text-[11px] text-slate-400 truncate">{res.source ? getSourceName(res.source) : ''}</span></p>
-                            <p className="text-sm font-medium text-slate-900 truncate">{res.personName || 'Unnamed'}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Pickup</p>
+                            <p className="text-[13px] font-semibold text-slate-900 whitespace-nowrap">{dayDate(res.startDate)}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{[timeOf(res.startDate), res.locationName].filter(Boolean).join(' · ') || '—'}</p>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-xs font-semibold text-slate-500 tabular-nums">{days ? `${days} day${days === 1 ? '' : 's'}` : ''}</p>
-                            <div className="mt-1 flex justify-end"><StatusBadge res={res} withAlert={false} /></div>
+                          <div className="flex flex-col items-center">
+                            <span className="px-2 py-0.5 rounded-full bg-white ring-1 ring-slate-200 text-[10.5px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">{days} day{days === 1 ? '' : 's'}</span>
+                            <ChevronRightIcon className="mt-0.5 w-3.5 h-3.5 text-slate-300" />
+                          </div>
+                          <div className="min-w-0 text-right">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-600">Return</p>
+                            <p className="text-[13px] font-semibold text-slate-900 whitespace-nowrap">{dayDate(res.endDate)}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{timeOf(res.endDate) || '—'}</p>
                           </div>
                         </div>
-                        <div className="mt-2 flex items-center gap-2 text-xs text-slate-600 min-w-0">
-                          <span className="truncate">{res.carModel || '—'}</span><Plate value={res.licensePlate} />
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-500">
-                          <span className="text-slate-800">{dayDate(res.startDate)} {timeOf(res.startDate)}</span>
-                          <ChevronRightIcon className="w-3 h-3 text-slate-300" />
-                          <span className="text-slate-800">{dayDate(res.endDate)} {timeOf(res.endDate)}</span>
-                          <span className="ml-auto">{days}d</span>
-                        </div>
+
+                        {(alert || (res.unpaidExtensionAmount || 0) > 0) && (
+                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            {alert && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ring-inset ${overdue ? 'bg-rose-50 text-rose-700 ring-rose-200' : 'bg-sky-50 text-sky-700 ring-sky-200'}`}>
+                                <ClockIcon className="w-3 h-3" />{alert.label}
+                              </span>
+                            )}
+                            {(res.unpaidExtensionAmount || 0) > 0 && <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">Extension unpaid</span>}
+                          </div>
+                        )}
                       </button>
-                      <div className="mt-2.5 flex items-center gap-2">
-                        {alertOf(res) && <span className={`text-[11px] font-semibold ${isOverdue(res) ? 'text-rose-600' : 'text-sky-700'}`}>{alertOf(res)!.label}</span>}
-                        <div className="ml-auto flex items-center gap-1"><PrimaryAction res={res} /><MenuButton res={res} /></div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 pl-4 pr-3 py-2.5 border-t border-slate-100 bg-slate-50/50 [&_button]:h-9" onClick={e => e.stopPropagation()}>
+                        {tel && (
+                          <a href={`tel:${tel}`} aria-label={`Call ${res.personName || 'customer'}`}
+                            className="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 active:bg-slate-100">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.28 6.72 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.37c0-.52-.35-.97-.85-1.09l-4.42-1.1c-.44-.11-.9.05-1.17.42l-.97 1.29a1.13 1.13 0 01-1.21.38 12.04 12.04 0 01-7.14-7.14 1.13 1.13 0 01.38-1.21l1.29-.97c.37-.27.53-.73.42-1.17l-1.1-4.42a1.13 1.13 0 00-1.09-.85H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+                          </a>
+                        )}
+                        <button onClick={() => setDetailsModalReservation(res)}
+                          className="shrink-0 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 active:bg-slate-100">Details</button>
+                        <div className="flex-1 flex"><PrimaryAction res={res} full /></div>
+                        <MenuButton res={res} />
                       </div>
                     </li>
                   );

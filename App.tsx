@@ -1881,12 +1881,12 @@ ${currentUser?.fullName}
   const DateSelectors: React.FC<{ compact?: boolean }> = ({ compact }) => (
     <div className="flex items-center gap-2">
       <select value={String(selectedYear)} onChange={e => handleSetSelectedYear(Number(e.target.value))} aria-label="Select year"
-        className={`${compact ? 'h-8 text-xs' : 'h-9 text-[13px]'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
+        className={`${compact ? 'h-8 text-xs w-[6.25rem]' : 'h-9 text-[13px]'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
         {years.map(y => <option key={y} value={y}>{y}</option>)}
       </select>
       {mainView !== 'Yearly Summary' && (
         <select value={selectedMonth} onChange={e => handleSetSelectedMonth(e.target.value)} aria-label="Select month"
-          className={`${compact ? 'h-8 text-xs w-28' : 'h-9 text-[13px] w-36'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
+          className={`${compact ? 'h-8 text-xs w-[8.5rem]' : 'h-9 text-[13px] w-36'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
           {MONTHS.map(month => <option key={month} value={month}>{month}</option>)}
         </select>
       )}
@@ -1895,7 +1895,7 @@ ${currentUser?.fullName}
   const SaveState = () => (
     saveStatus === 'saving' ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />Saving…</span>
     : saveStatus === 'error' ? <span className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" />Save failed</span>
-    : saveStatus === 'saved' && lastSaved ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500" title={`Last saved ${lastSaved}`}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Saved {lastSaved}</span>
+    : saveStatus === 'saved' && lastSaved ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap" title={`Last saved ${lastSaved}`}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Saved<span className="hidden sm:inline">{lastSaved}</span></span>
     : null
   );
 
