@@ -15,89 +15,131 @@ export interface PermissionGroup {
 
 const p = (key: P, label: string, description: string): PermissionInfo => ({ key, label, description });
 
-/** Every permission in the app, grouped the way the sidebar is organised. */
-export const PERMISSION_GROUPS: PermissionGroup[] = [
+/** One sidebar screen: the permission that opens it, plus what the user may do inside it. */
+export interface PermissionSection {
+  id: string;
+  /** Name as it appears in the sidebar. */
+  name: string;
+  description: string;
+  access: PermissionInfo;
+  actions: PermissionInfo[];
+}
+
+export interface PermissionArea {
+  id: string;
+  title: string;
+  description: string;
+  sections: PermissionSection[];
+}
+
+const sec = (id: string, name: string, description: string, access: P, actions: PermissionInfo[] = []): PermissionSection =>
+  ({ id, name, description, access: p(access, `Open ${name}`, description), actions });
+
+/** Every screen in the app, grouped exactly as the sidebar is. */
+export const PERMISSION_AREAS: PermissionArea[] = [
   {
-    id: 'core', title: 'Daily operations', description: 'Screens front-desk staff use every day',
-    permissions: [
-      p(P.VIEW_HOME_DASHBOARD, 'Home dashboard', "Today's pickups, returns and key numbers"),
-      p(P.VIEW_RESERVATIONS, 'Reservations', 'See the reservation list'),
-      p(P.VIEW_TODAYS_RESERVATIONS, "Today's reservations", "Today's schedule view"),
-      p(P.VIEW_FLEET_AVAILABILITY, 'Fleet availability', 'Calendar of which cars are free'),
-      p(P.VIEW_INTERNAL_MESSAGES, 'Internal messages', 'Send and read staff messages'),
-      p(P.VIEW_MY_PROFILE, 'My profile', 'View and edit their own profile'),
+    id: 'core', title: 'Core operations', description: 'Front-desk screens used every day',
+    sections: [
+      sec('home', 'Home', "Today's pickups, returns and what needs attention", P.VIEW_HOME_DASHBOARD),
+      sec('reservations', 'Reservations', 'The reservation list and booking records', P.VIEW_RESERVATIONS, [
+        p(P.ACTION_RESERVATIONS_ADD, 'Create', 'Add new bookings'),
+        p(P.ACTION_RESERVATIONS_EDIT, 'Edit', 'Change booking details'),
+        p(P.ACTION_RESERVATIONS_STATUS_CHANGE, 'Change status', 'Confirm, cancel or mark no-show'),
+        p(P.ACTION_RESERVATIONS_EXTEND, 'Extend', 'Extend a rental that is on rent'),
+        p(P.ACTION_RESERVATIONS_ASSIGN, 'Assign vehicle', 'Assign a specific car to a booking'),
+        p(P.ACTION_RESERVATIONS_UPGRADE_VEHICLE, 'Upgrade vehicle', 'Move a customer to a different car'),
+        p(P.ACTION_RESERVATIONS_MANAGE_EXTRAS, 'Extras', 'Add or remove extras on a booking'),
+        p(P.ACTION_RESERVATIONS_DELETE, 'Delete', 'Remove bookings that are not checked out'),
+        p(P.ACTION_ADMIN_MANAGE_RESERVATIONS, 'Advanced', 'Reservation administration and customer emails'),
+      ]),
+      sec('agreement', 'Agreement', 'Rental agreements for check-out and check-in', P.VIEW_AGREEMENTS, [
+        p(P.ACTION_VOUCHER_MANAGE, 'Check-out & check-in', 'Inspect cars, record damage and take signatures'),
+        p(P.ACTION_AGREEMENT_WITHOUT_RESERVATION, 'Without reservation', 'Open an agreement before the booking is listed'),
+      ]),
+      sec('unlisted', 'Unlisted Agreements', 'Agreements opened before their booking was in the system', P.VIEW_UNLISTED_AGREEMENTS, [
+        p(P.ACTION_UNLISTED_AGREEMENTS_LIST, 'List & link', 'Create or link the reservation, or reject the agreement'),
+      ]),
+      sec('today', "Today's Reservations", "Today's schedule", P.VIEW_TODAYS_RESERVATIONS),
+      sec('messages', 'Internal Messages', 'Send and read staff messages', P.VIEW_INTERNAL_MESSAGES),
+      sec('fleet-availability', 'Fleet Availability', 'Which cars are free and the planning board', P.VIEW_FLEET_AVAILABILITY),
     ],
   },
   {
-    id: 'reservations', title: 'Reservations & agreements', description: 'Creating and changing bookings',
-    permissions: [
-      p(P.ACTION_RESERVATIONS_ADD, 'Create reservations', 'Add new bookings'),
-      p(P.ACTION_RESERVATIONS_EDIT, 'Edit reservations', 'Change booking details and share bookings'),
-      p(P.ACTION_RESERVATIONS_DELETE, 'Delete reservations', 'Remove bookings that are not checked out'),
-      p(P.ACTION_RESERVATIONS_EXTEND, 'Extend rentals', 'Extend a rental that is on rent'),
-      p(P.ACTION_RESERVATIONS_STATUS_CHANGE, 'Change status', 'Confirm, cancel or mark no-show'),
-      p(P.ACTION_VOUCHER_MANAGE, 'Check-out & check-in', 'Open rental agreements, inspect cars and take signatures'),
-      p(P.ACTION_RESERVATIONS_ASSIGN, 'Assign vehicles', 'Assign a specific car to a booking'),
-      p(P.ACTION_RESERVATIONS_UPGRADE_VEHICLE, 'Upgrade vehicles', 'Move a customer to a different car'),
-      p(P.ACTION_RESERVATIONS_MANAGE_EXTRAS, 'Manage extras', 'Add or remove extras on a booking'),
-      p(P.ACTION_ADMIN_MANAGE_RESERVATIONS, 'Reservation administration', 'Advanced reservation management'),
+    id: 'reports', title: 'Reports', description: 'Performance and partner billing',
+    sections: [
+      sec('yearly', 'Yearly Summary', 'Monthly revenue, commission and franchise fees', P.VIEW_REPORTS_YEARLY_SUMMARY),
+      sec('sources', 'Source Performance', 'Bookings and revenue by channel', P.VIEW_REPORTS_SOURCE_PERFORMANCE),
+      sec('invoices', 'Invoice Generation', 'Bill booking partners', P.VIEW_REPORTS_INVOICE_GENERATION),
     ],
   },
   {
-    id: 'reports', title: 'Reports', description: 'Performance and revenue reporting',
-    permissions: [
-      p(P.VIEW_REPORTS_YEARLY_SUMMARY, 'Yearly summary', 'Monthly revenue, commission and franchise fees'),
-      p(P.VIEW_REPORTS_SOURCE_PERFORMANCE, 'Source performance', 'Bookings and revenue by channel'),
-      p(P.VIEW_REPORTS_INVOICE_GENERATION, 'Invoices', 'Generate invoices'),
+    id: 'finance', title: 'Financials & incidents', description: 'Money in and out, tickets and damage',
+    sections: [
+      sec('accounting', 'Accounting', 'Income, expenses and profit', P.VIEW_FINANCIALS_ACCOUNTING, [
+        p(P.ACTION_FINANCIALS_MANAGE_EXPENSES, 'Expenses', 'Add and edit expenses'),
+        p(P.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS, 'Franchise payments', 'Record and reverse franchise fee payments'),
+      ]),
+      sec('approvals', 'Payment Approvals', 'Payments waiting for approval', P.VIEW_FINANCIALS_PAYMENT_APPROVALS, [
+        p(P.ACTION_FINANCIALS_MANAGE_PAYMENT_APPROVALS, 'Approve / reject', 'Decide on pending payments'),
+      ]),
+      sec('deferred', 'Deferred Payments', 'Payments due later', P.VIEW_FINANCIALS_DEFERRED_PAYMENTS, [
+        p(P.ACTION_FINANCIALS_MANAGE_DEFERRED_PAYMENTS, 'Collect', 'Settle deferred payments'),
+      ]),
+      sec('late', 'Late Returns', 'Late-return fees', P.VIEW_FINANCIALS_LATE_RETURNS, [
+        p(P.ACTION_FINANCIALS_MANAGE_LATE_RETURNS, 'Charge / waive', 'Charge or waive late-return fees'),
+      ]),
+      sec('tickets', 'Traffic Tickets', 'Fines linked to rentals', P.VIEW_TRAFFIC_TICKETS, [
+        p(P.ACTION_TRAFFIC_TICKETS_MANAGE, 'Manage', 'Add, settle and assign tickets'),
+      ]),
+      sec('damages', 'Vehicle Damages', 'Damage reports', P.VIEW_VEHICLE_DAMAGES, [
+        p(P.ACTION_VEHICLE_DAMAGES_MANAGE, 'Manage', 'Record and resolve damage'),
+      ]),
     ],
   },
   {
-    id: 'finance', title: 'Finance', description: 'Money in and out',
-    permissions: [
-      p(P.VIEW_FINANCIALS_ACCOUNTING, 'Accounting', 'View the accounting dashboard'),
-      p(P.ACTION_FINANCIALS_MANAGE_EXPENSES, 'Manage expenses', 'Add and edit expenses'),
-      p(P.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS, 'Franchise payments', 'Record and reverse franchise fee payments'),
-      p(P.VIEW_FINANCIALS_PAYMENT_APPROVALS, 'View payment approvals', 'See payments waiting for approval'),
-      p(P.ACTION_FINANCIALS_MANAGE_PAYMENT_APPROVALS, 'Approve payments', 'Approve or reject payments'),
-      p(P.VIEW_FINANCIALS_DEFERRED_PAYMENTS, 'View deferred payments', 'See payments due later'),
-      p(P.ACTION_FINANCIALS_MANAGE_DEFERRED_PAYMENTS, 'Manage deferred payments', 'Settle deferred payments'),
-      p(P.VIEW_FINANCIALS_LATE_RETURNS, 'View late returns', 'See late-return fees'),
-      p(P.ACTION_FINANCIALS_MANAGE_LATE_RETURNS, 'Manage late returns', 'Charge or waive late-return fees'),
+    id: 'data', title: 'Data management', description: 'Bringing bookings into the system',
+    sections: [
+      sec('import', 'Import Reservations', 'Upload partner and website booking files', P.VIEW_IMPORT_RESERVATIONS),
     ],
   },
   {
-    id: 'incidents', title: 'Incidents', description: 'Traffic tickets and vehicle damage',
-    permissions: [
-      p(P.VIEW_TRAFFIC_TICKETS, 'View traffic tickets', 'See tickets linked to rentals'),
-      p(P.ACTION_TRAFFIC_TICKETS_MANAGE, 'Manage traffic tickets', 'Add, settle and assign tickets'),
-      p(P.VIEW_VEHICLE_DAMAGES, 'View vehicle damage', 'See damage reports'),
-      p(P.ACTION_VEHICLE_DAMAGES_MANAGE, 'Manage vehicle damage', 'Record and resolve damage'),
-    ],
-  },
-  {
-    id: 'channels', title: 'Channel manager', description: 'OTA XML distribution',
-    permissions: [
-      p(P.VIEW_AGGREGATOR_SETUP, 'Channel manager', 'Open the OTA XML channel manager'),
-      p(P.ACTION_ADMIN_MANAGE_RATE_PLANS, 'Rates', 'Edit and publish channel rates'),
-      p(P.ACTION_ADMIN_MANAGE_TERMS, 'Terms', 'Edit channel terms & conditions'),
+    id: 'ota', title: 'OTA XML', description: 'Channel manager and online distribution',
+    sections: [
+      sec('ota', 'OTA XML', 'Channels, inventory and stop sales', P.VIEW_AGGREGATOR_SETUP, [
+        p(P.ACTION_ADMIN_MANAGE_RATE_PLANS, 'Rates', 'Edit and publish channel rates'),
+        p(P.ACTION_ADMIN_MANAGE_TERMS, 'Terms', 'Edit channel terms & conditions'),
+      ]),
     ],
   },
   {
     id: 'admin', title: 'Administration', description: 'Company settings — give only to trusted staff',
-    permissions: [
-      p(P.VIEW_ADMIN_PANEL, 'Administration menu', 'Show the Administration section'),
-      p(P.ACTION_ADMIN_MANAGE_USERS, 'Staff & permissions', 'Create accounts, reset passwords and change permissions'),
-      p(P.ACTION_ADMIN_MANAGE_FLEET, 'Fleet', 'Add and edit vehicles'),
-      p(P.ACTION_ADMIN_MANAGE_SOURCES, 'Booking sources', 'Manage website sources'),
-      p(P.ACTION_ADMIN_MANAGE_EXTRAS, 'Extras', 'Manage the extras catalogue'),
-      p(P.ACTION_ADMIN_MANAGE_LOCATIONS, 'Locations', 'Manage pickup locations'),
-      p(P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, 'Company details', 'Edit company name, address and settings'),
-      p(P.ACTION_ADMIN_MANAGE_YEARS, 'Years', 'Manage reporting years'),
-      p(P.VIEW_SYSTEM_ACTIVITY_LOG, 'Activity log', 'See who did what'),
-      p(P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, 'Bulk delete', 'Delete a whole month of reservations'),
+    sections: [
+      sec('users', 'User & Staff Management', 'Accounts, passwords and permissions', P.ACTION_ADMIN_MANAGE_USERS),
+      sec('fleet', 'Fleet Management', 'Add and edit vehicles', P.ACTION_ADMIN_MANAGE_FLEET),
+      sec('web-sources', 'Website Sources', 'Booking sources and commissions', P.ACTION_ADMIN_MANAGE_SOURCES),
+      sec('extras', 'Manage Extras', 'The extras catalogue and prices', P.ACTION_ADMIN_MANAGE_EXTRAS),
+      sec('locations', 'Manage Locations', 'Branches and pickup points', P.ACTION_ADMIN_MANAGE_LOCATIONS),
+      sec('company', 'Company Details', 'Company profile, agreement terms and settings', P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, [
+        p(P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, 'Bulk delete', 'Delete a whole month of reservations'),
+      ]),
+      sec('email', 'Email Settings', 'Outgoing mail server for agreements and invoices', P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS),
+      sec('years', 'Manage Years', 'Reporting years', P.ACTION_ADMIN_MANAGE_YEARS),
+      sec('activity', 'Activity Log', 'Who did what, and when', P.VIEW_SYSTEM_ACTIVITY_LOG),
+    ],
+  },
+  {
+    id: 'account', title: 'Account', description: 'The staff member\'s own account',
+    sections: [
+      sec('profile', 'My Profile', 'View and edit their own profile and password', P.VIEW_MY_PROFILE),
     ],
   },
 ];
+
+/** Flat groups (one per sidebar area) for search and labels. */
+export const PERMISSION_GROUPS: PermissionGroup[] = PERMISSION_AREAS.map(a => ({
+  id: a.id, title: a.title, description: a.description,
+  permissions: a.sections.flatMap(s => [s.access, ...s.actions.map(x => ({ ...x, label: `${s.name}: ${x.label}` }))]),
+}));
 
 export const ALL_PERMISSIONS: P[] = PERMISSION_GROUPS.flatMap(g => g.permissions.map(x => x.key));
 
@@ -108,6 +150,8 @@ export const SENSITIVE_PERMISSIONS = new Set<P>([
   P.ACTION_RESERVATIONS_DELETE,
   P.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS,
   P.ACTION_FINANCIALS_MANAGE_PAYMENT_APPROVALS,
+  P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS,
+  P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS,
 ]);
 
 export const permissionLabel = (key: string) =>
@@ -121,7 +165,7 @@ export interface RoleTemplate {
   permissions: P[];
 }
 
-const OPS: P[] = [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_TODAYS_RESERVATIONS, P.VIEW_FLEET_AVAILABILITY, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE];
+const OPS: P[] = [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_AGREEMENTS, P.VIEW_UNLISTED_AGREEMENTS, P.VIEW_TODAYS_RESERVATIONS, P.VIEW_FLEET_AVAILABILITY, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE];
 
 export const ROLE_TEMPLATES: RoleTemplate[] = [
   {
@@ -132,25 +176,25 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   {
     id: 'manager', name: 'Branch manager', color: 'bg-indigo-600',
     description: 'Runs the branch: bookings, agreements, reports, finance and incidents',
-    permissions: ALL_PERMISSIONS.filter(k => ![P.ACTION_ADMIN_MANAGE_USERS, P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, P.ACTION_ADMIN_MANAGE_YEARS].includes(k)),
+    permissions: ALL_PERMISSIONS.filter(k => ![P.ACTION_ADMIN_MANAGE_USERS, P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS, P.ACTION_ADMIN_MANAGE_YEARS].includes(k)),
   },
   {
     id: 'agent', name: 'Reservations agent', color: 'bg-sky-600',
     description: 'Takes bookings and handles check-out and check-in',
-    permissions: [...OPS, P.ACTION_RESERVATIONS_ADD, P.ACTION_RESERVATIONS_EDIT, P.ACTION_RESERVATIONS_EXTEND, P.ACTION_VOUCHER_MANAGE, P.ACTION_RESERVATIONS_MANAGE_EXTRAS, P.VIEW_TRAFFIC_TICKETS, P.VIEW_VEHICLE_DAMAGES],
+    permissions: [...OPS, P.ACTION_RESERVATIONS_ADD, P.ACTION_RESERVATIONS_EDIT, P.ACTION_RESERVATIONS_EXTEND, P.ACTION_VOUCHER_MANAGE, P.ACTION_AGREEMENT_WITHOUT_RESERVATION, P.ACTION_UNLISTED_AGREEMENTS_LIST, P.ACTION_RESERVATIONS_MANAGE_EXTRAS, P.VIEW_TRAFFIC_TICKETS, P.VIEW_VEHICLE_DAMAGES],
   },
   {
     id: 'accountant', name: 'Accountant', color: 'bg-emerald-600',
     description: 'Reports, accounting, payments and franchise fees',
     permissions: [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE,
       ...PERMISSION_GROUPS.find(g => g.id === 'reports')!.permissions.map(x => x.key),
-      ...PERMISSION_GROUPS.find(g => g.id === 'finance')!.permissions.map(x => x.key),
+      ...PERMISSION_AREAS.find(a => a.id === 'finance')!.sections.filter(x => x.id !== 'tickets' && x.id !== 'damages').flatMap(x => [x.access.key, ...x.actions.map(y => y.key)]),
       P.VIEW_TRAFFIC_TICKETS],
   },
   {
     id: 'fleet', name: 'Fleet & incidents', color: 'bg-amber-600',
     description: 'Vehicles, damage and traffic tickets',
-    permissions: [...OPS, P.VIEW_TRAFFIC_TICKETS, P.ACTION_TRAFFIC_TICKETS_MANAGE, P.VIEW_VEHICLE_DAMAGES, P.ACTION_VEHICLE_DAMAGES_MANAGE, P.VIEW_ADMIN_PANEL, P.ACTION_ADMIN_MANAGE_FLEET, P.ACTION_RESERVATIONS_ASSIGN],
+    permissions: [...OPS, P.VIEW_TRAFFIC_TICKETS, P.ACTION_TRAFFIC_TICKETS_MANAGE, P.VIEW_VEHICLE_DAMAGES, P.ACTION_VEHICLE_DAMAGES_MANAGE, P.ACTION_ADMIN_MANAGE_FLEET, P.ACTION_RESERVATIONS_ASSIGN],
   },
   {
     id: 'viewer', name: 'View only', color: 'bg-slate-500',

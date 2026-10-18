@@ -1515,7 +1515,7 @@ ${currentUser?.fullName}
         console.log('Assign car for', reservation.id);
       }}
       onAddExtras={(reservation) => setReservationToAddExtras(reservation)}
-      onOpenUnlistedAgreement={() => setShowUnlistedAgreement(true)}
+      onOpenUnlistedAgreement={hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION) ? () => setShowUnlistedAgreement(true) : undefined}
       currentUser={currentUser}
       filters={filters}
       setFilters={setFilters}
@@ -1535,11 +1535,11 @@ ${currentUser?.fullName}
             allData={{reservations, fleet, sources, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years}}
             onNavigate={handleNavigation}
             onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
-            onOpenUnlistedAgreement={() => setShowUnlistedAgreement(true)}
+            onOpenUnlistedAgreement={hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION) ? () => setShowUnlistedAgreement(true) : undefined}
         />
     ), permission: UserPermission.VIEW_HOME_DASHBOARD },
     'Reservations': { component: renderReservationView(false), permission: UserPermission.VIEW_RESERVATIONS },
-    'Agreement': { component: renderReservationView(true), permission: UserPermission.VIEW_HOME_DASHBOARD },
+    'Agreement': { component: renderReservationView(true), permission: UserPermission.VIEW_AGREEMENTS },
     'Today\'s Reservations': { component: (
       <TodaysReservations
         allData={reservations}
@@ -1577,13 +1577,13 @@ ${currentUser?.fullName}
             rentalLocations={rentalLocations}
             fleet={fleet}
             currentUser={currentUser}
-            canEdit={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_EDIT)}
+            canEdit={hasPermission(currentUser, UserPermission.ACTION_UNLISTED_AGREEMENTS_LIST)}
             onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
             onList={handleListUnlisted}
             onSaveDraft={handleSaveUnlistedDraft}
             onLink={handleLinkUnlisted}
             onReject={handleRejectUnlisted}
-            onNewWalkIn={() => setShowUnlistedAgreement(true)}
+            onNewWalkIn={hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION) ? () => setShowUnlistedAgreement(true) : undefined}
         />
     ), permission: UserPermission.VIEW_RESERVATIONS },
     'Fleet Availability': { component: (
@@ -1797,7 +1797,7 @@ ${currentUser?.fullName}
     }} onDeleteAllReservations={handleDeleteAllReservations} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
     'Manage Years': { component: <ManageYearsView years={years} onAddYear={handleAddYear} onRemoveYear={handleRemoveYear} />, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
     'Activity Log': { component: <StaffActivityView users={users} />, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
-    'Email Settings': { component: <EmailSettingsView defaultFromName={companyDetails.name} defaultTestTo={currentUser?.email} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+    'Email Settings': { component: <EmailSettingsView defaultFromName={companyDetails.name} defaultTestTo={currentUser?.email} />, permission: UserPermission.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS },
     'My Profile': { component: (
         <ProfileView
             currentUser={currentUser!}
@@ -1824,15 +1824,15 @@ ${currentUser?.fullName}
             }}
         />
     ), permission: UserPermission.VIEW_MY_PROFILE },
-    'Import Reservations': { component: <ExcelUpload onReservationsImported={handleReservationsImport} years={years} focusYear={selectedYear} focusMonth={selectedMonth} />, permission: UserPermission.VIEW_ADMIN_PANEL },
+    'Import Reservations': { component: <ExcelUpload onReservationsImported={handleReservationsImport} years={years} focusYear={selectedYear} focusMonth={selectedMonth} />, permission: UserPermission.VIEW_IMPORT_RESERVATIONS },
   };
 
   const sidebarLinks: Record<string, SidebarLink[]> = {
     "Core Operations": [
         { name: 'Home', icon: HomeIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
         { name: 'Reservations', icon: CalendarIcon, permission: UserPermission.VIEW_RESERVATIONS },
-        { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
-        { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_RESERVATIONS, badge: unlistedWaitingCount },
+        { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_AGREEMENTS },
+        { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
@@ -1851,7 +1851,7 @@ ${currentUser?.fullName}
         { name: 'Vehicle Damages', icon: WrenchScrewdriverIcon, permission: UserPermission.VIEW_VEHICLE_DAMAGES },
     ],
     "Data Management": [
-        { name: 'Import Reservations', icon: UploadIcon, permission: UserPermission.VIEW_ADMIN_PANEL },
+        { name: 'Import Reservations', icon: UploadIcon, permission: UserPermission.VIEW_IMPORT_RESERVATIONS },
     ],
     "OTA XML": [
         { name: 'OTA XML', icon: GlobeAltIcon, permission: UserPermission.VIEW_AGGREGATOR_SETUP },
@@ -1863,18 +1863,18 @@ ${currentUser?.fullName}
         { name: 'Manage Extras', icon: PlusCircleIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EXTRAS },
         { name: 'Manage Locations', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_LOCATIONS },
         { name: 'Company Details', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
-        { name: 'Email Settings', icon: MailIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+        { name: 'Email Settings', icon: MailIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS },
         { name: 'Manage Years', icon: CogIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
         { name: 'Activity Log', icon: ClockIcon, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
     ]
   };
 
-  const currentViewHasAccess = mainView === 'Agreement' ? true : hasPermission(currentUser, mainViews[mainView]?.permission);
+  const currentViewHasAccess = hasPermission(currentUser, mainViews[mainView]?.permission);
   const showDateSelectors = ['Reservations', 'Agreement', 'Invoice Generation', 'Fleet Availability', 'Yearly Summary'].includes(mainView);
 
   const newItems = [
     { label: 'Reservation', hint: 'Create a booking', show: hasPermission(currentUser, UserPermission.VIEW_RESERVATIONS), run: () => { handleNavigation('Reservations'); setTimeout(() => window.dispatchEvent(new CustomEvent('nct:new-reservation')), 350); } },
-    { label: 'Agreement without reservation', hint: 'Customer is here but the booking is not in the system yet', show: true, run: () => setShowUnlistedAgreement(true) },
+    { label: 'Agreement without reservation', hint: 'Customer is here but the booking is not in the system yet', show: hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION), run: () => setShowUnlistedAgreement(true) },
     { label: 'Traffic ticket', hint: 'Record a fine', show: hasPermission(currentUser, UserPermission.VIEW_TRAFFIC_TICKETS), run: () => handleNavigation('Traffic Tickets') },
     { label: 'Damage report', hint: 'Record vehicle damage', show: hasPermission(currentUser, UserPermission.VIEW_TRAFFIC_TICKETS), run: () => handleNavigation('Vehicle Damages') },
     { label: 'Partner invoice', hint: 'Bill a booking partner', show: hasPermission(currentUser, UserPermission.VIEW_REPORTS_INVOICE_GENERATION), run: () => handleNavigation('Invoice Generation') },
@@ -1941,15 +1941,11 @@ ${currentUser?.fullName}
             <nav className="px-2.5 py-3 space-y-3 flex-1 [&_svg]:w-[18px] [&_svg]:h-[18px]">
                 {Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
                     const visibleLinks = links.filter(link => {
-                        if (link.name === 'Agreement') {
-                            return true;
-                        }
                         if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) {
                             return false;
                         }
                         return hasPermission(currentUser, link.permission)
                     });
-                    if (sectionTitle === "Administration" && !hasPermission(currentUser, UserPermission.VIEW_ADMIN_PANEL)) return null;
                     if(visibleLinks.length === 0) return null;
 
                     return (
@@ -2109,7 +2105,7 @@ ${currentUser?.fullName}
                 {[
                     { name: 'Home', label: 'Home', icon: HomeIcon, ok: hasPermission(currentUser, UserPermission.VIEW_HOME_DASHBOARD) },
                     { name: 'Reservations', label: 'Bookings', icon: CalendarIcon, ok: hasPermission(currentUser, UserPermission.VIEW_RESERVATIONS) },
-                    { name: 'Agreement', label: 'Agreements', icon: DocumentReportIcon, ok: true },
+                    { name: 'Agreement', label: 'Agreements', icon: DocumentReportIcon, ok: hasPermission(currentUser, UserPermission.VIEW_AGREEMENTS) },
                     { name: "Today's Reservations", label: 'Today', icon: CalendarCheckIcon, ok: hasPermission(currentUser, UserPermission.VIEW_TODAYS_RESERVATIONS) },
                 ].filter(t => t.ok).map(({ name, label, icon: Icon }) => (
                     <button key={name} onClick={() => handleNavigation(name)} aria-current={mainView === name ? 'page' : undefined}

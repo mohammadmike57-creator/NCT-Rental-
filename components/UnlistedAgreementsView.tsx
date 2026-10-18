@@ -19,7 +19,7 @@ interface Props {
   /** Moves the agreement onto a reservation that is already in the system and removes the temporary record. */
   onLink: (target: Reservation, agreement: Reservation) => Promise<void>;
   onReject: (res: Reservation) => void;
-  onNewWalkIn: () => void;
+  onNewWalkIn?: () => void;
 }
 
 const WALK_REF = /^WALK-/i;
@@ -108,7 +108,7 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
         section="Core Operations"
         title="Unlisted agreements"
         subtitle="Agreements opened at the counter before the booking was entered in the system. The reservations team links each one to its booking, or creates the reservation from it."
-        actions={<Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={onNewWalkIn}>Open agreement without reservation</Button>}
+        actions={onNewWalkIn && <Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={onNewWalkIn}>Open agreement without reservation</Button>}
       />
 
       <StatGrid items={[

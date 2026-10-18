@@ -507,7 +507,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredReservations, stageTab, sortKey, sortDir, sourceFilterLocal, branchFilterLocal, quick]);
 
-  const revenue = filteredReservations.filter(r => stageOf(r) !== 'cancelled').reduce((s, r) => s + (r.amount || 0), 0);
   const actionToday = filteredReservations.filter(r => alertOf(r) !== null).length;
 
   const TABS: { key: 'all' | Stage; label: string }[] = isAgreementView
@@ -709,7 +708,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     { key: 'od', label: 'Overdue', value: ops.overdue, sub: 'pickups or returns', tone: ops.overdue > 0 ? 'text-rose-600' : 'text-slate-900', active: quick === 'overdue', onClick: () => { setStageTab('all'); setQuick(q => (q === 'overdue' ? null : 'overdue')); } },
     { key: 'or', label: 'On rent', value: stageCounts.onrent, sub: 'vehicles out', tone: 'text-slate-900', active: stageTab === 'onrent' && !quick, onClick: () => { setQuick(null); setStageTab(t => (t === 'onrent' ? 'all' : 'onrent')); } },
     { key: 'bk', label: 'Bookings', value: filteredReservations.length, sub: `${stageCounts.cancelled} cancelled`, tone: 'text-slate-900', active: false },
-    { key: 'rv', label: 'Revenue', value: money(revenue), sub: 'excl. cancellations', tone: 'text-slate-900', active: false },
+    { key: 'cl', label: 'Returned', value: stageCounts.closed, sub: 'agreements closed', tone: 'text-slate-900', active: stageTab === 'closed' && !quick, onClick: () => { setQuick(null); setStageTab(t => (t === 'closed' ? 'all' : 'closed')); } },
   ];
   const selectCls = 'h-9 pl-3 pr-8 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
 
@@ -721,7 +720,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           <div className="min-w-0">
             <p className="text-xs font-medium text-slate-500">Operations <span className="text-slate-300 mx-1">/</span> {isAgreementView ? 'Rental agreements' : 'Reservations'}</p>
             <h2 className="mt-0.5 text-2xl font-semibold text-slate-900 tracking-tight">{isAgreementView ? 'Rental agreements' : 'Reservations'}</h2>
-            <p className="text-sm text-slate-500">{selectedMonth} {selectedYear} · {filteredReservations.length} booking{filteredReservations.length === 1 ? '' : 's'} · {money(revenue)}</p>
+            <p className="text-sm text-slate-500">{selectedMonth} {selectedYear} · {filteredReservations.length} booking{filteredReservations.length === 1 ? '' : 's'}</p>
           </div>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-2">
             <div className="col-span-2 order-last sm:order-none flex items-center rounded-lg border border-slate-200 bg-white divide-x divide-slate-200 overflow-hidden shadow-sm [&>button]:flex-1 sm:[&>button]:flex-none [&>button]:justify-center">

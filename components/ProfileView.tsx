@@ -52,7 +52,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, firebaseUser, on
     }
   };
 
-  const isAdmin = currentUser.permissions?.includes(UserPermission.VIEW_ADMIN_PANEL);
+  const isAdmin = currentUser.permissions?.includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);
   const initials = (currentUser.username || currentUser.email || '?').slice(0, 2).toUpperCase();
 
   return (

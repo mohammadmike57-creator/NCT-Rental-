@@ -61,6 +61,23 @@ public class DatabaseMigrationConfig {
                             "  END LOOP;\n" +
                             "END $$;");
                     logger.info("Permission check constraints refreshed.");
+                    // One-time: every sidebar section now has its own permission. Give existing staff the new
+                    // ones that match what they could already do, so nobody loses access on upgrade.
+                    jdbcTemplate.execute("DO $$\n" +
+                            "BEGIN\n" +
+                            "  CREATE TABLE IF NOT EXISTS app_migrations (id varchar(100) PRIMARY KEY, applied_at timestamp DEFAULT now());\n" +
+                            "  IF EXISTS (SELECT 1 FROM app_migrations WHERE id = 'permissions-per-section-v1') THEN RETURN; END IF;\n" +
+                            "  IF to_regclass('user_permissions') IS NOT NULL THEN\n" +
+                            "    INSERT INTO user_permissions (user_id, permissions) SELECT DISTINCT user_id, 'VIEW_AGREEMENTS' FROM user_permissions;\n" +
+                            "    INSERT INTO user_permissions (user_id, permissions) SELECT DISTINCT user_id, 'ACTION_AGREEMENT_WITHOUT_RESERVATION' FROM user_permissions WHERE permissions = 'ACTION_VOUCHER_MANAGE';\n" +
+                            "    INSERT INTO user_permissions (user_id, permissions) SELECT DISTINCT user_id, 'VIEW_UNLISTED_AGREEMENTS' FROM user_permissions WHERE permissions = 'VIEW_RESERVATIONS';\n" +
+                            "    INSERT INTO user_permissions (user_id, permissions) SELECT DISTINCT user_id, 'ACTION_UNLISTED_AGREEMENTS_LIST' FROM user_permissions WHERE permissions = 'ACTION_RESERVATIONS_EDIT';\n" +
+                            "    INSERT INTO user_permissions (user_id, permissions) SELECT DISTINCT user_id, 'VIEW_IMPORT_RESERVATIONS' FROM user_permissions WHERE permissions = 'VIEW_ADMIN_PANEL';\n" +
+                            "    INSERT INTO user_permissions (user_id, permissions) SELECT DISTINCT user_id, 'ACTION_ADMIN_MANAGE_EMAIL_SETTINGS' FROM user_permissions WHERE permissions = 'ACTION_ADMIN_MANAGE_COMPANY_DETAILS';\n" +
+                            "  END IF;\n" +
+                            "  INSERT INTO app_migrations (id) VALUES ('permissions-per-section-v1');\n" +
+                            "END $$;");
+                    logger.info("Per-section permissions migration checked.");
                 }
             } catch (Exception e) {
                 logger.error("Database migration failed", e);

@@ -5,7 +5,7 @@ import {
   listStaffAccounts, createStaffAccount, updateStaffAccount, resetStaffPassword, deleteStaffAccount,
 } from '../firebase/api';
 import {
-  PERMISSION_GROUPS, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate,
+  PERMISSION_AREAS, ALL_PERMISSIONS, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate, PermissionArea, PermissionSection,
 } from '../services/permissionCatalog';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Tabs, Badge, Button, Field, SectionLabel, EmptyState, inputCls, table } from './ui/Crm';
 
@@ -44,26 +44,48 @@ const StatusChip: React.FC<{ account: Account }> = ({ account }) => {
 // Permission editor
 // ---------------------------------------------------------------------------
 
+const Switch: React.FC<{ on: boolean; disabled?: boolean; onClick: () => void; label: string }> = ({ on, disabled, onClick, label }) => (
+  <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={onClick}
+    className={`relative inline-flex w-10 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 ${on ? 'bg-indigo-600' : 'bg-slate-300'} disabled:opacity-50`}>
+    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-4' : ''}`} />
+  </button>
+);
+
 const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPermission[]) => void; disabled?: boolean }> = ({ value, onChange, disabled }) => {
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState<Record<string, boolean>>({ core: true, reservations: true });
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const set = new Set(value);
   const q = query.trim().toLowerCase();
   const role = matchRole(value);
+  const allSections = PERMISSION_AREAS.flatMap(a => a.sections);
+  const openSections = allSections.filter(x => set.has(x.access.key)).length;
+  const known = new Set<string>(ALL_PERMISSIONS);
+  const selected = value.filter(k => known.has(k)).length;
 
+  const commit = (next: Set<UserPermission>) => !disabled && onChange(Array.from(next));
   const applyRole = (r: RoleTemplate) => !disabled && onChange([...r.permissions]);
-  const toggle = (k: UserPermission) => {
-    if (disabled) return;
+  const sectionKeys = (x: PermissionSection) => [x.access.key, ...x.actions.map(a => a.key)];
+  const toggleSection = (x: PermissionSection) => {
     const next = new Set(set);
-    next.has(k) ? next.delete(k) : next.add(k);
-    onChange(Array.from(next));
+    // Closing a screen also removes what could be done inside it.
+    if (next.has(x.access.key)) sectionKeys(x).forEach(k => next.delete(k)); else next.add(x.access.key);
+    commit(next);
   };
-  const setGroup = (keys: UserPermission[], on: boolean) => {
-    if (disabled) return;
+  const toggleAction = (x: PermissionSection, k: UserPermission) => {
     const next = new Set(set);
-    keys.forEach(k => (on ? next.add(k) : next.delete(k)));
-    onChange(Array.from(next));
+    if (next.has(k)) next.delete(k); else { next.add(k); next.add(x.access.key); }
+    commit(next);
   };
+  const setArea = (a: PermissionArea, mode: 'full' | 'view' | 'none') => {
+    const next = new Set(set);
+    a.sections.forEach(x => {
+      sectionKeys(x).forEach(k => next.delete(k));
+      if (mode !== 'none') next.add(x.access.key);
+      if (mode === 'full') x.actions.forEach(y => next.add(y.key));
+    });
+    commit(next);
+  };
+  const matches = (x: PermissionSection) => !q || [x.name, x.description, ...x.actions.flatMap(a => [a.label, a.description])].some(t => t.toLowerCase().includes(q));
 
   return (
     <div className="space-y-5">
@@ -88,58 +110,105 @@ const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPe
       </div>
 
       <div>
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <SectionLabel>Permissions <span className="normal-case tracking-normal font-medium text-slate-400">· {value.length} selected{role ? '' : ' · custom'}</span></SectionLabel>
-          <div className="relative w-44 sm:w-52">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-3">
+          <div>
+            <SectionLabel>Access by section</SectionLabel>
+            <p className="text-xs text-slate-500 mt-0.5">
+              <span className="font-semibold text-slate-700 tabular-nums">{openSections}</span> of {allSections.length} screens · {selected} permission{selected === 1 ? '' : 's'}{role ? ` · ${role.name}` : ' · custom'}
+            </p>
+          </div>
+          <div className="relative w-full sm:w-56">
             <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a permission" className={`${inputCls} !h-8 pl-8 text-xs`} />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a screen or action" className={`${inputCls} !h-9 pl-8`} />
           </div>
         </div>
-        <div className="space-y-2">
-          {PERMISSION_GROUPS.map(g => {
-            const items = g.permissions.filter(x => !q || x.label.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
-            if (items.length === 0) return null;
-            const keys = g.permissions.map(x => x.key);
-            const count = keys.filter(k => set.has(k)).length;
-            const isOpen = open[g.id] || !!q;
+        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-4">
+          <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${allSections.length ? (openSections / allSections.length) * 100 : 0}%` }} />
+        </div>
+
+        <div className="space-y-3">
+          {PERMISSION_AREAS.map(a => {
+            const sections = a.sections.filter(matches);
+            if (sections.length === 0) return null;
+            const on = a.sections.filter(x => set.has(x.access.key)).length;
+            const full = a.sections.every(x => sectionKeys(x).every(k => set.has(k)));
+            const isOpen = !collapsed[a.id] || !!q;
+            const state = full ? 'Full access' : on === 0 ? 'No access' : `${on} of ${a.sections.length} screens`;
             return (
-              <div key={g.id} className="rounded-lg border border-slate-200 overflow-hidden">
-                <div className="flex items-center gap-3 px-3 py-2 bg-slate-50">
-                  <button type="button" onClick={() => setOpen(o => ({ ...o, [g.id]: !isOpen }))} className="flex-1 text-left min-w-0">
-                    <p className="text-[13px] font-semibold text-slate-900">{g.title} <span className="ml-1 text-xs font-medium text-slate-400 tabular-nums">{count}/{keys.length}</span></p>
-                    <p className="text-xs text-slate-500 truncate">{g.description}</p>
+              <section key={a.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <header className="flex items-center gap-3 px-3.5 py-2.5 bg-slate-50/80 border-b border-slate-200">
+                  <button type="button" onClick={() => setCollapsed(c => ({ ...c, [a.id]: isOpen }))} className="flex-1 min-w-0 text-left flex items-center gap-2.5">
+                    <svg className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-2 text-[13px] font-semibold text-slate-900">{a.title}
+                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${full ? 'bg-indigo-50 text-indigo-700' : on ? 'bg-slate-100 text-slate-600' : 'bg-white text-slate-400 ring-1 ring-inset ring-slate-200'}`}>{state}</span>
+                      </span>
+                      <span className="block text-xs text-slate-500 truncate">{a.description}</span>
+                    </span>
                   </button>
-                  <button type="button" disabled={disabled} onClick={() => setGroup(keys, count < keys.length)}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:text-slate-400 whitespace-nowrap">
-                    {count < keys.length ? 'Select all' : 'Clear'}
-                  </button>
-                  <svg className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                </div>
+                  <div className="hidden sm:flex rounded-lg bg-white ring-1 ring-slate-200 p-0.5 shrink-0">
+                    {(['full', 'view', 'none'] as const).map(m => (
+                      <button key={m} type="button" disabled={disabled} onClick={() => setArea(a, m)}
+                        className="h-7 px-2.5 rounded-md text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+                        {m === 'full' ? 'Full' : m === 'view' ? 'View only' : 'None'}
+                      </button>
+                    ))}
+                  </div>
+                </header>
                 {isOpen && (
-                  <ul className="divide-y divide-slate-100">
-                    {items.map(x => {
-                      const on = set.has(x.key);
-                      return (
-                        <li key={x.key}>
-                          <label className={`flex items-center gap-3 px-3 py-2 ${disabled ? '' : 'cursor-pointer hover:bg-slate-50'}`}>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-2 text-[13px] font-medium text-slate-800">
-                                {x.label}
-                                {SENSITIVE_PERMISSIONS.has(x.key) && <Badge tone="danger" dot={false} className="!text-[10px] uppercase tracking-wide">Sensitive</Badge>}
-                              </span>
-                              <span className="block text-xs text-slate-500">{x.description}</span>
-                            </span>
-                            <span className={`relative inline-flex w-9 h-5 rounded-full transition-colors shrink-0 ${on ? 'bg-indigo-600' : 'bg-slate-300'} ${disabled ? 'opacity-60' : ''}`}>
-                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : ''}`} />
-                            </span>
-                            <input type="checkbox" className="sr-only" checked={on} disabled={disabled} onChange={() => toggle(x.key)} />
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <>
+                    <div className="sm:hidden flex gap-1.5 px-3.5 pt-2.5">
+                      {(['full', 'view', 'none'] as const).map(m => (
+                        <button key={m} type="button" disabled={disabled} onClick={() => setArea(a, m)}
+                          className="flex-1 h-8 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 active:bg-slate-100">
+                          {m === 'full' ? 'Full' : m === 'view' ? 'View only' : 'None'}
+                        </button>
+                      ))}
+                    </div>
+                    <ul className="divide-y divide-slate-100">
+                      {sections.map(x => {
+                        const open = set.has(x.access.key);
+                        const sensitive = SENSITIVE_PERMISSIONS.has(x.access.key);
+                        return (
+                          <li key={x.id} className={`px-3.5 py-3 ${open ? '' : 'bg-slate-50/40'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-semibold ${open ? 'text-slate-900' : 'text-slate-500'}`}>
+                                  {x.name}
+                                  {sensitive && <Badge tone="danger" dot={false} className="!text-[10px] uppercase tracking-wide">Sensitive</Badge>}
+                                </p>
+                                <p className="text-xs text-slate-500">{x.description}</p>
+                              </div>
+                              <span className={`hidden sm:inline text-[11px] font-semibold ${open ? 'text-indigo-700' : 'text-slate-400'}`}>{open ? 'Access' : 'No access'}</span>
+                              <Switch on={open} disabled={disabled} onClick={() => toggleSection(x)} label={`Access to ${x.name}`} />
+                            </div>
+                            {x.actions.length > 0 && (
+                              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                {x.actions.map(y => {
+                                  const yes = set.has(y.key);
+                                  return (
+                                    <button key={y.key} type="button" disabled={disabled || !open} title={y.description} onClick={() => toggleAction(x, y.key)}
+                                      aria-pressed={yes}
+                                      className={`inline-flex items-center gap-1.5 h-8 pl-2 pr-3 rounded-full border text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
+                                        !open ? 'border-slate-200 bg-white text-slate-300'
+                                          : yes ? (SENSITIVE_PERMISSIONS.has(y.key) ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-indigo-200 bg-indigo-50 text-indigo-700')
+                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
+                                      <span className={`w-4 h-4 rounded flex items-center justify-center ${yes && open ? (SENSITIVE_PERMISSIONS.has(y.key) ? 'bg-rose-600 text-white' : 'bg-indigo-600 text-white') : 'border border-slate-300 bg-white'}`}>
+                                        {yes && open && <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.58l7.3-7.3a1 1 0 011.4 0z" clipRule="evenodd" /></svg>}
+                                      </span>
+                                      {y.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
                 )}
-              </div>
+              </section>
             );
           })}
         </div>
@@ -268,7 +337,7 @@ const StaffDrawer: React.FC<{
   const needsLogin = !editing || !editing.hasLogin;
   const tabs: { key: typeof tab; label: string }[] = [
     { key: 'profile', label: 'Profile' },
-    { key: 'access', label: `Access · ${permissions.length}` },
+    { key: 'access', label: `Access · ${permissions.filter(k => (ALL_PERMISSIONS as string[]).includes(k)).length}` },
     { key: 'security', label: needsLogin ? 'Password' : 'Security' },
   ];
 
