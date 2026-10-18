@@ -434,7 +434,6 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
             { label: 'Duration', value: <span className="tabular-nums">{nights} day{nights === 1 ? '' : 's'}</span> },
             ...(r.source ? [{ label: 'Source', value: r.source }] : []),
             ...(r.locationName ? [{ label: 'Location', value: r.locationName }] : []),
-            { label: 'Amount', value: <span className="tabular-nums">${(Number(r.amount) || 0).toFixed(2)}</span> },
           ]} />
           {r.notes && (
             <div>

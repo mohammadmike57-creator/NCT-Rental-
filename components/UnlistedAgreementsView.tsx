@@ -171,7 +171,6 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
                       </td>
                       <td className={table.td}>
                         <Badge tone={st.tone}>{st.label}</Badge>
-                        <p className="mt-1 text-[11px] font-semibold text-slate-700 tabular-nums">{money(res.amount)}</p>
                       </td>
                       <td className={table.td}>
                         {tab === 'waiting' ? (
@@ -202,7 +201,6 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
                         <p className="text-xs text-slate-500 truncate">{res.carModel} {res.licensePlate ? `· ${res.licensePlate}` : ''} · {dt(res.startDate)}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold tabular-nums">{money(res.amount)}</p>
                         <div className="mt-1"><Badge tone={st.tone}>{st.label}</Badge></div>
                       </div>
                     </div>
@@ -373,7 +371,7 @@ const ListReservationDialog: React.FC<{
                       <div className="min-w-0"><p className="font-mono font-semibold text-slate-900">{c.bookingId}</p><p className="text-[11px] text-slate-500 truncate">{sources.find(s => s.id === c.source)?.name || c.source || '—'}</p></div>
                       <div className="min-w-0"><p className="font-medium text-slate-900 truncate">{c.personName}</p><p className="text-[11px] text-slate-500 truncate">{c.contactNumber || c.customerEmail || '—'}</p></div>
                       <div className="min-w-0"><p className="text-slate-800 truncate">{c.carModel || '—'}</p><p className="text-[11px] text-slate-500">{dt(c.startDate)} → {dt(c.endDate)}</p></div>
-                      <div className="sm:text-right">{c.bookingId && c.bookingId.trim().toLowerCase() === (original.bookingId || '').trim().toLowerCase() ? <Badge tone="success">Same booking no.</Badge> : score >= 60 ? <Badge tone="success">Strong match</Badge> : score >= 25 ? <Badge tone="info">Possible match</Badge> : <Badge tone="muted">Search result</Badge>}<p className="text-[11px] text-slate-500 tabular-nums mt-0.5">{money(c.amount)}</p></div>
+                      <div className="sm:text-right">{c.bookingId && c.bookingId.trim().toLowerCase() === (original.bookingId || '').trim().toLowerCase() ? <Badge tone="success">Same booking no.</Badge> : score >= 60 ? <Badge tone="success">Strong match</Badge> : score >= 25 ? <Badge tone="info">Possible match</Badge> : <Badge tone="muted">Search result</Badge>}</div>
                     </div>
                   </label>
                 </li>

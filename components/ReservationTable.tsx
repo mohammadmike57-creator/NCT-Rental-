@@ -384,7 +384,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       'Pickup Date': res.startDate,
       'Return Date': res.endDate,
       'Days': getDuration(res.startDate, res.endDate),
-      'Amount': res.amount,
       'Status': res.status,
       'Location': res.locationName,
       'Contact': res.contactNumber,
@@ -410,7 +409,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       'Pickup Date': res.startDate,
       'Return Date': res.endDate,
       'Days': getDuration(res.startDate, res.endDate),
-      'Amount': res.amount,
       'Status': res.status,
       'Location': res.locationName,
       'Contact': res.contactNumber,
@@ -827,7 +825,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     <SortTh k="return">Return</SortTh>
                     <th className="font-semibold px-3 py-2.5 uppercase tracking-wider">Vehicle</th>
                     <th className="hidden xl:table-cell font-semibold px-3 py-2.5 uppercase tracking-wider">Source</th>
-                    <SortTh k="amount" className="text-right">Total</SortTh>
+                    <th className="font-semibold px-3 py-2.5 uppercase tracking-wider text-right">Days</th>
                     <th className="px-3 py-2.5 pr-4"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -864,7 +862,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                         </td>
                         <td className="hidden xl:table-cell px-3 py-2.5 text-slate-600 truncate max-w-[8rem]">{res.source ? getSourceName(res.source) : '—'}</td>
                         <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                          <p className="font-semibold text-slate-900 tabular-nums">{money(res.amount)}</p>
+                          <p className="font-semibold text-slate-900 tabular-nums">{rentalDaysOf(res) || '—'}</p>
                           {(res.unpaidExtensionAmount || 0) > 0 && <p className="text-[11px] font-semibold text-amber-600 tabular-nums">{money(res.unpaidExtensionAmount)} due</p>}
                         </td>
                         <td className="px-3 py-2.5 pr-4" onClick={e => e.stopPropagation()}>
@@ -892,7 +890,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                             <p className="text-sm font-medium text-slate-900 truncate">{res.personName || 'Unnamed'}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-sm font-semibold text-slate-900 tabular-nums">{money(res.amount)}</p>
+                            <p className="text-xs font-semibold text-slate-500 tabular-nums">{days ? `${days} day${days === 1 ? '' : 's'}` : ''}</p>
                             <div className="mt-1 flex justify-end"><StatusBadge res={res} withAlert={false} /></div>
                           </div>
                         </div>

@@ -65,24 +65,23 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
   const openDamages = damages.filter(d => d.status === 'NOT_COLLECTED');
 
   const monthBookings = all.filter(({ res }) => (res.startDate || '').slice(0, 7) === thisMonth && res.status !== 'CANCELLED');
-  const monthRevenue = monthBookings.reduce((s, { res }) => s + num(res.amount), 0);
   const closedThisMonth = all.filter(({ res }) => res.dropOffCompleted && (res.endDate || '').slice(0, 7) === thisMonth).length;
 
   const bySource = useMemo(() => {
-    const map = new Map<string, { count: number; revenue: number }>();
+    const map = new Map<string, { count: number }>();
     monthBookings.forEach(({ res }) => {
       const key = res.source || 'unknown';
-      const cur = map.get(key) || { count: 0, revenue: 0 };
-      cur.count++; cur.revenue += num(res.amount);
+      const cur = map.get(key) || { count: 0 };
+      cur.count++;
       map.set(key, cur);
     });
     return Array.from(map.entries())
       .map(([id, v]) => ({ id, name: sources.find(s => s.id === id)?.name || (id === 'unknown' ? 'No source' : id), ...v }))
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => b.count - a.count)
       .slice(0, 6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [all, sources]);
-  const maxSource = Math.max(1, ...bySource.map(s => s.revenue));
+  const maxSource = Math.max(1, ...bySource.map(s => s.count));
 
   const next7 = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(now);
@@ -193,7 +192,7 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
         { label: 'On rent', value: onRent.length, sub: `${closedThisMonth} closed this month`, onClick: () => onNavigate('Agreement', { voucherSubmitted: true, dropOffCompleted: false }) },
         { label: 'Fleet available', value: `${available}/${totalCars}`, sub: `${utilisation}% utilisation`, onClick: () => onNavigate('Fleet Availability') },
         { label: 'Bookings this month', value: monthBookings.length, sub: now.toLocaleDateString('en-GB', { month: 'long' }), onClick: () => onNavigate('Reservations') },
-        { label: 'Revenue this month', value: money(monthRevenue), sub: 'excl. cancellations', onClick: () => onNavigate('Yearly Summary') },
+        { label: 'Unlisted agreements', value: awaitingConfirmation.length, sub: 'waiting to be listed', tone: awaitingConfirmation.length ? 'warning' : undefined, onClick: () => onNavigate('Unlisted Agreements') },
       ]} />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -283,7 +282,7 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
           )}
         </Panel>
 
-        <Panel title="Revenue by source" subtitle={now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+        <Panel title="Bookings by source" subtitle={now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
           actions={<button onClick={() => onNavigate('Source Performance')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Report</button>}>
           {bySource.length === 0 ? <EmptyState title="No bookings this month" /> : (
             <ul className="px-4 py-2 space-y-2.5">
@@ -291,9 +290,9 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
                 <li key={s.id}>
                   <div className="flex items-baseline justify-between text-[13px]">
                     <span className="font-medium text-slate-800 truncate">{s.name}</span>
-                    <span className="font-semibold text-slate-900 tabular-nums">{money(s.revenue)} <span className="text-[11px] font-normal text-slate-400">· {s.count}</span></span>
+                    <span className="font-semibold text-slate-900 tabular-nums">{s.count} <span className="text-[11px] font-normal text-slate-400">booking{s.count === 1 ? '' : 's'}</span></span>
                   </div>
-                  <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${(s.revenue / maxSource) * 100}%` }} /></div>
+                  <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${(s.count / maxSource) * 100}%` }} /></div>
                 </li>
               ))}
             </ul>

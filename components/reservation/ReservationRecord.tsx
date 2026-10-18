@@ -191,10 +191,6 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
                 {res.customerEmail && <a href={`mailto:${res.customerEmail}`} className="hover:text-indigo-600 truncate">{res.customerEmail}</a>}
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total</p>
-              <p className="text-lg font-semibold text-slate-900 tabular-nums">{money(res.amount)}</p>
-            </div>
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             {statusBadge}

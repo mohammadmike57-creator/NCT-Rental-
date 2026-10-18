@@ -239,15 +239,12 @@ export const App: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
   
   // Track whether user manually changed selection
-  const userSelectedRef = useRef(false);
   
   // Wrapper setters to mark user interaction
   const handleSetSelectedYear = (year: number) => {
-    userSelectedRef.current = true;
     setSelectedYear(year);
   };
   const handleSetSelectedMonth = (month: string) => {
-    userSelectedRef.current = true;
     setSelectedMonth(month);
   };
   
@@ -341,7 +338,8 @@ export const App: React.FC = () => {
       reservationService.setData(migratedReservations);
       
       const yearsFromReservations = Object.keys(rawReservations).map(Number).filter(n => !isNaN(n));
-      const loadedYears = [...new Set([...(data.years || []), ...yearsFromReservations, ...initialState.years!])].sort((a,b) => a - b);
+      // Always include the current year so the app opens on today's month.
+      const loadedYears = [...new Set([...(data.years || []), ...yearsFromReservations, ...initialState.years!, new Date().getFullYear()])].sort((a,b) => a - b);
       
       setYears(loadedYears);
       if (!loadedYears.includes(selectedYear) && loadedYears.length > 0) {
@@ -398,26 +396,6 @@ export const App: React.FC = () => {
   const allReservationsFlat = useMemo(() => {
     return Object.values(reservations).flatMap((y: YearData) => Object.values(y).flat() as Reservation[]);
   }, [reservations]);
-
-  // Auto‑select the most recent reservation's year/month only if user hasn't manually chosen
-  useEffect(() => {
-    if (!isLoading && allReservationsFlat.length > 0 && !userSelectedRef.current) {
-      const mostRecent = allReservationsFlat.reduce((latest, current) => {
-        const currentDate = new Date(current.startDate);
-        const latestDate = new Date(latest.startDate);
-        return currentDate > latestDate ? current : latest;
-      }, allReservationsFlat[0]);
-      
-      const date = new Date(mostRecent.startDate);
-      const year = date.getFullYear();
-      const month = MONTHS[date.getMonth()];
-      
-      if (selectedYear !== year || selectedMonth !== month) {
-        handleSetSelectedYear(year);
-        handleSetSelectedMonth(month);
-      }
-    }
-  }, [isLoading, allReservationsFlat]);
 
   useEffect(() => {
       const cachedUsers = localStorage.getItem(USERS_CACHE_KEY);
