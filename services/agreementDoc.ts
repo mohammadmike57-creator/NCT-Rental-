@@ -1,4 +1,5 @@
 import { CarView, CompanyDetails, DamageMarker, Reservation } from '../types';
+import { damageSeverityLabel, damageTypeLabel } from './damageMarks';
 import { INSPECTION_LABEL, INSPECTION_SVG } from '../components/VehicleGraphics';
 import { CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, formatMoney } from './returnChargesDoc';
 import { parseTerms } from './agreementTerms';
@@ -73,6 +74,14 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       .join('');
     return `<div class="view"><svg viewBox="0 -12 100 84">${INSPECTION_SVG[view]}${dots(pickupMarks, '#0284c7', false)}${closed || returnMarks.length ? dots(returnMarks, '#e11d48', true) : ''}</svg><div class="vl">${INSPECTION_LABEL[view]}</div></div>`;
   };
+  const damageRows = [
+    ...pickupMarks.map((m, n) => ({ m, n, kind: 'out' as const })),
+    ...(closed || returnMarks.length ? returnMarks.map((m, n) => ({ m, n, kind: 'in' as const })) : []),
+  ];
+  const damageRegister = damageRows.length ? `<table class="dmg">
+      <tr><th style="width:7%">No.</th><th style="width:11%">View</th><th style="width:13%">Damage</th><th style="width:19%">Part / location</th><th style="width:11%">Size</th><th style="width:10%">Severity</th><th>Description</th></tr>
+      ${damageRows.map(({ m, n, kind }) => `<tr><td><span class="dn ${kind}">${n + 1}</span>${kind === 'in' ? '<span class="dk">NEW</span>' : ''}</td><td>${esc(INSPECTION_LABEL[m.view])}</td><td>${esc(damageTypeLabel(m.type) || '—')}</td><td>${esc(m.part || '—')}</td><td>${esc(m.size || '—')}</td><td>${m.severity ? `<b class="sv ${m.severity}">${esc(damageSeverityLabel(m.severity))}</b>` : '—'}</td><td>${esc(m.note || '')}</td></tr>`).join('')}
+    </table>` : `<div class="nodmg">No damage recorded on the vehicle at check-out${closed ? ' or check-in' : ''}.</div>`;
   const sig = (img: string | undefined, role: string, name?: string, at?: string) => `
     <div class="sig"><div class="si">${img ? `<img src="${esc(img)}"/>` : ''}</div><div class="sl">${esc(role)}</div><div class="sm">${esc([name, at].filter(Boolean).join(' · ') || ' ')}</div></div>`;
   const tick = (v?: boolean, warn?: boolean) => (v ? '<span class="ok">✔</span>' : warn ? '<span class="bad">✕</span>' : '<span class="dim">—</span>');
@@ -149,6 +158,15 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .diff-bad { color: #b91c1c; font-weight: 700; } .diff-ok { color: #047857; font-weight: 700; }
   .ok { color: #059669; font-weight: 800; } .bad { color: #dc2626; font-weight: 800; } .dim { color: #cbd5e1; }
   .views { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .dmg { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 7.4pt; }
+  .dmg th { text-align: left; font-size: 6.6pt; text-transform: uppercase; letter-spacing: .06em; color: #475569; border-bottom: 1px solid #0f172a; padding: 2px 4px; }
+  .dmg td { border-bottom: 1px solid #e2e8f0; padding: 2px 4px; vertical-align: top; }
+  .dmg .dn { display: inline-block; width: 13px; height: 13px; line-height: 11px; border-radius: 50%; text-align: center; font-size: 6.6pt; font-weight: 700; }
+  .dmg .dn.out { border: 1.2px solid #0284c7; color: #0284c7; }
+  .dmg .dn.in { background: #e11d48; color: #fff; border: 1.2px solid #e11d48; }
+  .dmg .dk { font-size: 5.8pt; font-weight: 800; color: #e11d48; margin-left: 3px; letter-spacing: .04em; }
+  .dmg .sv.major { color: #b91c1c; } .dmg .sv.moderate { color: #b45309; } .dmg .sv.minor { color: #334155; }
+  .nodmg { margin-top: 5px; font-size: 7.4pt; color: #475569; border: 1px dashed #cbd5e1; padding: 3px 6px; }
   .views4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .chips { margin-top: 5px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 12px; }
   .chips span { display: flex; align-items: center; gap: 4px; font-size: 7.6pt; padding: 1px 0; border-bottom: 1px dashed #eef2f6; }
@@ -338,6 +356,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   <div class="card" style="margin-top:7px"><h2><span class="n">7</span>Vehicle condition &amp; inspection</h2>
     <div class="views4">${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
     <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>Existing at check-out (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>New at check-in (${returnMarks.length})` : ''}<span style="float:right">Checklist ${okOut}/${i.checklistItems.length} out${closed ? ` · ${okIn}/${i.checklistItems.length} in` : ''}</span></div>
+    ${damageRegister}
     <div class="chips">${i.checklistItems.map(x => `<span>${tick(out[x])}${closed ? tick(back[x], !!out[x]) : ''}<em>${esc(x)}</em></span>`).join('')}</div>
   </div>
 

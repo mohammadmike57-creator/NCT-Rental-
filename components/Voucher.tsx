@@ -10,6 +10,7 @@ import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
 import { Badge, Button, Plate, SectionLabel, inputCls as kitInputCls, textareaCls, labelCls } from './ui/Crm';
+import { DAMAGE_PARTS, DAMAGE_SEVERITIES, DAMAGE_SIZES, DAMAGE_TYPES, damageSeverityLabel, damageSummary, isDescribed } from '../services/damageMarks';
 import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
 import { buildTerminationHtml, terminationFileName, terminationNumber } from '../services/terminationDoc';
 import { printHtml } from '../services/printDocs';
@@ -141,45 +142,177 @@ const ChecklistGrid: React.FC<{
   );
 };
 
-/** Four-view damage map. Markers are stored as % of each square view. */
+/** Four-view damage map with a numbered damage register below it. Markers are stored as % of each square view. */
 const DamageBoard: React.FC<{
   markers: DamageMarker[];
   priorMarkers?: DamageMarker[];
   editable: boolean;
   onMark: (e: React.MouseEvent<HTMLDivElement>, view: CarView) => void;
   onRemove: (index: number) => void;
+  onUpdate?: (index: number, patch: Partial<DamageMarker>) => void;
   priorLabel?: string;
-}> = ({ markers, priorMarkers, editable, onMark, onRemove, priorLabel = 'Recorded at pickup' }) => (
-  <div>
-    <div className="grid grid-cols-2 gap-3">
-      {(['front', 'back', 'left', 'right'] as CarView[]).map(view => (
-        <div key={view}>
-          <SectionLabel className="mb-1.5">{INSPECTION_LABEL[view]}</SectionLabel>
-          <div
-            className={`relative w-full aspect-square rounded-lg border border-slate-200 bg-slate-50/50 p-1 overflow-hidden ${editable ? 'cursor-crosshair hover:border-indigo-300' : ''}`}
-            onClick={e => editable && onMark(e, view)}
-          >
-            <InspectionDiagram view={view} className="w-full h-full" />
-            {(priorMarkers || []).map((m, i) => m.view === view && (
-              <span key={`p${i}`} title={priorLabel}
-                className="absolute w-5 h-5 -ml-2.5 -mt-2.5 rounded-full border-2 border-sky-500 bg-sky-100/80 text-sky-700 text-[9px] font-bold flex items-center justify-center pointer-events-none"
-                style={{ left: `${m.x}%`, top: `${m.y}%` }}>{i + 1}</span>
-            ))}
-            {markers.map((m, i) => m.view === view && (
-              <button type="button" key={i} title={editable ? 'Remove this mark' : 'Damage mark'}
-                onClick={e => { e.stopPropagation(); if (editable) onRemove(i); }}
-                className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow-md ring-2 ring-white ${editable ? 'hover:bg-rose-700' : 'cursor-default'}`}
-                style={{ left: `${m.x}%`, top: `${m.y}%` }}>{i + 1}</button>
-            ))}
+}> = ({ markers, priorMarkers, editable, onMark, onRemove, onUpdate, priorLabel = 'Recorded at pickup' }) => {
+  const [active, setActive] = useState<number | null>(null);
+  const prevCount = useRef(markers.length);
+  useEffect(() => {
+    // A new mark opens its details so the agent describes it straight away.
+    if (markers.length > prevCount.current) setActive(markers.length - 1);
+    prevCount.current = markers.length;
+  }, [markers.length]);
+  const described = markers.filter(isDescribed).length;
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-3">
+        {(['front', 'back', 'left', 'right'] as CarView[]).map(view => (
+          <div key={view}>
+            <SectionLabel className="mb-1.5">{INSPECTION_LABEL[view]}</SectionLabel>
+            <div
+              className={`relative w-full aspect-square rounded-lg border border-slate-200 bg-slate-50/50 p-1 overflow-hidden ${editable ? 'cursor-crosshair hover:border-indigo-300' : ''}`}
+              onClick={e => editable && onMark(e, view)}
+            >
+              <InspectionDiagram view={view} className="w-full h-full" />
+              {(priorMarkers || []).map((m, i) => m.view === view && (
+                <span key={`p${i}`} title={damageSummary(m) || priorLabel}
+                  className="absolute w-5 h-5 -ml-2.5 -mt-2.5 rounded-full border-2 border-sky-500 bg-sky-100/80 text-sky-700 text-[9px] font-bold flex items-center justify-center pointer-events-none"
+                  style={{ left: `${m.x}%`, top: `${m.y}%` }}>{i + 1}</span>
+              ))}
+              {markers.map((m, i) => m.view === view && (
+                <button type="button" key={i} title={damageSummary(m) || 'Damage mark'}
+                  onClick={e => { e.stopPropagation(); setActive(i); }}
+                  className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full text-white text-[10px] font-bold flex items-center justify-center shadow-md ring-2 ${active === i ? 'bg-indigo-600 ring-indigo-200 scale-110' : 'bg-rose-600 ring-white'} transition-transform`}
+                  style={{ left: `${m.x}%`, top: `${m.y}%` }}>{i + 1}</button>
+              ))}
+            </div>
           </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+        {priorMarkers && <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full border-2 border-sky-500 bg-sky-100" /> {priorLabel} ({priorMarkers.length})</span>}
+        <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full bg-rose-600" /> {priorMarkers ? 'New damage' : 'Damage'} ({markers.length})</span>
+        {editable && <span className="text-slate-400">Tap the car where the damage is · tap a mark to describe it</span>}
+      </div>
+
+      <DamageRegister
+        title={priorMarkers ? 'New damage register' : 'Damage register'}
+        markers={markers} editable={editable && !!onUpdate} active={active} onActivate={setActive}
+        onUpdate={(i, patch) => onUpdate?.(i, patch)}
+        onRemove={i => { onRemove(i); setActive(null); }}
+        described={described}
+      />
+      {priorMarkers && priorMarkers.length > 0 && (
+        <div className="mt-4">
+          <SectionLabel>{priorLabel}</SectionLabel>
+          <ul className="mt-1.5 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-slate-50/50">
+            {priorMarkers.map((m, i) => (
+              <li key={i} className="flex items-start gap-2.5 px-3 py-2 text-[13px]">
+                <span className="mt-0.5 w-5 h-5 shrink-0 rounded-full border-2 border-sky-500 bg-white text-sky-700 text-[9px] font-bold flex items-center justify-center">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="font-medium text-slate-800">{damageSummary(m) || 'Not described'}</span>
+                  <span className="text-slate-400"> · {INSPECTION_LABEL[m.view]}</span>
+                  {m.note && <span className="block text-xs text-slate-500">{m.note}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
-      ))}
+      )}
     </div>
-    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-      {priorMarkers && <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full border-2 border-sky-500 bg-sky-100" /> {priorLabel} ({priorMarkers.length})</span>}
-      <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full bg-rose-600" /> {priorMarkers ? 'New damage' : 'Damage'} ({markers.length})</span>
-      {editable && <span className="text-slate-400">Tap the car to add a mark · tap a mark to remove it</span>}
+  );
+};
+
+/** One row per diagram mark: what the damage is, where, how big and how bad — printed on the agreement. */
+const DamageRegister: React.FC<{
+  title: string;
+  markers: DamageMarker[];
+  editable: boolean;
+  active: number | null;
+  described: number;
+  onActivate: (i: number | null) => void;
+  onUpdate: (index: number, patch: Partial<DamageMarker>) => void;
+  onRemove: (index: number) => void;
+}> = ({ title, markers, editable, active, described, onActivate, onUpdate, onRemove }) => (
+  <div className="mt-5 pt-4 border-t border-slate-100">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <SectionLabel>{title}</SectionLabel>
+        <p className="text-xs text-slate-500 mt-0.5">Describe each mark. The list is printed on the rental agreement next to the diagram.</p>
+      </div>
+      {markers.length > 0 && (described === markers.length
+        ? <Badge tone="success">All {markers.length} described</Badge>
+        : <Badge tone="warning">{markers.length - described} of {markers.length} not described</Badge>)}
     </div>
+    {markers.length === 0 ? (
+      <div className="mt-2 rounded-lg border border-dashed border-slate-200 px-4 py-5 text-center text-xs text-slate-500">
+        No damage marked. {editable ? 'Tap the diagram where you see a scratch, dent or chip.' : ''}
+      </div>
+    ) : (
+      <ol className="mt-2 space-y-2">
+        {markers.map((m, i) => {
+          const open = editable && active === i;
+          return (
+            <li key={i} className={`rounded-xl border bg-white transition-shadow ${open ? 'border-indigo-300 shadow-sm ring-1 ring-indigo-100' : 'border-slate-200'}`}>
+              <button type="button" onClick={() => onActivate(open ? null : i)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
+                <span className={`w-7 h-7 shrink-0 rounded-full text-white text-[11px] font-bold flex items-center justify-center ${open ? 'bg-indigo-600' : 'bg-rose-600'}`}>{i + 1}</span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-[13px] font-semibold truncate ${isDescribed(m) ? 'text-slate-900' : 'text-amber-700'}`}>{damageSummary(m) || 'Describe this damage'}</span>
+                  <span className="block text-xs text-slate-500 truncate">{INSPECTION_LABEL[m.view]}{m.note ? ` · ${m.note}` : ''}</span>
+                </span>
+                {m.severity && <Badge tone={m.severity === 'major' ? 'danger' : m.severity === 'moderate' ? 'warning' : 'muted'}>{damageSeverityLabel(m.severity)}</Badge>}
+                {editable && <svg className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>}
+              </button>
+              {open && (
+                <div className="px-3 pb-3 space-y-3 border-t border-slate-100 pt-3">
+                  <div>
+                    <span className={labelCls}>Type of damage</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DAMAGE_TYPES.map(t => (
+                        <button type="button" key={t.value} onClick={() => onUpdate(i, { type: m.type === t.value ? undefined : t.value })}
+                          className={`h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${m.type === t.value ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>{t.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block min-w-0">
+                      <span className={labelCls}>Part / location</span>
+                      <input className={inputCls} list={`damage-parts-${m.view}`} value={m.part || ''} placeholder="e.g. Front bumper"
+                        onChange={e => onUpdate(i, { part: e.target.value })} />
+                      <datalist id={`damage-parts-${m.view}`}>{DAMAGE_PARTS[m.view].map(p => <option key={p} value={p} />)}</datalist>
+                    </label>
+                    <label className="block min-w-0">
+                      <span className={labelCls}>Size</span>
+                      <select className={`${inputCls} w-full`} value={m.size || ''} onChange={e => onUpdate(i, { size: e.target.value || undefined })}>
+                        <option value="">Not measured</option>
+                        {DAMAGE_SIZES.map(z => <option key={z} value={z}>{z}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <div>
+                    <span className={labelCls}>Severity</span>
+                    <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-0.5">
+                      {DAMAGE_SEVERITIES.map(s => (
+                        <button type="button" key={s.value} onClick={() => onUpdate(i, { severity: m.severity === s.value ? undefined : s.value })}
+                          className={`h-8 rounded-md text-xs font-semibold transition-colors ${m.severity === s.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{s.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="block">
+                    <span className={labelCls}>Description</span>
+                    <textarea className={areaCls} rows={2} value={m.note || ''} placeholder="e.g. Light scratch through the clear coat, paint not broken"
+                      onChange={e => onUpdate(i, { note: e.target.value })} />
+                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <button type="button" onClick={() => onRemove(i)} className="h-9 px-3 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete mark</button>
+                    <Button size="sm" variant="primary" onClick={() => onActivate(null)}>Done</Button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    )}
   </div>
 );
 
@@ -371,6 +504,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     if (!isEditable) return;
     const field = viewMode === 'pickup' ? 'pickupDamageMarkers' : 'dropOffDamageMarkers';
     handleFieldChange(field, localReservation[field]?.filter((_, i) => i !== index));
+  };
+
+  const updateDamageMarker = (index: number, patch: Partial<DamageMarker>) => {
+    const isEditable = viewMode === 'pickup' ? isPickupEditable : isDropoffEditable;
+    if (!isEditable) return;
+    const field = viewMode === 'pickup' ? 'pickupDamageMarkers' : 'dropOffDamageMarkers';
+    handleFieldChange(field, (localReservation[field] || []).map((m, i) => (i === index ? { ...m, ...patch } : m)));
   };
 
   const handleSubmit = () => {
@@ -741,6 +881,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               editable={isEditable}
               onMark={handleDamageMark}
               onRemove={removeDamageMarker}
+              onUpdate={updateDamageMarker}
             />
           </StepSection>
         );
@@ -849,6 +990,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       handleExchangeFieldChange(field, currentExchange[field]?.filter((_, i) => i !== index));
     };
 
+    const updateExchangeDamageMarker = (index: number, patch: Partial<DamageMarker>) => {
+      if (!isEditable) return;
+      const field = step === 'checkin' ? 'checkinDamageMarkers' : 'checkoutDamageMarkers';
+      handleExchangeFieldChange(field, (currentExchange[field] || []).map((m, i) => (i === index ? { ...m, ...patch } : m)));
+    };
+
     const isIn = step === 'checkin';
 
     return (
@@ -889,7 +1036,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         </div>
         <StepSection title="Damage report">
           <DamageBoard markers={damageMarkers} priorMarkers={isIn ? localReservation.pickupDamageMarkers || [] : undefined}
-            editable={isEditable} onMark={handleExchangeDamageMark} onRemove={removeExchangeDamageMarker} />
+            editable={isEditable} onMark={handleExchangeDamageMark} onRemove={removeExchangeDamageMarker} onUpdate={updateExchangeDamageMarker} />
         </StepSection>
         <StepSection title="Signatures">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

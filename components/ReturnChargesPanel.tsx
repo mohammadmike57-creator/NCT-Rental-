@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { damageSummary } from '../services/damageMarks';
 import { CarView, DamageMarker, ReturnChargeItem, ReturnChargeKind, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { compressImage } from '../services/imageCompress';
@@ -143,9 +144,9 @@ const ReturnChargesPanel: React.FC<Props> = ({ charges, onChange, editable, mark
                         {VIEWS.map(v => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}
                       </select>
                       <select className={selCls} disabled={!editable || markers.length === 0} value={it.markerNumber || ''}
-                        onChange={e => { const n = parseInt(e.target.value) || undefined; setItem(it.id, { markerNumber: n, view: n ? markers[n - 1]?.view : it.view }); }}>
+                        onChange={e => { const n = parseInt(e.target.value) || undefined; const mk = n ? markers[n - 1] : undefined; setItem(it.id, { markerNumber: n, view: mk ? mk.view : it.view, ...(mk && (!it.description || it.description === DEFAULT_TEXT[it.kind]) && (damageSummary(mk) || mk.note) ? { description: [damageSummary(mk), mk.note].filter(Boolean).join(' — ') } : {}) }); }}>
                         <option value="">{markers.length ? 'Link to diagram mark…' : 'No marks on diagram'}</option>
-                        {markers.map((mk, i) => <option key={i} value={i + 1}>Mark #{i + 1} · {mk.view}</option>)}
+                        {markers.map((mk, i) => <option key={i} value={i + 1}>Mark #{i + 1} · {damageSummary(mk) || mk.view}</option>)}
                       </select>
                     </div>
                   )}

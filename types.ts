@@ -121,10 +121,19 @@ export interface ReservationExtra {
 
 export type CarView = 'front' | 'back' | 'left' | 'right';
 
+export type DamageType = 'scratch' | 'dent' | 'chip' | 'crack' | 'scuff' | 'broken' | 'missing' | 'other';
+export type DamageSeverity = 'minor' | 'moderate' | 'major';
+
 export interface DamageMarker {
   x: number; // percentage 0-100
   y: number; // percentage 0-100
   view: CarView;
+  type?: DamageType;
+  severity?: DamageSeverity;
+  /** Panel / part, e.g. "Front bumper", "Driver door". */
+  part?: string;
+  size?: string;
+  note?: string;
 }
 
 export interface UpgradeInfo {

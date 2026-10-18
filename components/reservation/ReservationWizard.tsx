@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus } from '../../types';
 import { Badge, Button, Field, inputCls, selectCls, textareaCls, SectionLabel, EmptyState } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
@@ -59,6 +59,21 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
   const [modelQuery, setModelQuery] = useState('');
 
   useEffect(() => { if (open) { setStep(0); setTried({}); setModelQuery(''); } }, [open]);
+  // Keep the page behind the form still while it is open (no background scroll or bounce on phones).
+  useEffect(() => {
+    if (!open) return;
+    const { overflow, overscrollBehavior } = document.body.style;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    return () => { document.body.style.overflow = overflow; document.body.style.overscrollBehavior = overscrollBehavior; };
+  }, [open]);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+    const chip = chipsRef.current?.querySelector<HTMLElement>(`[data-step="${step}"]`);
+    chip?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [step]);
 
   const selectedExtras: string[] = ((formData as any).selectedExtras as string[]) || [];
   const rentalDays = formData.startDate && formData.endDate
@@ -155,7 +170,12 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
   const firstInvalid = () => STEPS.findIndex((_, i) => i < STEPS.length - 1 && !stepDone(i));
 
   const next = () => {
-    if (Object.keys(stepErrors).length) { setTried(t => ({ ...t, [step]: true })); return; }
+    if (Object.keys(stepErrors).length) {
+      setTried(t => ({ ...t, [step]: true }));
+      // Bring the first highlighted field into view (the error hint is hidden on phones).
+      setTimeout(() => bodyRef.current?.querySelector<HTMLElement>('.border-rose-400')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 0);
+      return;
+    }
     setStep(s => Math.min(STEPS.length - 1, s + 1));
   };
   const back = () => setStep(s => Math.max(0, s - 1));
@@ -207,10 +227,10 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={mode === 'add' ? 'New reservation' : 'Edit reservation'}>
-      <div className="absolute inset-0 bg-slate-900/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-5xl h-[100dvh] sm:h-[88vh] sm:max-h-[860px] sm:rounded-xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200">
+        <div className="shrink-0 flex items-start justify-between gap-3 px-4 sm:px-5 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-4 pb-3 sm:pb-4 border-b border-slate-200 bg-white">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{mode === 'add' ? 'New reservation' : `Edit reservation${formData.bookingId ? ` · ${formData.bookingId}` : ''}`}</p>
             <h3 className="text-base font-semibold text-slate-900 truncate">{current.label}</h3>
@@ -227,14 +247,27 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
         </div>
 
         {/* Phone step indicator */}
-        <div className="md:hidden px-5 py-2.5 border-b border-slate-200 bg-slate-50/60">
-          <div className="flex items-center gap-1.5">
-            {STEPS.map((s, i) => (
-              <button key={s.key} type="button" onClick={() => jump(i)} aria-label={`Step ${i + 1}: ${s.label}`}
-                className={cx('h-1.5 flex-1 rounded-full transition-colors', i < step ? 'bg-indigo-600' : i === step ? 'bg-indigo-400' : 'bg-slate-200')} />
-            ))}
+        <div className="md:hidden border-b border-slate-200 bg-slate-50/70">
+          <div ref={chipsRef} className="flex gap-1.5 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {STEPS.map((s, i) => {
+              const active = i === step;
+              const done = i < STEPS.length - 1 && stepDone(i) && (i < step || mode === 'edit');
+              const invalid = tried[i] && !stepDone(i);
+              return (
+                <button key={s.key} data-step={i} type="button" onClick={() => jump(i)} aria-current={active ? 'step' : undefined}
+                  className={cx('shrink-0 inline-flex items-center gap-1.5 h-8 pl-1 pr-3 rounded-full text-xs font-semibold border transition-colors',
+                    active ? 'bg-slate-900 border-slate-900 text-white' : invalid ? 'bg-rose-50 border-rose-200 text-rose-700' : done ? 'bg-white border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500')}>
+                  <span className={cx('w-6 h-6 rounded-full inline-flex items-center justify-center text-[11px] tabular-nums',
+                    active ? 'bg-white/15' : invalid ? 'bg-rose-100' : done ? 'bg-indigo-50' : 'bg-slate-100')}>
+                    {done && !active && !invalid
+                      ? <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.58l7.3-7.3a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                      : i + 1}
+                  </span>
+                  {s.label}
+                </button>
+              );
+            })}
           </div>
-          <p className="mt-1.5 text-xs text-slate-500">Step {step + 1} of {STEPS.length} · <span className="font-semibold text-slate-700">{current.label}</span></p>
         </div>
 
         <div className="flex-1 min-h-0 flex">
@@ -274,7 +307,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
           </nav>
 
           {/* Step body */}
-          <div className="flex-1 min-w-0 overflow-y-auto px-5 py-5 text-[13px]">
+          <div ref={bodyRef} className="flex-1 min-w-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-5 pb-8 text-[13px] [-webkit-overflow-scrolling:touch]">
             {current.key === 'dates' && (
               <div className="space-y-6 max-w-3xl">
                 <div>
@@ -587,15 +620,19 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center gap-2">
-          <Button variant="ghost" onClick={onClose} className="max-sm:px-2">Cancel</Button>
+        <div className="shrink-0 px-4 sm:px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white sm:bg-slate-50 flex items-center gap-2 shadow-[0_-4px_12px_-8px_rgba(15,23,42,0.18)] sm:shadow-none">
+          <Button variant="ghost" onClick={onClose} className="hidden sm:inline-flex">Cancel</Button>
+          <div className="sm:hidden min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total · {rentalDays || 0} day{rentalDays === 1 ? '' : 's'}</p>
+            <p className="text-[15px] font-semibold text-slate-900 tabular-nums truncate">{money(calculatedTotal)}</p>
+          </div>
           {Object.keys(stepErrors).length > 0 && tried[step] && <span className="hidden sm:inline text-xs font-medium text-rose-600">Complete the highlighted fields.</span>}
           <div className="ml-auto flex items-center gap-2">
-            {step > 0 && <Button variant="secondary" onClick={back}>Back</Button>}
-            {mode === 'edit' && !isLast && <Button variant="secondary" onClick={save}>Save changes</Button>}
+            {step > 0 && <Button variant="secondary" onClick={back} className="max-sm:h-11 max-sm:px-4">Back</Button>}
+            {mode === 'edit' && !isLast && <Button variant="secondary" onClick={save} className="max-sm:h-11 max-sm:px-3"><span className="sm:hidden">Save</span><span className="hidden sm:inline">Save changes</span></Button>}
             {isLast
-              ? <Button variant="primary" onClick={save}>{mode === 'add' ? 'Create reservation' : 'Save changes'}</Button>
-              : <Button variant="primary" onClick={next}>Next</Button>}
+              ? <Button variant="primary" onClick={save} className="max-sm:h-11 max-sm:px-5">{mode === 'add' ? 'Create reservation' : 'Save changes'}</Button>
+              : <Button variant="primary" onClick={next} className="max-sm:h-11 max-sm:px-6">Next</Button>}
           </div>
         </div>
       </div>
