@@ -760,54 +760,14 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         </div>
 
         {awaitingConfirmation.length > 0 && (
-          <section className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-amber-50/70 border-b border-amber-100 flex items-center gap-3">
-              <span className="relative flex w-2.5 h-2.5"><span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60 animate-ping" /><span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-amber-500" /></span>
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-slate-900">Awaiting confirmation <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[11px] tabular-nums">{awaitingConfirmation.length}</span></h3>
-                <p className="text-xs text-slate-500">Agreements opened for bookings that were not in the list. The agreement stays usable while these wait.</p>
-              </div>
-            </div>
-            <ul className="divide-y divide-slate-100">
-              {awaitingConfirmation.map(res => {
-                const stage = stageOf(res);
-                const { year: y, month: m } = getReservationPeriod(res);
-                const agreementLabel = res.dropOffCompleted ? 'Returned' : res.voucherSubmitted ? 'Checked out' : 'Not checked out';
-                return (
-                  <li key={res.id} className="px-4 py-3 flex flex-col md:flex-row md:items-center gap-3">
-                    <button onClick={() => setDetailsModalReservation(res)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                      <span className="font-mono text-[13px] font-semibold text-slate-900 shrink-0">{res.bookingId}</span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium text-slate-900 truncate">{res.personName}</span>
-                        <span className="block text-xs text-slate-500 truncate">{res.contactNumber}{res.customerEmail ? ` · ${res.customerEmail}` : ''} · by {res.unlistedCreatedBy || res.createdBy || 'staff'} {ago(res.unlistedCreatedAt || res.createdAt)}</span>
-                      </span>
-                    </button>
-                    <div className="text-xs text-slate-600 md:w-56 min-w-0">
-                      <span className="font-medium text-slate-800">{res.carModel}</span> <Plate value={res.licensePlate} />
-                      <span className="block text-slate-500">{dayDate(res.startDate)} → {dayDate(res.endDate)}</span>
-                    </div>
-                    <div className="flex items-center gap-3 md:w-44">
-                      <span className="text-[11px] font-semibold text-slate-500">{agreementLabel}</span>
-                      <span className="text-sm font-semibold text-slate-900 tabular-nums ml-auto">{money(res.amount)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 md:justify-end">
-                      {canViewVoucherActions && stage !== 'cancelled' && (
-                        <button onClick={() => onShowRentalVoucher(res, y, m)} className="h-8 px-3 rounded-md text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
-                          {res.dropOffCompleted ? 'Agreement' : res.voucherSubmitted ? 'Check in' : 'Check out'}
-                        </button>
-                      )}
-                      {canConfirm && (
-                        <>
-                          <button onClick={() => rejectUnlisted(res)} className="h-8 px-3 rounded-md text-xs font-semibold text-rose-700 hover:bg-rose-50">Reject</button>
-                          <button onClick={() => confirmUnlisted(res)} className="h-8 px-3 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700">Confirm</button>
-                        </>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3">
+            <span className="relative flex w-2.5 h-2.5 shrink-0"><span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60 animate-ping" /><span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-amber-500" /></span>
+            <p className="flex-1 text-[13px] text-slate-700">
+              <b className="text-slate-900">{awaitingConfirmation.length} unlisted agreement{awaitingConfirmation.length === 1 ? '' : 's'}</b> opened for bookings that are not in the list yet. Add {awaitingConfirmation.length === 1 ? 'it' : 'them'} as reservations to complete the booking details.
+            </p>
+            <button onClick={() => window.dispatchEvent(new CustomEvent('nct:navigate', { detail: 'Unlisted Agreements' }))}
+              className="h-8 px-3 rounded-lg bg-white border border-amber-300 text-xs font-semibold text-amber-900 hover:bg-amber-100 whitespace-nowrap self-start sm:self-auto">Review unlisted agreements</button>
+          </div>
         )}
 
         {/* Data grid */}

@@ -118,7 +118,7 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
   const attention = [
     { key: 'od', label: 'Overdue returns', count: overdueReturns.length, tone: 'danger' as const, icon: <ClockIcon className="w-4 h-4" />, go: () => onNavigate('Agreement', { voucherSubmitted: true, dropOffCompleted: false }) },
     { key: 'lp', label: 'Late pickups', count: latePickups.length, tone: 'warning' as const, icon: <CalendarIcon className="w-4 h-4" />, go: () => onNavigate('Agreement', { voucherSubmitted: false, dropOffCompleted: false }) },
-    { key: 'ac', label: 'Unlisted bookings to confirm', count: awaitingConfirmation.length, tone: 'warning' as const, icon: <DocumentTextIcon className="w-4 h-4" />, go: () => onNavigate('Reservations') },
+    { key: 'ac', label: 'Unlisted agreements to list', count: awaitingConfirmation.length, tone: 'warning' as const, icon: <DocumentTextIcon className="w-4 h-4" />, go: () => onNavigate('Unlisted Agreements') },
     { key: 'pa', label: 'Payment approvals', count: paymentApprovals.length, tone: 'info' as const, icon: <CurrencyDollarIcon className="w-4 h-4" />, go: () => onNavigate('Payment Approvals') },
     { key: 'ue', label: 'Unpaid extensions', count: unpaidExtensions.length, tone: 'warning' as const, icon: <CurrencyDollarIcon className="w-4 h-4" />, go: () => onNavigate('Deferred Payments') },
     { key: 'tt', label: 'Traffic tickets to collect', count: openTickets.length, tone: 'danger' as const, icon: <ShieldExclamationIcon className="w-4 h-4" />, go: () => onNavigate('Traffic Tickets') },

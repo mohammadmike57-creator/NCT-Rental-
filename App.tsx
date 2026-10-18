@@ -26,6 +26,7 @@ const LoginScreen = React.lazy(() => import('./components/LoginScreen'));
 const ExtendRentalModal = React.lazy(() => import('./components/ExtendRentalModal'));
 const ExtrasManagerModal = React.lazy(() => import('./components/ExtrasManagerModal'));
 const UnlistedAgreementModal = React.lazy(() => import('./components/UnlistedAgreementModal'));
+const UnlistedAgreementsView = React.lazy(() => import('./components/UnlistedAgreementsView'));
 const ManageCompanyDetailsView = React.lazy(() => import('./components/ManageCompanyDetailsView'));
 const ManageYearsView = React.lazy(() => import('./components/ManageYearsView'));
 const UserManagement = React.lazy(() => import('./components/UserManagement'));
@@ -921,7 +922,7 @@ export const App: React.FC = () => {
       setSaveStatus('saved');
       setShowUnlistedAgreement(false);
       setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }));
-      showConfirmation(`Booking ${reservation.bookingId} created and sent for confirmation.`);
+      showConfirmation(`Agreement ${reservation.bookingId} opened. It is in Unlisted agreements until you add it as a reservation.`);
       recordActivity('UNLISTED_AGREEMENT_CREATED', 'reservation', `Opened an agreement for unlisted booking — ${reservation.personName}, ${reservation.carModel}`, reservation.bookingId);
     } catch (err) {
       setSaveStatus('error');
@@ -1419,6 +1420,49 @@ ${currentUser?.fullName}
   };
   
   const pendingApprovalsCount = useMemo(() => allReservationsFlat.filter(r => r.paymentConfirmationPending).length, [allReservationsFlat]);
+  const unlistedWaitingCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED).length, [allReservationsFlat]);
+
+  // Other screens (reservations banner, dashboard) can ask to open a view.
+  useEffect(() => {
+    const onNav = (e: Event) => { const v = (e as CustomEvent<string>).detail; if (v) handleNavigation(v); };
+    window.addEventListener('nct:navigate', onNav);
+    return () => window.removeEventListener('nct:navigate', onNav);
+  });
+
+  /** Unlisted agreement → normal reservation, stored under its (possibly changed) pickup month. */
+  const handleListUnlisted = async (updated: Reservation, original: Reservation) => {
+    const start = new Date(updated.startDate);
+    const year = Number.isNaN(start.getTime()) ? original.storageYear : start.getFullYear();
+    const month = Number.isNaN(start.getTime()) ? original.storageMonth : MONTHS[start.getMonth()];
+    const next: Reservation = { ...updated, storageYear: year, storageMonth: month, importLockedYear: year, importLockedMonth: month, lastEditedBy: currentUser?.fullName, updatedAt: new Date().toISOString() };
+    setSaveStatus('saving');
+    try {
+      if (original.storageYear && original.storageMonth && (original.storageYear !== year || original.storageMonth !== month)) {
+        await reservationService.deleteReservation(original.id, original.storageYear, original.storageMonth);
+      }
+      const data = await reservationService.updateReservation(next);
+      setReservations(data);
+      setSaveStatus('saved');
+      showConfirmation(`${next.bookingId} is now listed in Reservations (${month} ${year}).`);
+      recordActivity('UNLISTED_LISTED', 'reservation', `Listed unlisted agreement as a reservation — ${next.personName}, ${next.carModel}`, next.bookingId);
+    } catch (err) {
+      setSaveStatus('error');
+      console.error('Failed to list unlisted agreement:', err);
+      addNotification('Could not list the reservation. Check your connection and try again.', 'error');
+    }
+  };
+  const handleSaveUnlistedDraft = async (updated: Reservation) => {
+    await handleUpdateReservations(updated);
+    showConfirmation(`Details saved for ${updated.bookingId}. It stays in Unlisted agreements until you list it.`);
+  };
+  const handleRejectUnlisted = (res: Reservation) => {
+    const msg = res.voucherSubmitted && !res.dropOffCompleted
+      ? `${res.personName} currently has the car (${res.licensePlate || res.carModel}). Reject ${res.bookingId} anyway? It will be marked as cancelled.`
+      : `Reject ${res.bookingId} for ${res.personName}? It will be marked as cancelled.`;
+    if (!window.confirm(msg)) return;
+    handleUpdateReservations({ ...res, awaitingConfirmation: false, status: ReservationStatus.CANCELLED, confirmedBy: currentUser?.fullName, confirmedAt: new Date().toISOString() });
+    recordActivity('UNLISTED_REJECTED', 'reservation', `Rejected unlisted agreement — ${res.personName}`, res.bookingId);
+  };
 
   // LocalStorage sync for availableExtras (workaround until backend supports it)
   useEffect(() => {
@@ -1575,6 +1619,21 @@ ${currentUser?.fullName}
             currentUser={currentUser}
         />
     ), permission: UserPermission.VIEW_REPORTS_YEARLY_SUMMARY },
+    'Unlisted Agreements': { component: (
+        <UnlistedAgreementsView
+            allData={reservations}
+            sources={sources}
+            rentalLocations={rentalLocations}
+            fleet={fleet}
+            currentUser={currentUser}
+            canEdit={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_EDIT)}
+            onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
+            onList={handleListUnlisted}
+            onSaveDraft={handleSaveUnlistedDraft}
+            onReject={handleRejectUnlisted}
+            onNewWalkIn={() => setShowUnlistedAgreement(true)}
+        />
+    ), permission: UserPermission.VIEW_RESERVATIONS },
     'Fleet Availability': { component: (
       <FleetAvailability 
         fleet={fleet} 
@@ -1821,6 +1880,7 @@ ${currentUser?.fullName}
         { name: 'Home', icon: HomeIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
         { name: 'Reservations', icon: CalendarIcon, permission: UserPermission.VIEW_RESERVATIONS },
         { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
+        { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_RESERVATIONS, badge: unlistedWaitingCount },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
