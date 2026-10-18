@@ -431,3 +431,18 @@
     display: none;
   }
 }
+
+
+/* Phones and tablets: form fields use 16px text so iOS Safari does not zoom the page when a field
+   is tapped, and the layout keeps its size. (Pinch-zoom is still available.) */
+@media (pointer: coarse), (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* No grey flash on tap; text size stays as designed when rotating the phone. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+* { -webkit-tap-highlight-color: transparent; }
