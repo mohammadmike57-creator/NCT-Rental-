@@ -30,6 +30,39 @@ const docInput = (r: Reservation, ctx: PrintContext) => {
 export const agreementHtmlFor = (r: Reservation, ctx: PrintContext) => buildAgreementHtml(docInput(r, ctx));
 export const terminationHtmlFor = (r: Reservation, ctx: PrintContext) => buildTerminationHtml(docInput(r, ctx));
 
+// Printable area of an A4 sheet with the documents' 9 mm margins, in CSS px.
+const A4_PRINT_WIDTH = '192mm';
+const A4_PRINT_HEIGHT_PX = ((297 - 18) * 96) / 25.4 - 10;
+
+/**
+ * Documents made of fixed pages (<div class="pdf-page">, e.g. the rental agreement and its
+ * terms) are scaled so each one fills exactly one printed sheet. The terms then always land
+ * on page 2 — the back of the agreement when printing two-sided.
+ */
+function fitPagesForPrint(d: Document) {
+  const pages = Array.from(d.querySelectorAll<HTMLElement>('body > .pdf-page'));
+  if (pages.length < 2) return;
+  d.body.style.width = A4_PRINT_WIDTH;
+  d.body.style.margin = '0 auto';
+  d.body.style.padding = '0';
+  d.body.style.setProperty('zoom', '1');
+  pages.forEach(page => {
+    page.style.setProperty('zoom', '1');
+    const h = page.getBoundingClientRect().height;
+    if (h > A4_PRINT_HEIGHT_PX) page.style.setProperty('zoom', (A4_PRINT_HEIGHT_PX / h).toFixed(3));
+  });
+  if (!d.getElementById('duplex-tip')) {
+    const tip = d.createElement('div');
+    tip.id = 'duplex-tip';
+    tip.textContent = 'Tip: choose “Two-sided” / “Print on both sides” in the print settings so the Terms and Conditions print on the back of the agreement.';
+    tip.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:8px 14px;background:#0f172a;color:#fff;font:13px/1.4 Inter,Arial,sans-serif;text-align:center;z-index:10;';
+    const style = d.createElement('style');
+    style.textContent = '@media print { #duplex-tip { display: none !important; } }';
+    d.head.appendChild(style);
+    d.body.appendChild(tip);
+  }
+}
+
 /**
  * Opens a document in a new window and shows the print dialog once its images
  * (logo, signatures, photos) have loaded. Returns false if pop-ups are blocked.
@@ -40,7 +73,7 @@ export function printHtml(html: string): boolean {
   w.document.open();
   w.document.write(html);
   w.document.close();
-  const go = () => { w.focus(); w.print(); };
+  const go = () => { fitPagesForPrint(w.document); w.focus(); w.print(); };
   const imgs = Array.from(w.document.images);
   const pending = imgs.filter(i => !i.complete);
   if (!pending.length) setTimeout(go, 250);

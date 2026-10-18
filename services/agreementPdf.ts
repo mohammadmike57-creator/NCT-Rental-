@@ -75,8 +75,9 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
       let y = 0;
       // Trim the blank space below the last element so it doesn't count as content.
       const contentBottom = Math.min(canvas.height, Math.round(((breaks[breaks.length - 1] ?? height) + 12) * scale));
-      // A section that is only slightly longer than one page (up to 20%) is shrunk onto it rather than leaving a near-empty page.
-      if (contentBottom > sliceH && contentBottom <= sliceH * 1.2) {
+      // A fixed page (.pdf-page) always fits on one sheet, so the agreement's terms land on the back of the
+      // printed copy; other documents shrink only when slightly longer than a page (up to 20%).
+      if (contentBottom > sliceH && (section || contentBottom <= sliceH * 1.2)) {
         const fit = (pageH - margin * 2 - 10) / contentBottom;
         const w = canvas.width * fit;
         const slice = document.createElement('canvas');
