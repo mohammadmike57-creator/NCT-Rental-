@@ -1,5 +1,6 @@
 import React from 'react';
 import { AdditionalDriver, DriverDetails } from '../../types';
+import { Bi } from '../ui/Bi';
 import { Badge, Button, SectionLabel, inputCls, labelCls, selectCls } from '../ui/Crm';
 
 interface Props {
@@ -34,7 +35,7 @@ const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editabl
   const age = ageOn(driver.dateOfBirth);
   const field = (label: string, key: keyof DriverDetails, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label className="block min-w-0">
-      <span className={labelCls}>{label}</span>
+      <span className={labelCls}><Bi en={label} /></span>
       {editable
         ? <input className={inputCls} value={(driver[key] as string) || ''} onChange={e => set({ [key]: e.target.value } as Partial<DriverDetails>)} {...props} />
         : <span className="block h-9 leading-9 text-[13px] text-slate-800 truncate">{(driver[key] as string) || '—'}</span>}
@@ -45,7 +46,7 @@ const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editabl
     <div className="mt-5 pt-5 border-t border-slate-100 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <SectionLabel>Main driver documents</SectionLabel>
+          <SectionLabel><Bi en="Main driver documents" /></SectionLabel>
           <p className="text-xs text-slate-500 mt-0.5">Printed on the rental agreement. Check the original documents at the counter.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -61,10 +62,10 @@ const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editabl
         {field('Date of birth', 'dateOfBirth', { type: 'date' })}
         {field('Nationality', 'nationality', { placeholder: 'e.g. Jordanian' })}
         <label className="block min-w-0">
-          <span className={labelCls}>ID type</span>
+          <span className={labelCls}><Bi en="ID type" /></span>
           {editable ? (
             <select className={`${selectCls} w-full`} value={driver.idType || 'passport'} onChange={e => set({ idType: e.target.value as DriverDetails['idType'] })}>
-              {ID_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {ID_TYPES.map(t => <option key={t.value} value={t.value}>{t.label} · {({ passport: 'جواز السفر', national_id: 'الهوية الوطنية', residence: 'الإقامة' } as Record<string, string>)[t.value]}</option>)}
             </select>
           ) : <span className="block h-9 leading-9 text-[13px] text-slate-800">{ID_TYPES.find(t => t.value === driver.idType)?.label || '—'}</span>}
         </label>
@@ -74,9 +75,9 @@ const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editabl
 
       <div>
         <div className="flex items-center justify-between gap-2">
-          <SectionLabel>Additional drivers</SectionLabel>
+          <SectionLabel><Bi en="Additional drivers" /></SectionLabel>
           {editable && (
-            <Button size="sm" onClick={() => onChangeAdditional([...additionalDrivers, { name: '' }])}>+ Add driver</Button>
+            <Button size="sm" onClick={() => onChangeAdditional([...additionalDrivers, { name: '' }])}><Bi en="+ Add driver" /></Button>
           )}
         </div>
         {additionalDrivers.length === 0 ? (
@@ -87,7 +88,7 @@ const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editabl
               <li key={i} className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr_auto] gap-2 items-end rounded-lg border border-slate-200 p-2.5">
                 {(['name', 'licenseNumber', 'dateOfBirth'] as const).map(k => (
                   <label key={k} className="block min-w-0">
-                    <span className={labelCls}>{k === 'name' ? 'Full name' : k === 'licenseNumber' ? 'Licence no.' : 'Date of birth'}</span>
+                    <span className={labelCls}><Bi en={k === 'name' ? 'Full name' : k === 'licenseNumber' ? 'Licence no.' : 'Date of birth'} /></span>
                     {editable
                       ? <input className={inputCls} type={k === 'dateOfBirth' ? 'date' : 'text'} value={d[k] || ''}
                           onChange={e => onChangeAdditional(additionalDrivers.map((x, j) => (j === i ? { ...x, [k]: e.target.value } : x)))} />

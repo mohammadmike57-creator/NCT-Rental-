@@ -1,4 +1,6 @@
 import React from 'react';
+import { Bi } from '../ui/Bi';
+import { arOf } from '../../services/uiArabic';
 
 export type StepStatus = 'done' | 'incomplete' | 'pending';
 
@@ -28,7 +30,7 @@ export const StepRail: React.FC<{ title: string; steps: WorkflowStep[]; active: 
   return (
     <nav aria-label={`${title} steps`} className="p-3">
       <div className="px-2 pb-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{title}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Bi en={title} className="!text-[12px]" /></p>
         <div className="mt-2 flex items-center gap-2">
           <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-emerald-600 transition-all" style={{ width: `${steps.length ? (done / steps.length) * 100 : 0}%` }} /></div>
           <span className="text-[11px] text-slate-500 tabular-nums">{done}/{steps.length}</span>
@@ -49,7 +51,7 @@ export const StepRail: React.FC<{ title: string; steps: WorkflowStep[]; active: 
               >
                 {marker(s, i, isActive)}
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-[13px] font-medium leading-5 ${isActive ? 'text-indigo-800' : 'text-slate-800'}`}>{s.label}</span>
+                  <span className={`flex items-baseline justify-between gap-2 text-[13px] font-medium leading-5 ${isActive ? 'text-indigo-800' : 'text-slate-800'}`}><span className="truncate">{s.label}</span>{arOf(s.label) && <span lang="ar" dir="rtl" className="ar-ui !text-[12px] shrink-0">{arOf(s.label)}</span>}</span>
                   <span className={`block text-[11px] leading-4 truncate ${s.status === 'incomplete' && !isActive ? 'text-amber-700' : 'text-slate-500'}`}>
                     {s.status === 'done' ? 'Complete' : s.hint || (s.status === 'incomplete' ? 'Needs attention' : 'Not started')}
                   </span>
@@ -80,7 +82,7 @@ export const MobileStepBar: React.FC<{ steps: WorkflowStep[]; active: number; on
         <div className="min-w-0 flex-1 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 tabular-nums">Step {active + 1} of {steps.length}</p>
           <p className="text-[13px] font-semibold text-slate-900 truncate flex items-center justify-center gap-1.5">
-            {s.label}
+            <Bi en={s.label} />
             {s.status === 'done' && <span className="text-emerald-600">{CHECK}</span>}
           </p>
         </div>

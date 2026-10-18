@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Bi } from './ui/Bi';
 import { Fleet, RentalLocation, RentalSource } from '../types';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { Panel, Badge, Plate, Button, DetailList, inputCls as kitInput, selectCls, textareaCls, labelCls } from './ui/Crm';
@@ -33,7 +34,7 @@ const makeRef = () => `WALK-${Date.now().toString(36).slice(-4).toUpperCase()}${
 
 const Field: React.FC<{ label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode; className?: string }> = ({ label, required, error, hint, children, className }) => (
   <label className={`block min-w-0 ${className || ''}`}>
-    <span className={labelCls}>{label}{required && <span className="text-rose-500"> *</span>}</span>
+    <span className={labelCls}><Bi en={label} />{required && <span className="text-rose-500"> *</span>}</span>
     {children}
     {error ? <span className="block text-xs text-rose-600 mt-1">{error}</span> : hint ? <span className="block text-xs text-slate-500 mt-1">{hint}</span> : null}
   </label>
@@ -103,7 +104,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
     <div className="bg-slate-50 -m-4 sm:m-0 h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-xl shadow-2xl overflow-hidden flex flex-col" role="dialog" aria-modal="true">
       <header className="px-5 py-4 bg-white border-b border-slate-200 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-slate-900">Agreement without reservation</h3>
+          <h3 className="text-base font-semibold text-slate-900">Agreement without reservation<span lang="ar" dir="rtl" className="ar-ui block sm:inline sm:ml-2 !text-[15px] !text-slate-700">عقد بدون حجز</span></h3>
           <p className="text-xs text-slate-500 mt-0.5">
             For a customer whose booking (for example from the website) is not in the system yet. Saved as <Badge tone="warning" dot={false} className="align-middle">Unlisted</Badge> until the reservations team links it to the booking.
           </p>
@@ -115,7 +116,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-3 gap-4 content-start">
         <div className="lg:col-span-2 space-y-4 min-w-0">
-          <Panel title="Customer" padded>
+          <Panel title={<Bi en="Customer" />} padded>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Full name" required error={err('personName')} className="sm:col-span-2">
                 <input className={inputCls(!!err('personName'))} value={d.personName} onChange={e => set('personName', e.target.value)} placeholder="As shown on driving licence" autoFocus />
@@ -129,7 +130,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
             </div>
           </Panel>
 
-          <Panel title="Booking" padded>
+          <Panel title={<Bi en="Booking" />} padded>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Website / partner booking no." required error={err('bookingId')} hint="Enter it if the customer has it, so the booking is matched automatically. Otherwise keep the temporary number.">
                 <input className={`${inputCls(!!err('bookingId'))} font-mono`} value={d.bookingId} onChange={e => set('bookingId', e.target.value)} />
@@ -158,7 +159,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
             </div>
           </Panel>
 
-          <Panel title="Vehicle" padded>
+          <Panel title={<Bi en="Vehicle" />} padded>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="From fleet" className="sm:col-span-2">
                 <select className={selCls} value={vehicleId} onChange={e => pickVehicle(e.target.value)}>
@@ -182,7 +183,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
         </div>
 
         <aside className="space-y-4 min-w-0">
-          <Panel title="Summary" className="lg:sticky lg:top-0">
+          <Panel title={<Bi en="Summary" />} className="lg:sticky lg:top-0">
             <div className="h-24 bg-slate-50 border-b border-slate-200 flex items-center justify-center">
               <VehicleArt kind={kind} className="h-16 w-auto" />
             </div>
@@ -214,8 +215,8 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
       <footer className="px-5 py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-3">
         <p className="text-xs text-slate-500 hidden sm:block">{touched && !valid ? <span className="text-rose-600 font-semibold">Please fix the highlighted fields.</span> : 'Fields marked * are required.'}</p>
         <div className="flex gap-2 ml-auto max-sm:w-full [&>*]:max-sm:flex-1">
-          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-          <Button variant="primary" onClick={submit}>Open agreement</Button>
+          <Button variant="secondary" onClick={onCancel}><Bi en="Cancel" /></Button>
+          <Button variant="primary" onClick={submit}><Bi en="Open agreement" className="!text-white/80" /></Button>
         </div>
       </footer>
     </div>

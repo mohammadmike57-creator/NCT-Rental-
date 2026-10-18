@@ -446,3 +446,9 @@
 /* No grey flash on tap; text size stays as designed when rotating the phone. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 * { -webkit-tap-highlight-color: transparent; }
+
+/* Arabic beside English on the rental-agreement screens (font ships in public/fonts). */
+@font-face { font-family: 'Plex Arabic'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/plex-arabic-400.woff2') format('woff2'); }
+@font-face { font-family: 'Plex Arabic'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/plex-arabic-600.woff2') format('woff2'); }
+@font-face { font-family: 'Plex Arabic'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/plex-arabic-700.woff2') format('woff2'); }
+.ar-ui { font-family: 'Plex Arabic', 'Noto Naskh Arabic', Tahoma, sans-serif; letter-spacing: 0 !important; text-transform: none !important; font-weight: 600; color: #64748b; unicode-bidi: isolate; }

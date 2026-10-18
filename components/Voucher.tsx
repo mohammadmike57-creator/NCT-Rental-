@@ -9,9 +9,11 @@ import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
+import { Bi } from './ui/Bi';
+import { arOf } from '../services/uiArabic';
 import { Badge, Button, Plate, SectionLabel, inputCls as kitInputCls, textareaCls, labelCls } from './ui/Crm';
-import { DAMAGE_PARTS, DAMAGE_SEVERITIES, DAMAGE_SIZES, DAMAGE_TYPES, damageSeverityLabel, damageSummary, isDescribed } from '../services/damageMarks';
-import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
+import { DAMAGE_PARTS, DAMAGE_SEVERITIES, DAMAGE_SIZES, DAMAGE_TYPES, DAMAGE_TYPE_AR, DAMAGE_SEVERITY_AR, damageSeverityLabel, damageSummary, isDescribed } from '../services/damageMarks';
+import { buildAgreementHtml as buildAgreementDoc, PICKUP_TERMS_AR, RETURN_TERMS_AR } from '../services/agreementDoc';
 import { buildTerminationHtml, terminationFileName, terminationNumber } from '../services/terminationDoc';
 import { printHtml } from '../services/printDocs';
 import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
@@ -40,7 +42,7 @@ const InfoBlock: React.FC<{ title: string; children: React.ReactNode; className?
 
 const InfoPair: React.FC<{ label: string; value?: string | React.ReactNode }> = ({ label, value }) => (
   <div className="flex items-start justify-between gap-4">
-    <p className="text-[13px] text-slate-500 shrink-0">{label}</p>
+    <p className="text-[13px] text-slate-500 shrink-0"><Bi en={label} /></p>
     <div className="font-medium text-slate-900 text-right break-words whitespace-pre-wrap text-[13px] tabular-nums min-w-0">{value || '—'}</div>
   </div>
 );
@@ -56,6 +58,12 @@ const StepSection: React.FC<{ step?: number; title: string; subtitle?: string; c
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
         {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
       </div>
+      {arOf(title) && (
+        <div lang="ar" dir="rtl" className="min-w-0 max-w-[48%] text-right">
+          <p className="ar-ui !text-[14px] !font-bold !text-slate-800 leading-5">{arOf(title)}</p>
+          {subtitle && arOf(subtitle) && <p className="ar-ui !text-[11.5px] !font-normal !text-slate-500 leading-4 truncate">{arOf(subtitle)}</p>}
+        </div>
+      )}
       {aside}
     </header>
     <div className="p-4">{children}</div>
@@ -93,7 +101,7 @@ const FuelGauge: React.FC<{ level?: number; pickupLevel?: number; onLevelChange:
           <div className="absolute -top-1 -bottom-1 w-0.5 bg-slate-900 rounded" style={{ left: `calc(${((pickupLevel as number) / 8) * 100}% - 1px)` }} title={`Pickup level ${pickupLevel}/8`} />
         )}
       </div>
-      <div className="flex justify-between text-[10px] font-semibold text-slate-400 mt-1"><span>EMPTY</span><span>½</span><span>FULL</span></div>
+      <div className="flex justify-between text-[10px] font-semibold text-slate-400 mt-1"><span>EMPTY · <span className="ar-ui">فارغ</span></span><span>½</span><span><span className="ar-ui">ممتلئ</span> · FULL</span></div>
     </div>
   );
 };
@@ -114,7 +122,7 @@ const ChecklistGrid: React.FC<{
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-slate-500 tabular-nums">{done} of {items.length} items confirmed</p>
+        <p className="text-xs text-slate-500 tabular-nums">{done} of {items.length} items confirmed <span lang="ar" dir="rtl" className="ar-ui ml-1">تم تأكيد {done} من {items.length}</span></p>
         <div className="w-24 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${(done / items.length) * 100}%` }} /></div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
@@ -130,7 +138,7 @@ const ChecklistGrid: React.FC<{
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left text-[13px] transition-colors ${on ? 'border-emerald-200 bg-emerald-50/60 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'} ${disabled ? 'cursor-default' : 'hover:border-slate-300'}`}
             >
               <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 ${on ? 'bg-emerald-600 text-white' : 'border border-slate-300 bg-white'}`}>{on && CHECK_ICON}</span>
-              <span className="flex-1 font-medium">{item}</span>
+              <span className="flex-1 font-medium"><Bi en={item} block /></span>
               {before !== undefined && (
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ring-1 ring-inset whitespace-nowrap shrink-0 ${before ? 'bg-slate-100 text-slate-500 ring-slate-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>pickup {before ? 'OK' : '—'}</span>
               )}
@@ -166,7 +174,7 @@ const DamageBoard: React.FC<{
       <div className="grid grid-cols-2 gap-3">
         {(['front', 'back', 'left', 'right'] as CarView[]).map(view => (
           <div key={view}>
-            <SectionLabel className="mb-1.5">{INSPECTION_LABEL[view]}</SectionLabel>
+            <SectionLabel className="mb-1.5"><Bi en={INSPECTION_LABEL[view]} /></SectionLabel>
             <div
               className={`relative w-full aspect-square rounded-lg border border-slate-200 bg-slate-50/50 p-1 overflow-hidden ${editable ? 'cursor-crosshair hover:border-indigo-300' : ''}`}
               onClick={e => editable && onMark(e, view)}
@@ -202,7 +210,7 @@ const DamageBoard: React.FC<{
       />
       {priorMarkers && priorMarkers.length > 0 && (
         <div className="mt-4">
-          <SectionLabel>{priorLabel}</SectionLabel>
+          <SectionLabel><Bi en={priorLabel} /></SectionLabel>
           <ul className="mt-1.5 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-slate-50/50">
             {priorMarkers.map((m, i) => (
               <li key={i} className="flex items-start gap-2.5 px-3 py-2 text-[13px]">
@@ -235,7 +243,7 @@ const DamageRegister: React.FC<{
   <div className="mt-5 pt-4 border-t border-slate-100">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
-        <SectionLabel>{title}</SectionLabel>
+        <SectionLabel><Bi en={title} /></SectionLabel>
         <p className="text-xs text-slate-500 mt-0.5">Describe each mark. The list is printed on the rental agreement next to the diagram.</p>
       </div>
       {markers.length > 0 && (described === markers.length
@@ -265,23 +273,23 @@ const DamageRegister: React.FC<{
               {open && (
                 <div className="px-3 pb-3 space-y-3 border-t border-slate-100 pt-3">
                   <div>
-                    <span className={labelCls}>Type of damage</span>
+                    <span className={labelCls}><Bi en="Type of damage" /></span>
                     <div className="flex flex-wrap gap-1.5">
                       {DAMAGE_TYPES.map(t => (
                         <button type="button" key={t.value} onClick={() => onUpdate(i, { type: m.type === t.value ? undefined : t.value })}
-                          className={`h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${m.type === t.value ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>{t.label}</button>
+                          className={`h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${m.type === t.value ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>{t.label}<span lang="ar" dir="rtl" className={`ar-ui ml-1.5 ${m.type === t.value ? '!text-white/75' : ''}`}>{DAMAGE_TYPE_AR[t.value]}</span></button>
                       ))}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="block min-w-0">
-                      <span className={labelCls}>Part / location</span>
+                      <span className={labelCls}><Bi en="Part / location" /></span>
                       <input className={inputCls} list={`damage-parts-${m.view}`} value={m.part || ''} placeholder="e.g. Front bumper"
                         onChange={e => onUpdate(i, { part: e.target.value })} />
                       <datalist id={`damage-parts-${m.view}`}>{DAMAGE_PARTS[m.view].map(p => <option key={p} value={p} />)}</datalist>
                     </label>
                     <label className="block min-w-0">
-                      <span className={labelCls}>Size</span>
+                      <span className={labelCls}><Bi en="Size" /></span>
                       <select className={`${inputCls} w-full`} value={m.size || ''} onChange={e => onUpdate(i, { size: e.target.value || undefined })}>
                         <option value="">Not measured</option>
                         {DAMAGE_SIZES.map(z => <option key={z} value={z}>{z}</option>)}
@@ -289,22 +297,22 @@ const DamageRegister: React.FC<{
                     </label>
                   </div>
                   <div>
-                    <span className={labelCls}>Severity</span>
+                    <span className={labelCls}><Bi en="Severity" /></span>
                     <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-0.5">
                       {DAMAGE_SEVERITIES.map(s => (
                         <button type="button" key={s.value} onClick={() => onUpdate(i, { severity: m.severity === s.value ? undefined : s.value })}
-                          className={`h-8 rounded-md text-xs font-semibold transition-colors ${m.severity === s.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{s.label}</button>
+                          className={`h-8 rounded-md text-xs font-semibold transition-colors ${m.severity === s.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{s.label}<span lang="ar" dir="rtl" className="ar-ui ml-1">{DAMAGE_SEVERITY_AR[s.value]}</span></button>
                       ))}
                     </div>
                   </div>
                   <label className="block">
-                    <span className={labelCls}>Description</span>
+                    <span className={labelCls}><Bi en="Description" /></span>
                     <textarea className={areaCls} rows={2} value={m.note || ''} placeholder="e.g. Light scratch through the clear coat, paint not broken"
                       onChange={e => onUpdate(i, { note: e.target.value })} />
                   </label>
                   <div className="flex items-center justify-between gap-2">
-                    <button type="button" onClick={() => onRemove(i)} className="h-9 px-3 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete mark</button>
-                    <Button size="sm" variant="primary" onClick={() => onActivate(null)}>Done</Button>
+                    <button type="button" onClick={() => onRemove(i)} className="h-9 px-3 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50"><Bi en="Delete mark" className="!text-rose-400" /></button>
+                    <Button size="sm" variant="primary" onClick={() => onActivate(null)}><Bi en="Done" className="!text-white/80" /></Button>
                   </div>
                 </div>
               )}
@@ -320,7 +328,7 @@ const SignatureBlock: React.FC<{ title: string; subtitle?: string; signature?: s
   <div className="rounded-lg border border-slate-200 p-3 sm:p-4 min-w-0">
     <div className="flex items-start justify-between gap-3 mb-3">
       <div className="min-w-0">
-        <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
+        <h3 className="text-[13px] font-semibold text-slate-900"><Bi en={title} block /></h3>
         {subtitle && <p className="text-xs text-slate-500 truncate">{subtitle}</p>}
       </div>
       <Badge tone={signature ? 'success' : 'muted'}>{signature ? 'Signed' : 'Required'}</Badge>
@@ -795,7 +803,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) => (
     <div className="w-full">
-      <label className={labelCls}>{label}</label>
+      <label className={labelCls}><Bi en={label} /></label>
       {isEditable ? (
         <input
           type={isEmail ? 'email' : 'text'}
@@ -914,11 +922,11 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className={labelCls}>From pickup</p>
+                    <p className={labelCls}><Bi en="From pickup" /></p>
                     <p className="min-h-[84px] px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[13px] text-slate-700 whitespace-pre-wrap">{localReservation.pickupNotes || 'No notes from pickup.'}</p>
                   </div>
                   <div>
-                    <label className={labelCls}>Return notes</label>
+                    <label className={labelCls}><Bi en="Return notes" /></label>
                     <textarea
                       value={localReservation.dropOffNotes || ''}
                       onChange={e => handleFieldChange('dropOffNotes', e.target.value)}
@@ -933,7 +941,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             </StepSection>
 
             <StepSection step={stepNo} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Both signatures are required to finish">
-              <p className="text-xs leading-relaxed text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">{isPickup ? PICKUP_TERMS : RETURN_TERMS}</p>
+              <div className="text-xs leading-relaxed text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 space-y-2"><p>{isPickup ? PICKUP_TERMS : RETURN_TERMS}</p><p lang="ar" dir="rtl" className="ar-ui !font-normal !text-slate-700 !text-[13px] leading-6 pt-2 border-t border-slate-200">{isPickup ? PICKUP_TERMS_AR : RETURN_TERMS_AR}</p></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SignatureBlock
                   title="Renter"
@@ -1021,12 +1029,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 {renderKmField({ label: isIn ? 'Odometer in (current car)' : 'Odometer out (new car)', value: isIn ? currentExchange.checkinKmIn : currentExchange.checkoutKmOut, onChange: v => handleExchangeFieldChange(isIn ? 'checkinKmIn' : 'checkoutKmOut', v), editable: isEditable, reference: isIn ? localReservation.pickupKmOut : undefined, referenceLabel: isIn ? 'Out' : undefined, placeholder: isIn ? 'Returning reading' : 'Starting reading' })}
                 {isIn ? (
                   <div>
-                    <label className={labelCls}>Reason for exchange</label>
+                    <label className={labelCls}><Bi en="Reason for exchange" /></label>
                     <textarea value={currentExchange.reason || ''} onChange={e => handleExchangeFieldChange('reason', e.target.value)} rows={2} className={areaCls} required disabled={!isEditable} />
                   </div>
                 ) : (
                   <div>
-                    <label className={labelCls}>New car license plate</label>
+                    <label className={labelCls}><Bi en="New car license plate" /></label>
                     <input value={currentExchange.newCarLicensePlate || ''} onChange={e => handleExchangeFieldChange('newCarLicensePlate', e.target.value)} className={inputCls} required disabled={!isEditable} />
                   </div>
                 )}
@@ -1219,11 +1227,11 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           {isPickupEditable ? (
             <>
               <div>
-                <label className={labelCls}>Model</label>
+                <label className={labelCls}><Bi en="Model" /></label>
                 <input type="text" value={localReservation.carModel || ''} onChange={e => handleFieldChange('carModel', e.target.value)} className={inputCls} placeholder="Vehicle model" />
               </div>
               <div>
-                <label className={labelCls}>License plate</label>
+                <label className={labelCls}><Bi en="License plate" /></label>
                 <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value)} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
               </div>
             </>
@@ -1274,7 +1282,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className={labelCls}>Payment method</label>
+                <label className={labelCls}><Bi en="Payment method" /></label>
                 <select value={localReservation.paymentMethod || ''} onChange={e => handleFieldChange('paymentMethod', e.target.value || undefined)} className={inputCls}>
                   <option value="">Not set</option>
                   <option value="card">Card</option>
@@ -1284,7 +1292,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Card last 4 digits</label>
+                <label className={labelCls}><Bi en="Card last 4 digits" /></label>
                 <input type="text" inputMode="numeric" maxLength={4} value={(localReservation.cardNumber || '').replace(/\D/g, '').slice(-4)}
                   onChange={e => handleFieldChange('cardNumber', e.target.value.replace(/\D/g, '').slice(0, 4) || undefined)} className={`${inputCls} font-mono tabular-nums`} placeholder="4421" />
               </div>
@@ -1294,7 +1302,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               <input type="text" value={localReservation.authNumber || ''} onChange={e => handleFieldChange('authNumber', e.target.value)} className={`${inputCls} font-mono`} placeholder="Card terminal auth code" />
             </div>
             <div>
-              <label className={labelCls}>Amount charged ($)</label>
+              <label className={labelCls}><Bi en="Amount charged ($)" /></label>
               <input type="number" step="0.01" value={localReservation.finalAmountCharged || ''} onChange={e => handleFieldChange('finalAmountCharged', parseFloat(e.target.value) || undefined)} className={`${inputCls} tabular-nums`} placeholder={totalCost.toFixed(2)} />
             </div>
           </>
@@ -1313,23 +1321,23 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     <StepSection step={stepNo} title="Return details" subtitle="Who is returning the car and how it left">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-2.5 min-w-0">
-          <SectionLabel>Renter</SectionLabel>
+          <SectionLabel><Bi en="Renter" /></SectionLabel>
           <InfoPair label="Name" value={reservation.personName} />
           <InfoPair label="Phone" value={reservation.contactNumber} />
           {renderTextField('Email (for receipt)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}
-          <SectionLabel className="pt-2">Vehicle</SectionLabel>
+          <SectionLabel className="pt-2"><Bi en="Vehicle" /></SectionLabel>
           <InfoPair label="Model" value={localReservation.carModel} />
           <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
         </div>
         <div className="space-y-2.5 min-w-0">
-          <SectionLabel>Timing</SectionLabel>
+          <SectionLabel><Bi en="Timing" /></SectionLabel>
           <InfoPair label="Checked out" value={localReservation.pickupDateTime || fmtDateTime(reservation.startDate)} />
           <InfoPair label="Scheduled return" value={fmtDateTime(reservation.endDate)} />
           <InfoPair label="Returned" value={localReservation.dropOffDateTime} />
           {localReservation.lateReturnFee && (
             <InfoPair label="Late return" value={<span className="inline-flex items-center gap-2">{localReservation.lateReturnFee.hoursLate} h · {formatCurrency(localReservation.lateReturnFee.amount)}<Badge tone={localReservation.lateReturnFee.status === 'PENDING' ? 'warning' : 'muted'}>{localReservation.lateReturnFee.isWaived ? 'Waived' : localReservation.lateReturnFee.status}</Badge></span>} />
           )}
-          <SectionLabel className="pt-2">At check-out</SectionLabel>
+          <SectionLabel className="pt-2"><Bi en="At check-out" /></SectionLabel>
           <InfoPair label="Odometer out" value={localReservation.pickupKmOut !== undefined ? `${localReservation.pickupKmOut.toLocaleString()} km` : undefined} />
           <InfoPair label="Fuel out" value={localReservation.pickupFuelLevel !== undefined ? `${localReservation.pickupFuelLevel}/8` : undefined} />
           <InfoPair label="Damage recorded" value={`${(localReservation.pickupDamageMarkers || []).length}`} />
@@ -1366,12 +1374,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     <div className="space-y-4">
       <section className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-clip min-w-0">
         <header className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-900">Rental summary</h3>
-          <Badge tone={localReservation.dropOffCompleted ? 'success' : localReservation.voucherSubmitted ? 'info' : 'muted'}>{localReservation.dropOffCompleted ? 'Closed' : localReservation.voucherSubmitted ? 'On rent' : 'Reserved'}</Badge>
+          <h3 className="text-sm font-semibold text-slate-900"><Bi en="Rental summary" block /></h3>
+          <Badge tone={localReservation.dropOffCompleted ? 'success' : localReservation.voucherSubmitted ? 'info' : 'muted'}><Bi en={localReservation.dropOffCompleted ? 'Closed' : localReservation.voucherSubmitted ? 'On rent' : 'Reserved'} className="!text-current" /></Badge>
         </header>
         <div className="divide-y divide-slate-100 text-[13px]">
           <div className="p-4 space-y-1 min-w-0">
-            <SectionLabel>Renter</SectionLabel>
+            <SectionLabel><Bi en="Renter" /></SectionLabel>
             <p className="font-semibold text-slate-900 truncate">{reservation.personName}</p>
             <p className="text-xs text-slate-500 tabular-nums">{reservation.contactNumber || 'No phone'}</p>
             <p className="text-xs text-slate-500 break-all">{localReservation.customerEmail || 'No email'}</p>
@@ -1391,8 +1399,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
               </div>
               <div className="space-y-2 min-w-0 flex-1">
-                <div><SectionLabel>Pickup</SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.startDate)}</p></div>
-                <div><SectionLabel>Return</SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.endDate)}</p></div>
+                <div><SectionLabel><Bi en="Pickup" /></SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.startDate)}</p></div>
+                <div><SectionLabel><Bi en="Return" /></SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.endDate)}</p></div>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-xl font-semibold text-slate-900 tabular-nums">{rentalDays}</p>
@@ -1403,7 +1411,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
           <div className="p-4 space-y-2.5">{renderChargesBreakdown()}</div>
           <div className="p-4 space-y-2.5">
-            <div className="flex items-center justify-between gap-2"><SectionLabel>Payment</SectionLabel><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
+            <div className="flex items-center justify-between gap-2"><SectionLabel><Bi en="Payment" /></SectionLabel><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
             <InfoPair label="Authorisation" value={localReservation.authNumber ? <span className="font-mono">{localReservation.authNumber}</span> : undefined} />
             <InfoPair label="Amount charged" value={localReservation.finalAmountCharged ? formatCurrency(localReservation.finalAmountCharged) : undefined} />
           </div>
@@ -1445,7 +1453,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-6 hidden sm:block" />
           <div className="hidden sm:block w-px h-8 bg-slate-200" />
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-slate-900 truncate flex items-center gap-2">Rental agreement{localReservation.awaitingConfirmation && <Badge tone="warning">Awaiting confirmation</Badge>}</h3>
+            <h3 className="text-base font-semibold text-slate-900 truncate flex items-center gap-2">Rental agreement<span lang="ar" dir="rtl" className="ar-ui !text-[15px] !text-slate-700">عقد الإيجار</span>{localReservation.awaitingConfirmation && <Badge tone="warning">Awaiting confirmation</Badge>}</h3>
             <p className="text-xs text-slate-500 mt-0.5 truncate"><span className="font-mono">#{reservation.bookingId || 'N/A'}</span> · {reservation.personName}</p>
           </div>
           {/* progress */}
@@ -1454,7 +1462,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               <li key={s.key} className="flex items-center gap-2">
                 <span className={`flex items-center gap-1.5 text-xs font-semibold ${s.done ? 'text-emerald-700' : 'text-slate-400'}`}>
                   <span className={`w-4 h-4 rounded-full flex items-center justify-center ${s.done ? 'bg-emerald-600 text-white' : 'border border-slate-300'}`}>{s.done && CHECK_ICON}</span>
-                  {s.label}
+                  <Bi en={s.label} className="!text-current opacity-75" />
                 </span>
                 {i < steps.length - 1 && <span className={`w-6 h-px ${steps[i + 1].done ? 'bg-emerald-400' : 'bg-slate-200'}`} />}
               </li>
@@ -1474,8 +1482,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             ] as const).map(t => (
               <button key={t.key} role="tab" aria-selected={viewMode === t.key} onClick={() => setViewMode(t.key)} disabled={t.disabled}
                 className={`px-3 py-2.5 text-left whitespace-nowrap border-b-2 -mb-px transition-colors ${viewMode === t.key ? 'border-indigo-600' : 'border-transparent'} ${t.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                <span className={`flex items-center gap-1.5 text-[13px] font-medium ${viewMode === t.key ? 'text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>{t.label}{t.done && <span className="text-emerald-600">{CHECK_ICON}</span>}</span>
-                <span className="block text-[11px] text-slate-400">{t.hint}</span>
+                <span className={`flex items-center gap-1.5 text-[13px] font-medium ${viewMode === t.key ? 'text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}><Bi en={t.label} />{t.done && <span className="text-emerald-600">{CHECK_ICON}</span>}</span>
+                <span className="block text-[11px] text-slate-400"><Bi en={t.hint} /></span>
               </button>
             ))}
           </div>
@@ -1574,15 +1582,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
         {!showSuccessOverlay && (
           <div className="flex-shrink-0 px-4 sm:px-5 py-3 border-t border-slate-200 bg-white flex justify-between items-center gap-2">
-            <Button variant="secondary" onClick={onClose}>Close</Button>
+            <Button variant="secondary" onClick={onClose}><Bi en="Close" className="hidden sm:inline" /></Button>
             <div className="flex items-center gap-2 min-w-0 flex-wrap justify-end">
               {isWizard ? (
                 <>
-                  <Button variant="ghost" onClick={() => goToStep(activeIndex - 1)} disabled={activeIndex === 0}>Back</Button>
+                  <Button variant="ghost" onClick={() => goToStep(activeIndex - 1)} disabled={activeIndex === 0}><Bi en="Back" className="hidden sm:inline" /></Button>
                   {!canComplete && printButtons}
                   {!isLastStep ? (
                     <Button variant={canComplete ? 'primary' : 'secondary'} onClick={() => goToStep(activeIndex + 1)}>
-                      Next<span className="hidden sm:inline font-normal opacity-80">&nbsp;· {flowSteps[activeIndex + 1]?.label}</span>
+                      Next<span lang="ar" dir="rtl" className="ar-ui ml-1.5 !text-current opacity-80">التالي</span><span className="hidden sm:inline font-normal opacity-80">&nbsp;· {flowSteps[activeIndex + 1]?.label}</span>
                     </Button>
                   ) : canComplete && (
                     <Button
@@ -1591,7 +1599,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                       disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee}
                       icon={CHECK_ICON}
                     >
-                      {viewMode === 'pickup' ? 'Complete check-out' : 'Complete check-in'}
+                      <Bi en={viewMode === 'pickup' ? 'Complete check-out' : 'Complete check-in'} className="hidden sm:inline !text-white/80" />
                     </Button>
                   )}
                 </>
@@ -1600,7 +1608,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   {viewMode === 'dropoff' && processType === 'exchange' && (
                     <>
                       {exchangeStep === 'checkout' && (
-                        <Button variant="ghost" onClick={() => setExchangeStep('checkin')}>Back</Button>
+                        <Button variant="ghost" onClick={() => setExchangeStep('checkin')}><Bi en="Back" /></Button>
                       )}
                       {exchangeStep === 'checkin' && (
                         <Button
@@ -1635,7 +1643,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             <div className="w-11 h-11 rounded-full bg-emerald-50 ring-1 ring-emerald-200 text-emerald-600 flex items-center justify-center mb-3">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
             </div>
-            <h2 className="text-xl font-semibold text-slate-900">{localReservation.dropOffCompleted ? 'Check-in complete' : 'Check-out complete'}</h2>
+            <h2 className="text-xl font-semibold text-slate-900"><Bi en={localReservation.dropOffCompleted ? 'Check-in complete' : 'Check-out complete'} block className="!text-lg !text-slate-700" /></h2>
             <p className="text-[13px] text-slate-500 mt-0.5 mb-5">#{reservation.bookingId} · {reservation.personName}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
               <button onClick={handleDownloadVoucherPDF} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-left">
