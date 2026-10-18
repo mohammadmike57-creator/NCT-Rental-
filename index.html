@@ -64,7 +64,30 @@
 </style>
 </head>
   <body class="bg-slate-50 font-sans-ui">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown instantly while the app downloads (replaced by React once it starts). -->
+      <div id="boot" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0f172a;color:#e2e8f0;font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;text-align:center">
+        <div style="font-size:20px;font-weight:600;color:#fff;letter-spacing:-.01em">NCT Rental</div>
+        <div style="width:28px;height:28px;border:3px solid rgba(255,255,255,.2);border-top-color:#818cf8;border-radius:50%;animation:bootspin .8s linear infinite"></div>
+        <div id="boot-msg" style="font-size:13px;color:#94a3b8;max-width:320px">Loading the system…</div>
+        <button id="boot-retry" onclick="location.reload()" style="display:none;margin-top:4px;padding:9px 16px;border:0;border-radius:8px;background:#4f46e5;color:#fff;font-size:13px;font-weight:600">Reload</button>
+      </div>
+    </div>
+    <style>@keyframes bootspin{to{transform:rotate(360deg)}}</style>
+    <script>
+      // Plain script (runs on any browser): explain a slow start or a browser that cannot run the app.
+      (function () {
+        function show(msg) {
+          var m = document.getElementById('boot-msg'), r = document.getElementById('boot-retry');
+          if (!m) return; m.textContent = msg; if (r) r.style.display = 'inline-block';
+        }
+        setTimeout(function () { show('Still loading — the server may be starting up. This can take up to a minute the first time.'); }, 12000);
+        setTimeout(function () { show('The system did not start. Check your connection and tap Reload. If it keeps happening, update your browser (Safari or Chrome).'); }, 60000);
+        window.addEventListener('error', function (e) {
+          if (document.getElementById('boot')) show('This browser could not start the system. Please update Safari or Chrome, then tap Reload.');
+        });
+      })();
+    </script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

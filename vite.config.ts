@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => {
       build: {
         // Keeps the build within small build machines (e.g. Render's 512 MB): skip the gzip size report.
         reportCompressedSize: false,
+        // Run on older phones too (iOS 13+ Safari, Android Chrome 80+), not only 2022+ browsers.
+        target: ['es2019', 'safari13', 'chrome80', 'firefox78', 'edge88'],
+        cssTarget: ['safari13', 'chrome80'],
       },
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
