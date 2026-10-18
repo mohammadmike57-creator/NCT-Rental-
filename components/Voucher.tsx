@@ -7,6 +7,7 @@ import { URDRIVE_LOGO_B64 } from '../constants';
 import { sendCustomerEmail, recordActivity } from '../firebase/api';
 import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
 import ReturnChargesPanel from './ReturnChargesPanel';
+import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import { Badge, Button, Plate, SectionLabel, inputCls as kitInputCls, textareaCls, labelCls } from './ui/Crm';
 import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
 import { buildTerminationHtml, terminationFileName, terminationNumber } from '../services/terminationDoc';
@@ -247,6 +248,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   );
   const [exchangeStep, setExchangeStep] = useState<'checkin' | 'checkout'>('checkin');
   const [currentExchange, setCurrentExchange] = useState<Partial<CarExchange>>({});
+
+  // Counter workflow navigation (layout state only).
+  const [step, setStep] = useState(0);
+  const [visited, setVisited] = useState<Record<string, true>>({});
+  const [attempted, setAttempted] = useState(false);
+  const centerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setStep(0); setAttempted(false); centerRef.current?.scrollTo({ top: 0 }); }, [viewMode, processType]);
 
   const outstandingTickets = useMemo(() => {
     if (!trafficTickets) return [];
@@ -683,7 +691,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   );
 
 
-  const renderChecks = (mode: 'pickup' | 'dropoff') => {
+  type CheckSection = 'inspection' | 'fuel' | 'damage' | 'charges' | 'signatures';
+
+  /** One section of the check-out / check-in inspection; the workflow shows one at a time. */
+  const renderCheckSection = (mode: 'pickup' | 'dropoff', section: CheckSection, stepNo?: number) => {
     const isEditable = mode === 'pickup' ? isPickupEditable : isDropoffEditable;
     const checklist = localReservation[mode === 'pickup' ? 'pickupChecklist' : 'dropOffChecklist'] || {};
     const damageMarkers = localReservation[mode === 'pickup' ? 'pickupDamageMarkers' : 'dropOffDamageMarkers'] || [];
@@ -693,47 +704,48 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     const agentName = localReservation[mode === 'pickup' ? 'pickupAgentName' : 'dropOffAgentName'];
     const isPickup = mode === 'pickup';
 
-    return (
-      <div className="space-y-4">
-        <div className="space-y-4">
-          <div>
-            <StepSection step={1} title={isPickup ? 'Vehicle inspection' : 'Return inspection'} subtitle={isPickup ? 'Confirm each item before handing over the keys' : 'Compare with the condition at pickup'}>
-              <ChecklistGrid
-                items={checklistItems}
-                checked={checklist}
-                onToggle={(item, v) => handleFieldChange(isPickup ? 'pickupChecklist' : 'dropOffChecklist', { ...checklist, [item]: v })}
+    switch (section) {
+      case 'inspection':
+        return (
+          <StepSection step={stepNo} title={isPickup ? 'Vehicle inspection' : 'Return inspection'} subtitle={isPickup ? 'Confirm each item before handing over the keys' : 'Compare with the condition at pickup'}>
+            <ChecklistGrid
+              items={checklistItems}
+              checked={checklist}
+              onToggle={(item, v) => handleFieldChange(isPickup ? 'pickupChecklist' : 'dropOffChecklist', { ...checklist, [item]: v })}
+              disabled={!isEditable}
+              compareWith={isPickup ? undefined : localReservation.pickupChecklist || {}}
+            />
+          </StepSection>
+        );
+      case 'fuel':
+        return (
+          <StepSection step={stepNo} title="Fuel & mileage" subtitle={isPickup ? 'Readings when the car leaves' : 'Readings when the car comes back'}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <FuelGauge
+                level={fuelLevel}
+                onLevelChange={level => handleFieldChange(isPickup ? 'pickupFuelLevel' : 'dropOffFuelLevel', level)}
                 disabled={!isEditable}
-                compareWith={isPickup ? undefined : localReservation.pickupChecklist || {}}
+                pickupLevel={isPickup ? undefined : localReservation.pickupFuelLevel}
               />
-            </StepSection>
-          </div>
-          <div>
-            <StepSection step={2} title="Fuel & mileage" subtitle={isPickup ? 'Readings when the car leaves' : 'Readings when the car comes back'}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <FuelGauge
-                  level={fuelLevel}
-                  onLevelChange={level => handleFieldChange(isPickup ? 'pickupFuelLevel' : 'dropOffFuelLevel', level)}
-                  disabled={!isEditable}
-                  pickupLevel={isPickup ? undefined : localReservation.pickupFuelLevel}
-                />
-                {renderKmField({ label: isPickup ? 'Odometer out' : 'Odometer in', value: isPickup ? localReservation.pickupKmOut : localReservation.dropOffKmIn, onChange: v => handleFieldChange(isPickup ? 'pickupKmOut' : 'dropOffKmIn', v), editable: isEditable, reference: isPickup ? undefined : localReservation.pickupKmOut, referenceLabel: isPickup ? undefined : 'Out', placeholder: isPickup ? 'Starting reading' : 'Returning reading' })}
-              </div>
-            </StepSection>
-          </div>
-        </div>
-
-        <StepSection step={3} title="Damage report" subtitle={isPickup ? 'Mark existing scratches, dents and chips' : 'Mark any damage that was not there at pickup'}>
-          <DamageBoard
-            markers={damageMarkers}
-            priorMarkers={isPickup ? undefined : localReservation.pickupDamageMarkers || []}
-            editable={isEditable}
-            onMark={handleDamageMark}
-            onRemove={removeDamageMarker}
-          />
-        </StepSection>
-
-        {!isPickup && (
-          <StepSection step={4} title="Damages, traffic tickets & charges" subtitle="Photograph new damage, add tickets and other charges, then settle or claim">
+              {renderKmField({ label: isPickup ? 'Odometer out' : 'Odometer in', value: isPickup ? localReservation.pickupKmOut : localReservation.dropOffKmIn, onChange: v => handleFieldChange(isPickup ? 'pickupKmOut' : 'dropOffKmIn', v), editable: isEditable, reference: isPickup ? undefined : localReservation.pickupKmOut, referenceLabel: isPickup ? undefined : 'Out', placeholder: isPickup ? 'Starting reading' : 'Returning reading' })}
+            </div>
+          </StepSection>
+        );
+      case 'damage':
+        return (
+          <StepSection step={stepNo} title="Damage report" subtitle={isPickup ? 'Mark existing scratches, dents and chips' : 'Mark any damage that was not there at pickup'}>
+            <DamageBoard
+              markers={damageMarkers}
+              priorMarkers={isPickup ? undefined : localReservation.pickupDamageMarkers || []}
+              editable={isEditable}
+              onMark={handleDamageMark}
+              onRemove={removeDamageMarker}
+            />
+          </StepSection>
+        );
+      case 'charges':
+        return (
+          <StepSection step={stepNo} title="Damages, traffic tickets & charges" subtitle="Photograph new damage, add tickets and other charges, then settle or claim">
             <ReturnChargesPanel
               charges={charges}
               onChange={setCharges}
@@ -743,65 +755,68 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               onPreview={handlePreviewCharges}
             />
           </StepSection>
-        )}
-
-        <StepSection step={isPickup ? 4 : 5} title="Notes">
-          {isPickup ? (
-            <textarea
-              value={localReservation.pickupNotes || ''}
-              onChange={e => handleFieldChange('pickupNotes', e.target.value)}
-              disabled={!isPickupEditable}
-              rows={3}
-              className={areaCls}
-              placeholder="Vehicle condition, customer requests, anything the return team should know"
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className={labelCls}>From pickup</p>
-                <p className="min-h-[84px] px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[13px] text-slate-700 whitespace-pre-wrap">{localReservation.pickupNotes || 'No notes from pickup.'}</p>
-              </div>
-              <div>
-                <label className={labelCls}>Return notes</label>
+        );
+      case 'signatures':
+        return (
+          <div className="space-y-4">
+            <StepSection title="Notes">
+              {isPickup ? (
                 <textarea
-                  value={localReservation.dropOffNotes || ''}
-                  onChange={e => handleFieldChange('dropOffNotes', e.target.value)}
-                  disabled={!isDropoffEditable}
+                  value={localReservation.pickupNotes || ''}
+                  onChange={e => handleFieldChange('pickupNotes', e.target.value)}
+                  disabled={!isPickupEditable}
                   rows={3}
                   className={areaCls}
-                  placeholder="Return condition, extra charges, etc."
+                  placeholder="Vehicle condition, customer requests, anything the return team should know"
                 />
-              </div>
-            </div>
-          )}
-        </StepSection>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className={labelCls}>From pickup</p>
+                    <p className="min-h-[84px] px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[13px] text-slate-700 whitespace-pre-wrap">{localReservation.pickupNotes || 'No notes from pickup.'}</p>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Return notes</label>
+                    <textarea
+                      value={localReservation.dropOffNotes || ''}
+                      onChange={e => handleFieldChange('dropOffNotes', e.target.value)}
+                      disabled={!isDropoffEditable}
+                      rows={3}
+                      className={areaCls}
+                      placeholder="Return condition, extra charges, etc."
+                    />
+                  </div>
+                </div>
+              )}
+            </StepSection>
 
-        <StepSection step={isPickup ? 5 : 6} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Both signatures are required to finish">
-          <p className="text-xs leading-relaxed text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">{isPickup ? PICKUP_TERMS : RETURN_TERMS}</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SignatureBlock
-              title="Renter"
-              subtitle={reservation.personName}
-              signature={renterSign}
-              onSave={data => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', data)}
-              onClear={() => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', undefined)}
-              disabled={!isEditable}
-            />
-            <SignatureBlock
-              title="Company representative"
-              signature={agentSign}
-              onSave={data => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', data)}
-              onClear={() => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', undefined)}
-              disabled={!isEditable}
-            >
-              <div className="mb-3">
-                {renderTextField('Representative name', agentName || '', val => handleFieldChange(isPickup ? 'pickupAgentName' : 'dropOffAgentName', val), isEditable)}
+            <StepSection step={stepNo} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Both signatures are required to finish">
+              <p className="text-xs leading-relaxed text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">{isPickup ? PICKUP_TERMS : RETURN_TERMS}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SignatureBlock
+                  title="Renter"
+                  subtitle={reservation.personName}
+                  signature={renterSign}
+                  onSave={data => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', data)}
+                  onClear={() => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', undefined)}
+                  disabled={!isEditable}
+                />
+                <SignatureBlock
+                  title="Company representative"
+                  signature={agentSign}
+                  onSave={data => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', data)}
+                  onClear={() => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', undefined)}
+                  disabled={!isEditable}
+                >
+                  <div className="mb-3">
+                    {renderTextField('Representative name', agentName || '', val => handleFieldChange(isPickup ? 'pickupAgentName' : 'dropOffAgentName', val), isEditable)}
+                  </div>
+                </SignatureBlock>
               </div>
-            </SignatureBlock>
+            </StepSection>
           </div>
-        </StepSection>
-      </div>
-    );
+        );
+    }
   };
 
   const renderExchangeStep = (step: 'checkin' | 'checkout') => {
@@ -904,9 +919,353 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     { key: 'dropoff', label: 'Returned', done: !!localReservation.dropOffCompleted },
   ];
 
+  // ====================== COUNTER WORKFLOW (navigation only) ======================
+  // Which flow the check-in tab is showing; mirrors the branches of the original layout.
+  const dropoffFlow: 'selection' | 'exchange' | 'return' =
+    processType === 'selection' && !localReservation.dropOffCompleted ? 'selection' : processType === 'exchange' ? 'exchange' : 'return';
+  const isWizard = viewMode === 'pickup' || dropoffFlow === 'return';
+
+  // Completion states, derived from data already in state. They mirror the checks in handleSubmit.
+  const emailValid = !!localReservation.customerEmail?.trim() && /^\S+@\S+\.\S+$/.test(localReservation.customerEmail);
+  const countChecked = (c?: { [item: string]: boolean }) => checklistItems.filter(i => c?.[i]).length;
+  const kmOutValid = localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.pickupKmOut >= 0;
+  const kmInValid = localReservation.dropOffKmIn !== undefined && localReservation.dropOffKmIn !== null && localReservation.dropOffKmIn >= 0
+    && !(localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.dropOffKmIn < localReservation.pickupKmOut);
+  const pickupAuthOk = !(sources.find(s => s.name === localReservation.source)?.paymentType === PaymentType.PAY_ON_ARRIVAL) || !!localReservation.authNumber?.trim();
+  const chargesValid = charges.items.length === 0 || (
+    charges.items.every(i => !!i.description.trim() && i.amount > 0) && !!charges.settlement
+    && (charges.settlement !== 'paid' || !!charges.paymentMethod) && !!charges.customerSignature);
+  const signedCount = (a?: string, b?: string) => (a ? 1 : 0) + (b ? 1 : 0);
+
+  type FlowStep = { key: string; label: string; done: boolean; hint?: string };
+  const pickupClosed = !!localReservation.voucherSubmitted;
+  const dropoffClosed = !!localReservation.dropOffCompleted;
+  const pickupSteps: FlowStep[] = [
+    { key: 'customer', label: 'Customer & documents', done: pickupClosed || emailValid, hint: emailValid ? undefined : 'Valid email required' },
+    { key: 'vehicle', label: 'Vehicle', done: pickupClosed || !!localReservation.licensePlate?.trim(), hint: 'License plate required' },
+    { key: 'inspection', label: 'Inspection checklist', done: pickupClosed || countChecked(localReservation.pickupChecklist) === checklistItems.length, hint: `${countChecked(localReservation.pickupChecklist)} of ${checklistItems.length} confirmed` },
+    { key: 'damage', label: 'Damage', done: pickupClosed || !!visited['pickup:damage'], hint: `${(localReservation.pickupDamageMarkers || []).length} marked` },
+    { key: 'fuel', label: 'Fuel & mileage', done: pickupClosed || (kmOutValid && localReservation.pickupFuelLevel !== undefined), hint: kmOutValid ? 'Fuel level not set' : 'Odometer out required' },
+    { key: 'payment', label: 'Charges & payment', done: pickupClosed || (pickupAuthOk && !!visited['pickup:payment']), hint: pickupAuthOk ? formatCurrency(totalCost) : 'Authorisation required' },
+    { key: 'signatures', label: 'Signatures', done: pickupClosed || signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) === 2, hint: `${signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature)} of 2 signed` },
+  ];
+  const dropoffSteps: FlowStep[] = [
+    { key: 'return', label: 'Return details', done: dropoffClosed || (emailValid && !!visited['dropoff:return']), hint: emailValid ? undefined : 'Customer email missing' },
+    { key: 'inspection', label: 'Inspection', done: dropoffClosed || countChecked(localReservation.dropOffChecklist) === checklistItems.length, hint: `${countChecked(localReservation.dropOffChecklist)} of ${checklistItems.length} confirmed` },
+    { key: 'damage', label: 'Damage', done: dropoffClosed || !!visited['dropoff:damage'], hint: `${(localReservation.dropOffDamageMarkers || []).length} new marked` },
+    { key: 'fuel', label: 'Fuel & mileage', done: dropoffClosed || (kmInValid && localReservation.dropOffFuelLevel !== undefined), hint: kmInValid ? 'Fuel level not set' : 'Odometer in required' },
+    { key: 'charges', label: 'Return charges', done: dropoffClosed || (chargesValid && !!visited['dropoff:charges']), hint: charges.items.length ? `${charges.items.length} charge${charges.items.length === 1 ? '' : 's'} · ${formatMoney(chargesTotal(charges.items), charges.currency)}` : 'No charges' },
+    { key: 'signatures', label: 'Signatures', done: dropoffClosed || signedCount(localReservation.dropOffRenterSignature, localReservation.dropOffAgentSignature) === 2, hint: `${signedCount(localReservation.dropOffRenterSignature, localReservation.dropOffAgentSignature)} of 2 signed` },
+  ];
+  const flowSteps = viewMode === 'pickup' ? pickupSteps : dropoffSteps;
+  const activeIndex = Math.min(step, flowSteps.length - 1);
+  const activeKey = flowSteps[activeIndex]?.key;
+  const visitedKey = `${viewMode}:${activeKey}`;
+  useEffect(() => {
+    if (!isWizard || showSuccessOverlay) return;
+    setVisited(prev => (prev[visitedKey] ? prev : { ...prev, [visitedKey]: true }));
+  }, [visitedKey, isWizard, showSuccessOverlay]);
+
+  const toRail = (list: FlowStep[]): WorkflowStep[] => list.map(s => ({
+    key: s.key, label: s.label, hint: s.hint,
+    status: s.done ? 'done' : (attempted || visited[`${viewMode}:${s.key}`]) ? 'incomplete' : 'pending',
+  }));
+
+  const goToStep = (i: number) => {
+    setStep(Math.max(0, Math.min(i, flowSteps.length - 1)));
+    centerRef.current?.scrollTo({ top: 0 });
+  };
+
+  // Same order as the checks in handleSubmit, so the step we jump to matches the alert shown.
+  const firstMissingStep = (): string | undefined => {
+    if (viewMode === 'pickup') {
+      if (!emailValid) return 'customer';
+      if (!localReservation.licensePlate?.trim()) return 'vehicle';
+      if (!kmOutValid) return 'fuel';
+      if (!pickupAuthOk) return 'payment';
+      if (!localReservation.pickupRenterSignature || !localReservation.pickupAgentSignature) return 'signatures';
+      return undefined;
+    }
+    if (!emailValid) return 'return';
+    if (!kmInValid) return 'fuel';
+    if (!localReservation.dropOffRenterSignature || !localReservation.dropOffAgentSignature) return 'signatures';
+    if (!chargesValid) return 'charges';
+    return undefined;
+  };
+
+  const handleComplete = () => {
+    const missing = firstMissingStep();
+    if (missing) {
+      setAttempted(true);
+      const idx = flowSteps.findIndex(s => s.key === missing);
+      if (idx >= 0) goToStep(idx);
+    }
+    handleSubmit();
+  };
+
+  const exchangeNextAllowed = !!currentExchange.checkinRenterSignature && !!currentExchange.checkinAgentSignature && !!currentExchange.reason && !hasOutstandingTickets && !hasDueExtension;
+  const exchangeRail: WorkflowStep[] = [
+    { key: 'checkin', label: 'Return current car', hint: `${signedCount(currentExchange.checkinRenterSignature, currentExchange.checkinAgentSignature)} of 2 signed`, status: (!!currentExchange.checkinRenterSignature && !!currentExchange.checkinAgentSignature && !!currentExchange.reason?.trim()) ? 'done' : 'pending' },
+    { key: 'checkout', label: 'Hand over new car', hint: exchangeNextAllowed ? 'New plate and signatures' : 'Finish the return first', enabled: exchangeNextAllowed || exchangeStep === 'checkout',
+      status: (!!currentExchange.newCarLicensePlate?.trim() && !!currentExchange.checkoutRenterSignature && !!currentExchange.checkoutAgentSignature) ? 'done' : exchangeStep === 'checkout' ? 'incomplete' : 'pending' },
+  ];
+  const selectExchangeStep = (i: number) => {
+    if (i === 0) setExchangeStep('checkin');
+    else if (exchangeNextAllowed) setExchangeStep('checkout');
+    centerRef.current?.scrollTo({ top: 0 });
+  };
+
+  const railSteps: WorkflowStep[] = isWizard ? toRail(flowSteps) : dropoffFlow === 'exchange' ? exchangeRail : [];
+  const railActive = isWizard ? activeIndex : exchangeStep === 'checkin' ? 0 : 1;
+  const railSelect = isWizard ? goToStep : selectExchangeStep;
+  const railTitle = viewMode === 'pickup' ? 'Check-out' : dropoffFlow === 'exchange' ? 'Vehicle exchange' : 'Check-in';
+  const canComplete = viewMode === 'pickup' ? isPickupEditable : (dropoffFlow === 'return' && isDropoffEditable);
+  const isLastStep = activeIndex === flowSteps.length - 1;
+
+  // ---------- step content (sections moved from the old single-page layout) ----------
+  const renderCustomerStep = (stepNo: number) => (
+    <StepSection step={stepNo} title="Customer & documents" subtitle="Confirm the renter and where the signed agreement is sent">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold flex items-center justify-center shrink-0">
+            {(reservation.personName || '?').split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase()).join('')}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900 truncate">{reservation.personName}</p>
+            <p className="text-xs text-slate-500 tabular-nums">{reservation.contactNumber || 'No phone'}</p>
+            <div className="mt-2">{renderTextField('Email (for receipt)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}</div>
+          </div>
+        </div>
+        <div className="space-y-2.5 min-w-0">
+          <InfoPair label="Booking" value={<span className="font-mono">#{reservation.bookingId || 'N/A'}</span>} />
+          <InfoPair label="Source" value={reservation.source} />
+          <InfoPair label="Pickup" value={fmtDateTime(reservation.startDate)} />
+          <InfoPair label="Return" value={fmtDateTime(reservation.endDate)} />
+          <InfoPair label="Duration" value={`${rentalDays} day${rentalDays === 1 ? '' : 's'}`} />
+          <InfoPair label="Location" value={`${location?.name || reservation.locationName || 'Location not set'}${location?.address ? ` — ${location.address}` : ''}`} />
+        </div>
+      </div>
+    </StepSection>
+  );
+
+  const renderVehicleStep = (stepNo: number) => (
+    <StepSection step={stepNo} title="Vehicle" subtitle="The car being handed over on this agreement">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="flex items-center gap-3 min-w-0">
+          <VehicleArt kind={kind} className="w-24 h-14 shrink-0" />
+          <div className="min-w-0">
+            <SectionLabel>{vehicleKindLabel[kind]}</SectionLabel>
+            <p className="text-sm font-semibold text-slate-900 truncate">{localReservation.carModel || '—'}</p>
+            <p className="mt-1"><Plate value={localReservation.licensePlate || 'NO PLATE'} /></p>
+          </div>
+        </div>
+        <div className="space-y-2.5 text-[13px] min-w-0">
+          {isPickupEditable ? (
+            <>
+              <div>
+                <label className={labelCls}>Model</label>
+                <input type="text" value={localReservation.carModel || ''} onChange={e => handleFieldChange('carModel', e.target.value)} className={inputCls} placeholder="Vehicle model" />
+              </div>
+              <div>
+                <label className={labelCls}>License plate</label>
+                <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value)} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
+              </div>
+            </>
+          ) : (
+            <>
+              <InfoPair label="Model" value={localReservation.carModel} />
+              <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
+            </>
+          )}
+        </div>
+      </div>
+    </StepSection>
+  );
+
+  const renderChargesBreakdown = () => (
+    <>
+      <InfoPair label={`Rental (${rentalDays} day${rentalDays === 1 ? '' : 's'})`} value={formatCurrency(baseRentalFee)} />
+      {(reservation.extras || []).map((ex, i) => (
+        <InfoPair key={i} label={ex.name} value={ex.isComplementary ? 'Included' : formatCurrency(ex.dailyPrice * rentalDays)} />
+      ))}
+      <div className="border-t border-slate-200 pt-2.5 flex items-baseline justify-between">
+        <span className="text-[13px] font-semibold text-slate-900">Total</span>
+        <span className="text-xl font-semibold text-slate-900 tabular-nums">{formatCurrency(totalCost)}</span>
+      </div>
+      {charges.items.length > 0 && (
+        <div className="rounded-lg bg-rose-50/50 border border-rose-200 p-3 space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Return charges{charges.settlement ? ` · ${charges.settlement === 'paid' ? 'paid' : 'claim'}` : ''}</p>
+          {charges.items.map(i => (
+            <div key={i.id} className="flex justify-between gap-3 text-xs"><span className="text-slate-600 truncate">{CHARGE_KIND_LABEL[i.kind]}</span><span className="font-semibold tabular-nums text-slate-900">{formatMoney(i.amount, charges.currency)}</span></div>
+          ))}
+          <div className="flex justify-between text-[13px] border-t border-rose-200 pt-1.5"><span className="font-semibold text-slate-800">Total</span><span className="font-semibold tabular-nums text-rose-700">{formatMoney(chargesTotal(charges.items), charges.currency)}</span></div>
+        </div>
+      )}
+      <InfoPair label="Security deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
+      <InfoPair label="Excess" value={formatCurrency(reservation.excess || 0)} />
+      {isPayOnArrival !== undefined && <InfoPair label="Payment type" value={isPayOnArrival ? 'Pay on arrival' : 'Prepaid'} />}
+    </>
+  );
+
+  const renderPaymentStep = (stepNo: number) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+      <StepSection step={stepNo} title="Charges" subtitle="Rental, extras, deposit and excess">
+        <div className="space-y-2.5 text-[13px]">{renderChargesBreakdown()}</div>
+      </StepSection>
+      <InfoBlock title="Payment">
+        <div><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
+        {isPickupEditable ? (
+          <>
+            <div>
+              <label className={labelCls}>Authorisation number{isPayOnArrival && <span className="text-rose-500"> *</span>}</label>
+              <input type="text" value={localReservation.authNumber || ''} onChange={e => handleFieldChange('authNumber', e.target.value)} className={`${inputCls} font-mono`} placeholder="Card terminal auth code" />
+            </div>
+            <div>
+              <label className={labelCls}>Amount charged ($)</label>
+              <input type="number" step="0.01" value={localReservation.finalAmountCharged || ''} onChange={e => handleFieldChange('finalAmountCharged', parseFloat(e.target.value) || undefined)} className={`${inputCls} tabular-nums`} placeholder={totalCost.toFixed(2)} />
+            </div>
+          </>
+        ) : (
+          <>
+            <InfoPair label="Authorisation" value={localReservation.authNumber ? <span className="font-mono">{localReservation.authNumber}</span> : undefined} />
+            <InfoPair label="Amount charged" value={localReservation.finalAmountCharged ? formatCurrency(localReservation.finalAmountCharged) : undefined} />
+          </>
+        )}
+      </InfoBlock>
+    </div>
+  );
+
+  const renderReturnDetailsStep = (stepNo: number) => (
+    <StepSection step={stepNo} title="Return details" subtitle="Who is returning the car and how it left">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="space-y-2.5 min-w-0">
+          <SectionLabel>Renter</SectionLabel>
+          <InfoPair label="Name" value={reservation.personName} />
+          <InfoPair label="Phone" value={reservation.contactNumber} />
+          {renderTextField('Email (for receipt)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}
+          <SectionLabel className="pt-2">Vehicle</SectionLabel>
+          <InfoPair label="Model" value={localReservation.carModel} />
+          <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
+        </div>
+        <div className="space-y-2.5 min-w-0">
+          <SectionLabel>Timing</SectionLabel>
+          <InfoPair label="Checked out" value={localReservation.pickupDateTime || fmtDateTime(reservation.startDate)} />
+          <InfoPair label="Scheduled return" value={fmtDateTime(reservation.endDate)} />
+          <InfoPair label="Returned" value={localReservation.dropOffDateTime} />
+          {localReservation.lateReturnFee && (
+            <InfoPair label="Late return" value={<span className="inline-flex items-center gap-2">{localReservation.lateReturnFee.hoursLate} h · {formatCurrency(localReservation.lateReturnFee.amount)}<Badge tone={localReservation.lateReturnFee.status === 'PENDING' ? 'warning' : 'muted'}>{localReservation.lateReturnFee.isWaived ? 'Waived' : localReservation.lateReturnFee.status}</Badge></span>} />
+          )}
+          <SectionLabel className="pt-2">At check-out</SectionLabel>
+          <InfoPair label="Odometer out" value={localReservation.pickupKmOut !== undefined ? `${localReservation.pickupKmOut.toLocaleString()} km` : undefined} />
+          <InfoPair label="Fuel out" value={localReservation.pickupFuelLevel !== undefined ? `${localReservation.pickupFuelLevel}/8` : undefined} />
+          <InfoPair label="Damage recorded" value={`${(localReservation.pickupDamageMarkers || []).length}`} />
+        </div>
+      </div>
+    </StepSection>
+  );
+
+  const renderWizardStep = () => {
+    const n = activeIndex + 1;
+    if (viewMode === 'pickup') {
+      switch (activeKey) {
+        case 'customer': return renderCustomerStep(n);
+        case 'vehicle': return renderVehicleStep(n);
+        case 'inspection': return renderCheckSection('pickup', 'inspection', n);
+        case 'damage': return renderCheckSection('pickup', 'damage', n);
+        case 'fuel': return renderCheckSection('pickup', 'fuel', n);
+        case 'payment': return renderPaymentStep(n);
+        default: return renderCheckSection('pickup', 'signatures', n);
+      }
+    }
+    switch (activeKey) {
+      case 'return': return renderReturnDetailsStep(n);
+      case 'inspection': return renderCheckSection('dropoff', 'inspection', n);
+      case 'damage': return renderCheckSection('dropoff', 'damage', n);
+      case 'fuel': return renderCheckSection('dropoff', 'fuel', n);
+      case 'charges': return renderCheckSection('dropoff', 'charges', n);
+      default: return renderCheckSection('dropoff', 'signatures', n);
+    }
+  };
+
+  // ---------- sticky rental summary (right column on desktop, collapsible on phones) ----------
+  const renderSummary = () => (
+    <div className="space-y-4">
+      <section className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-clip min-w-0">
+        <header className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-900">Rental summary</h3>
+          <Badge tone={localReservation.dropOffCompleted ? 'success' : localReservation.voucherSubmitted ? 'info' : 'muted'}>{localReservation.dropOffCompleted ? 'Closed' : localReservation.voucherSubmitted ? 'On rent' : 'Reserved'}</Badge>
+        </header>
+        <div className="divide-y divide-slate-100 text-[13px]">
+          <div className="p-4 space-y-1 min-w-0">
+            <SectionLabel>Renter</SectionLabel>
+            <p className="font-semibold text-slate-900 truncate">{reservation.personName}</p>
+            <p className="text-xs text-slate-500 tabular-nums">{reservation.contactNumber || 'No phone'}</p>
+            <p className="text-xs text-slate-500 break-all">{localReservation.customerEmail || 'No email'}</p>
+          </div>
+          <div className="p-4 flex items-center gap-3 min-w-0">
+            <VehicleArt kind={kind} className="w-16 h-9 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-900 truncate">{localReservation.carModel || '—'}</p>
+              <p className="mt-1"><Plate value={localReservation.licensePlate || 'NO PLATE'} /></p>
+            </div>
+          </div>
+          <div className="p-4 space-y-2">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-col items-center pt-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span className="w-0.5 h-8 bg-slate-200" />
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+              </div>
+              <div className="space-y-2 min-w-0 flex-1">
+                <div><SectionLabel>Pickup</SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.startDate)}</p></div>
+                <div><SectionLabel>Return</SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.endDate)}</p></div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xl font-semibold text-slate-900 tabular-nums">{rentalDays}</p>
+                <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">day{rentalDays === 1 ? '' : 's'}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 truncate flex items-center gap-1"><svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg><span className="truncate">{location?.name || reservation.locationName || 'Location not set'}{location?.address ? ` — ${location.address}` : ''}</span></p>
+          </div>
+          <div className="p-4 space-y-2.5">{renderChargesBreakdown()}</div>
+          <div className="p-4 space-y-2.5">
+            <div className="flex items-center justify-between gap-2"><SectionLabel>Payment</SectionLabel><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
+            <InfoPair label="Authorisation" value={localReservation.authNumber ? <span className="font-mono">{localReservation.authNumber}</span> : undefined} />
+            <InfoPair label="Amount charged" value={localReservation.finalAmountCharged ? formatCurrency(localReservation.finalAmountCharged) : undefined} />
+          </div>
+          <div className="p-4 space-y-2.5">
+            <InfoPair label="Odometer out" value={localReservation.pickupKmOut !== undefined ? `${localReservation.pickupKmOut.toLocaleString()} km` : undefined} />
+            {localReservation.dropOffKmIn !== undefined && <InfoPair label="Odometer in" value={`${localReservation.dropOffKmIn.toLocaleString()} km`} />}
+            {localReservation.dropOffKmIn && localReservation.pickupKmOut && localReservation.dropOffKmIn > localReservation.pickupKmOut && (
+              <InfoPair label="Distance driven" value={`${(localReservation.dropOffKmIn - localReservation.pickupKmOut).toLocaleString()} km`} />
+            )}
+            <InfoPair label="Fuel out / in" value={`${localReservation.pickupFuelLevel ?? '—'}/8 → ${localReservation.dropOffFuelLevel ?? '—'}/8`} />
+          </div>
+        </div>
+      </section>
+      <div className="text-center text-[11px] text-slate-400 px-2">
+        <p className="font-semibold text-slate-500">{companyDetails.name}</p>
+        <p>{companyDetails.address} · {companyDetails.phone}</p>
+      </div>
+    </div>
+  );
+
+  const printButtons = (
+    <div className="flex items-center gap-2">
+      {localReservation.dropOffCompleted && (
+        <Button variant="secondary" onClick={handlePrintTermination} icon={<PdfIcon className="w-4 h-4" />}>
+          Termination
+        </Button>
+      )}
+      <Button variant={isWizard && !isLastStep ? 'secondary' : 'primary'} onClick={handleDownloadVoucherPDF} icon={<PdfIcon className="w-4 h-4" />}>
+        Print agreement
+      </Button>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50" role="dialog" aria-modal="true">
-      <div className="relative bg-slate-50 rounded-none sm:rounded-xl shadow-2xl max-w-6xl w-full h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[96vh] flex flex-col overflow-hidden">
+      <div className="relative bg-slate-50 rounded-none sm:rounded-xl shadow-2xl max-w-7xl w-full h-[100dvh] sm:h-[96vh] max-h-[100dvh] sm:max-h-[96vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 sm:px-5 py-3.5 flex items-center gap-4">
           <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-6 hidden sm:block" />
@@ -948,231 +1307,150 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <div id="voucher-print-area" className="p-3 sm:p-5 space-y-4">
-            {/* Summary hero */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip">
-              <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
-                <div className="p-4 flex items-start gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold flex items-center justify-center shrink-0">
-                    {(reservation.personName || '?').split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase()).join('')}
-                  </div>
+        {/* Compact progress for phones and tablets */}
+        {railSteps.length > 0 && (
+          <div className="flex-shrink-0 lg:hidden">
+            <MobileStepBar steps={railSteps} active={railActive} onSelect={railSelect} />
+          </div>
+        )}
+
+        <div className="flex-1 min-h-0 flex">
+          {/* Left: step rail */}
+          {railSteps.length > 0 && (
+            <aside className="hidden lg:block w-60 shrink-0 border-r border-slate-200 bg-white overflow-y-auto">
+              <StepRail title={railTitle} steps={railSteps} active={railActive} onSelect={railSelect} />
+            </aside>
+          )}
+
+          {/* Center: active step */}
+          <div ref={centerRef} className="flex-1 min-w-0 overflow-y-auto">
+            <div id="voucher-print-area" className="p-3 sm:p-5 space-y-4">
+              <details className="lg:hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip group">
+                <summary className="px-4 py-3 flex items-center gap-3 cursor-pointer list-none">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{reservation.personName}</p>
-                    <p className="text-xs text-slate-500 tabular-nums">{reservation.contactNumber || 'No phone'}</p>
-                    <div className="mt-2">{renderTextField('Email (for receipt)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}</div>
+                    <p className="text-[13px] font-semibold text-slate-900 truncate">{localReservation.carModel || 'Vehicle'} · {reservation.personName}</p>
+                    <p className="text-xs text-slate-500 tabular-nums truncate">{rentalDays} day{rentalDays === 1 ? '' : 's'} · {formatCurrency(totalCost)}{charges.items.length > 0 ? ` · charges ${formatMoney(chargesTotal(charges.items), charges.currency)}` : ''}</p>
                   </div>
-                </div>
-                <div className="p-4 flex items-center gap-3 min-w-0">
-                  <VehicleArt kind={kind} className="w-20 h-11 shrink-0" />
-                  <div className="min-w-0">
-                    <SectionLabel>{vehicleKindLabel[kind]}</SectionLabel>
-                    <p className="text-sm font-semibold text-slate-900 truncate">{localReservation.carModel || '—'}</p>
-                    <p className="mt-1"><Plate value={localReservation.licensePlate || 'NO PLATE'} /></p>
-                  </div>
-                </div>
-                <div className="p-4 min-w-0">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center pt-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                      <span className="w-0.5 h-8 bg-slate-200" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                    </div>
-                    <div className="space-y-2 min-w-0 flex-1">
-                      <div><SectionLabel>Pickup</SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.startDate)}</p></div>
-                      <div><SectionLabel>Return</SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.endDate)}</p></div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-semibold text-slate-900 tabular-nums">{rentalDays}</p>
-                      <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">day{rentalDays === 1 ? '' : 's'}</p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500 truncate flex items-center gap-1"><svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg><span className="truncate">{location?.name || reservation.locationName || 'Location not set'}{location?.address ? ` — ${location.address}` : ''}</span></p>
-                </div>
-              </div>
-            </div>
+                  <Plate value={localReservation.licensePlate || 'NO PLATE'} />
+                  <svg className="w-4 h-4 text-slate-400 shrink-0 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                </summary>
+                <div className="border-t border-slate-200 p-3 bg-slate-50">{renderSummary()}</div>
+              </details>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-              {/* Main column */}
-              <div className="lg:col-span-2 space-y-4 min-w-0">
-                {viewMode === 'pickup' && renderChecks('pickup')}
-                {viewMode === 'dropoff' && (
-                  <>
-                    {hasDueExtension && (
-                      <div className="flex items-start gap-2.5 p-3 rounded-lg text-[13px] bg-amber-50 border border-amber-200 text-amber-900" role="alert">
-                        <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
-                        <div><p className="font-semibold">Unpaid extension: {formatCurrency(dueForExtension)}</p><p className="text-xs">Collect the balance before the car can be checked in.</p></div>
-                      </div>
-                    )}
-                    {hasOutstandingTickets && (
-                      <div className="flex items-start gap-2.5 p-3 rounded-lg text-[13px] bg-rose-50 border border-rose-200 text-rose-900" role="alert">
-                        <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
-                        <div><p className="font-semibold">Outstanding traffic tickets: {totalTicketAmountDue.toFixed(2)} JOD</p><p className="text-xs">{processType === 'exchange' ? 'Settle them in Traffic Tickets before exchanging the car.' : 'They have been added to the return charges below — collect them now or send them to the customer as a claim.'}</p></div>
-                      </div>
-                    )}
-                    {localReservation.lateReturnFee && localReservation.lateReturnFee.status === 'PENDING' && (
-                      <div className="flex items-start gap-2.5 p-3 rounded-lg text-[13px] bg-rose-50 border border-rose-200 text-rose-900" role="alert">
-                        <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
-                        <div><p className="font-semibold">Late return detected</p><p className="text-xs">Resolve the fee in Late Returns, then come back to check the car in.</p></div>
-                      </div>
-                    )}
+              {viewMode === 'pickup' && renderWizardStep()}
+              {viewMode === 'dropoff' && (
+                <>
+                  {hasDueExtension && (
+                    <div className="flex items-start gap-2.5 p-3 rounded-lg text-[13px] bg-amber-50 border border-amber-200 text-amber-900" role="alert">
+                      <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
+                      <div><p className="font-semibold">Unpaid extension: {formatCurrency(dueForExtension)}</p><p className="text-xs">Collect the balance before the car can be checked in.</p></div>
+                    </div>
+                  )}
+                  {hasOutstandingTickets && (
+                    <div className="flex items-start gap-2.5 p-3 rounded-lg text-[13px] bg-rose-50 border border-rose-200 text-rose-900" role="alert">
+                      <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
+                      <div><p className="font-semibold">Outstanding traffic tickets: {totalTicketAmountDue.toFixed(2)} JOD</p><p className="text-xs">{processType === 'exchange' ? 'Settle them in Traffic Tickets before exchanging the car.' : 'They have been added to the return charges — collect them now or send them to the customer as a claim.'}</p></div>
+                    </div>
+                  )}
+                  {localReservation.lateReturnFee && localReservation.lateReturnFee.status === 'PENDING' && (
+                    <div className="flex items-start gap-2.5 p-3 rounded-lg text-[13px] bg-rose-50 border border-rose-200 text-rose-900" role="alert">
+                      <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
+                      <div><p className="font-semibold">Late return detected</p><p className="text-xs">Resolve the fee in Late Returns, then come back to check the car in.</p></div>
+                    </div>
+                  )}
 
-                    <fieldset disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee} className="min-w-0">
-                      {processType === 'selection' && !localReservation.dropOffCompleted ? (
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip">
-                          <div className="px-4 py-3 border-b border-slate-200">
-                            <h2 className="text-sm font-semibold text-slate-900">What are you processing?</h2>
-                            <p className="text-xs text-slate-500">Choose how the customer is returning the vehicle.</p>
-                          </div>
-                          <div className="p-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <button onClick={() => setProcessType('return')} className="text-left p-4 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
-                              <VehicleArt kind={kind} className="w-16 h-9 mb-2" />
-                              <p className="text-[13px] font-semibold text-slate-900">Final return</p>
-                              <p className="text-xs text-slate-500">The rental ends today. Inspect the car and close the agreement.</p>
-                            </button>
-                            <button onClick={() => setProcessType('exchange')} className="text-left p-4 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
-                              <div className="flex items-center gap-1 mb-2"><VehicleArt kind={kind} className="w-12 h-7" /><span className="text-slate-400">⇄</span><VehicleArt kind="suv" className="w-12 h-7" /></div>
-                              <p className="text-[13px] font-semibold text-slate-900">Vehicle exchange</p>
-                              <p className="text-xs text-slate-500">Swap the car and continue the same rental.</p>
-                            </button>
-                          </div>
-                          </div>
+                  <fieldset disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee} className="min-w-0">
+                    {dropoffFlow === 'selection' ? (
+                      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip">
+                        <div className="px-4 py-3 border-b border-slate-200">
+                          <h2 className="text-sm font-semibold text-slate-900">What are you processing?</h2>
+                          <p className="text-xs text-slate-500">Choose how the customer is returning the vehicle.</p>
                         </div>
-                      ) : processType === 'exchange' ? (
-                        exchangeStep === 'checkin' ? renderExchangeStep('checkin') : renderExchangeStep('checkout')
-                      ) : (
-                        renderChecks('dropoff')
-                      )}
-                    </fieldset>
-                  </>
-                )}
-              </div>
-
-              {/* Side column */}
-              <aside className="space-y-4 lg:sticky lg:top-0 min-w-0">
-                <InfoBlock title="Vehicle">
-                  {isPickupEditable ? (
-                    <>
-                      <div>
-                        <label className={labelCls}>Model</label>
-                        <input type="text" value={localReservation.carModel || ''} onChange={e => handleFieldChange('carModel', e.target.value)} className={inputCls} placeholder="Vehicle model" />
+                        <div className="p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <button onClick={() => setProcessType('return')} className="text-left p-4 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
+                            <VehicleArt kind={kind} className="w-16 h-9 mb-2" />
+                            <p className="text-[13px] font-semibold text-slate-900">Final return</p>
+                            <p className="text-xs text-slate-500">The rental ends today. Inspect the car and close the agreement.</p>
+                          </button>
+                          <button onClick={() => setProcessType('exchange')} className="text-left p-4 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
+                            <div className="flex items-center gap-1 mb-2"><VehicleArt kind={kind} className="w-12 h-7" /><span className="text-slate-400">⇄</span><VehicleArt kind="suv" className="w-12 h-7" /></div>
+                            <p className="text-[13px] font-semibold text-slate-900">Vehicle exchange</p>
+                            <p className="text-xs text-slate-500">Swap the car and continue the same rental.</p>
+                          </button>
+                        </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className={labelCls}>License plate</label>
-                        <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value)} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <InfoPair label="Model" value={localReservation.carModel} />
-                      <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
-                    </>
-                  )}
-                  <InfoPair label="Odometer out" value={localReservation.pickupKmOut !== undefined ? `${localReservation.pickupKmOut.toLocaleString()} km` : undefined} />
-                  {localReservation.dropOffKmIn !== undefined && <InfoPair label="Odometer in" value={`${localReservation.dropOffKmIn.toLocaleString()} km`} />}
-                  {localReservation.dropOffKmIn && localReservation.pickupKmOut && localReservation.dropOffKmIn > localReservation.pickupKmOut && (
-                    <InfoPair label="Distance driven" value={`${(localReservation.dropOffKmIn - localReservation.pickupKmOut).toLocaleString()} km`} />
-                  )}
-                  <InfoPair label="Fuel out / in" value={`${localReservation.pickupFuelLevel ?? '—'}/8 → ${localReservation.dropOffFuelLevel ?? '—'}/8`} />
-                </InfoBlock>
-
-                <InfoBlock title="Charges">
-                  <InfoPair label={`Rental (${rentalDays} day${rentalDays === 1 ? '' : 's'})`} value={formatCurrency(baseRentalFee)} />
-                  {(reservation.extras || []).map((ex, i) => (
-                    <InfoPair key={i} label={ex.name} value={ex.isComplementary ? 'Included' : formatCurrency(ex.dailyPrice * rentalDays)} />
-                  ))}
-                  <div className="border-t border-slate-200 pt-2.5 flex items-baseline justify-between">
-                    <span className="text-[13px] font-semibold text-slate-900">Total</span>
-                    <span className="text-xl font-semibold text-slate-900 tabular-nums">{formatCurrency(totalCost)}</span>
-                  </div>
-                  {charges.items.length > 0 && (
-                    <div className="rounded-lg bg-rose-50/50 border border-rose-200 p-3 space-y-1.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Return charges{charges.settlement ? ` · ${charges.settlement === 'paid' ? 'paid' : 'claim'}` : ''}</p>
-                      {charges.items.map(i => (
-                        <div key={i.id} className="flex justify-between gap-3 text-xs"><span className="text-slate-600 truncate">{CHARGE_KIND_LABEL[i.kind]}</span><span className="font-semibold tabular-nums text-slate-900">{formatMoney(i.amount, charges.currency)}</span></div>
-                      ))}
-                      <div className="flex justify-between text-[13px] border-t border-rose-200 pt-1.5"><span className="font-semibold text-slate-800">Total</span><span className="font-semibold tabular-nums text-rose-700">{formatMoney(chargesTotal(charges.items), charges.currency)}</span></div>
-                    </div>
-                  )}
-                  <InfoPair label="Security deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
-                  <InfoPair label="Excess" value={formatCurrency(reservation.excess || 0)} />
-                  {isPayOnArrival !== undefined && <InfoPair label="Payment type" value={isPayOnArrival ? 'Pay on arrival' : 'Prepaid'} />}
-                </InfoBlock>
-
-                <InfoBlock title="Payment">
-                  <div><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
-                  {isPickupEditable ? (
-                    <>
-                      <div>
-                        <label className={labelCls}>Authorisation number</label>
-                        <input type="text" value={localReservation.authNumber || ''} onChange={e => handleFieldChange('authNumber', e.target.value)} className={`${inputCls} font-mono`} placeholder="Card terminal auth code" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Amount charged ($)</label>
-                        <input type="number" step="0.01" value={localReservation.finalAmountCharged || ''} onChange={e => handleFieldChange('finalAmountCharged', parseFloat(e.target.value) || undefined)} className={`${inputCls} tabular-nums`} placeholder={totalCost.toFixed(2)} />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <InfoPair label="Authorisation" value={localReservation.authNumber ? <span className="font-mono">{localReservation.authNumber}</span> : undefined} />
-                      <InfoPair label="Amount charged" value={localReservation.finalAmountCharged ? formatCurrency(localReservation.finalAmountCharged) : undefined} />
-                    </>
-                  )}
-                </InfoBlock>
-
-                <div className="text-center text-[11px] text-slate-400 px-2">
-                  <p className="font-semibold text-slate-500">{companyDetails.name}</p>
-                  <p>{companyDetails.address} · {companyDetails.phone}</p>
-                </div>
-              </aside>
+                    ) : dropoffFlow === 'exchange' ? (
+                      exchangeStep === 'checkin' ? renderExchangeStep('checkin') : renderExchangeStep('checkout')
+                    ) : (
+                      renderWizardStep()
+                    )}
+                  </fieldset>
+                </>
+              )}
             </div>
           </div>
+
+          {/* Right: sticky rental summary */}
+          <aside className="hidden lg:block w-80 shrink-0 border-l border-slate-200 bg-slate-50 overflow-y-auto p-4">
+            {renderSummary()}
+          </aside>
         </div>
 
         {!showSuccessOverlay && (
           <div className="flex-shrink-0 px-4 sm:px-5 py-3 border-t border-slate-200 bg-white flex justify-between items-center gap-2">
             <Button variant="secondary" onClick={onClose}>Close</Button>
             <div className="flex items-center gap-2 min-w-0 flex-wrap justify-end">
-              {viewMode === 'dropoff' && processType === 'exchange' && (
+              {isWizard ? (
                 <>
-                  {exchangeStep === 'checkout' && (
-                    <Button variant="ghost" onClick={() => setExchangeStep('checkin')}>Back</Button>
-                  )}
-                  {exchangeStep === 'checkin' && (
+                  <Button variant="ghost" onClick={() => goToStep(activeIndex - 1)} disabled={activeIndex === 0}>Back</Button>
+                  {!canComplete && printButtons}
+                  {!isLastStep ? (
+                    <Button variant={canComplete ? 'primary' : 'secondary'} onClick={() => goToStep(activeIndex + 1)}>
+                      Next<span className="hidden sm:inline font-normal opacity-80">&nbsp;· {flowSteps[activeIndex + 1]?.label}</span>
+                    </Button>
+                  ) : canComplete && (
                     <Button
                       variant="primary"
-                      onClick={() => setExchangeStep('checkout')}
-                      disabled={!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature || !currentExchange.reason || hasOutstandingTickets || hasDueExtension}
+                      onClick={handleComplete}
+                      disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee}
+                      icon={CHECK_ICON}
                     >
-                      Next: hand over new car →
+                      {viewMode === 'pickup' ? 'Complete check-out' : 'Complete check-in'}
                     </Button>
                   )}
                 </>
-              )}
-
-              {((viewMode === 'pickup' && isPickupEditable) ||
-                (viewMode === 'dropoff' && processType === 'return' && isDropoffEditable) ||
-                (viewMode === 'dropoff' && processType === 'exchange' && exchangeStep === 'checkout' && isDropoffEditable)) ? (
-                <Button
-                  variant="primary"
-                  onClick={handleSubmit}
-                  disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee}
-                  icon={CHECK_ICON}
-                >
-                  {processType === 'exchange' && viewMode === 'dropoff' ? 'Complete exchange' : viewMode === 'pickup' ? 'Complete check-out' : 'Complete check-in'}
-                </Button>
               ) : (
-                <div className="flex items-center gap-2">
-                  {localReservation.dropOffCompleted && (
-                    <Button variant="secondary" onClick={handlePrintTermination} icon={<PdfIcon className="w-4 h-4" />}>
-                      Termination
-                    </Button>
+                <>
+                  {viewMode === 'dropoff' && processType === 'exchange' && (
+                    <>
+                      {exchangeStep === 'checkout' && (
+                        <Button variant="ghost" onClick={() => setExchangeStep('checkin')}>Back</Button>
+                      )}
+                      {exchangeStep === 'checkin' && (
+                        <Button
+                          variant="primary"
+                          onClick={() => setExchangeStep('checkout')}
+                          disabled={!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature || !currentExchange.reason || hasOutstandingTickets || hasDueExtension}
+                        >
+                          Next: hand over new car →
+                        </Button>
+                      )}
+                    </>
                   )}
-                  <Button variant="primary" onClick={handleDownloadVoucherPDF} icon={<PdfIcon className="w-4 h-4" />}>
-                    Print agreement
-                  </Button>
-                </div>
+
+                  {(viewMode === 'dropoff' && processType === 'exchange' && exchangeStep === 'checkout' && isDropoffEditable) ? (
+                    <Button
+                      variant="primary"
+                      onClick={handleSubmit}
+                      disabled={ticketsBlockFlow || hasDueExtension || isDropoffBlockedByPendingFee}
+                      icon={CHECK_ICON}
+                    >
+                      Complete exchange
+                    </Button>
+                  ) : printButtons}
+                </>
               )}
             </div>
           </div>
