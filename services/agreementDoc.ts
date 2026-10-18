@@ -1,6 +1,8 @@
 import { CarView, CompanyDetails, DamageMarker, Reservation } from '../types';
 import { INSPECTION_LABEL, INSPECTION_SVG } from '../components/VehicleGraphics';
 import { CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, formatMoney } from './returnChargesDoc';
+import { parseTerms } from './agreementTerms';
+import { code39Svg } from './barcode';
 
 export const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
 export const RETURN_TERMS = "By signing, the Renter confirms the return of the vehicle. The final condition and any additional charges (such as fuel shortage or new damage) have been reviewed and accepted. The Company Representative confirms receipt of the vehicle and the accuracy of the return inspection.";
@@ -24,6 +26,11 @@ const usd = (n: number) => esc(formatMoney(n, 'USD'));
 const parse = (s?: string) => { if (!s) return null; const d = new Date(s.replace(' at ', ' ')); return Number.isNaN(d.getTime()) ? null : d; };
 const when = (s?: string) => { const d = parse(s); return d ? d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : esc(s || '—'); };
 const km = (n?: number) => (n == null ? '—' : `${n.toLocaleString('en-US')} km`);
+const day = (s?: string) => { if (!s) return '—'; const d = new Date(s.length === 10 ? s + 'T12:00:00' : s); return Number.isNaN(d.getTime()) ? esc(s) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); };
+const ID_TYPE: Record<string, string> = { passport: 'Passport', national_id: 'National ID', residence: 'Residence permit' };
+const PAY_METHOD: Record<string, string> = { card: 'Card', cash: 'Cash', bank_transfer: 'Bank transfer', prepaid: 'Prepaid by partner' };
+/** Products the renter bought that reduce their liability (named like insurance / CDW / protection). */
+const isProtection = (name: string) => /insur|cdw|scdw|waiver|protect|cover|liabil/i.test(name);
 
 /** Eight-segment fuel gauge. */
 const fuel = (level?: number, tone = '#0f172a') => {
@@ -73,6 +80,12 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   // Notes sit beside the rental charges when there is no charges-at-return card, to keep one page.
   const sideNotes = !rc && (closed ? !!(r.pickupNotes || r.dropOffNotes) : !!r.pickupNotes);
   const status = closed ? ['Closed', 'closed'] : onRent ? ['On rent', 'open'] : ['Booked', 'new'];
+  const drv = r.driver || {};
+  const extraDrivers = r.additionalDrivers || [];
+  const licenceExpired = !!(drv.licenseExpiry && r.endDate && drv.licenseExpiry < r.endDate.slice(0, 10));
+  const protection = (r.extras || []).filter(e => isProtection(e.name));
+  const cardRef = r.cardNumber ? `•••• ${esc(String(r.cardNumber).replace(/\D/g, '').slice(-4))}` : '';
+  const clauses = parseTerms(i.company.agreementTerms);
   const paymentLine = i.prepaid
     ? `Prepaid via ${esc(r.source || 'partner')}`
     : r.authNumber ? `Paid${r.finalAmountCharged ? ' ' + usd(r.finalAmountCharged) : ''} · auth ${esc(r.authNumber)}` : 'Payable at the counter';
@@ -136,6 +149,10 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .diff-bad { color: #b91c1c; font-weight: 700; } .diff-ok { color: #047857; font-weight: 700; }
   .ok { color: #059669; font-weight: 800; } .bad { color: #dc2626; font-weight: 800; } .dim { color: #cbd5e1; }
   .views { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .views4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .chips { margin-top: 5px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 12px; }
+  .chips span { display: flex; align-items: center; gap: 4px; font-size: 7.6pt; padding: 1px 0; border-bottom: 1px dashed #eef2f6; }
+  .chips em { font-style: normal; color: #334155; margin-left: 2px; }
   .view { border: 1px solid #eef2f6; border-radius: 6px; text-align: center; background: #fcfdfe; }
   .view svg { width: 100%; height: 62px; display: block; }
   .vl { font-size: 6.8pt; color: #64748b; padding-bottom: 2px; }
@@ -162,10 +179,31 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .sm { font-size: 6.6pt; color: #64748b; text-align: center; min-height: 9px; }
   .foot { margin-top: 8px; padding-top: 5px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; gap: 12px; font-size: 6.6pt; color: #64748b; }
 
+  .bc { margin-top: 6px; text-align: right; }
+  .bc svg { height: 26px; width: 200px; display: inline-block; }
+  .bc div { font-family: Consolas, monospace; font-size: 6.6pt; letter-spacing: .2em; color: #475569; margin-top: 1px; }
+  .g2a { display: grid; grid-template-columns: 1.65fr 1fr; gap: 7px; margin-top: 8px; }
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  .drv { padding: 2px 0; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; gap: 8px; }
+  .drv:last-child { border-bottom: 0; }
+  .drv b { font-weight: 600; } .drv span { color: #64748b; }
+  .missing { color: #b45309 !important; font-weight: 600; }
+  .terms-page { font-size: 7pt; line-height: 1.42; color: #1e293b; }
+  .terms-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 9px; }
+  .terms-head h1 { font-size: 13pt; font-weight: 700; }
+  .terms-head .meta { text-align: right; font-size: 7.4pt; color: #475569; }
+  .tcols { column-count: 2; column-gap: 18px; }
+  .clause { break-inside: avoid; margin-bottom: 6px; text-align: justify; }
+  .clause h4 { font-size: 7.4pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #0f172a; margin-bottom: 1px; }
+  .clause h4 span { color: #94a3b8; margin-right: 4px; }
+  .ack { margin-top: 10px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; align-items: end; }
+  .ack p { font-size: 7.2pt; color: #334155; }
+  .pdf-page + .pdf-page { break-before: page; page-break-before: always; }
   html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4; margin: 9mm; }
   @media print { body { padding: 0; zoom: 0.86; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
-</style></head><body>
+</style></head><body data-breaks="blocks">
+<div class="pdf-page">
   <div class="top">
     <div>${i.logo ? `<img src="${i.logo}" alt="">` : `<div class="name">${esc(i.company.name)}</div>`}
       <div class="co"><b style="color:#0f172a">${esc(i.company.name)}</b>${i.company.subName ? ' · ' + esc(i.company.subName) : ''}<br>${esc(i.company.address)}<br>Tel ${esc(i.company.phone)} · ${esc(i.company.email)}${i.company.taxNumber ? ' · Tax No. ' + esc(i.company.taxNumber) : ''}</div>
@@ -178,6 +216,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
         <tr><td>Issued</td><td>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td></tr>
         <tr><td>Status</td><td><span class="pill ${status[1]}">${status[0]}</span></td></tr>
       </table>
+      <div class="bc">${code39Svg('RA-' + (r.bookingId || ''))}<div>RA-${esc(r.bookingId)}</div></div>
     </div>
   </div>
 
@@ -189,23 +228,49 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     <div class="${rc ? 'warn' : ''}"><span>Charges at return</span><b>${rc ? esc(formatMoney(chargesTotal(rc.items), rc.currency)) : 'None'}</b></div>
   </div>` : ''}
 
-  <div class="g3">
-    <div class="card"><h2><span class="n">1</span>Renter</h2><div class="name">${esc(r.personName)}</div>
-      <div class="kv"><span>Phone</span><span>${esc(r.contactNumber || '—')}</span></div>
-      <div class="kv"><span>Email</span><span>${esc(r.customerEmail || '—')}</span></div>
-      <div class="kv"><span>Booked via</span><span>${esc(r.source || '—')}</span></div></div>
-    <div class="card"><h2><span class="n">2</span>Vehicle</h2><div class="name">${esc(r.carModel || '—')}</div>
-      <div class="kv"><span>Plate</span><span style="font-family:Consolas,monospace">${esc(r.licensePlate || '—')}</span></div>
-      ${(r.carExchanges || []).length ? `<div class="kv"><span>Exchanged</span><span>${r.carExchanges!.length}×</span></div>` : ''}
-      <div class="kv"><span>Deposit / excess</span><span>${usd(r.securityDeposit || 0)} / ${usd(r.excess || 0)}</span></div></div>
-    <div class="card"><h2><span class="n">3</span>Rental period</h2>
-      <div class="kv"><span>Pick-up</span><span>${when(r.startDate)}</span></div>
-      <div class="kv"><span>Return due</span><span>${when(r.endDate)}</span></div>
-      <div class="kv"><span>Location</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
-      ${(r.extensionHistory || []).length ? `<div class="kv"><span>Extended</span><span>+${r.extensionHistory!.reduce((s, e) => s + e.days, 0)} days</span></div>` : ''}</div>
+  <div class="g2a">
+    <div class="card"><h2><span class="n">1</span>Renter &amp; main driver</h2>
+      <div class="name">${esc(r.personName)}</div>
+      <div class="cols2">
+        <div>
+          <div class="drv"><span>Phone</span><b>${esc(r.contactNumber || '—')}</b></div>
+          <div class="drv"><span>Email</span><b>${esc(r.customerEmail || '—')}</b></div>
+          <div class="drv"><span>Address</span><b>${esc(drv.address || '—')}</b></div>
+          <div class="drv"><span>Date of birth</span><b>${day(drv.dateOfBirth)}</b></div>
+        </div>
+        <div>
+          <div class="drv"><span>Nationality</span><b>${esc(drv.nationality || '—')}</b></div>
+          <div class="drv"><span>Driving licence</span><b class="${drv.licenseNumber ? '' : 'missing'}">${drv.licenseNumber ? `${esc(drv.licenseNumber)}${drv.licenseCountry ? ' · ' + esc(drv.licenseCountry) : ''}` : 'Not recorded'}</b></div>
+          <div class="drv"><span>Licence expiry</span><b class="${licenceExpired ? 'missing' : ''}">${day(drv.licenseExpiry)}${licenceExpired ? ' (before return)' : ''}</b></div>
+          <div class="drv"><span>${esc(ID_TYPE[drv.idType || ''] || 'ID / passport')}</span><b>${esc(drv.idNumber || '—')}</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="card"><h2><span class="n">2</span>Additional drivers</h2>
+      ${extraDrivers.length ? extraDrivers.map(d => `<div class="drv"><span>${esc(d.name)}</span><b>${esc(d.licenseNumber || 'licence —')}${d.dateOfBirth ? ' · ' + day(d.dateOfBirth) : ''}</b></div>`).join('') : '<p class="dim" style="color:#64748b">None. Only the main driver may drive the vehicle.</p>'}
+      <div class="drv" style="margin-top:4px"><span>Booked via</span><b>${esc(r.source || '—')}</b></div>
+    </div>
   </div>
 
-  ${closed ? `<div class="card" style="margin-top:7px"><h2><span class="n">4</span>Check-out vs check-in</h2>
+  <div class="g3">
+    <div class="card"><h2><span class="n">3</span>Vehicle</h2><div class="name">${esc(r.carModel || '—')}</div>
+      <div class="kv"><span>Plate</span><span style="font-family:Consolas,monospace">${esc(r.licensePlate || '—')}</span></div>
+      <div class="kv"><span>Group / transmission</span><span>${esc([r.sippCode, r.transmission].filter(Boolean).join(' · ') || '—')}</span></div>
+      ${(r.carExchanges || []).length ? `<div class="kv"><span>Exchanged</span><span>${r.carExchanges!.length}×</span></div>` : ''}
+      <div class="kv"><span>Km out / fuel out</span><span>${km(r.pickupKmOut)} · ${r.pickupFuelLevel != null ? r.pickupFuelLevel + '/8' : '—'}</span></div></div>
+    <div class="card"><h2><span class="n">4</span>Pick-up</h2>
+      <div class="name" style="font-size:9.5pt">${when(r.startDate)}</div>
+      <div class="kv"><span>Branch</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
+      ${i.locationAddress ? `<div class="kv"><span>Address</span><span>${esc(i.locationAddress)}</span></div>` : ''}
+      <div class="kv"><span>Checked out</span><span>${r.pickupDateTime ? when(r.pickupDateTime) : '—'}</span></div></div>
+    <div class="card"><h2><span class="n">5</span>Return</h2>
+      <div class="name" style="font-size:9.5pt">${when(r.endDate)}</div>
+      <div class="kv"><span>Branch</span><span>${esc(i.locationName || r.locationName || '—')}</span></div>
+      <div class="kv"><span>Rental days</span><span>${i.rentalDays}${(r.extensionHistory || []).length ? ` (incl. +${r.extensionHistory!.reduce((s2, e) => s2 + e.days, 0)} extended)` : ''}</span></div>
+      <div class="kv"><span>Returned</span><span>${closed && returnedAt ? when(returnedAt.toISOString()) : '—'}</span></div></div>
+  </div>
+
+  ${closed ? `<div class="card" style="margin-top:7px"><h2><span class="n">6</span>Check-out vs check-in</h2>
     <table class="cmp">
       <tr><th></th><th>Check-out</th>${closed ? '<th>Check-in</th><th class="num">Difference</th>' : ''}</tr>
       <tr><td>Date & time</td><td>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</td>${closed ? `<td>${returnedAt ? when(returnedAt.toISOString()) : '—'}</td><td class="num ${lateHours > 2 ? 'diff-bad' : ''}">${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'On time'}</td>` : ''}</tr>
@@ -215,7 +280,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <tr><td>Damage marks</td><td>${pickupMarks.length} existing</td>${closed ? `<td>${returnMarks.length} new</td><td class="num ${returnMarks.length ? 'diff-bad' : 'diff-ok'}">${returnMarks.length ? `${returnMarks.length} new` : 'No new damage'}</td>` : ''}</tr>
       <tr><td>Staff</td><td>${esc(r.pickupAgentName || '—')}</td>${closed ? `<td>${esc(r.dropOffAgentName || '—')}</td><td></td>` : ''}</tr>
     </table>
-  </div>` : `<div class="card" style="margin-top:7px"><h2><span class="n">4</span>Condition at check-out</h2>
+  </div>` : `<div class="card" style="margin-top:7px"><h2><span class="n">6</span>Condition at check-out</h2>
     <div class="cgrid">
       <div><span>Date & time</span><b>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</b></div>
       <div><span>Odometer</span><b>${km(r.pickupKmOut)}</b></div>
@@ -226,35 +291,29 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     </div>
   </div>`}
 
-  <div class="g2w">
-    <div class="card"><h2><span class="n">5</span>Vehicle condition</h2>
-      <div class="views">${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
-      <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>At check-out (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>New at check-in (${returnMarks.length})` : ''}</div>
-    </div>
-    <div class="card"><h2><span class="n">6</span>Inspection checklist</h2>
-      <table class="cl">
-        <tr><th>Item</th><th class="ctr">Out</th>${closed ? '<th class="ctr">In</th>' : ''}</tr>
-        ${i.checklistItems.map(x => `<tr><td>${esc(x)}</td><td class="ctr">${tick(out[x])}</td>${closed ? `<td class="ctr">${tick(back[x], !!out[x])}</td>` : ''}</tr>`).join('')}
-      </table>
-    </div>
+  <div class="card" style="margin-top:7px"><h2><span class="n">7</span>Vehicle condition &amp; inspection</h2>
+    <div class="views4">${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
+    <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>Existing at check-out (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>New at check-in (${returnMarks.length})` : ''}<span style="float:right">Checklist ${okOut}/${i.checklistItems.length} out${closed ? ` · ${okIn}/${i.checklistItems.length} in` : ''}</span></div>
+    <div class="chips">${i.checklistItems.map(x => `<span>${tick(out[x])}${closed ? tick(back[x], !!out[x]) : ''}<em>${esc(x)}</em></span>`).join('')}</div>
   </div>
 
   <div class="${rc || sideNotes ? 'g2' : ''}" style="${rc || sideNotes ? '' : 'margin-top:7px'}">
-    <div class="card"><h2><span class="n">7</span>Rental charges</h2>
+    <div class="card"><h2><span class="n">9</span>Charges, protection &amp; payment</h2>
       <table class="items">
         <tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
         <tr><td>Vehicle rental${r.sippCode ? ` (${esc(r.sippCode)})` : ''}</td><td class="num">${i.rentalDays} d</td><td class="num">${usd(i.rentalDays ? i.baseRentalFee / i.rentalDays : i.baseRentalFee)}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
         ${(r.extras || []).map(e => `<tr><td>${esc(e.name)}</td><td class="num">${i.rentalDays} d</td><td class="num">${e.isComplementary ? '—' : usd(e.dailyPrice)}</td><td class="num">${e.isComplementary ? 'Included' : usd(e.dailyPrice * i.rentalDays)}</td></tr>`).join('')}
         <tr class="tot"><td colspan="3">Total</td><td class="num">${usd(rentalTotal)}</td></tr>
+        <tr class="sub"><td colspan="3">Protection</td><td class="num">${protection.length ? esc(protection.map(e => e.name).join(', ')) : 'Standard cover'}</td></tr>
         ${(r.securityDeposit || 0) > 0 ? `<tr class="sub"><td colspan="3">Security deposit (refundable)</td><td class="num">${usd(r.securityDeposit || 0)}</td></tr>` : ''}
         ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">Damage excess (your maximum liability)</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
       </table>
-      <div class="settle info">${paymentLine}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
+      <div class="settle info">${paymentLine}${r.paymentMethod && !i.prepaid ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && !i.prepaid ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
-    ${sideNotes ? `<div class="card"><h2><span class="n">8</span>${closed ? 'Notes' : 'Check-out notes'}</h2>${closed
+    ${sideNotes ? `<div class="card"><h2><span class="n">10</span>${closed ? 'Notes' : 'Check-out notes'}</h2>${closed
       ? `<div class="nl"><span>At check-out</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>At check-in</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`
       : `<div class="notes">${esc(r.pickupNotes)}</div>`}</div>` : ''}
-    ${rc ? `<div class="card"><h2><span class="n">8</span>Charges at check-in · ${esc(rc.documentNumber || '')}</h2>
+    ${rc ? `<div class="card"><h2><span class="n">10</span>Charges at check-in · ${esc(rc.documentNumber || '')}</h2>
       <table>
         ${rc.items.map(it => `<tr><td>${esc(CHARGE_KIND_LABEL[it.kind])} — ${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
         <tr class="tot"><td>Total</td><td class="num">${esc(formatMoney(chargesTotal(rc.items), rc.currency))}</td></tr>
@@ -272,17 +331,8 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     <div class="card"><h2>Check-in notes</h2><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
   </div>` : ''}
 
-  <div class="keyterms avoid"><h2>Key rental terms</h2>
-    <ol>
-      <li><b>Return</b> the vehicle by ${when(r.endDate)}${i.locationName || r.locationName ? ` at ${esc(i.locationName || r.locationName)}` : ''}. Extensions must be agreed before this time.</li>
-      <li><b>Fuel</b> — return the vehicle with the same fuel level as at check-out${r.pickupFuelLevel != null ? ` (${r.pickupFuelLevel}/8)` : ''}. A shortage is charged.</li>
-      <li><b>Damage</b> — new damage found at return is charged ${(r.excess || 0) > 0 ? `up to the excess of ${usd(r.excess || 0)}` : 'at repair cost'}.${(r.securityDeposit || 0) > 0 ? ` The ${usd(r.securityDeposit || 0)} deposit is released after the return inspection.` : ''}</li>
-      <li><b>Traffic fines</b>, tolls and parking penalties incurred during the rental are the renter's responsibility and may be charged after return.</li>
-    </ol>
-  </div>
-
-  <div class="card avoid" style="margin-top:7px"><h2><span class="n">9</span>Declaration &amp; signatures</h2>
-    <p class="terms">${esc(PICKUP_TERMS)}${closed ? ' ' + esc(RETURN_TERMS) : ''}</p>
+  <div class="card avoid" style="margin-top:7px"><h2><span class="n">11</span>Declaration &amp; signatures</h2>
+    <p class="terms">${esc(PICKUP_TERMS)}${closed ? ' ' + esc(RETURN_TERMS) : ''} <b>The Renter confirms having read and accepted the attached Terms and Conditions of Rental.</b></p>
     <div class="sg">
       <div class="sgrp"><h3>Check-out</h3><div class="row">
         ${sig(r.pickupRenterSignature, 'Renter', r.personName, r.pickupDateTime ? when(r.pickupDateTime) : undefined)}
@@ -296,5 +346,22 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   </div>
 
   <div class="foot"><span>${esc(i.company.name)}${i.company.subName ? ' · ' + esc(i.company.subName) : ''} · Agreement RA-${esc(r.bookingId)} · ${esc(i.locationAddress || i.locationName || r.locationName || '')}</span><span>Customer copy · signed electronically · ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
+</div>
+
+<div class="pdf-page terms-page">
+  <div class="terms-head">
+    <div>${i.logo ? `<img src="${i.logo}" alt="" style="height:20px">` : `<b>${esc(i.company.name)}</b>`}<h1>Terms and Conditions of Rental</h1></div>
+    <div class="meta">Agreement <b class="mono">RA-${esc(r.bookingId)}</b><br>${esc(i.company.name)}${i.company.subName ? ' · ' + esc(i.company.subName) : ''}</div>
+  </div>
+  <div class="tcols">
+    ${clauses.map((c, n) => `<div class="clause">${c.title ? `<h4><span>${n + 1}.</span>${esc(c.title)}</h4>` : ''}<p>${esc(c.body)}</p></div>`).join('')}
+  </div>
+  <div class="ack avoid">
+    <p>I have read, understood and accept these Terms and Conditions and the condition of the vehicle recorded in this agreement.</p>
+    ${sig(r.pickupRenterSignature, 'Renter', r.personName, r.pickupDateTime ? when(r.pickupDateTime) : undefined)}
+    ${sig(r.pickupAgentSignature, 'For the Company', r.pickupAgentName)}
+  </div>
+  <div class="foot"><span>${esc(i.company.name)} · ${esc(i.company.address)} · ${esc(i.company.phone)}${i.company.website ? ' · ' + esc(i.company.website) : ''}</span><span>RA-${esc(r.bookingId)} · Terms</span></div>
+</div>
 </body></html>`;
 }

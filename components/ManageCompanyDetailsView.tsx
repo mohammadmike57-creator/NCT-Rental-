@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { CompanyDetails } from '../types';
 import { TrashIcon, SaveIcon } from './icons';
-import { Page, PageHeader, Panel, Button, Field, inputCls } from './ui/Crm';
+import { Page, PageHeader, Panel, Button, Field, inputCls, textareaCls } from './ui/Crm';
+import { DEFAULT_AGREEMENT_TERMS, parseTerms } from '../services/agreementTerms';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
@@ -79,6 +80,7 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
             {field('Address', 'address', { full: true })}
             {field('Phone', 'phone', { type: 'tel' })}
             {field('Email', 'email', { type: 'email' })}
+            {field('Website', 'website', { full: true })}
           </div>
         </Panel>
       </SettingsSection>
@@ -98,6 +100,22 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
               <span className="block text-xs text-slate-500 mt-0.5">Pay-on-arrival reservations need a payment approval before they are finalised.</span>
             </span>
           </label>
+        </Panel>
+      </SettingsSection>
+
+      <SettingsSection title="Rental agreement terms" description={<>Printed as the <b>Terms and Conditions of Rental</b> page of every rental agreement. One clause per paragraph; the first line of each paragraph is its title. Leave empty to use the standard terms, and have the final text reviewed by your legal adviser.</>}>
+        <Panel footer={saveBar}>
+          <div className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-slate-500">{formData.agreementTerms?.trim() ? `Custom terms · ${parseTerms(formData.agreementTerms).length} clauses` : `Using the standard terms · ${parseTerms('').length} clauses`}</p>
+              <div className="flex gap-2">
+                {!formData.agreementTerms?.trim() && <Button size="sm" onClick={() => handleChange('agreementTerms', DEFAULT_AGREEMENT_TERMS)}>Edit the standard terms</Button>}
+                {formData.agreementTerms?.trim() && <Button size="sm" variant="ghost" onClick={() => { if (window.confirm('Go back to the standard terms? Your custom text will be removed when you save.')) handleChange('agreementTerms', ''); }}>Reset to standard</Button>}
+              </div>
+            </div>
+            <textarea rows={14} value={formData.agreementTerms || ''} onChange={e => handleChange('agreementTerms', e.target.value)}
+              placeholder={DEFAULT_AGREEMENT_TERMS.slice(0, 400) + '…'} className={`${textareaCls} font-mono text-[12px] leading-relaxed`} />
+          </div>
         </Panel>
       </SettingsSection>
 

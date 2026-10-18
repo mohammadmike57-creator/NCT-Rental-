@@ -37,65 +37,79 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     // html2canvas draws text a few pixels lower than the browser lays it out, which makes
     // table rules cut through the text. Extra room under each cell keeps them clear.
     const fix = doc.createElement('style');
-    fix.textContent = 'td, th { padding-bottom: 7px !important; } .stamp, .pill { padding-top: 1px !important; padding-bottom: 7px !important; }';
+    fix.textContent = 'td, th { padding-bottom: 7px !important; } .stamp, .pill { padding-top: 1px !important; padding-bottom: 7px !important; } .terms-page td, .terms-page th { padding-bottom: 3px !important; }';
     doc.head.appendChild(fix);
     const body = doc.body;
     body.style.padding = '0';
-    const height = Math.max(body.scrollHeight + 32, 1123);
-    const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: 794, height, windowWidth: 794, windowHeight: height, logging: false });
-
-    // Places where a page may end without cutting through a row, card or photo (in CSS px from the top).
-    const bodyTop = body.getBoundingClientRect().top;
-    const breaks = Array.from(doc.querySelectorAll('tr, .card, .avoid, .sec, table, .totals, .note, .band, .photos, .sign, .info, .parties, .sum, .foot, .balance, .notes, .sig, .lead, .facts'))
-      .map(el => (el as HTMLElement).getBoundingClientRect().bottom - bodyTop)
-      .filter(b => b > 0)
-      .sort((a, b) => a - b);
-    const scale = canvas.height / height;
 
     const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 28;
     const imgW = pageW - margin * 2;
-    const ratio = imgW / canvas.width;
-    const sliceH = Math.floor((pageH - margin * 2 - 10) / ratio);
-    let y = 0;
     let page = 0;
-    // Trim the blank space below the last element so it doesn't count as content.
-    const contentBottom = Math.min(canvas.height, Math.round(((breaks[breaks.length - 1] ?? height) + 12) * scale));
-    // A document that is only slightly longer than one page (up to 20%) is shrunk onto it rather than leaving a near-empty page.
-    if (contentBottom > sliceH && contentBottom <= sliceH * 1.2) {
-      const fit = (pageH - margin * 2 - 10) / contentBottom;
-      const w = canvas.width * fit;
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width;
-      slice.height = contentBottom;
-      const ctx = slice.getContext('2d')!;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, slice.width, slice.height);
-      ctx.drawImage(canvas, 0, 0, canvas.width, contentBottom, 0, 0, canvas.width, contentBottom);
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.9), 'JPEG', (pageW - w) / 2, margin, w, contentBottom * fit);
-      y = canvas.height;
-      page = 1;
-    }
-    while (y < Math.min(canvas.height, contentBottom) - 2) {
-      let end = Math.min(y + sliceH, contentBottom);
-      if (end < contentBottom) {
-        const fit = breaks.map(b => Math.round((b + 5) * scale)).filter(b => b > y + sliceH * 0.55 && b <= y + sliceH);
-        if (fit.length) end = fit[fit.length - 1];
+
+    // A document may be split into fixed pages (e.g. agreement + terms and conditions)
+    // with top-level <div class="pdf-page"> blocks; each one starts on a new PDF page.
+    const sections = Array.from(body.children).filter(el => el.classList.contains('pdf-page')) as HTMLElement[];
+    for (const section of (sections.length ? sections : [null])) {
+      if (section) sections.forEach(s => { s.style.display = s === section ? '' : 'none'; });
+      await new Promise(r => setTimeout(r, 30));
+      const height = Math.max(body.scrollHeight + 32, 1123);
+      const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: 794, height, windowWidth: 794, windowHeight: height, logging: false });
+
+      // Places where a page may end without cutting through a row, card or photo (in CSS px from the top).
+      const bodyTop = body.getBoundingClientRect().top;
+      // Documents can ask to break only between whole blocks (<body data-breaks="blocks">), never inside a table.
+      const breakSelector = body.dataset.breaks === 'blocks'
+        ? '.card, .band, .g2, .g3, .g2a, .foot, .clause, .ack, .tcols, .terms-head'
+        : 'tr, .card, .avoid, .sec, table, .totals, .note, .band, .photos, .sign, .info, .parties, .sum, .foot, .balance, .notes, .sig, .lead, .facts, .clause';
+      const breaks = Array.from(doc.querySelectorAll(breakSelector))
+        .filter(el => (el as HTMLElement).offsetParent !== null || el.tagName === 'TR')
+        .map(el => (el as HTMLElement).getBoundingClientRect().bottom - bodyTop)
+        .filter(b => b > 0)
+        .sort((a, b) => a - b);
+      const scale = canvas.height / height;
+      const ratio = imgW / canvas.width;
+      const sliceH = Math.floor((pageH - margin * 2 - 10) / ratio);
+      let y = 0;
+      // Trim the blank space below the last element so it doesn't count as content.
+      const contentBottom = Math.min(canvas.height, Math.round(((breaks[breaks.length - 1] ?? height) + 12) * scale));
+      // A section that is only slightly longer than one page (up to 20%) is shrunk onto it rather than leaving a near-empty page.
+      if (contentBottom > sliceH && contentBottom <= sliceH * 1.2) {
+        const fit = (pageH - margin * 2 - 10) / contentBottom;
+        const w = canvas.width * fit;
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width;
+        slice.height = contentBottom;
+        const ctx = slice.getContext('2d')!;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, 0, canvas.width, contentBottom, 0, 0, canvas.width, contentBottom);
+        if (page > 0) pdf.addPage();
+        pdf.addImage(slice.toDataURL('image/jpeg', 0.9), 'JPEG', (pageW - w) / 2, margin, w, contentBottom * fit);
+        page++;
+        continue;
       }
-      const h = end - y;
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width;
-      slice.height = h;
-      const ctx = slice.getContext('2d')!;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, slice.width, h);
-      ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-      if (page > 0) pdf.addPage();
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin, imgW, h * ratio);
-      y = end;
-      page++;
+      while (y < Math.min(canvas.height, contentBottom) - 2) {
+        let end = Math.min(y + sliceH, contentBottom);
+        if (end < contentBottom) {
+          const fit = breaks.map(b => Math.round((b + 5) * scale)).filter(b => b > y + sliceH * 0.55 && b <= y + sliceH);
+          if (fit.length) end = fit[fit.length - 1];
+        }
+        const h = end - y;
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width;
+        slice.height = h;
+        const ctx = slice.getContext('2d')!;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, slice.width, h);
+        ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        if (page > 0) pdf.addPage();
+        pdf.addImage(slice.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin, imgW, h * ratio);
+        y = end;
+        page++;
+      }
     }
     if (page > 1) {
       for (let i = 1; i <= page; i++) {

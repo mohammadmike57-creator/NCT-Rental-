@@ -8,6 +8,7 @@ import { sendCustomerEmail, recordActivity } from '../firebase/api';
 import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
+import DriverDetailsForm from './voucher/DriverDetailsForm';
 import { Badge, Button, Plate, SectionLabel, inputCls as kitInputCls, textareaCls, labelCls } from './ui/Crm';
 import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
 import { buildTerminationHtml, terminationFileName, terminationNumber } from '../services/terminationDoc';
@@ -1045,6 +1046,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <InfoPair label="Location" value={`${location?.name || reservation.locationName || 'Location not set'}${location?.address ? ` — ${location.address}` : ''}`} />
         </div>
       </div>
+      <DriverDetailsForm
+        driver={localReservation.driver || {}}
+        additionalDrivers={localReservation.additionalDrivers || []}
+        editable={isPickupEditable}
+        rentalEnd={localReservation.endDate}
+        onChange={d => handleFieldChange('driver', d)}
+        onChangeAdditional={list => handleFieldChange('additionalDrivers', list)}
+      />
     </StepSection>
   );
 
@@ -1116,6 +1125,23 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         <div><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
         {isPickupEditable ? (
           <>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>Payment method</label>
+                <select value={localReservation.paymentMethod || ''} onChange={e => handleFieldChange('paymentMethod', e.target.value || undefined)} className={inputCls}>
+                  <option value="">Not set</option>
+                  <option value="card">Card</option>
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="prepaid">Prepaid by partner</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Card last 4 digits</label>
+                <input type="text" inputMode="numeric" maxLength={4} value={(localReservation.cardNumber || '').replace(/\D/g, '').slice(-4)}
+                  onChange={e => handleFieldChange('cardNumber', e.target.value.replace(/\D/g, '').slice(0, 4) || undefined)} className={`${inputCls} font-mono tabular-nums`} placeholder="4421" />
+              </div>
+            </div>
             <div>
               <label className={labelCls}>Authorisation number{isPayOnArrival && <span className="text-rose-500"> *</span>}</label>
               <input type="text" value={localReservation.authNumber || ''} onChange={e => handleFieldChange('authNumber', e.target.value)} className={`${inputCls} font-mono`} placeholder="Card terminal auth code" />
@@ -1127,6 +1153,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </>
         ) : (
           <>
+            <InfoPair label="Payment method" value={localReservation.paymentMethod ? ({ card: 'Card', cash: 'Cash', bank_transfer: 'Bank transfer', prepaid: 'Prepaid by partner' } as Record<string, string>)[localReservation.paymentMethod] : undefined} />
             <InfoPair label="Authorisation" value={localReservation.authNumber ? <span className="font-mono">{localReservation.authNumber}</span> : undefined} />
             <InfoPair label="Amount charged" value={localReservation.finalAmountCharged ? formatCurrency(localReservation.finalAmountCharged) : undefined} />
           </>

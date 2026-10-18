@@ -275,6 +275,12 @@ export interface Reservation {
   finalAmountCharged?: number;
   cardNumber?: string;
   cardExpiry?: string;
+  /** How the renter pays at the counter (shown on the agreement). */
+  paymentMethod?: 'card' | 'cash' | 'bank_transfer' | 'prepaid';
+
+  /** Main driver's documents, captured at check-out. */
+  driver?: DriverDetails;
+  additionalDrivers?: AdditionalDriver[];
 
   hasDateError?: boolean;
   dateErrorDetail?: string;
@@ -327,6 +333,23 @@ export interface VehicleDamage {
   damageImageFilename?: string;
 }
 
+export interface DriverDetails {
+  licenseNumber?: string;
+  licenseCountry?: string;
+  licenseExpiry?: string;   // YYYY-MM-DD
+  dateOfBirth?: string;     // YYYY-MM-DD
+  nationality?: string;
+  idType?: 'passport' | 'national_id' | 'residence';
+  idNumber?: string;
+  address?: string;
+}
+
+export interface AdditionalDriver {
+  name: string;
+  licenseNumber?: string;
+  dateOfBirth?: string;
+}
+
 export interface CompanyDetails {
   name: string;
   subName: string;
@@ -335,6 +358,9 @@ export interface CompanyDetails {
   email: string;
   taxNumber: string;
   requirePaymentApproval?: boolean;
+  website?: string;
+  /** Terms and conditions printed on page 2 of the rental agreement. Empty = standard template. */
+  agreementTerms?: string;
 }
 
 export type MonthlyReservations = Reservation[];
