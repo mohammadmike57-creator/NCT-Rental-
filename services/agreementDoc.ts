@@ -199,6 +199,50 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .ack { margin-top: 10px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; align-items: end; }
   .ack p { font-size: 7.2pt; color: #334155; }
   .pdf-page + .pdf-page { break-before: page; page-break-before: always; }
+
+  /* ---- Formal contract styling: square ruled boxes, black header bars, monochrome ---- */
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111827; }
+  .top { border-bottom: 3px solid #111827; }
+  .doc h1 { font-size: 16pt; font-weight: 800; letter-spacing: .01em; text-transform: uppercase; }
+  .doc .sub { color: #374151; letter-spacing: .18em; }
+  .ref { border: 1px solid #111827; border-radius: 0; }
+  .ref td { border-bottom: 1px solid #d1d5db; }
+  .ref td:first-child { background: #f3f4f6; color: #374151; text-transform: uppercase; font-size: 6.6pt; letter-spacing: .08em; }
+  .pill { border-radius: 0; letter-spacing: .14em; }
+  .pill.open, .pill.new { background: #fff; color: #111827; border: 1px solid #111827; }
+  .pill.closed { background: #111827; color: #fff; }
+  .band { border-radius: 0; background: #111827; }
+  .band div { border-right-color: #374151; }
+  .card { border: 1px solid #111827; border-radius: 0; padding: 0 9px 6px; }
+  .card h2 { margin: 0 -9px 6px; padding: 3.5px 9px; background: #111827; color: #fff; font-size: 6.8pt; letter-spacing: .14em; }
+  .card h2 .n { color: #9ca3af; }
+  .g3, .g2, .g2w, .g2a { gap: 6px; }
+  .name { font-size: 10pt; font-weight: 800; letter-spacing: -.005em; }
+  .kv, .drv { border-bottom: 1px solid #e5e7eb; padding: 2px 0; }
+  .kv:last-child, .drv:last-child { border-bottom: 0; }
+  .kv span:first-child, .drv span { color: #4b5563; font-size: 7.4pt; text-transform: uppercase; letter-spacing: .04em; }
+  .drv b, .kv span:last-child { font-weight: 700; color: #111827; }
+  .missing { color: #92400e !important; }
+  th { color: #374151; }
+  .cmp th, .items th { background: #f3f4f6; border-bottom: 1px solid #111827; }
+  .cmp td:first-child { color: #374151; text-transform: uppercase; font-size: 7pt; letter-spacing: .04em; }
+  .diff-ok { color: #111827; } .diff-bad { color: #991b1b; }
+  .ok { color: #111827; } .bad { color: #991b1b; }
+  .gauge i { border-radius: 0; }
+  .view { border: 1px solid #d1d5db; border-radius: 0; background: #fff; }
+  .chips span { border-bottom: 1px solid #e5e7eb; }
+  .tot td { border-top: 2px solid #111827; }
+  .settle { border-radius: 0; border: 1px solid #d1d5db; background: #f9fafb !important; color: #111827 !important; }
+  .sgrp { border: 1px solid #d1d5db; border-radius: 0; }
+  .sgrp h3 { color: #111827; }
+  .sl { border-top: 1px solid #111827; }
+  .bc div { color: #111827; }
+  .foot { border-top: 1px solid #111827; color: #374151; }
+  .terms-head { border-bottom: 3px solid #111827; }
+  .terms-head h1 { text-transform: uppercase; letter-spacing: .02em; font-weight: 800; }
+  .clause h4 { color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 1px; margin-bottom: 2px; }
+  .clause h4 span { color: #6b7280; }
+  .ack { border: 1px solid #111827; border-radius: 0; }
   html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4; margin: 9mm; }
   @media print { body { padding: 0; zoom: 0.86; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
@@ -275,7 +319,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <tr><th></th><th>Check-out</th>${closed ? '<th>Check-in</th><th class="num">Difference</th>' : ''}</tr>
       <tr><td>Date & time</td><td>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</td>${closed ? `<td>${returnedAt ? when(returnedAt.toISOString()) : '—'}</td><td class="num ${lateHours > 2 ? 'diff-bad' : ''}">${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'On time'}</td>` : ''}</tr>
       <tr><td>Odometer</td><td>${km(r.pickupKmOut)}</td>${closed ? `<td>${km(r.dropOffKmIn)}</td><td class="num">${kmDriven != null ? '+' + km(kmDriven) : '—'}</td>` : ''}</tr>
-      <tr><td>Fuel</td><td>${fuel(r.pickupFuelLevel, '#0284c7')}</td>${closed ? `<td>${fuel(r.dropOffFuelLevel, fuelDiff != null && fuelDiff < 0 ? '#dc2626' : '#059669')}</td><td class="num ${fuelDiff != null && fuelDiff < 0 ? 'diff-bad' : 'diff-ok'}">${fuelDiff == null ? '—' : fuelDiff < 0 ? `${fuelDiff}/8 short` : fuelDiff > 0 ? `+${fuelDiff}/8` : 'Same level'}</td>` : ''}</tr>
+      <tr><td>Fuel</td><td>${fuel(r.pickupFuelLevel, '#111827')}</td>${closed ? `<td>${fuel(r.dropOffFuelLevel, fuelDiff != null && fuelDiff < 0 ? '#991b1b' : '#374151')}</td><td class="num ${fuelDiff != null && fuelDiff < 0 ? 'diff-bad' : 'diff-ok'}">${fuelDiff == null ? '—' : fuelDiff < 0 ? `${fuelDiff}/8 short` : fuelDiff > 0 ? `+${fuelDiff}/8` : 'Same level'}</td>` : ''}</tr>
       <tr><td>Checklist</td><td>${okOut} of ${i.checklistItems.length} items OK</td>${closed ? `<td>${okIn} of ${i.checklistItems.length} items OK</td><td class="num ${missingAtReturn.length ? 'diff-bad' : 'diff-ok'}">${missingAtReturn.length ? `${missingAtReturn.length} missing` : 'All present'}</td>` : ''}</tr>
       <tr><td>Damage marks</td><td>${pickupMarks.length} existing</td>${closed ? `<td>${returnMarks.length} new</td><td class="num ${returnMarks.length ? 'diff-bad' : 'diff-ok'}">${returnMarks.length ? `${returnMarks.length} new` : 'No new damage'}</td>` : ''}</tr>
       <tr><td>Staff</td><td>${esc(r.pickupAgentName || '—')}</td>${closed ? `<td>${esc(r.dropOffAgentName || '—')}</td><td></td>` : ''}</tr>
@@ -284,7 +328,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     <div class="cgrid">
       <div><span>Date & time</span><b>${r.pickupDateTime ? when(r.pickupDateTime) : when(r.startDate)}</b></div>
       <div><span>Odometer</span><b>${km(r.pickupKmOut)}</b></div>
-      <div><span>Fuel</span><b>${fuel(r.pickupFuelLevel, '#0284c7')}</b></div>
+      <div><span>Fuel</span><b>${fuel(r.pickupFuelLevel, '#111827')}</b></div>
       <div><span>Checklist</span><b>${okOut} of ${i.checklistItems.length} items OK</b></div>
       <div><span>Existing damage</span><b>${pickupMarks.length} mark${pickupMarks.length === 1 ? '' : 's'}</b></div>
       <div><span>Handed over by</span><b>${esc(r.pickupAgentName || '—')}</b></div>

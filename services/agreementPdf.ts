@@ -37,7 +37,7 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     // html2canvas draws text a few pixels lower than the browser lays it out, which makes
     // table rules cut through the text. Extra room under each cell keeps them clear.
     const fix = doc.createElement('style');
-    fix.textContent = 'td, th { padding-bottom: 7px !important; } .stamp, .pill { padding-top: 1px !important; padding-bottom: 7px !important; } .terms-page td, .terms-page th { padding-bottom: 3px !important; }';
+    fix.textContent = 'td, th { padding-bottom: 7px !important; } .stamp, .pill { padding-top: 1px !important; padding-bottom: 7px !important; } .terms-page td, .terms-page th { padding-bottom: 3px !important; } .card h2 { padding-top: 1px !important; padding-bottom: 7px !important; }';
     doc.head.appendChild(fix);
     const body = doc.body;
     body.style.padding = '0';
