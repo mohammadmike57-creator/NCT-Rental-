@@ -183,8 +183,9 @@ interface SidebarLink {
     badge?: number;
 }
 
-const SidebarSection: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => {
+const SidebarSection: React.FC<{ title: string, children: React.ReactNode, collapsed?: boolean }> = ({ title, children, collapsed }) => {
     const [isOpen, setIsOpen] = useState(true);
+    if (collapsed) return <div className="space-y-px pt-2 first:pt-0 border-t border-white/5 first:border-0">{children}</div>;
     return (
         <div>
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-1.5 text-[10.5px] font-semibold text-slate-500 uppercase tracking-[0.08em] hover:text-slate-300">
@@ -1439,6 +1440,22 @@ ${currentUser?.fullName}
     }
   }, [availableExtras]);
 
+  // Shell UI state (kept above the early returns so the hook order never changes).
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => { try { return localStorage.getItem('nct.sidebarCollapsed') === '1'; } catch { return false; } });
+  const toggleSidebarCollapsed = () => setSidebarCollapsed(v => { const n = !v; try { localStorage.setItem('nct.sidebarCollapsed', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
+  const [openMenu, setOpenMenu] = useState<null | 'new' | 'user'>(null);
+  const globalSearchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    // "/" jumps to the booking search, Escape closes header menus.
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey) { e.preventDefault(); globalSearchRef.current?.focus(); }
+      if (e.key === 'Escape') setOpenMenu(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   if (!authChecked || isLoading) return <LoadingSpinner />;
   if (!isAuthenticated && authChecked) return <Suspense fallback={<LoadingSpinner />}><LoginScreen users={users} /></Suspense>;
   
@@ -1843,6 +1860,14 @@ ${currentUser?.fullName}
   const currentViewHasAccess = mainView === 'Agreement' ? true : hasPermission(currentUser, mainViews[mainView]?.permission);
   const showDateSelectors = ['Reservations', 'Agreement', 'Invoice Generation', 'Fleet Availability', 'Yearly Summary'].includes(mainView);
 
+  const newItems = [
+    { label: 'Reservation', hint: 'Create a booking', show: hasPermission(currentUser, UserPermission.VIEW_RESERVATIONS), run: () => { handleNavigation('Reservations'); setTimeout(() => window.dispatchEvent(new CustomEvent('nct:new-reservation')), 350); } },
+    { label: 'Walk-in agreement', hint: 'Agreement for a booking not in the list', show: true, run: () => setShowUnlistedAgreement(true) },
+    { label: 'Traffic ticket', hint: 'Record a fine', show: hasPermission(currentUser, UserPermission.VIEW_TRAFFIC_TICKETS), run: () => handleNavigation('Traffic Tickets') },
+    { label: 'Damage report', hint: 'Record vehicle damage', show: hasPermission(currentUser, UserPermission.VIEW_TRAFFIC_TICKETS), run: () => handleNavigation('Vehicle Damages') },
+    { label: 'Partner invoice', hint: 'Bill a booking partner', show: hasPermission(currentUser, UserPermission.VIEW_REPORTS_INVOICE_GENERATION), run: () => handleNavigation('Invoice Generation') },
+    { label: 'Vehicle', hint: 'Add a car to the fleet', show: hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_FLEET), run: () => handleNavigation('Fleet Management') },
+  ].filter(i => i.show);
   const userInitials = (currentUser?.fullName || currentUser?.username || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('');
   const runGlobalSearch = (q: string) => {
     const term = q.trim();
@@ -1888,11 +1913,11 @@ ${currentUser?.fullName}
     <div className="flex h-screen bg-slate-50">
       {isSidebarOpen && <div className="fixed inset-0 z-30 bg-slate-900/50 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
 
-      <aside className={`absolute md:relative z-40 md:z-auto w-60 bg-slate-900 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full border-r border-slate-800`}>
+      <aside className={`absolute md:relative z-40 md:z-auto w-60 ${sidebarCollapsed ? 'md:w-[68px]' : ''} bg-slate-900 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full border-r border-slate-800`}>
          <div className="flex items-center justify-between px-4 h-14 border-b border-white/5 flex-shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-7 w-7 rounded bg-white/5" />
-                <div className="min-w-0 leading-tight">
+                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-7 w-7 rounded bg-white/5 shrink-0" />
+                <div className={`min-w-0 leading-tight ${sidebarCollapsed ? 'md:hidden' : ''}`}>
                     <h1 className="text-[15px] font-semibold text-white tracking-tight">NCT Rental</h1>
                     <p className="text-[10.5px] text-slate-400 truncate">Rental management</p>
                 </div>
@@ -1916,21 +1941,22 @@ ${currentUser?.fullName}
                     if(visibleLinks.length === 0) return null;
 
                     return (
-                        <SidebarSection key={sectionTitle} title={sectionTitle}>
+                        <SidebarSection key={sectionTitle} title={sectionTitle} collapsed={sidebarCollapsed && !isSidebarOpen}>
                             {visibleLinks.map(({ name, icon: Icon, badge }) => (
                                 <a
                                     key={name}
                                     href="#"
                                     onClick={(e) => { e.preventDefault(); handleNavigation(name); }}
                                     aria-current={mainView === name ? 'page' : undefined}
-                                    className={`relative flex items-center justify-between gap-3 px-3 py-[7px] rounded-md text-[13px] font-medium transition-colors ${mainView === name ? 'bg-white/10 text-white before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-indigo-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
+                                    title={sidebarCollapsed ? name : undefined}
+                                    className={`relative flex items-center ${sidebarCollapsed && !isSidebarOpen ? 'md:justify-center' : ''} justify-between gap-3 px-3 py-[7px] rounded-md text-[13px] font-medium transition-colors ${mainView === name ? 'bg-white/10 text-white before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-indigo-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
                                 >
                                     <div className="flex items-center gap-2.5 min-w-0">
                                     <Icon />
-                                    <span className="truncate">{name}</span>
+                                    <span className={`truncate ${sidebarCollapsed && !isSidebarOpen ? 'md:hidden' : ''}`}>{name}</span>
                                     </div>
                                     {typeof badge === 'number' && badge > 0 && (
-                                    <span className="min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center text-[11px] font-semibold text-white bg-rose-500 rounded-full tabular-nums">{badge}</span>
+                                    <span className={`${sidebarCollapsed && !isSidebarOpen ? 'md:absolute md:top-0.5 md:right-1 md:min-w-[16px] md:h-4 md:text-[10px]' : ''} min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center text-[11px] font-semibold text-white bg-rose-500 rounded-full tabular-nums`}>{badge}</span>
                                     )}
                                 </a>
                             ))}
@@ -1940,6 +1966,12 @@ ${currentUser?.fullName}
             </nav>
 
             <div className="p-2.5 border-t border-white/5 flex-shrink-0 space-y-1 [&_svg]:w-[18px] [&_svg]:h-[18px]">
+                <button onClick={toggleSidebarCollapsed} title={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+                    className={`hidden md:flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-400 hover:bg-white/5 hover:text-white rounded-md ${sidebarCollapsed ? 'justify-center' : ''}`}>
+                    <svg className={`transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
+                    {!sidebarCollapsed && <span>Collapse menu</span>}
+                </button>
+                <div className={sidebarCollapsed ? 'md:hidden space-y-1' : 'space-y-1'}>
                 {notificationPermission === 'denied' ? (
                     <div className="flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-500 rounded-md cursor-not-allowed" title="Notifications are blocked in your browser settings.">
                         <BellSlashIcon />
@@ -1968,6 +2000,7 @@ ${currentUser?.fullName}
                     )}
                     <button onClick={handleLogout} title="Log out" aria-label="Log out" className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10"><LogoutIcon /></button>
                 </div>
+                </div>
             </div>
          </div>
       </aside>
@@ -1982,8 +2015,9 @@ ${currentUser?.fullName}
             <form className="hidden md:block flex-1 max-w-md" onSubmit={e => { e.preventDefault(); const f = e.currentTarget.elements.namedItem('q') as HTMLInputElement; runGlobalSearch(f.value); f.value = ''; }} role="search">
                 <div className="relative">
                     <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-                    <input name="q" type="search" placeholder="Find a booking — number, customer, phone or plate" aria-label="Find a booking"
-                        className="w-full h-9 pl-9 pr-3 bg-slate-100 border border-transparent rounded-lg text-[13px] text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none" />
+                    <input ref={globalSearchRef} name="q" type="search" placeholder="Find a booking — number, customer, phone or plate" aria-label="Find a booking"
+                        className="peer w-full h-9 pl-9 pr-9 bg-slate-100 border border-transparent rounded-lg text-[13px] text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none" />
+                    <kbd className="peer-focus:hidden absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 rounded border border-slate-300 bg-white text-[10px] font-semibold text-slate-400">/</kbd>
                 </div>
             </form>
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
@@ -1997,6 +2031,27 @@ ${currentUser?.fullName}
                     <SaveIcon className="w-4 h-4 text-slate-500" />Save
                 </button>
                 {showDateSelectors && <div className="hidden md:block pl-2 ml-1 border-l border-slate-200"><DateSelectors /></div>}
+                <div className="relative">
+                    <button onClick={() => setOpenMenu(m => (m === 'new' ? null : 'new'))} aria-haspopup="menu" aria-expanded={openMenu === 'new'}
+                        className="h-9 inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg bg-indigo-600 text-white text-[13px] font-semibold shadow-sm hover:bg-indigo-700">
+                        <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">New</span>
+                        <ChevronDownIcon className="hidden sm:block w-3.5 h-3.5 opacity-80" />
+                    </button>
+                    {openMenu === 'new' && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+                            <div role="menu" className="absolute right-0 mt-1.5 z-50 w-64 bg-white rounded-lg border border-slate-200 shadow-xl py-1">
+                                <p className="px-3 pt-1.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Create</p>
+                                {newItems.map(i => (
+                                    <button key={i.label} role="menuitem" onClick={() => { setOpenMenu(null); i.run(); }} className="w-full text-left px-3 py-2 hover:bg-slate-50">
+                                        <span className="block text-[13px] font-medium text-slate-800">{i.label}</span>
+                                        <span className="block text-[11px] text-slate-500">{i.hint}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
                 <button
                     onClick={() => handleNavigation('Internal Messages')}
                     className="relative w-9 h-9 inline-flex items-center justify-center text-slate-500 rounded-lg hover:text-slate-900 hover:bg-slate-100"
@@ -2007,6 +2062,33 @@ ${currentUser?.fullName}
                         <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 inline-flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-semibold tabular-nums">{unreadCount}</span>
                     )}
                 </button>
+                <div className="relative hidden md:block">
+                    <button onClick={() => setOpenMenu(m => (m === 'user' ? null : 'user'))} aria-haspopup="menu" aria-expanded={openMenu === 'user'} title={currentUser?.fullName}
+                        className="w-9 h-9 rounded-full bg-indigo-500 text-white text-xs font-semibold inline-flex items-center justify-center ring-2 ring-white hover:ring-indigo-100">{userInitials}</button>
+                    {openMenu === 'user' && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+                            <div role="menu" className="absolute right-0 mt-1.5 z-50 w-60 bg-white rounded-lg border border-slate-200 shadow-xl py-1 text-[13px]">
+                                <div className="px-3 py-2 border-b border-slate-100">
+                                    <p className="font-semibold text-slate-900 truncate">{currentUser?.fullName}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">{currentUser?.email || currentUser?.username}</p>
+                                </div>
+                                {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
+                                    <button role="menuitem" onClick={() => { setOpenMenu(null); handleNavigation('My Profile'); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">My profile</button>
+                                )}
+                                {notificationPermission !== 'denied' && (
+                                    <button role="menuitem" onClick={() => { setOpenMenu(null); (isPushSubscribed ? handleDisableNotifications : handleEnableNotifications)(); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">
+                                        {isPushSubscribed ? 'Turn off notifications' : 'Turn on notifications'}
+                                    </button>
+                                )}
+                                <button role="menuitem" onClick={() => { setOpenMenu(null); toggleSidebarCollapsed(); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">{sidebarCollapsed ? 'Expand side menu' : 'Collapse side menu'}</button>
+                                <div className="border-t border-slate-100 mt-1 pt-1">
+                                    <button role="menuitem" onClick={() => { setOpenMenu(null); handleLogout(); }} className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50">Log out</button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </header>
 
