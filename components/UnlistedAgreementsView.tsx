@@ -20,6 +20,8 @@ interface Props {
   onLink: (target: Reservation, agreement: Reservation) => Promise<void>;
   onReject: (res: Reservation) => void;
   onNewWalkIn?: () => void;
+  /** Marks agreements as reviewed by the signed-in user, which takes them out of the "New" section. */
+  onMarkSeen?: (items: Reservation[]) => Promise<void>;
 }
 
 const WALK_REF = /^WALK-/i;
@@ -55,7 +57,7 @@ export function missingDetails(r: Reservation, sources: RentalSource[]): { key: 
 const agreementState = (r: Reservation) =>
   r.dropOffCompleted ? { label: 'Returned', tone: 'muted' as const } : r.voucherSubmitted ? { label: 'On rent', tone: 'success' as const } : { label: 'Not checked out', tone: 'info' as const };
 
-const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocations, fleet, currentUser, canEdit, onOpenAgreement, onList, onSaveDraft, onLink, onReject, onNewWalkIn }) => {
+const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocations, fleet, currentUser, canEdit, onOpenAgreement, onList, onSaveDraft, onLink, onReject, onNewWalkIn, onMarkSeen }) => {
   const [tab, setTab] = useState<'waiting' | 'listed' | 'rejected'>('waiting');
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Located | null>(null);
@@ -76,6 +78,14 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
     rejected: all.filter(x => x.res.status === ReservationStatus.CANCELLED),
   }), [all]);
 
+  const me = (currentUser?.email || '').toLowerCase();
+  const fresh = groups.waiting.filter(x => !!me && !(x.res.unlistedSeenBy || []).includes(me));
+  const [marking, setMarking] = useState(false);
+  const markSeen = async (items: Located[]) => {
+    if (!onMarkSeen || !items.length) return;
+    setMarking(true);
+    try { await onMarkSeen(items.map(x => x.res)); } finally { setMarking(false); }
+  };
   const thisMonth = new Date().toISOString().slice(0, 7);
   const waiting = groups.waiting;
   const stats = {
@@ -110,6 +120,58 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
         subtitle="Agreements opened at the counter before the booking was entered in the system. The reservations team links each one to its booking, or creates the reservation from it."
         actions={onNewWalkIn && <Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={onNewWalkIn}>Agreement for Unlisted Reservation</Button>}
       />
+
+      {fresh.length > 0 && (
+        <section className="rounded-xl border border-rose-200 bg-white shadow-sm overflow-hidden" aria-label="New unlisted agreements">
+          <header className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3 bg-gradient-to-r from-rose-50 via-white to-white border-b border-rose-100">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <span className="relative flex w-2.5 h-2.5 shrink-0 self-start mt-1.5"><span className="absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75 animate-ping" /><span className="relative inline-flex rounded-full w-2.5 h-2.5 bg-rose-500" /></span>
+              <div className="min-w-0">
+                <h3 className="text-[14px] font-semibold text-slate-900">New — needs a reservation <span className="ml-1 inline-flex items-center h-5 px-2 rounded-full bg-rose-500 text-white text-[11px] font-bold tabular-nums align-middle">{fresh.length}</span><span lang="ar" dir="rtl" className="ar-ui block w-fit sm:inline sm:ml-2 !text-[13px]">جديد — بحاجة إلى حجز</span></h3>
+                <p className="text-xs text-slate-500">Opened at the counter and not reviewed by you yet. Add the reservation or link it to the website booking.</p>
+              </div>
+            </div>
+            {onMarkSeen && <Button size="sm" onClick={() => markSeen(fresh)} disabled={marking}>{marking ? 'Saving…' : 'Mark all as reviewed'}</Button>}
+          </header>
+          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-3 sm:p-4 bg-slate-50/60">
+            {fresh.map(item => {
+              const { res } = item;
+              const miss = missingDetails(res, sources);
+              const st = agreementState(res);
+              return (
+                <li key={res.id} className="relative rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:rounded-l-xl before:bg-rose-500">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2">
+                        <span className="px-1.5 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider">New</span>
+                        <span className="font-mono text-[13px] font-semibold text-slate-900">{res.bookingId}</span>
+                        <span className="text-[11px] text-slate-500">{sourceName(res.source)}</span>
+                      </p>
+                      <p className="mt-1.5 text-[15px] font-semibold text-slate-900 truncate">{res.personName || 'Unnamed customer'}</p>
+                      <p className="text-xs text-slate-500 truncate">{res.contactNumber || res.customerEmail || 'No contact details'}</p>
+                    </div>
+                    <Badge tone={st.tone}>{st.label}</Badge>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12.5px]">
+                    <div className="min-w-0"><dt className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Vehicle</dt><dd className="text-slate-800 truncate">{res.carModel || '—'} {res.licensePlate && <Plate value={res.licensePlate} />}</dd></div>
+                    <div className="min-w-0"><dt className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Opened by</dt><dd className="text-slate-800 truncate">{res.unlistedCreatedBy || res.createdBy || 'Counter staff'} · <span className="text-slate-500">{ago(res.unlistedCreatedAt || res.createdAt)}</span></dd></div>
+                    <div className="min-w-0"><dt className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Pick-up</dt><dd className="text-slate-800">{dt(res.startDate)}</dd></div>
+                    <div className="min-w-0"><dt className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Return</dt><dd className="text-slate-800">{dt(res.endDate)}</dd></div>
+                  </dl>
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {miss.length ? miss.map(m => <Badge key={m.key} tone={m.blocking ? 'warning' : 'muted'} dot={false}>{m.label} missing</Badge>) : <Badge tone="success">Ready to list</Badge>}
+                  </div>
+                  <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                    {canEdit && <Button size="sm" variant="primary" icon={<PlusIcon className="w-3.5 h-3.5" />} onClick={() => { setEditing(item); markSeen([item]); }}>Add reservation</Button>}
+                    <Button size="sm" icon={<DocumentReportIcon className="w-3.5 h-3.5" />} onClick={() => onOpenAgreement(item.res, item.year, item.month)}>Agreement</Button>
+                    {onMarkSeen && <button type="button" onClick={() => markSeen([item])} disabled={marking} className="ml-auto h-8 px-2.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100">Mark as reviewed</button>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <StatGrid items={[
         { label: 'Waiting to be listed', value: stats.waiting, sub: 'agreements without a reservation', tone: stats.waiting ? 'warning' : 'default', active: tab === 'waiting', onClick: () => setTab('waiting') },
@@ -154,7 +216,7 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
                   return (
                     <tr key={res.id} className={table.row}>
                       <td className={table.td}>
-                        <p className="font-mono font-semibold text-slate-900 whitespace-nowrap">{res.bookingId}</p>
+                        <p className="font-mono font-semibold text-slate-900 whitespace-nowrap">{res.bookingId}{tab === 'waiting' && me && !(res.unlistedSeenBy || []).includes(me) && <span className="ml-1.5 px-1 py-px rounded bg-rose-500 text-white text-[9.5px] font-sans font-bold uppercase tracking-wider align-middle">New</span>}</p>
                         <p className="text-[11px] text-slate-500">{sourceName(res.source)} · by {res.unlistedCreatedBy || res.createdBy || 'staff'} {ago(res.unlistedCreatedAt || res.createdAt)}</p>
                       </td>
                       <td className={table.td}>

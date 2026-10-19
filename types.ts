@@ -273,6 +273,8 @@ export interface Reservation {
   awaitingConfirmation?: boolean;
   unlistedCreatedBy?: string;
   unlistedCreatedAt?: string;
+  /** Emails of reservations staff who have reviewed this unlisted agreement (drives the "New" section). */
+  unlistedSeenBy?: string[];
   confirmedBy?: string;
   confirmedAt?: string;
   /** Reference of the counter agreement that was linked into this reservation. */

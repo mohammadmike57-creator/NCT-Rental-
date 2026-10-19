@@ -184,6 +184,8 @@ interface SidebarLink {
     icon: React.FC<any>;
     permission: UserPermission;
     badge?: number;
+    /** Text badge (e.g. "3 new") shown instead of the number. */
+    badgeText?: string;
     /** Runs instead of opening a page (e.g. opens a form). */
     action?: () => void;
 }
@@ -816,6 +818,7 @@ export const App: React.FC = () => {
       awaitingConfirmation: true,
       unlistedCreatedBy: currentUser?.fullName,
       unlistedCreatedAt: timestamp,
+      unlistedSeenBy: currentUser?.email ? [currentUser.email.toLowerCase()] : [],
       bookingDate: timestamp.split('T')[0],
       uploadBatchId: 'UNLISTED',
       createdAt: timestamp,
@@ -1338,6 +1341,9 @@ ${currentUser?.fullName}
   
   const pendingApprovalsCount = useMemo(() => allReservationsFlat.filter(r => r.paymentConfirmationPending).length, [allReservationsFlat]);
   const unlistedWaitingCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED).length, [allReservationsFlat]);
+  const myEmail = (currentUser?.email || '').toLowerCase();
+  const unlistedNewCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED
+    && !(r.unlistedSeenBy || []).includes(myEmail)).length, [allReservationsFlat, myEmail]);
 
   // Other screens (reservations banner, dashboard) can ask to open a view.
   useEffect(() => {
@@ -1388,6 +1394,15 @@ ${currentUser?.fullName}
   const handleSaveUnlistedDraft = async (updated: Reservation) => {
     await handleUpdateReservations(updated);
     showConfirmation(`Details saved for ${updated.bookingId}. It stays in Unlisted agreements until you list it.`);
+  };
+  /** Marks unlisted agreements as reviewed by the signed-in user (removes them from their "New" section). */
+  const handleMarkUnlistedSeen = async (items: Reservation[]) => {
+    if (!myEmail) return;
+    for (const res of items) {
+      if ((res.unlistedSeenBy || []).includes(myEmail)) continue;
+      // Saved directly so "last edited by" is not changed just by reviewing.
+      try { setReservations(await reservationService.updateReservation({ ...res, unlistedSeenBy: [...(res.unlistedSeenBy || []), myEmail] })); } catch (e) { console.error('Could not mark as reviewed', e); }
+    }
   };
   const handleRejectUnlisted = (res: Reservation) => {
     const msg = res.voucherSubmitted && !res.dropOffCompleted
@@ -1566,6 +1581,7 @@ ${currentUser?.fullName}
             onSaveDraft={handleSaveUnlistedDraft}
             onLink={handleLinkUnlisted}
             onReject={handleRejectUnlisted}
+            onMarkSeen={handleMarkUnlistedSeen}
             onNewWalkIn={hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION) ? () => setShowUnlistedAgreement(true) : undefined}
         />
     ), permission: UserPermission.VIEW_RESERVATIONS },
@@ -1816,7 +1832,7 @@ ${currentUser?.fullName}
         { name: 'Reservations', icon: CalendarIcon, permission: UserPermission.VIEW_RESERVATIONS },
         { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_AGREEMENTS },
         { name: 'Agreement for Unlisted Reservation', icon: PlusCircleIcon, permission: UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION, action: () => setShowUnlistedAgreement(true) },
-        { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount },
+        { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount, badgeText: unlistedNewCount ? `${unlistedNewCount} new` : undefined },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
@@ -1934,7 +1950,7 @@ ${currentUser?.fullName}
 
                     return (
                         <SidebarSection key={sectionTitle} title={sectionTitle} collapsed={sidebarCollapsed && !isSidebarOpen}>
-                            {visibleLinks.map(({ name, icon: Icon, badge, action }) => (
+                            {visibleLinks.map(({ name, icon: Icon, badge, badgeText, action }) => (
                                 <a
                                     key={name}
                                     href="#"
@@ -1945,9 +1961,11 @@ ${currentUser?.fullName}
                                 >
                                     <div className="flex items-center gap-2.5 min-w-0">
                                     <Icon />
-                                    <span className={`truncate ${sidebarCollapsed && !isSidebarOpen ? 'md:hidden' : ''}`}>{name}</span>
+                                    <span className={`line-clamp-2 leading-[1.25] ${sidebarCollapsed && !isSidebarOpen ? 'md:hidden' : ''}`}>{name}</span>
                                     </div>
-                                    {typeof badge === 'number' && badge > 0 && (
+                                    {badgeText ? (
+                                    <span className={`${sidebarCollapsed && !isSidebarOpen ? 'md:absolute md:top-0.5 md:right-1 md:h-4 md:text-[9px]' : ''} h-5 px-1.5 inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide text-white bg-rose-500 rounded-full whitespace-nowrap`}><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />{badgeText}</span>
+                                    ) : typeof badge === 'number' && badge > 0 && (
                                     <span className={`${sidebarCollapsed && !isSidebarOpen ? 'md:absolute md:top-0.5 md:right-1 md:min-w-[16px] md:h-4 md:text-[10px]' : ''} min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center text-[11px] font-semibold text-white bg-rose-500 rounded-full tabular-nums`}>{badge}</span>
                                     )}
                                 </a>
