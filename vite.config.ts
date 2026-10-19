@@ -18,6 +18,8 @@ export default defineConfig(({ mode }) => {
         cssTarget: ['safari13', 'chrome80'],
       },
       define: {
+        // Shown in the account menu so staff can confirm which version is running after a deploy.
+        __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },

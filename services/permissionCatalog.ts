@@ -52,9 +52,8 @@ export const PERMISSION_AREAS: PermissionArea[] = [
         p(P.ACTION_RESERVATIONS_DELETE, 'Delete', 'Remove bookings that are not checked out'),
         p(P.ACTION_ADMIN_MANAGE_RESERVATIONS, 'Advanced', 'Reservation administration and customer emails'),
       ]),
-      sec('agreement', 'Agreement', 'Rental agreements for check-out and check-in', P.VIEW_AGREEMENTS, [
+      sec('agreement', 'Agreement', 'Rental agreements, including opening one for a booking that is not listed yet', P.VIEW_AGREEMENTS, [
         p(P.ACTION_VOUCHER_MANAGE, 'Check-out & check-in', 'Inspect cars, record damage and take signatures'),
-        p(P.ACTION_AGREEMENT_WITHOUT_RESERVATION, 'Without reservation', 'Open an agreement before the booking is listed'),
       ]),
       sec('unlisted', 'Unlisted Agreements', 'Agreements opened before their booking was in the system', P.VIEW_UNLISTED_AGREEMENTS, [
         p(P.ACTION_UNLISTED_AGREEMENTS_LIST, 'List & link', 'Create or link the reservation, or reject the agreement'),
@@ -181,7 +180,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   {
     id: 'agent', name: 'Reservations agent', color: 'bg-sky-600',
     description: 'Takes bookings and handles check-out and check-in',
-    permissions: [...OPS, P.ACTION_RESERVATIONS_ADD, P.ACTION_RESERVATIONS_EDIT, P.ACTION_RESERVATIONS_EXTEND, P.ACTION_VOUCHER_MANAGE, P.ACTION_AGREEMENT_WITHOUT_RESERVATION, P.ACTION_UNLISTED_AGREEMENTS_LIST, P.ACTION_RESERVATIONS_MANAGE_EXTRAS, P.VIEW_TRAFFIC_TICKETS, P.VIEW_VEHICLE_DAMAGES],
+    permissions: [...OPS, P.ACTION_RESERVATIONS_ADD, P.ACTION_RESERVATIONS_EDIT, P.ACTION_RESERVATIONS_EXTEND, P.ACTION_VOUCHER_MANAGE, P.ACTION_UNLISTED_AGREEMENTS_LIST, P.ACTION_RESERVATIONS_MANAGE_EXTRAS, P.VIEW_TRAFFIC_TICKETS, P.VIEW_VEHICLE_DAMAGES],
   },
   {
     id: 'accountant', name: 'Accountant', color: 'bg-emerald-600',
@@ -247,7 +246,12 @@ const SECTION_PERMISSIONS: P[] = [
  */
 export const effectivePermissions = (perms: string[] = []): P[] => {
   const set = new Set(perms as P[]);
-  if (SECTION_PERMISSIONS.some(k => set.has(k))) return Array.from(set);
+  // Opening an agreement for a booking that is not listed yet comes with agreement access, as it always did.
+  const withDesk = () => {
+    if (set.has(P.VIEW_AGREEMENTS) || set.has(P.ACTION_VOUCHER_MANAGE)) set.add(P.ACTION_AGREEMENT_WITHOUT_RESERVATION);
+    return Array.from(set);
+  };
+  if (SECTION_PERMISSIONS.some(k => set.has(k))) return withDesk();
   set.add(P.VIEW_AGREEMENTS);
   set.add(P.ACTION_AGREEMENT_WITHOUT_RESERVATION);
   if (set.has(P.VIEW_RESERVATIONS)) set.add(P.VIEW_UNLISTED_AGREEMENTS);
@@ -255,5 +259,5 @@ export const effectivePermissions = (perms: string[] = []): P[] => {
   if (set.has(P.VIEW_ADMIN_PANEL)) set.add(P.VIEW_IMPORT_RESERVATIONS);
   if (set.has(P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS)) set.add(P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS);
   if (set.has(P.ACTION_ADMIN_MANAGE_USERS)) SECTION_PERMISSIONS.forEach(k => set.add(k));
-  return Array.from(set);
+  return withDesk();
 };

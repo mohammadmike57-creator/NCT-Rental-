@@ -202,6 +202,8 @@ const SidebarSection: React.FC<{ title: string, children: React.ReactNode, colla
     );
 };
 
+declare const __APP_BUILD__: string;
+
 const hasPermission = (user: User | null, permission: UserPermission): boolean => {
     if (!user) return false;
     return effectivePermissions(user.permissions || []).includes(permission);
@@ -2053,6 +2055,7 @@ ${currentUser?.fullName}
                                 <button role="menuitem" onClick={() => { setOpenMenu(null); toggleSidebarCollapsed(); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">{sidebarCollapsed ? 'Expand side menu' : 'Collapse side menu'}</button>
                                 <div className="border-t border-slate-100 mt-1 pt-1">
                                     <button role="menuitem" onClick={() => { setOpenMenu(null); handleLogout(); }} className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50">Log out</button>
+                                    <p className="px-3 pt-1.5 pb-1 border-t border-slate-100 text-[10.5px] text-slate-400 tabular-nums">Version {typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev'}</p>
                                 </div>
                             </div>
                         </>
