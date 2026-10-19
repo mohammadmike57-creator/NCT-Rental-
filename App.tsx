@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
+import { effectivePermissions } from './services/permissionCatalog';
 import { v4 as uuidv4 } from 'uuid';
 import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
@@ -203,7 +204,7 @@ const SidebarSection: React.FC<{ title: string, children: React.ReactNode, colla
 
 const hasPermission = (user: User | null, permission: UserPermission): boolean => {
     if (!user) return false;
-    return user.permissions?.includes(permission) ?? false;
+    return effectivePermissions(user.permissions || []).includes(permission);
 };
 
 export const App: React.FC = () => {

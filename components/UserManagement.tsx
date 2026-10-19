@@ -5,7 +5,7 @@ import {
   listStaffAccounts, createStaffAccount, updateStaffAccount, resetStaffPassword, deleteStaffAccount,
 } from '../firebase/api';
 import {
-  PERMISSION_AREAS, ALL_PERMISSIONS, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate, PermissionArea, PermissionSection,
+  PERMISSION_AREAS, ALL_PERMISSIONS, effectivePermissions, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate, PermissionArea, PermissionSection,
 } from '../services/permissionCatalog';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Tabs, Badge, Button, Field, SectionLabel, EmptyState, inputCls, table } from './ui/Crm';
 
@@ -29,7 +29,7 @@ const Avatar: React.FC<{ name?: string; email?: string; size?: string }> = ({ na
 );
 
 const RoleBadge: React.FC<{ perms: string[] }> = ({ perms }) => {
-  const role = matchRole(perms);
+  const role = matchRole(effectivePermissions(perms));
   if (role) return <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-700"><span className={`w-1.5 h-1.5 rounded-full ${role.color}`} />{role.name}</span>;
   return <span className="text-[13px] font-medium text-slate-600">Custom · {perms.length} permission{perms.length === 1 ? '' : 's'}</span>;
 };
@@ -267,7 +267,7 @@ const StaffDrawer: React.FC<{
     baseSalaryJOD: base.baseSalaryJOD ? String(base.baseSalaryJOD) : '',
   });
   const [permissions, setPermissions] = useState<UserPermission[]>(
-    (base.permissions as UserPermission[])?.length ? [...(base.permissions as UserPermission[])] : [...ROLE_TEMPLATES.find(r => r.id === 'agent')!.permissions],
+    (base.permissions as UserPermission[])?.length ? effectivePermissions(base.permissions as UserPermission[]) : [...ROLE_TEMPLATES.find(r => r.id === 'agent')!.permissions],
   );
   const [status, setStatus] = useState<UserStatus>(editing?.status || UserStatus.ACTIVE);
   const [webAccess, setWebAccess] = useState(editing?.webAppAccess !== false);

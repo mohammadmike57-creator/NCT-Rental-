@@ -231,3 +231,29 @@ export const passwordProblems = (pw: string): string[] => {
   if (!/\d/.test(pw)) out.push('A number');
   return out;
 };
+
+/** Permissions added when every sidebar screen got its own permission. */
+const SECTION_PERMISSIONS: P[] = [
+  P.VIEW_AGREEMENTS, P.ACTION_AGREEMENT_WITHOUT_RESERVATION, P.VIEW_UNLISTED_AGREEMENTS,
+  P.ACTION_UNLISTED_AGREEMENTS_LIST, P.VIEW_IMPORT_RESERVATIONS, P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS,
+];
+
+/**
+ * The permissions an account effectively has. Accounts saved before the per-section permissions
+ * existed carry none of them; they keep exactly what they could do before (everyone could open
+ * agreements, with or without a listed reservation, and so on). This does not depend on the
+ * server's one-time permission update having run. Once an account is saved from the staff
+ * editor it carries the new permissions explicitly and is used as is.
+ */
+export const effectivePermissions = (perms: string[] = []): P[] => {
+  const set = new Set(perms as P[]);
+  if (SECTION_PERMISSIONS.some(k => set.has(k))) return Array.from(set);
+  set.add(P.VIEW_AGREEMENTS);
+  set.add(P.ACTION_AGREEMENT_WITHOUT_RESERVATION);
+  if (set.has(P.VIEW_RESERVATIONS)) set.add(P.VIEW_UNLISTED_AGREEMENTS);
+  if (set.has(P.ACTION_RESERVATIONS_EDIT)) set.add(P.ACTION_UNLISTED_AGREEMENTS_LIST);
+  if (set.has(P.VIEW_ADMIN_PANEL)) set.add(P.VIEW_IMPORT_RESERVATIONS);
+  if (set.has(P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS)) set.add(P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS);
+  if (set.has(P.ACTION_ADMIN_MANAGE_USERS)) SECTION_PERMISSIONS.forEach(k => set.add(k));
+  return Array.from(set);
+};

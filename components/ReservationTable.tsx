@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { effectivePermissions } from '../services/permissionCatalog';
 import CarPicture from './CarPicture';
 import * as XLSX from 'xlsx';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission } from '../types';
@@ -113,7 +114,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   // Helper to check permissions
   const hasPermission = (permission: UserPermission): boolean => {
-    return !!currentUser && currentUser.permissions?.includes(permission);
+    return !!currentUser && effectivePermissions(currentUser.permissions || []).includes(permission);
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
