@@ -634,9 +634,12 @@ export interface Vehicle {
   excess: number;
   sippCode?: string;
   transmission: TransmissionType;
+  /** Photo of the actual car, uploaded to /api/media (stored as "/api/media/<id>"). */
+  imageUrl?: string;
 }
 
 export type Fleet = Vehicle[];
+export type FleetVehicle = Vehicle;
 
 export type DateFilter = 'today_pickup' | 'today_return' | 'open_agreements' | 'upcoming_7_days' | 'upcoming_returns_7_days' | 'closed_past_7_days' | '';
 

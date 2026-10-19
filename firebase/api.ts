@@ -281,3 +281,14 @@ export const sendTestEmail = async (to: string): Promise<void> => {
   try { await axios.post(`${API_URL}/api/admin/mail-settings/test`, { to }, { headers: authHeaders(), timeout: 60000 }); }
   catch (e) { throw apiError(e, 'The test email could not be sent.'); }
 };
+
+
+/** Uploads an image (data URL) and returns its stored path, e.g. "/api/media/<id>". */
+export const uploadImage = async (dataUrl: string): Promise<string> => {
+  const response = await axios.post(`${API_URL}/api/media`, { dataUrl }, { headers: authHeaders() });
+  return response.data.url as string;
+};
+
+/** Turns a stored media path into a full URL for <img>; other URLs (data:, https:) pass through. */
+export const mediaUrl = (path?: string): string | undefined =>
+  !path ? undefined : path.startsWith('/api/') ? `${API_URL}${path}` : path;

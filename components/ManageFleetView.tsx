@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Fleet, FleetVehicle } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, CloseIcon, CarIcon, UploadIcon, SearchIcon } from './icons';
 import FleetExcelUpload from './FleetExcelUpload';
+import CarPicture from './CarPicture';
+import { compressImage } from '../services/imageCompress';
+import { mediaUrl, uploadImage } from '../firebase/api';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Badge, Button, Field, Dialog, Plate, EmptyState, inputCls, selectCls, table } from './ui/Crm';
 
 interface ManageFleetViewProps {
@@ -22,9 +25,29 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
     securityDeposit: 0,
     excess: 0,
     sippCode: '',
-    transmission: '',
+    transmission: undefined,
   });
   const [showImport, setShowImport] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const [applyToModel, setApplyToModel] = useState(true);
+  const photoInput = useRef<HTMLInputElement>(null);
+
+  const handlePhoto = async (file?: File) => {
+    if (!file) return;
+    setPhotoError('');
+    setPhotoBusy(true);
+    try {
+      const dataUrl = await compressImage(file, 1600, 0.82);
+      const path = await uploadImage(dataUrl);
+      setFormData(prev => ({ ...prev, imageUrl: path }));
+    } catch (e: any) {
+      setPhotoError(e?.response?.data?.error || e?.message || 'The photo could not be uploaded. Please try again.');
+    } finally {
+      setPhotoBusy(false);
+      if (photoInput.current) photoInput.current.value = '';
+    }
+  };
   const [query, setQuery] = useState('');
 
   const openAddModal = () => {
@@ -37,14 +60,16 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
       securityDeposit: 0,
       excess: 0,
       sippCode: '',
-      transmission: '',
+      transmission: undefined,
     });
+    setPhotoError('');
     setModalOpen(true);
   };
 
   const openEditModal = (vehicle: FleetVehicle) => {
     setEditingVehicle(vehicle);
     setFormData(vehicle);
+    setPhotoError('');
     setModalOpen(true);
   };
 
@@ -67,7 +92,8 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
       securityDeposit: formData.securityDeposit || 0,
       excess: formData.excess || 0,
       sippCode: formData.sippCode || '',
-      transmission: formData.transmission || '',
+      transmission: (formData.transmission || '') as FleetVehicle['transmission'],
+      ...(formData.imageUrl ? { imageUrl: formData.imageUrl } : {}),
     };
 
     let updatedFleet: Fleet;
@@ -75,6 +101,11 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
       updatedFleet = fleet.map(v => v.id === editingVehicle.id ? newVehicle : v);
     } else {
       updatedFleet = [...fleet, newVehicle];
+    }
+    // The same photo can serve every car of this model that has none yet.
+    if (newVehicle.imageUrl && applyToModel) {
+      const model = newVehicle.modelName.toLowerCase();
+      updatedFleet = updatedFleet.map(v => (v.id !== newVehicle.id && !v.imageUrl && (v.modelName || '').toLowerCase() === model ? { ...v, imageUrl: newVehicle.imageUrl } : v));
     }
     onUpdate(updatedFleet);
     setModalOpen(false);
@@ -112,6 +143,10 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
   const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const expiringCount = (fleet as FleetVehicle[]).filter(v => v.registrationExpiry && v.registrationExpiry >= today && v.registrationExpiry <= in30).length;
   const categoryCount = new Set((fleet as FleetVehicle[]).map(v => v.category).filter(Boolean)).size;
+  const withPhoto = (fleet as FleetVehicle[]).filter(v => v.imageUrl).length;
+  const sameModelWithout = formData.modelName
+    ? (fleet as FleetVehicle[]).filter(v => v.id !== editingVehicle?.id && !v.imageUrl && (v.modelName || '').toLowerCase() === formData.modelName!.trim().toLowerCase()).length
+    : 0;
 
   const actionBtns = (vehicle: FleetVehicle) => (
     <div className="flex items-center gap-1 shrink-0">
@@ -147,7 +182,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
 
       <StatGrid items={[
         { label: 'Vehicles', value: fleet.length },
-        { label: 'Categories', value: categoryCount, tone: 'muted' },
+        { label: 'With photo', value: `${withPhoto}/${fleet.length}`, tone: withPhoto < fleet.length ? 'warning' : 'muted' },
         { label: 'Reg. expiring 30d', value: expiringCount, tone: expiringCount ? 'warning' : 'muted' },
         { label: 'Reg. expired', value: expiredCount, tone: expiredCount ? 'danger' : 'muted' },
       ]} />
@@ -204,8 +239,15 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                   {visible.map(vehicle => (
                     <tr key={vehicle.id} className={table.row}>
                       <td className={table.td}>
-                        <p className="font-medium text-slate-900">{vehicle.modelName}</p>
-                        <div className="mt-0.5"><Plate value={vehicle.licensePlate} /></div>
+                        <div className="flex items-center gap-3">
+                          <button type="button" onClick={() => openEditModal(vehicle)} title={vehicle.imageUrl ? 'Change photo' : 'Add a photo'} className="shrink-0">
+                            <CarPicture fleet={[vehicle]} plate={vehicle.licensePlate} model={vehicle.modelName} className="w-20 h-12" artClassName="w-20 h-12 p-1.5 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200" />
+                          </button>
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-900">{vehicle.modelName}</p>
+                            <div className="mt-0.5"><Plate value={vehicle.licensePlate} /></div>
+                          </div>
+                        </div>
                       </td>
                       <td className={`${table.td} text-slate-700`}>{vehicle.category || <span className="text-slate-400">—</span>}</td>
                       <td className={`${table.td} text-slate-700 font-mono text-xs`}>{vehicle.sippCode || <span className="text-slate-400">—</span>}</td>
@@ -225,7 +267,10 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
               {visible.map(vehicle => (
                 <li key={vehicle.id} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    <button type="button" onClick={() => openEditModal(vehicle)} className="shrink-0" aria-label={`Photo of ${vehicle.modelName}`}>
+                      <CarPicture fleet={[vehicle]} plate={vehicle.licensePlate} model={vehicle.modelName} className="w-24 h-16" artClassName="w-24 h-16 p-2 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200" />
+                    </button>
+                    <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-semibold text-slate-900 break-words">{vehicle.modelName}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         <Plate value={vehicle.licensePlate} />
@@ -257,10 +302,45 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
         footer={
           <>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleSave}>{editingVehicle ? 'Save changes' : 'Add vehicle'}</Button>
+            <Button variant="primary" onClick={handleSave} disabled={photoBusy}>{editingVehicle ? 'Save changes' : 'Add vehicle'}</Button>
           </>
         }
       >
+        <div className="mb-5">
+          <p className="text-[13px] font-semibold text-slate-900">Vehicle photo</p>
+          <p className="text-xs text-slate-500 mb-2">A real photo of this car. Shown on reservations, agreements and the fleet list. JPEG, PNG or WebP; large photos are resized automatically.</p>
+          <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp,image/*" className="hidden" onChange={e => handlePhoto(e.target.files?.[0])} />
+          {formData.imageUrl ? (
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+              <img src={mediaUrl(formData.imageUrl)} alt={formData.modelName || 'Vehicle'} className="w-full sm:w-72 aspect-[16/10] object-cover rounded-xl ring-1 ring-slate-200 bg-slate-100" />
+              <div className="flex sm:flex-col gap-2">
+                <Button size="sm" onClick={() => photoInput.current?.click()} disabled={photoBusy}>{photoBusy ? 'Uploading…' : 'Change photo'}</Button>
+                <Button size="sm" variant="ghost" onClick={() => handleChange('imageUrl', undefined)} disabled={photoBusy} className="!text-rose-600">Remove</Button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => photoInput.current?.click()} disabled={photoBusy}
+              onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handlePhoto(e.dataTransfer.files?.[0]); }}
+              className="w-full aspect-[16/7] sm:aspect-[16/5] rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors flex flex-col items-center justify-center gap-1.5 text-slate-500">
+              {photoBusy ? (
+                <span className="text-sm font-semibold text-indigo-600">Uploading photo…</span>
+              ) : (
+                <>
+                  <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.83 6.18A2.31 2.31 0 015.16 7.23c-.38.05-.76.11-1.13.17C2.99 7.58 2.25 8.48 2.25 9.53V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.53c0-1.05-.74-1.95-1.78-2.13a47.9 47.9 0 00-1.13-.17 2.31 2.31 0 01-1.67-1.05l-.82-1.31a2.19 2.19 0 00-1.74-1.03 48.8 48.8 0 00-5.22 0 2.19 2.19 0 00-1.74 1.03l-.82 1.31z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
+                  <span className="text-sm font-semibold text-slate-700">Add a photo of this car</span>
+                  <span className="text-xs">Tap to take a picture or choose a file · or drop it here</span>
+                </>
+              )}
+            </button>
+          )}
+          {photoError && <p className="mt-2 text-xs font-medium text-rose-600">{photoError}</p>}
+          {formData.imageUrl && sameModelWithout > 0 && (
+            <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+              <input type="checkbox" checked={applyToModel} onChange={e => setApplyToModel(e.target.checked)} className="rounded border-slate-300" />
+              Also use this photo for the other {sameModelWithout} {formData.modelName} car{sameModelWithout === 1 ? '' : 's'} without a photo
+            </label>
+          )}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Model" required>
             <input type="text" value={formData.modelName || ''} onChange={e => handleChange('modelName', e.target.value)} className={inputCls} required />

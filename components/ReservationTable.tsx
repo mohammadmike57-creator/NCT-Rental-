@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import CarPicture from './CarPicture';
 import * as XLSX from 'xlsx';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission } from '../types';
 import { MONTHS } from '../constants';
@@ -874,8 +875,13 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                           <p className="text-[11px] text-slate-500">{days} day{days === 1 ? '' : 's'}</p>
                         </td>
                         <td className="px-3 py-2.5">
-                          <p className="text-slate-800 truncate max-w-[10rem]">{res.carModel || '—'}</p>
-                          <p className="flex items-center gap-1.5 text-[11px] text-slate-500"><Plate value={res.licensePlate} /><span>{res.sippCode || vehicleKindLabel[kind]}</span></p>
+                          <div className="flex items-center gap-2.5">
+                            <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="hidden 2xl:block w-12 h-8" artClassName="hidden" />
+                            <div className="min-w-0">
+                              <p className="text-slate-800 truncate max-w-[10rem]">{res.carModel || '—'}</p>
+                              <p className="flex items-center gap-1.5 text-[11px] text-slate-500"><Plate value={res.licensePlate} /><span>{res.sippCode || vehicleKindLabel[kind]}</span></p>
+                            </div>
+                          </div>
                         </td>
                         <td className="hidden xl:table-cell px-3 py-2.5 text-slate-600 truncate max-w-[8rem]">{res.source ? getSourceName(res.source) : '—'}</td>
                         <td className="px-3 py-2.5 text-right whitespace-nowrap">
@@ -924,7 +930,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
                         {/* Vehicle */}
                         <div className="mt-2.5 flex items-center gap-2.5 min-w-0">
-                          <span className="w-11 h-7 shrink-0 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200 flex items-center justify-center"><VehicleArt kind={kind} className="w-9 h-5" /></span>
+                          <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="w-14 h-9" artClassName="w-14 h-9 p-1 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200" />
                           <span className="min-w-0 flex-1">
                             <span className="block text-[13px] font-medium text-slate-800 truncate">{res.carModel || 'No vehicle'}</span>
                             <span className="flex items-center gap-1.5 text-[11px] text-slate-500">{res.licensePlate ? <Plate value={res.licensePlate} /> : <span className="text-amber-600 font-medium">No car assigned</span>}<span>{res.sippCode || vehicleKindLabel[kind]}</span></span>

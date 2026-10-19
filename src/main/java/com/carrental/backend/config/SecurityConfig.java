@@ -110,6 +110,8 @@ public class SecurityConfig {
                     "/*.ts",
                     "/*.html"
                 ).permitAll()
+                // Uploaded images (random ids) are shown in <img> tags and documents without a login header
+                .requestMatchers(HttpMethod.GET, "/api/media/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )

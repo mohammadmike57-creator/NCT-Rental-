@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import CarPicture from '../CarPicture';
 import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus } from '../../types';
 import { Badge, Button, Field, inputCls, selectCls, textareaCls, SectionLabel, EmptyState } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
@@ -429,7 +430,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-3">
-                                  <VehicleArt kind={vehicleKind(g.model, fleet)} className="w-12 h-7 shrink-0" />
+                                  <CarPicture fleet={fleet} model={g.model} className="w-14 h-9" artClassName="w-12 h-7 shrink-0" />
                                   <div className="min-w-0">
                                     <p className="font-medium text-slate-900 truncate">{g.model}</p>
                                     <p className="text-[11px] text-slate-500">{g.sipp || vehicleKindLabel[vehicleKind(g.model, fleet)]}</p>

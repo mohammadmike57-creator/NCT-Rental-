@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import CarPicture from './CarPicture';
 import { Bi } from './ui/Bi';
 import { Fleet, RentalLocation, RentalSource } from '../types';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
@@ -184,8 +185,8 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
 
         <aside className="space-y-4 min-w-0">
           <Panel title={<Bi en="Summary" />} className="lg:sticky lg:top-0">
-            <div className="h-24 bg-slate-50 border-b border-slate-200 flex items-center justify-center">
-              <VehicleArt kind={kind} className="h-16 w-auto" />
+            <div className="h-32 bg-slate-50 border-b border-slate-200 flex items-center justify-center overflow-hidden">
+              <CarPicture fleet={fleet} plate={d.licensePlate} model={d.carModel} className="w-full h-32" rounded="" artClassName="h-16 w-auto" />
             </div>
             <div className="p-4">
               <p className="text-[13px] font-semibold text-slate-900">{d.carModel || 'No vehicle selected'}</p>

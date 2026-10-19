@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import CarPicture from './CarPicture';
 import { Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
@@ -19,6 +20,8 @@ import { printHtml } from '../services/printDocs';
 import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
 
 interface VoucherProps {
+  /** Used to show the real photo of the car when the fleet has one. */
+  fleet?: Fleet;
   reservation: Reservation;
   sources: RentalSource[];
   rentalLocations: RentalLocation[];
@@ -360,7 +363,7 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
   return remainingMs >= gracePeriodInMs ? fullDays + 1 : fullDays;
 };
 
-const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges }) => {
+const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet }) => {
   const getInitialReservationState = (res: Reservation) => {
     const migrated: any = { ...res };
     if (res.checklist && !res.pickupChecklist) migrated.pickupChecklist = res.checklist;
@@ -1216,7 +1219,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     <StepSection step={stepNo} title="Vehicle" subtitle="The car being handed over on this agreement">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="flex items-center gap-3 min-w-0">
-          <VehicleArt kind={kind} className="w-24 h-14 shrink-0" />
+          <CarPicture fleet={fleet} plate={localReservation.licensePlate} model={localReservation.carModel} className="w-32 h-20" artClassName="w-24 h-14 shrink-0" />
           <div className="min-w-0">
             <SectionLabel>{vehicleKindLabel[kind]}</SectionLabel>
             <p className="text-sm font-semibold text-slate-900 truncate">{localReservation.carModel || '—'}</p>
@@ -1385,7 +1388,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             <p className="text-xs text-slate-500 break-all">{localReservation.customerEmail || 'No email'}</p>
           </div>
           <div className="p-4 flex items-center gap-3 min-w-0">
-            <VehicleArt kind={kind} className="w-16 h-9 shrink-0" />
+            <CarPicture fleet={fleet} plate={localReservation.licensePlate} model={localReservation.carModel} className="w-20 h-12" artClassName="w-16 h-9 shrink-0" />
             <div className="min-w-0">
               <p className="font-semibold text-slate-900 truncate">{localReservation.carModel || '—'}</p>
               <p className="mt-1"><Plate value={localReservation.licensePlate || 'NO PLATE'} /></p>

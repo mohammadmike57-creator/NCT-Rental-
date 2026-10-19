@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CarPicture from '../CarPicture';
 import { Fleet, Reservation } from '../../types';
 import { Badge, Tabs, SectionLabel } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
@@ -270,7 +271,7 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
 
               <Section title="Vehicle">
                 <div className="flex items-center gap-3 py-2">
-                  <VehicleArt kind={kind} className="w-16 h-9 shrink-0" />
+                  <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="w-24 h-16" artClassName="w-16 h-9 shrink-0" />
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900 truncate">{res.carModel || 'Not assigned'}</p>
                     <p className="flex flex-wrap items-center gap-1.5 text-slate-500">

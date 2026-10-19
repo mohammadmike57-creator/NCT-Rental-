@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import CarPicture from './CarPicture';
 import { AppData, Fleet, Reservation, ReservationStatus } from '../types';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { Panel, SectionLabel, Toolbar, Segmented, Plate, Button, Field, EmptyState, DetailList, inputCls } from './ui/Crm';
@@ -96,14 +97,14 @@ const UpgradeVehicleModal: React.FC<Props> = ({ reservation, fleet, allData, onC
             {/* From → to */}
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
               <div className="bg-white rounded-xl border border-slate-200 p-3 text-center min-w-0">
-                <VehicleArt kind={vehicleKind(reservation.carModel, fleet)} className="h-10 w-auto mx-auto" color="#94a3b8" />
+                <div className="flex justify-center"><CarPicture fleet={fleet} plate={reservation.licensePlate} model={reservation.carModel} className="w-24 h-14" artClassName="h-10 w-auto mx-auto" /></div>
                 <SectionLabel className="mt-1">Current</SectionLabel>
                 <p className="text-[13px] font-semibold text-slate-800 truncate">{reservation.carModel || '—'}</p>
                 <p className="text-xs text-slate-500 truncate">{currentCar?.category || ''}{reservation.licensePlate ? ` · ${reservation.licensePlate}` : ''}</p>
               </div>
               <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
               <div className={`rounded-xl border p-3 text-center min-w-0 ${selected ? 'bg-indigo-50/60 border-indigo-200' : 'bg-white border-dashed border-slate-300'}`}>
-                {selected ? <VehicleArt kind={vehicleKind(selected.modelName, fleet)} className="h-10 w-auto mx-auto" color="#4f46e5" /> : <div className="h-10" />}
+                {selected ? <div className="flex justify-center"><CarPicture fleet={fleet} plate={selected.licensePlate} model={selected.modelName} className="w-24 h-14" artClassName="h-10 w-auto mx-auto" /></div> : <div className="h-14" />}
                 <SectionLabel className="mt-1 !text-indigo-600">Upgrade to</SectionLabel>
                 <p className="text-[13px] font-semibold text-slate-800 truncate">{selected?.modelName || 'Choose below'}</p>
                 <p className="text-xs text-slate-500 truncate">{selected ? `${selected.category} · ${selected.licensePlate}` : ' '}</p>
@@ -128,7 +129,7 @@ const UpgradeVehicleModal: React.FC<Props> = ({ reservation, fleet, allData, onC
                     <li key={car.id}>
                       <button onClick={() => setCarId(car.id)} className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${active ? 'bg-indigo-50/70' : 'hover:bg-slate-50'}`}>
                         <span className={`w-4 h-4 rounded-full border-2 shrink-0 ${active ? 'border-indigo-600 bg-indigo-600 ring-2 ring-indigo-100' : 'border-slate-300'}`} />
-                        <VehicleArt kind={kind} className="w-12 h-7 shrink-0 hidden sm:block" />
+                        <CarPicture fleet={fleet} plate={car.licensePlate} model={car.modelName} className="w-14 h-9 hidden sm:block" artClassName="w-12 h-7 shrink-0 hidden sm:block" />
                         <span className="flex-1 min-w-0">
                           <span className="block text-[13px] font-semibold text-slate-900 truncate">{car.modelName}</span>
                           <span className="block text-xs text-slate-500 truncate">{car.category || vehicleKindLabel[kind]} · {car.transmission}{car.sippCode ? ` · ${car.sippCode}` : ''}</span>
