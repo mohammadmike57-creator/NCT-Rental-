@@ -108,7 +108,7 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
         section="Core Operations"
         title="Unlisted agreements"
         subtitle="Agreements opened at the counter before the booking was entered in the system. The reservations team links each one to its booking, or creates the reservation from it."
-        actions={onNewWalkIn && <Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={onNewWalkIn}>Open agreement without reservation</Button>}
+        actions={onNewWalkIn && <Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={onNewWalkIn}>Agreement for Unlisted Reservation</Button>}
       />
 
       <StatGrid items={[

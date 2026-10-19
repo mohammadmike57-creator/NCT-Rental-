@@ -5,7 +5,7 @@
 export const UI_AR: Record<string, string> = {
   // Workflow and steps
   'Rental agreement': 'عقد الإيجار',
-  'Agreement without reservation': 'عقد بدون حجز',
+  'Agreement for Unlisted Reservation': 'عقد لحجز غير مدرج',
   'Check-out': 'التسليم',
   'Check-in': 'الإرجاع',
   'Check-in / exchange': 'الإرجاع / الاستبدال',

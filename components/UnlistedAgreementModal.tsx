@@ -105,7 +105,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
     <div className="bg-slate-50 -m-4 sm:m-0 h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-xl shadow-2xl overflow-hidden flex flex-col" role="dialog" aria-modal="true">
       <header className="px-5 py-4 bg-white border-b border-slate-200 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-slate-900">Agreement without reservation<span lang="ar" dir="rtl" className="ar-ui block sm:inline sm:ml-2 !text-[15px] !text-slate-700">عقد بدون حجز</span></h3>
+          <h3 className="text-base font-semibold text-slate-900">Agreement for Unlisted Reservation<span lang="ar" dir="rtl" className="ar-ui block sm:inline sm:ml-2 !text-[15px] !text-slate-700">عقد لحجز غير مدرج</span></h3>
           <p className="text-xs text-slate-500 mt-0.5">
             For a customer whose booking (for example from the website) is not in the system yet. Saved as <Badge tone="warning" dot={false} className="align-middle">Unlisted</Badge> until the reservations team links it to the booking.
           </p>

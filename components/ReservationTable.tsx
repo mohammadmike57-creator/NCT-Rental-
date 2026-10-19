@@ -734,7 +734,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             {onOpenUnlistedAgreement && canViewVoucherActions && !isAgreementView && (
               <button onClick={onOpenUnlistedAgreement} title="Open a rental agreement for a booking that is not in the list"
                 className="h-9 inline-flex items-center justify-center gap-2 px-3 bg-white border border-slate-200 text-slate-700 text-[13px] font-semibold rounded-lg hover:bg-slate-50 shadow-sm whitespace-nowrap">
-                <DocumentReportIcon className="w-4 h-4 text-amber-600" /><span className="sm:hidden">Without reservation</span><span className="hidden sm:inline">Agreement without reservation</span>
+                <DocumentReportIcon className="w-4 h-4 text-amber-600" /><span className="sm:hidden">Unlisted reservation</span><span className="hidden sm:inline">Agreement for Unlisted Reservation</span>
               </button>
             )}
             <button onClick={openAddModal} className={`${onOpenUnlistedAgreement && canViewVoucherActions && !isAgreementView ? '' : 'col-span-2 '}h-9 inline-flex items-center justify-center gap-2 px-3.5 bg-indigo-600 text-white text-[13px] font-semibold rounded-lg hover:bg-indigo-700 shadow-sm whitespace-nowrap`}>
@@ -755,7 +755,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             </div>
             <button onClick={onOpenUnlistedAgreement}
               className="h-10 sm:h-9 shrink-0 inline-flex items-center justify-center gap-2 px-4 rounded-lg bg-indigo-600 text-white text-[13px] font-semibold hover:bg-indigo-700 shadow-sm whitespace-nowrap">
-              <PlusIcon className="w-4 h-4" /> Open unlisted agreement
+              <PlusIcon className="w-4 h-4" /> Agreement for Unlisted Reservation
             </button>
           </div>
         )}

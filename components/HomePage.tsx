@@ -181,7 +181,7 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
         title="Dashboard"
         subtitle={<>{greeting}{firstName ? `, ${firstName}` : ''} · {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</>}
         actions={<>
-          {onOpenUnlistedAgreement && <Button icon={<DocumentTextIcon className="w-4 h-4 text-amber-600" />} onClick={onOpenUnlistedAgreement}>Agreement without reservation</Button>}
+          {onOpenUnlistedAgreement && <Button icon={<DocumentTextIcon className="w-4 h-4 text-amber-600" />} onClick={onOpenUnlistedAgreement}>Agreement for Unlisted Reservation</Button>}
           <Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={() => onNavigate('Reservations')}>New reservation</Button>
         </>}
       />
