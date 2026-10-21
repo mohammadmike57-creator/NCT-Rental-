@@ -203,7 +203,8 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
 
   const Err = ({ f }: { f: string }) => (showErr(f) ? <span className="block mt-1 text-xs font-medium text-rose-600">{showErr(f)}</span> : null);
   const errCls = (f: string) => (showErr(f) ? ' border-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : '');
-  const sourceName = rentalSources.find(s => s.id === formData.source)?.name || formData.source || '—';
+  // Bookings store the source name (as imports do); older ones may hold the source id.
+  const sourceName = rentalSources.find(s => s.name === formData.source || s.id === formData.source)?.name || formData.source || '—';
   // Bookings store the branch name; older ones may hold the branch id.
   const locationName = rentalLocations.find(l => l.name === formData.locationName || l.id === formData.locationName)?.name || formData.locationName || '—';
   const locationKnown = !formData.locationName || rentalLocations.some(l => l.name === formData.locationName);
@@ -368,7 +369,8 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                     <Field label="Source">
                       <select value={formData.source || ''} onChange={e => onChange('source', e.target.value)} className={selectCls + ' w-full'}>
                         <option value="">Select source</option>
-                        {rentalSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        {formData.source && !rentalSources.some(s => s.name === formData.source) && <option value={formData.source}>{sourceName}</option>}
+                        {rentalSources.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                       </select>
                     </Field>
                   </div>
