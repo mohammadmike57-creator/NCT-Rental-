@@ -4,7 +4,7 @@ import { sendCustomerEmail, EmailOutcome } from '../firebase/api';
 import { agreementHtmlToPdfBase64 } from './agreementPdf';
 import { terminationFileName, terminationNumber } from './terminationDoc';
 import { buildReturnChargesHtml, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from './returnChargesDoc';
-import { rentalDaysOf } from './printDocs';
+import { rentalDaysOf } from './rentalDays';
 
 type Attachment = { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string };
 

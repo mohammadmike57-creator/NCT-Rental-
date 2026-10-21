@@ -11,6 +11,8 @@ import ReservationRecord from './reservation/ReservationRecord';
 import { recordActivity } from '../firebase/api';
 import { emailAgreementDocuments } from '../services/agreementEmail';
 import { agreementHtmlFor, printHtml, terminationHtmlFor } from '../services/printDocs';
+import { rentalDaysOf as billingDays } from '../services/rentalDays';
+import { mergeSelectedExtras, selectedExtrasTotal } from '../services/extras';
 import { 
   DocumentReportIcon, 
   ShareIcon, 
@@ -225,21 +227,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     setModalMode('edit');
     
     // Calculate current extras total to get the "Amount" for the form
-    let extrasTotal = 0;
-    if (res.selectedExtras && res.selectedExtras.length > 0 && res.startDate && res.endDate) {
-      const start = new Date(res.startDate);
-      const end = new Date(res.endDate);
-      const diff = end.getTime() - start.getTime();
-      const days = Math.max(0, diff / (1000 * 3600 * 24));
-      
-      extrasTotal = res.selectedExtras.reduce((sum, extraId) => {
-        const extra = availableExtras.find(e => e.id === extraId);
-        if (extra && extra.pricePerDay) {
-          return sum + (extra.pricePerDay * days);
-        }
-        return sum;
-      }, 0);
-    }
+    const extrasTotal = res.startDate && res.endDate ? selectedExtrasTotal((res as any).selectedExtras, availableExtras, billingDays(res.startDate, res.endDate)) : 0;
 
     setFormData({
       ...res,
@@ -275,16 +263,10 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   }, [formData.startDate, formData.endDate]);
 
   const calculatedTotal = useMemo(() => {
-    let base = formData.amount || 0;
-    const extrasTotal = (formData.selectedExtras || []).reduce((sum, extraId) => {
-      const extra = availableExtras.find(e => e.id === extraId);
-      if (extra && extra.pricePerDay) {
-        return sum + (extra.pricePerDay * durationDays);
-      }
-      return sum;
-    }, 0);
-    return base + extrasTotal;
-  }, [formData.amount, formData.selectedExtras, durationDays, availableExtras]);
+    const base = formData.amount || 0;
+    const days = formData.startDate && formData.endDate ? billingDays(formData.startDate, formData.endDate) : 0;
+    return base + selectedExtrasTotal((formData as any).selectedExtras, availableExtras, days);
+  }, [formData.amount, formData.selectedExtras, formData.startDate, formData.endDate, availableExtras]);
 
   const handleChange = (field: keyof Reservation, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -302,8 +284,13 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   };
 
   const handleSave = () => {
+    // Chosen extras are itemised on the booking so agreements and reports show them.
+    const extras = ((formData as any).selectedExtras || []).length ? mergeSelectedExtras(formData.extras, (formData as any).selectedExtras, availableExtras) : formData.extras;
+    const days = formData.startDate && formData.endDate ? billingDays(formData.startDate, formData.endDate) : 0;
+    const extrasCharged = (extras || []).reduce((s, e) => (e.isComplementary ? s : s + e.dailyPrice * days), 0);
     const reservationData: Partial<Reservation> = {
       ...formData,
+      ...(extras ? { extras, baseAmount: Math.max(0, calculatedTotal - extrasCharged) } : {}),
       amount: calculatedTotal,
       id: modalMode === 'edit' ? formData.id : `new-${Date.now()}`,
       lastEditedBy: currentUser?.fullName,

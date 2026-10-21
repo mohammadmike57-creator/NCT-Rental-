@@ -322,12 +322,15 @@ export const App: React.FC = () => {
       
       // MIGRATION: Ensure all legacy reservations have mandatory persistence fields
       const migratedReservations: AppData = {};
+      // Bookings made in the reservation form briefly stored the branch id instead of its name.
+      const branchById = new Map<string, string>(((data.rentalLocations || []) as RentalLocation[]).map(l => [l.id, l.name]));
       Object.keys(rawReservations).forEach(yKey => {
           const y = parseInt(yKey);
           migratedReservations[y] = {};
           Object.keys(rawReservations[y]).forEach(m => {
               migratedReservations[y][m] = rawReservations[y][m].map((res: Reservation) => ({
                   ...res,
+                  ...(res.locationName && branchById.has(res.locationName) ? { locationName: branchById.get(res.locationName) } : {}),
                   id: res.id || uuidv4(),
                   storageYear: res.storageYear || res.importLockedYear || y,
                   storageMonth: res.storageMonth || res.importLockedMonth || m,

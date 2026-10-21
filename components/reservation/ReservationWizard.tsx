@@ -4,6 +4,8 @@ import CarPicture from '../CarPicture';
 import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus } from '../../types';
 import { Badge, Button, Field, inputCls, selectCls, textareaCls, SectionLabel, EmptyState } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
+import { extraDailyPrice } from '../../services/extras';
+import { rentalDaysOf } from '../../services/rentalDays';
 
 /*
  * Step-by-step booking editor (RentWay / Wheelsys style). It owns no booking
@@ -78,6 +80,8 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
   }, [step]);
 
   const selectedExtras: string[] = ((formData as any).selectedExtras as string[]) || [];
+  // Extras are charged per rental day (with the 2-hour grace), as on the agreement.
+  const billDays = formData.startDate && formData.endDate ? rentalDaysOf(formData.startDate, formData.endDate) : 0;
   const rentalDays = formData.startDate && formData.endDate
     ? Math.max(1, Math.ceil((new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) / 86400000))
     : 0;
@@ -200,11 +204,12 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
   const Err = ({ f }: { f: string }) => (showErr(f) ? <span className="block mt-1 text-xs font-medium text-rose-600">{showErr(f)}</span> : null);
   const errCls = (f: string) => (showErr(f) ? ' border-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : '');
   const sourceName = rentalSources.find(s => s.id === formData.source)?.name || formData.source || '—';
-  const locationName = rentalLocations.find(l => l.id === formData.locationName)?.name || formData.locationName || '—';
-  const locationKnown = !formData.locationName || rentalLocations.some(l => l.id === formData.locationName);
+  // Bookings store the branch name; older ones may hold the branch id.
+  const locationName = rentalLocations.find(l => l.name === formData.locationName || l.id === formData.locationName)?.name || formData.locationName || '—';
+  const locationKnown = !formData.locationName || rentalLocations.some(l => l.name === formData.locationName);
   const extrasLines = availableExtras.filter(x => selectedExtras.includes(x.id)).map(x => {
-    const perDay = (x as any).pricePerDay as number | undefined;
-    return { id: x.id, name: x.name, perDay, total: perDay ? perDay * durationDays : 0 };
+    const perDay = extraDailyPrice(x);
+    return { id: x.id, name: x.name, perDay, total: perDay * billDays };
   });
   const statusLabel: Record<string, string> = { CONFIRMED: 'Confirmed', COMPLETED: 'Completed', CANCELLED: 'Cancelled', NO_SHOW: 'No show', PENDING: 'Pending' };
   const isLast = step === STEPS.length - 1;
@@ -356,8 +361,8 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                     <Field label="Location">
                       <select value={formData.locationName || ''} onChange={e => onChange('locationName', e.target.value)} className={selectCls + ' w-full'}>
                         <option value="">Select location</option>
-                        {!locationKnown && <option value={formData.locationName}>{formData.locationName}</option>}
-                        {rentalLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        {!locationKnown && <option value={formData.locationName}>{locationName}</option>}
+                        {rentalLocations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
                       </select>
                     </Field>
                     <Field label="Source">
@@ -541,13 +546,13 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                       <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
                         {availableExtras.map(extra => {
                           const on = selectedExtras.includes(extra.id);
-                          const perDay = (extra as any).pricePerDay as number | undefined;
+                          const perDay = extraDailyPrice(extra);
                           return (
                             <label key={extra.id} className={cx('flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors', on ? 'bg-indigo-50/50' : 'hover:bg-slate-50')}>
                               <input type="checkbox" checked={on} onChange={() => onToggleExtra(extra.id)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
                               <span className={cx('flex-1 min-w-0 truncate', on ? 'font-semibold text-slate-900' : 'text-slate-700')}>{extra.name}</span>
                               <span className="text-[11px] text-slate-500 tabular-nums">${perDay}/day</span>
-                              {on && perDay ? <span className="w-20 text-right font-medium text-slate-900 tabular-nums">{money(perDay * durationDays)}</span> : <span className="w-20" />}
+                              {on && perDay ? <span className="w-20 text-right font-medium text-slate-900 tabular-nums">{money(perDay * billDays)}</span> : <span className="w-20" />}
                             </label>
                           );
                         })}

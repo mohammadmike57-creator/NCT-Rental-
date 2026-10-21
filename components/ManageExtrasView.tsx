@@ -58,7 +58,7 @@ const ManageExtrasView: React.FC<ManageExtrasViewProps> = ({ extras, onUpdate })
 
   const handleUpdateField = (id: string, field: 'name' | 'defaultDailyPrice', value: string | number) => {
     setLocalExtras(prev =>
-      prev.map(ext => (ext.id === id ? { ...ext, [field]: value, pricePerDay: value } : ext))
+      prev.map(ext => (ext.id === id ? { ...ext, [field]: value, ...(field === 'defaultDailyPrice' ? { pricePerDay: value } : {}) } : ext))
     );
   };
 
