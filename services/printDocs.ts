@@ -1,5 +1,6 @@
 import { waitForFonts } from './docFonts';
-import { CompanyDetails, RentalLocation, RentalSource, PaymentType, Reservation } from '../types';
+import { CompanyDetails, Fleet, RentalLocation, RentalSource, PaymentType, Reservation } from '../types';
+import { carPhotoFor } from './carPhoto';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { buildAgreementHtml } from './agreementDoc';
 import { buildTerminationHtml } from './terminationDoc';
@@ -15,7 +16,7 @@ export const rentalDaysOf = (start: string, end: string) => {
   return diff % DAY >= 2 * 3600000 ? full + 1 : full;
 };
 
-export interface PrintContext { company: CompanyDetails; sources: RentalSource[]; locations: RentalLocation[] }
+export interface PrintContext { company: CompanyDetails; sources: RentalSource[]; locations: RentalLocation[]; fleet?: Fleet }
 
 const docInput = (r: Reservation, ctx: PrintContext) => {
   const days = rentalDaysOf(r.startDate, r.endDate);
@@ -25,6 +26,7 @@ const docInput = (r: Reservation, ctx: PrintContext) => {
     reservation: r, company: ctx.company, logo: URDRIVE_LOGO_B64, checklistItems: CHECKLIST_ITEMS, rentalDays: days,
     baseRentalFee: r.baseAmount ?? ((r.amount || 0) - extras), locationName: loc?.name || r.locationName, locationAddress: loc?.address,
     prepaid: ctx.sources.find(s => s.name === r.source)?.paymentType === PaymentType.PREPAID,
+    vehiclePhoto: carPhotoFor(ctx.fleet, r.licensePlate, r.carModel),
   };
 };
 

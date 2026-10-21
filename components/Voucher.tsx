@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import CarPicture from './CarPicture';
+import CarShowcase from './CarShowcase';
+import { carPhotoFor } from '../services/carPhoto';
 import { Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
@@ -637,6 +639,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     locationName: location?.name || r.locationName,
     locationAddress: location?.address,
     prepaid: sources.find(src => src.name === r.source)?.paymentType === PaymentType.PREPAID,
+    vehiclePhoto: carPhotoFor(fleet, r.licensePlate, r.carModel),
   });
 
   const buildTermination = (r: Reservation = localReservation): string => buildTerminationHtml({
@@ -1218,14 +1221,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const renderVehicleStep = (stepNo: number) => (
     <StepSection step={stepNo} title="Vehicle" subtitle="The car being handed over on this agreement">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="flex items-center gap-3 min-w-0">
-          <CarPicture fleet={fleet} plate={localReservation.licensePlate} model={localReservation.carModel} className="w-32 h-20" artClassName="w-24 h-14 shrink-0" />
-          <div className="min-w-0">
-            <SectionLabel>{vehicleKindLabel[kind]}</SectionLabel>
-            <p className="text-sm font-semibold text-slate-900 truncate">{localReservation.carModel || '—'}</p>
-            <p className="mt-1"><Plate value={localReservation.licensePlate || 'NO PLATE'} /></p>
-          </div>
-        </div>
+        <CarShowcase fleet={fleet} plate={localReservation.licensePlate} model={localReservation.carModel} size="lg" />
         <div className="space-y-2.5 text-[13px] min-w-0">
           {isPickupEditable ? (
             <>
@@ -1387,12 +1383,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             <p className="text-xs text-slate-500 tabular-nums">{reservation.contactNumber || 'No phone'}</p>
             <p className="text-xs text-slate-500 break-all">{localReservation.customerEmail || 'No email'}</p>
           </div>
-          <div className="p-4 flex items-center gap-3 min-w-0">
-            <CarPicture fleet={fleet} plate={localReservation.licensePlate} model={localReservation.carModel} className="w-20 h-12" artClassName="w-16 h-9 shrink-0" />
-            <div className="min-w-0">
-              <p className="font-semibold text-slate-900 truncate">{localReservation.carModel || '—'}</p>
-              <p className="mt-1"><Plate value={localReservation.licensePlate || 'NO PLATE'} /></p>
-            </div>
+          <div className="p-3 min-w-0">
+            <CarShowcase fleet={fleet} plate={localReservation.licensePlate} model={localReservation.carModel} />
           </div>
           <div className="p-4 space-y-2">
             <div className="flex items-start gap-3">

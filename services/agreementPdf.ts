@@ -2,6 +2,24 @@ import { jsPDF } from 'jspdf';
 import { loadArabicFontInApp, waitForFonts } from './docFonts';
 
 /** Any of the printable documents (agreement, invoice, claim) as a PDF. */
+/**
+ * html2canvas cannot read images from another origin (the canvas becomes "tainted"), so photos
+ * served by the API on a different host are embedded as data URLs first. An image that cannot be
+ * fetched is removed rather than breaking the PDF.
+ */
+async function inlineRemoteImages(doc: Document) {
+  const imgs = Array.from(doc.images).filter(img => /^https?:/i.test(img.src) && new URL(img.src).origin !== window.location.origin);
+  await Promise.all(imgs.map(async img => {
+    try {
+      const blob = await (await fetch(img.src, { mode: 'cors' })).blob();
+      const dataUrl = await new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(blob); });
+      await new Promise(res => { img.onload = img.onerror = () => res(null); img.src = dataUrl; });
+    } catch {
+      img.remove();
+    }
+  }));
+}
+
 export const htmlToPdfBase64 = (html: string) => agreementHtmlToPdfBase64(html);
 
 /** Triggers a browser download of a base64 PDF. */
@@ -35,6 +53,7 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     doc.close();
     await new Promise(r => setTimeout(r, 150));
     await Promise.all([waitForFonts(doc), loadArabicFontInApp()]);
+    await inlineRemoteImages(doc);
     await Promise.all(Array.from(doc.images).map(img => (img.complete ? null : new Promise(res => { img.onload = img.onerror = () => res(null); }))));
     // html2canvas draws text a few pixels lower than the browser lays it out, which makes
     // table rules cut through the text. Extra room under each cell keeps them clear.
@@ -58,7 +77,7 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
       if (section) sections.forEach(s => { s.style.display = s === section ? '' : 'none'; });
       await new Promise(r => setTimeout(r, 30));
       const height = Math.max(body.scrollHeight + 32, 1123);
-      const canvas = await html2canvas(body, { scale: 2, backgroundColor: '#ffffff', width: 794, height, windowWidth: 794, windowHeight: height, logging: false });
+      const canvas = await html2canvas(body, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 794, height, windowWidth: 794, windowHeight: height, logging: false });
 
       // Places where a page may end without cutting through a row, card or photo (in CSS px from the top).
       const bodyTop = body.getBoundingClientRect().top;

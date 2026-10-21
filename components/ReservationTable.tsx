@@ -560,7 +560,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   };
 
   const printDoc = (res: Reservation, kind: 'agreement' | 'termination') => {
-    const ctx = { company: props.companyDetails, sources: rentalSources, locations: rentalLocations };
+    const ctx = { company: props.companyDetails, sources: rentalSources, locations: rentalLocations, fleet };
     const ok = printHtml(kind === 'agreement' ? agreementHtmlFor(res, ctx) : terminationHtmlFor(res, ctx));
     if (!ok) { window.alert('Allow pop-ups for this site to print.'); return; }
     recordActivity(kind === 'agreement' ? 'AGREEMENT_PRINTED' : 'TERMINATION_PRINTED', 'agreement', `Printed the ${kind === 'agreement' ? 'rental agreement' : 'termination statement'} for ${res.personName}`, res.bookingId);

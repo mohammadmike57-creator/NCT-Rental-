@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CarPicture from '../CarPicture';
+import CarShowcase from '../CarShowcase';
 import { Fleet, Reservation } from '../../types';
 import { Badge, Tabs, SectionLabel } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
@@ -270,16 +271,7 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
               </Section>
 
               <Section title="Vehicle">
-                <div className="flex items-center gap-3 py-2">
-                  <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="w-24 h-16" artClassName="w-16 h-9 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900 truncate">{res.carModel || 'Not assigned'}</p>
-                    <p className="flex flex-wrap items-center gap-1.5 text-slate-500">
-                      {res.licensePlate && <span className="inline-block px-1.5 py-px rounded border border-slate-300 bg-slate-50 font-mono text-[10.5px] font-semibold text-slate-700 tracking-wide">{res.licensePlate}</span>}
-                      {vehicleKindLabel[kind]}{res.sippCode ? ` · ${res.sippCode}` : ''}{res.transmission ? ` · ${res.transmission}` : ''}
-                    </p>
-                  </div>
-                </div>
+                <div className="py-2"><CarShowcase fleet={fleet} plate={res.licensePlate} model={res.carModel} /></div>
                 {(res.reservationVehicle && res.reservationVehicle !== res.carModel) && <dl className="divide-y divide-slate-100"><Row label="Booked as">{res.reservationVehicle}</Row></dl>}
                 {(res.upgradeHistory || []).length > 0 && (
                   <dl className="divide-y divide-slate-100">

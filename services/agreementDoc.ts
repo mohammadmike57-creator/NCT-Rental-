@@ -21,6 +21,8 @@ export interface AgreementDocInput {
   locationAddress?: string;
   /** true when the booking source is paid by the partner (renter pays nothing at the counter) */
   prepaid?: boolean;
+  /** Photo of the actual car (URL or data URL), shown in the vehicle and inspection sections. */
+  vehiclePhoto?: string;
 }
 
 const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -181,6 +183,11 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .dmg .sv.major { color: #b91c1c; } .dmg .sv.moderate { color: #b45309; } .dmg .sv.minor { color: #334155; }
   .nodmg { margin-top: 5px; font-size: 7.4pt; color: #475569; border: 1px dashed #cbd5e1; padding: 3px 6px; }
   .views4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .views5 { display: grid; grid-template-columns: 1.35fr repeat(4, 1fr); gap: 6px; }
+  .view.photo { overflow: hidden; display: flex; flex-direction: column; }
+  .view.photo img { width: 100%; height: 62px; object-fit: cover; display: block; flex: 1; }
+  .vhead { display: flex; align-items: center; gap: 7px; margin-bottom: 2px; }
+  .vthumb { width: 58px; height: 38px; object-fit: cover; border: 1px solid #d1d5db; flex-shrink: 0; }
   .chips { margin-top: 5px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 12px; }
   .chips span { display: flex; align-items: center; gap: 4px; font-size: 7.6pt; padding: 1px 0; border-bottom: 1px dashed #eef2f6; }
   .chips em { font-style: normal; color: #334155; margin-left: 2px; }
@@ -352,7 +359,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   </div>
 
   <div class="g3">
-    <div class="card">${H('3', 'Vehicle', 'المركبة')}<div class="name">${esc(r.carModel || '—')}</div>
+    <div class="card">${H('3', 'Vehicle', 'المركبة')}${i.vehiclePhoto ? `<div class="vhead"><img class="vthumb" src="${esc(i.vehiclePhoto)}" alt=""/><div class="name">${esc(r.carModel || '—')}</div></div>` : `<div class="name">${esc(r.carModel || '—')}</div>`}
       <div class="kv"><span>${L('Plate', 'اللوحة')}</span><span style="font-family:Consolas,monospace">${esc(r.licensePlate || '—')}</span></div>
       <div class="kv"><span>${L('Group / gear', 'الفئة / الناقل')}</span><span>${esc([r.sippCode, r.transmission].filter(Boolean).join(' · ') || '—')}</span></div>
       ${(r.carExchanges || []).length ? `<div class="kv"><span>${L('Exchanged', 'استبدال')}</span><span>${r.carExchanges!.length}×</span></div>` : ''}
@@ -391,7 +398,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   </div>`}
 
   <div class="card" style="margin-top:7px">${H('7', 'Vehicle condition &amp; inspection', 'حالة المركبة والفحص')}
-    <div class="views4">${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
+    <div class="${i.vehiclePhoto ? 'views5' : 'views4'}">${i.vehiclePhoto ? `<div class="view photo"><img src="${esc(i.vehiclePhoto)}" alt=""/><div class="vl">${L('Vehicle photo', 'صورة المركبة')}</div></div>` : ''}${(['front', 'back', 'left', 'right'] as CarView[]).map(diagram).join('')}</div>
     <div class="legend"><i style="border:1.5px solid #0284c7;background:#fff"></i>${L('Existing at check-out', 'موجودة عند التسليم')} (${pickupMarks.length})${closed ? `<i style="background:#e11d48"></i>${L('New at check-in', 'جديدة عند الإرجاع')} (${returnMarks.length})` : ''}<span style="float:right">Checklist ${okOut}/${i.checklistItems.length} out${closed ? ` · ${okIn}/${i.checklistItems.length} in` : ''}</span></div>
     ${damageRegister}
     <div class="chips">${i.checklistItems.map(x => `<span>${tick(out[x])}${closed ? tick(back[x], !!out[x]) : ''}<em>${esc(x)}</em></span>`).join('')}</div>
