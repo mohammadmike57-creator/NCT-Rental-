@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { effectivePermissions } from '../services/permissionCatalog';
 import CarPicture from './CarPicture';
 import * as XLSX from 'xlsx';
-import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission } from '../types';
+import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission, PaymentType } from '../types';
 import { MONTHS } from '../constants';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
@@ -10,6 +10,7 @@ import ReservationWizard from './reservation/ReservationWizard';
 import ReservationRecord from './reservation/ReservationRecord';
 import { recordActivity } from '../firebase/api';
 import { emailAgreementDocuments } from '../services/agreementEmail';
+import { bookingPayment, paymentUnset } from '../services/paymentType';
 import { agreementHtmlFor, printHtml, terminationHtmlFor } from '../services/printDocs';
 import { rentalDaysOf as billingDays } from '../services/rentalDays';
 import { mergeSelectedExtras, selectedExtrasTotal } from '../services/extras';
@@ -346,6 +347,15 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   }, [allDisplayReservations, filters]);
 
   const getSourceName = (sourceId: string) => rentalSources.find(s => s.id === sourceId)?.name || sourceId;
+  // Short payment tag for a booking: prepaid, pay on arrival, or "set payment" when its source takes both.
+  const payTag = (res: Reservation) => {
+    if (paymentUnset(res, rentalSources) && !res.dropOffCompleted && res.status !== ReservationStatus.CANCELLED) return <span className="inline-block px-1.5 py-px rounded bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 text-[10px] font-semibold whitespace-nowrap">Set payment</span>;
+    const t = bookingPayment(res, rentalSources);
+    if (!t) return null;
+    return t === PaymentType.PREPAID
+      ? <span className="inline-block px-1.5 py-px rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold whitespace-nowrap">Prepaid</span>
+      : <span className="inline-block px-1.5 py-px rounded bg-amber-50 text-amber-700 text-[10px] font-semibold whitespace-nowrap">Pay on arrival</span>;
+  };
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -885,6 +895,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                           <span className={`font-mono font-semibold ${selected ? 'text-indigo-700' : 'text-slate-900'}`}>{res.bookingId || 'NO-ID'}</span>
                           {isDuplicate && <span className="ml-1.5 px-1 rounded bg-rose-100 text-rose-700 text-[10px] font-semibold uppercase">dup</span>}
                           <span className="block 2xl:hidden text-[11px] text-slate-400 truncate max-w-[7rem]">{res.source ? getSourceName(res.source) : ''}</span>
+                          <span className="block mt-0.5">{payTag(res)}</span>
                         </td>
                         <td className="px-3 py-2.5"><StatusBadge res={res} /></td>
                         <td className="px-3 py-2.5">
@@ -945,6 +956,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                             <span className="font-mono text-[12.5px] font-semibold text-slate-900 tracking-tight">{res.bookingId || 'NO-ID'}</span>
                             {isDuplicate && <span className="px-1 rounded bg-rose-100 text-rose-700 text-[10px] font-semibold uppercase">dup</span>}
                             {res.source && <span className="px-1.5 py-px rounded bg-slate-100 text-[10.5px] font-medium text-slate-600 truncate max-w-[8.5rem]">{getSourceName(res.source)}</span>}
+                            {payTag(res)}
                           </div>
                           <StatusBadge res={res} withAlert={false} />
                         </div>
@@ -1078,6 +1090,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           showPrimary={canViewVoucherActions && stageOf(drawerRes) !== 'cancelled'}
           actions={actionsFor(drawerRes)}
           sourceName={drawerRes.source ? getSourceName(drawerRes.source) : ''}
+          paymentTag={payTag(drawerRes)}
           fleet={fleet}
           onClose={() => setDetailsModalReservation(null)}
         />

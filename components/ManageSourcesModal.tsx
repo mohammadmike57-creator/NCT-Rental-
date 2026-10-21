@@ -22,9 +22,17 @@ const SettingsSection: React.FC<{ title: string; description: React.ReactNode; c
 );
 
 const PaymentPill: React.FC<{ type: PaymentType }> = ({ type }) => (
-  type === PaymentType.PREPAID
-    ? <Badge tone="success">Prepaid</Badge>
+  type === PaymentType.PREPAID ? <Badge tone="success">Prepaid</Badge>
+    : type === PaymentType.BOTH ? <Badge tone="info">Both · set per booking</Badge>
     : <Badge tone="warning">Pay on arrival</Badge>
+);
+
+const TypeOptions = () => (
+  <>
+    <option value={PaymentType.PAY_ON_ARRIVAL}>Pay on arrival</option>
+    <option value={PaymentType.PREPAID}>Prepaid</option>
+    <option value={PaymentType.BOTH}>Both (choose per booking)</option>
+  </>
 );
 
 const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, onDelete, onUpdate }) => {
@@ -49,6 +57,7 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
   };
 
   const prepaidCount = sources.filter(s => s.paymentType === PaymentType.PREPAID).length;
+  const bothCount = sources.filter(s => s.paymentType === PaymentType.BOTH).length;
 
   const typeSelect = (source: RentalSource, cls: string) => (
     <select
@@ -57,8 +66,7 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
       aria-label={`Payment type for ${source.name}`}
       className={cls}
     >
-      <option value={PaymentType.PAY_ON_ARRIVAL}>Pay on arrival</option>
-      <option value={PaymentType.PREPAID}>Prepaid</option>
+      <TypeOptions />
     </select>
   );
 
@@ -67,16 +75,17 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
       <PageHeader
         section="Administration"
         title="Website Sources"
-        subtitle="Booking channels and how they are paid. Prepaid sources auto-generate invoices."
+        subtitle="Booking channels and how they are paid. Prepaid bookings are invoiced to the partner. Choose Both for a channel that sends prepaid and pay-on-arrival bookings; each booking then says which."
       />
 
       <StatGrid items={[
         { label: 'Sources', value: sources.length },
         { label: 'Prepaid', value: prepaidCount, tone: 'success' },
-        { label: 'Pay on arrival', value: sources.length - prepaidCount, tone: 'warning' },
+        { label: 'Pay on arrival', value: sources.length - prepaidCount - bothCount, tone: 'warning' },
+        { label: 'Both ways', value: bothCount, tone: 'info' },
       ]} />
 
-      <SettingsSection title="Add a source" description="Create a new booking channel and choose whether customers pay upfront or at the counter.">
+      <SettingsSection title="Add a source" description="Create a new booking channel and choose whether customers pay upfront, at the counter, or either (Both: you pick on each booking).">
         <Panel
           footer={
             <div className="flex items-center justify-between gap-2">
@@ -87,7 +96,7 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
             </div>
           }
         >
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-[1fr_200px] gap-3">
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-[1fr_230px] gap-3">
             <Field label="Source name" required>
               <input
                 id="new-source-name"
@@ -106,8 +115,7 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
                 onChange={e => setNewSourceType(e.target.value as PaymentType)}
                 className={`${selectCls} w-full`}
               >
-                <option value={PaymentType.PAY_ON_ARRIVAL}>Pay on arrival</option>
-                <option value={PaymentType.PREPAID}>Prepaid</option>
+                <TypeOptions />
               </select>
             </Field>
           </div>
@@ -134,7 +142,7 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
                     <tr key={source.id} className={table.row}>
                       <td className={`${table.td} font-medium text-slate-900 break-words`}>{source.name}</td>
                       <td className={table.td}><PaymentPill type={source.paymentType} /></td>
-                      <td className={table.td}>{typeSelect(source, `${selectCls} h-8 w-48`)}</td>
+                      <td className={table.td}>{typeSelect(source, `${selectCls} h-8 w-56`)}</td>
                       <td className={`${table.td} text-right`}>
                         <button
                           onClick={() => onDelete(source.id)}

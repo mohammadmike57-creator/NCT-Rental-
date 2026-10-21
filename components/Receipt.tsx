@@ -1,4 +1,5 @@
 
+import { isPrepaid as bookingIsPrepaid } from '../services/paymentType';
 import React from 'react';
 import { Reservation, CompanyDetails, RentalSource, PaymentType } from '../types';
 import { URDRIVE_LOGO_B64 } from '../constants';
@@ -72,8 +73,7 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
     const baseRentalFee = (reservation.baseAmount ?? (reservation.amount || 0));
     const totalCharges = baseRentalFee + extrasTotal;
     
-    const sourceInfo = sources.find(s => s.name === reservation.source);
-    const isPrepaid = sourceInfo?.paymentType === PaymentType.PREPAID;
+    const isPrepaid = bookingIsPrepaid(reservation, sources);
 
     const amountPaid = isPrepaid ? baseRentalFee : totalCharges;
     const balanceDue = isPrepaid ? extrasTotal : 0;

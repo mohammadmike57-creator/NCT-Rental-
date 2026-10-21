@@ -1,3 +1,4 @@
+import { isPrepaid as bookingIsPrepaid } from '../services/paymentType';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppData, Aggregator, CompanyDetails, InvoiceData, InvoiceLine, PaymentType, RentalSource, Reservation, ReservationStatus, YearData } from '../types';
 import { MONTHS, URDRIVE_LOGO_B64 } from '../constants';
@@ -71,7 +72,8 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
   const flash = (t: string) => { setToast(t); setTimeout(() => setToast(null), 3500); };
 
   // ----- data ---------------------------------------------------------------
-  const prepaidSources = useMemo(() => sources.filter(s => s.paymentType === PaymentType.PREPAID), [sources]);
+  // Partners that send prepaid bookings (prepaid-only, or both ways — then only their prepaid bookings are billed).
+  const prepaidSources = useMemo(() => sources.filter(s => s.paymentType === PaymentType.PREPAID || s.paymentType === PaymentType.BOTH), [sources]);
   const allReservations: Reservation[] = useMemo(() => {
     const src = allData ? Object.values(allData).flatMap(y => Object.values(y as YearData).flat()) : Object.values(yearData || {}).flat();
     return src as Reservation[];
@@ -105,10 +107,10 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
   const candidates = useMemo(() => {
     if (!source || !startDate || !endDate) return [];
     return allReservations
-      .filter(r => r.source === source.name && r.status !== ReservationStatus.CANCELLED && (r.status as string) !== 'NO_SHOW'
+      .filter(r => r.source === source.name && bookingIsPrepaid(r, sources) && r.status !== ReservationStatus.CANCELLED && (r.status as string) !== 'NO_SHOW'
         && (r.startDate || '').slice(0, 10) >= startDate && (r.startDate || '').slice(0, 10) <= endDate && billableAmount(r) > 0)
       .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
-  }, [allReservations, source, startDate, endDate]);
+  }, [allReservations, source, sources, startDate, endDate]);
 
   // Bookings already on another invoice start unticked, so nothing is billed twice by accident.
   useEffect(() => { setExcluded(new Set(candidates.filter(r => invoicedBy.has(r.id)).map(r => r.id))); }, [candidates, invoicedBy]);

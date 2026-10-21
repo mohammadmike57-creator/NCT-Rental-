@@ -5,6 +5,8 @@ import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservati
 import { Badge, Button, Field, inputCls, selectCls, textareaCls, SectionLabel, EmptyState } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
 import { extraDailyPrice } from '../../services/extras';
+import PaymentChoice from '../PaymentChoice';
+import { bookingPayment, PAYMENT_LABEL, sourceOf, sourceTakesBoth } from '../../services/paymentType';
 import { rentalDaysOf } from '../../services/rentalDays';
 
 /*
@@ -164,6 +166,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
       if (!formData.endDate) e.endDate = 'Enter the return date.';
       if (formData.startDate && formData.endDate && new Date(formData.endDate).getTime() <= new Date(formData.startDate).getTime()) e.endDate = 'Return must be after pickup.';
       if (!(formData.bookingId || '').trim()) e.bookingId = 'Enter the booking ID.';
+      if (sourceTakesBoth(sourceOf(formData, rentalSources)) && !formData.paymentType) e.paymentType = 'Choose prepaid or pay on arrival.';
     }
     if (key === 'vehicle' && !(formData.carModel || '').trim()) e.carModel = 'Choose a vehicle group or type a model.';
     if (key === 'customer' && !(formData.personName || '').trim()) e.personName = 'Enter the renter name.';
@@ -367,13 +370,18 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                       </select>
                     </Field>
                     <Field label="Source">
-                      <select value={formData.source || ''} onChange={e => onChange('source', e.target.value)} className={selectCls + ' w-full'}>
+                      <select value={formData.source || ''} onChange={e => { onChange('source', e.target.value); if (!sourceTakesBoth(sourceOf({ source: e.target.value }, rentalSources))) onChange('paymentType', undefined); }} className={selectCls + ' w-full'}>
                         <option value="">Select source</option>
                         {formData.source && !rentalSources.some(s => s.name === formData.source) && <option value={formData.source}>{sourceName}</option>}
                         {rentalSources.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                       </select>
                     </Field>
                   </div>
+                  {formData.source && (
+                    <div className="mt-4">
+                      <PaymentChoice source={sourceOf(formData, rentalSources)} value={formData.paymentType} onChange={v => onChange('paymentType', v)} error={showErr('paymentType')} />
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -594,6 +602,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                     ['Rental days', rentalDays ? `${rentalDays} (${durationDays.toFixed(1)} exact)` : '—'],
                     ['Location', locationName],
                     ['Source', sourceName],
+                    ['Payment', (() => { const t = bookingPayment(formData, rentalSources); return t ? PAYMENT_LABEL[t] : formData.source ? <span className="text-rose-600">Not chosen</span> : '—'; })()],
                     ['Booking date', formData.bookingDate ? fmt(formData.bookingDate.split('T')[0]) : '—'],
                     ['Booking ID', <span className="font-mono">{formData.bookingId || '—'}</span>],
                   ]} />

@@ -25,6 +25,8 @@ export interface ReservationRecordProps {
   showPrimary: boolean;
   actions: RecordAction[];
   sourceName: string;
+  /** Prepaid / pay on arrival tag. */
+  paymentTag?: React.ReactNode;
   fleet: Fleet;
   onClose: () => void;
 }
@@ -78,7 +80,7 @@ const Muted = ({ children }: { children: React.ReactNode }) => <span className="
 
 type TabKey = 'overview' | 'charges' | 'agreement' | 'documents' | 'history';
 
-const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statusBadge, alert, primaryAction, showPrimary, actions, sourceName, fleet, onClose }) => {
+const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statusBadge, alert, primaryAction, showPrimary, actions, sourceName, paymentTag, fleet, onClose }) => {
   const [tab, setTab] = useState<TabKey>('overview');
 
   const kind = vehicleKind(res.carModel, fleet);
@@ -263,6 +265,7 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
                   <Row label="Duration">{days} day{days === 1 ? '' : 's'}</Row>
                   <Row label="Branch">{res.locationName || '—'}</Row>
                   <Row label="Source">{sourceName || '—'}</Row>
+                  <Row label="Payment">{paymentTag || '—'}</Row>
                   <Row label="Booked on">{longDate(res.bookingDate)}</Row>
                   {res.createdBy && <Row label="Created by">{res.createdBy}</Row>}
                   {res.lastEditedBy && <Row label="Last edited by">{res.lastEditedBy}</Row>}

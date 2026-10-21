@@ -9,6 +9,8 @@ import { ShieldExclamationIcon, PdfIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { recordActivity } from '../firebase/api';
 import { emailAgreementDocuments } from '../services/agreementEmail';
+import PaymentChoice from './PaymentChoice';
+import { bookingPayment, isPrepaid as bookingIsPrepaid, paymentUnset, sourceOf, PAYMENT_LABEL } from '../services/paymentType';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
@@ -536,8 +538,11 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       if (!localReservation.licensePlate?.trim()) { alert("License Plate is required."); return; }
       if (localReservation.pickupKmOut === undefined || localReservation.pickupKmOut === null || localReservation.pickupKmOut < 0) { alert("A valid starting Kilometers Out is required."); return; }
 
-      const sourceInfo = sources.find(s => s.name === localReservation.source);
-      const isPayOnArrival = sourceInfo?.paymentType === PaymentType.PAY_ON_ARRIVAL;
+      if (paymentUnset(localReservation, sources)) {
+        alert("Choose whether this booking is prepaid or pay on arrival (Charges & payment step).");
+        return;
+      }
+      const isPayOnArrival = bookingPayment(localReservation, sources) === PaymentType.PAY_ON_ARRIVAL;
       if (isPayOnArrival && !localReservation.authNumber?.trim()) {
         alert("Authorization Number is required for 'Pay on Arrival' reservations.");
         return;
@@ -638,7 +643,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     baseRentalFee,
     locationName: location?.name || r.locationName,
     locationAddress: location?.address,
-    prepaid: sources.find(src => src.name === r.source)?.paymentType === PaymentType.PREPAID,
+    prepaid: bookingIsPrepaid(r, sources),
     vehiclePhoto: carPhotoFor(fleet, r.licensePlate, r.carModel),
   });
 
@@ -650,7 +655,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     baseRentalFee,
     checklistItems,
     locationName: location?.name || r.locationName,
-    prepaid: sources.find(src => src.name === r.source)?.paymentType === PaymentType.PREPAID,
+    prepaid: bookingIsPrepaid(r, sources),
   });
 
   const handlePrintTermination = () => {
@@ -748,8 +753,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const baseRentalFee = reservation.baseAmount ?? ((reservation.amount || 0) - extrasTotal);
   const totalCost = baseRentalFee + extrasTotal;
 
-  const sourceInfo = sources.find(s => s.name === reservation.source);
-  const isPayOnArrival = sourceInfo?.paymentType === PaymentType.PAY_ON_ARRIVAL;
+  // How this booking is paid: its own choice, or its source's type. Unset when the source takes both.
+  const payType = bookingPayment(localReservation, sources);
+  const payUnset = paymentUnset(localReservation, sources);
+  const isPayOnArrival = payType === PaymentType.PAY_ON_ARRIVAL;
 
   const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) => (
     <div className="w-full">
@@ -1037,7 +1044,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const kmOutValid = localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.pickupKmOut >= 0;
   const kmInValid = localReservation.dropOffKmIn !== undefined && localReservation.dropOffKmIn !== null && localReservation.dropOffKmIn >= 0
     && !(localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.dropOffKmIn < localReservation.pickupKmOut);
-  const pickupAuthOk = !(sources.find(s => s.name === localReservation.source)?.paymentType === PaymentType.PAY_ON_ARRIVAL) || !!localReservation.authNumber?.trim();
+  const pickupAuthOk = !payUnset && (!isPayOnArrival || !!localReservation.authNumber?.trim());
   const chargesValid = charges.items.length === 0 || (
     charges.items.every(i => !!i.description.trim() && i.amount > 0) && !!charges.settlement
     && (charges.settlement !== 'paid' || !!charges.paymentMethod) && !!charges.customerSignature);
@@ -1052,7 +1059,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     { key: 'inspection', label: 'Inspection checklist', done: pickupClosed || countChecked(localReservation.pickupChecklist) === checklistItems.length, hint: `${countChecked(localReservation.pickupChecklist)} of ${checklistItems.length} confirmed` },
     { key: 'damage', label: 'Damage', done: pickupClosed || !!visited['pickup:damage'], hint: `${(localReservation.pickupDamageMarkers || []).length} marked` },
     { key: 'fuel', label: 'Fuel & mileage', done: pickupClosed || (kmOutValid && localReservation.pickupFuelLevel !== undefined), hint: kmOutValid ? 'Fuel level not set' : 'Odometer out required' },
-    { key: 'payment', label: 'Charges & payment', done: pickupClosed || (pickupAuthOk && !!visited['pickup:payment']), hint: pickupAuthOk ? formatCurrency(totalCost) : 'Authorisation required' },
+    { key: 'payment', label: 'Charges & payment', done: pickupClosed || (pickupAuthOk && !!visited['pickup:payment']), hint: payUnset ? 'Choose prepaid or pay on arrival' : pickupAuthOk ? `${formatCurrency(totalCost)} · ${payType ? PAYMENT_LABEL[payType].toLowerCase() : ''}` : 'Authorisation required' },
     { key: 'signatures', label: 'Signatures', done: pickupClosed || signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) === 2, hint: `${signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature)} of 2 signed` },
   ];
   const dropoffSteps: FlowStep[] = [
@@ -1210,17 +1217,55 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       )}
       <InfoPair label="Security deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
       <InfoPair label="Excess" value={formatCurrency(reservation.excess || 0)} />
-      {isPayOnArrival !== undefined && <InfoPair label="Payment type" value={isPayOnArrival ? 'Pay on arrival' : 'Prepaid'} />}
+      <InfoPair label="Payment type" value={payType
+        ? <Badge tone={isPayOnArrival ? 'warning' : 'success'}>{PAYMENT_LABEL[payType]}</Badge>
+        : payUnset ? <Badge tone="danger">Not chosen</Badge> : undefined} />
     </>
   );
 
+  // What the counter has to do about payment for this booking.
+  const extrasCharged = (reservation.extras || []).reduce((s2, e) => (e.isComplementary ? s2 : s2 + e.dailyPrice * rentalDays), 0);
+  const renderPaymentAction = () => {
+    const src = sourceOf(localReservation, sources);
+    const deposit = reservation.securityDeposit || 0;
+    const box = (tone: 'ok' | 'warn' | 'bad', title: React.ReactNode, lines: React.ReactNode[]) => (
+      <div className={`rounded-lg border px-4 py-3 ${tone === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : tone === 'warn' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-rose-200 bg-rose-50 text-rose-900'}`}>
+        <p className="text-[13px] font-semibold">{title}</p>
+        <ul className="mt-1 space-y-0.5 text-xs list-disc ps-4">{lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
+      </div>
+    );
+    return (
+      <div className="md:col-span-2 space-y-3">
+        {src && src.paymentType === PaymentType.BOTH && (
+          <PaymentChoice source={src} value={localReservation.paymentType} arabic disabled={!isPickupEditable}
+            onChange={v => setLocalReservation(prev => ({ ...prev, paymentType: v, ...(v === PaymentType.PREPAID && !prev.paymentMethod ? { paymentMethod: 'prepaid' } : {}), ...(v === PaymentType.PAY_ON_ARRIVAL && prev.paymentMethod === 'prepaid' ? { paymentMethod: undefined } : {}) }))}
+            error={payUnset && !!visited['pickup:payment'] ? 'Choose how this booking is paid before handing over the car.' : undefined} />
+        )}
+        {payUnset ? box('bad', <>Action needed: choose how this booking is paid <span className="ar-ui font-normal" dir="rtl">· اختر طريقة الدفع</span></>, [
+            `${src?.name || 'This source'} sends both prepaid and pay-on-arrival bookings. Check the booking confirmation and choose above.`,
+          ])
+          : isPayOnArrival ? box('warn', <>Pay on arrival: collect {formatCurrency(totalCost)} now <span className="ar-ui font-normal" dir="rtl">· الدفع عند الاستلام</span></>, [
+            <>Take payment for the rental{extrasCharged ? ' and extras' : ''}: <b>{formatCurrency(totalCost)}</b>.</>,
+            'Record the payment method, card last 4 digits and the terminal authorisation number (required).',
+            ...(deposit ? [<>Hold the refundable security deposit of <b>{formatCurrency(deposit)}</b>.</>] : []),
+          ])
+          : payType ? box('ok', <>Prepaid{src ? ` via ${src.name}` : ''}: do not charge the rental <span className="ar-ui font-normal" dir="rtl">· مدفوع مسبقاً</span></>, [
+            `The rental of ${formatCurrency(baseRentalFee)} was paid to ${src?.name || 'the partner'}.`,
+            ...(extrasCharged ? [<>Collect extras added at the counter if they are not in the partner booking: <b>{formatCurrency(extrasCharged)}</b>.</>] : []),
+            ...(deposit ? [<>Hold the refundable security deposit of <b>{formatCurrency(deposit)}</b>.</>] : ['No rental payment or authorisation number is needed.']),
+          ]) : null}
+      </div>
+    );
+  };
+
   const renderPaymentStep = (stepNo: number) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+      {renderPaymentAction()}
       <StepSection step={stepNo} title="Charges" subtitle="Rental, extras, deposit and excess">
         <div className="space-y-2.5 text-[13px]">{renderChargesBreakdown()}</div>
       </StepSection>
       <InfoBlock title="Payment">
-        <div><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
+        <div>{payType === PaymentType.PREPAID ? <Badge tone="success">Prepaid · nothing to collect for the rental</Badge> : <Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge>}</div>
         {isPickupEditable ? (
           <>
             <div className="grid grid-cols-2 gap-2">
@@ -1350,7 +1395,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
           <div className="p-4 space-y-2.5">{renderChargesBreakdown()}</div>
           <div className="p-4 space-y-2.5">
-            <div className="flex items-center justify-between gap-2"><SectionLabel><Bi en="Payment" /></SectionLabel><Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge></div>
+            <div className="flex items-center justify-between gap-2"><SectionLabel><Bi en="Payment" /></SectionLabel>{payType === PaymentType.PREPAID ? <Badge tone="success">Prepaid</Badge> : payUnset ? <Badge tone="danger">Choose type</Badge> : <Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge>}</div>
             <InfoPair label="Authorisation" value={localReservation.authNumber ? <span className="font-mono">{localReservation.authNumber}</span> : undefined} />
             <InfoPair label="Amount charged" value={localReservation.finalAmountCharged ? formatCurrency(localReservation.finalAmountCharged) : undefined} />
           </div>

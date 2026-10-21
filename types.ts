@@ -3,6 +3,8 @@
 export enum PaymentType {
   PREPAID = 'Prepaid',
   PAY_ON_ARRIVAL = 'Pay on Arrival',
+  /** The source sends bookings both ways; each reservation says which. */
+  BOTH = 'Both',
 }
 
 export interface RentalSource {
@@ -235,6 +237,8 @@ export interface Reservation {
   baseAmount?: number;
   isNew?: boolean;
   extras?: ReservationExtra[];
+  /** How this booking is paid. Required when its source takes both prepaid and pay-on-arrival bookings. */
+  paymentType?: PaymentType.PREPAID | PaymentType.PAY_ON_ARRIVAL;
   upgradeInfo?: UpgradeInfo;
   voucherSubmitted?: boolean;
   dropOffCompleted?: boolean;

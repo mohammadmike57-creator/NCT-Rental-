@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import CarPicture from './CarPicture';
 import { Bi } from './ui/Bi';
 import { Fleet, RentalLocation, RentalSource } from '../types';
+import PaymentChoice from './PaymentChoice';
+import { BookingPayment, sourceOf, sourceTakesBoth } from '../services/paymentType';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { Panel, Badge, Plate, Button, DetailList, inputCls as kitInput, selectCls, textareaCls, labelCls } from './ui/Crm';
 
@@ -18,6 +20,8 @@ export interface UnlistedBookingDraft {
   locationName: string;
   amount: number;
   notes: string;
+  /** Only for sources that take both prepaid and pay-on-arrival bookings. */
+  paymentType?: BookingPayment;
 }
 
 interface Props {
@@ -137,11 +141,16 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
                 <input className={`${inputCls(!!err('bookingId'))} font-mono`} value={d.bookingId} onChange={e => set('bookingId', e.target.value)} />
               </Field>
               <Field label="Source">
-                <select className={selCls} value={d.source} onChange={e => set('source', e.target.value)}>
+                <select className={selCls} value={d.source} onChange={e => { set('source', e.target.value); if (!sourceTakesBoth(sourceOf({ source: e.target.value }, sources))) set('paymentType', undefined); }}>
                   {!sources.some(s => s.name === 'Walk-in') && <option value="Walk-in">Walk-in</option>}
                   {sources.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </Field>
+              {sourceOf(d, sources) && (
+                <div className="sm:col-span-2">
+                  <PaymentChoice source={sourceOf(d, sources)} value={d.paymentType} onChange={v => set('paymentType', v)} arabic />
+                </div>
+              )}
               <Field label="Pick-up" required error={err('startDate')}>
                 <input type="datetime-local" className={inputCls(!!err('startDate'))} value={d.startDate} onChange={e => set('startDate', e.target.value)} />
               </Field>
