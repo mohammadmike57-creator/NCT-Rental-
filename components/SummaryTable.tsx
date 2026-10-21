@@ -1,7 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission } from '../types';
+import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
+import { bookingRevenue, indexRegisters } from '../services/revenue';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
@@ -21,6 +22,8 @@ interface SummaryTableProps {
   franchisePayments?: FranchisePayment[];
   onUpdateFranchisePayment?: (payments: FranchisePayment[]) => void;
   currentUser?: User | null;
+  trafficTickets?: TrafficTicket[];
+  vehicleDamages?: VehicleDamage[];
 }
 
 type Method = NonNullable<FranchisePayment['method']>;
@@ -233,7 +236,7 @@ const StripePaymentModal: React.FC<{
 // Main
 // ---------------------------------------------------------------------------
 
-const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, companyDetails, franchisePayments = [], onUpdateFranchisePayment, currentUser }) => {
+const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, companyDetails, franchisePayments = [], onUpdateFranchisePayment, currentUser, trafficTickets = [], vehicleDamages = [] }) => {
   const [currency, setCurrency] = useState<'USD' | 'JOD'>('USD');
   const [activeTab, setActiveTab] = useState<'overview' | 'franchise'>('overview');
   const [entry, setEntry] = useState<{ month: string; fee: number; initial?: Partial<PaymentDraft> } | null>(null);
@@ -249,11 +252,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
   const now = new Date();
 
+  // Revenue per booking = rental (with extras, upgrades, extensions) + damages + traffic tickets + other return charges.
+  const registers = useMemo(() => indexRegisters({ trafficTickets, vehicleDamages }), [trafficTickets, vehicleDamages]);
   const months = useMemo(() => MONTHS.map((month, idx) => {
     const list = (yearData && yearData[month]) || [];
     const confirmed = list.filter(r => r.status === ReservationStatus.CONFIRMED && typeof r.amount === 'number' && r.amount >= 0);
     const cancelled = list.filter(r => r.status === ReservationStatus.CANCELLED || (r.status as string) === 'NO_SHOW').length;
-    const revenueUSD = confirmed.reduce((s, r) => s + (r.amount || 0), 0);
+    const revenueUSD = confirmed.reduce((s, r) => s + bookingRevenue(r, registers).total, 0);
     const commissionUSD = revenueUSD * COMMISSION_RATE;
     const waived = (WAIVED_MONTHS[year] || []).includes(month);
     const monthStart = new Date(year, idx, 1);
@@ -274,7 +279,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       month, idx, total: list.length, confirmed: confirmed.length, cancelled,
       revenueUSD, commissionUSD, feeUSD, waived, started, payment, paidUSD, deadline, status,
     };
-  }), [yearData, year, franchisePayments, now.toDateString()]);
+  }), [yearData, year, franchisePayments, registers, now.toDateString()]);
 
   const totals = useMemo(() => {
     const t = { bookings: 0, confirmed: 0, cancelled: 0, revenueUSD: 0, commissionUSD: 0 };

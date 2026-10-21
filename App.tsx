@@ -1626,6 +1626,8 @@ ${currentUser?.fullName}
             franchisePayments={franchisePayments}
             onUpdateFranchisePayment={handleUpdateFranchisePayments}
             currentUser={currentUser}
+            trafficTickets={trafficTickets}
+            vehicleDamages={vehicleDamages}
         />
     ), permission: UserPermission.VIEW_REPORTS_YEARLY_SUMMARY },
     'Unlisted Agreements': { component: (
