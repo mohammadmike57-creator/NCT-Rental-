@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import CarShowcase from '../CarShowcase';
 import CarPicture from '../CarPicture';
 import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus } from '../../types';
 import { Badge, Button, Field, inputCls, selectCls, textareaCls, SectionLabel, EmptyState } from '../ui/Crm';
@@ -209,12 +210,13 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
   const isLast = step === STEPS.length - 1;
   const current = STEPS[step];
 
-  const ReviewPanel = ({ title, stepIdx, rows }: { title: string; stepIdx: number; rows: [string, React.ReactNode][] }) => (
+  const ReviewPanel = ({ title, stepIdx, rows, media }: { title: string; stepIdx: number; rows: [string, React.ReactNode][]; media?: React.ReactNode }) => (
     <section className="rounded-xl border border-slate-200">
       <div className="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
         <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
         <button type="button" onClick={() => setStep(stepIdx)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Edit</button>
       </div>
+      {media && <div className="px-4 pt-3">{media}</div>}
       <dl className="px-4 divide-y divide-slate-100 text-[13px]">
         {rows.map(([k, v]) => (
           <div key={k} className="flex items-start justify-between gap-4 py-2">
@@ -588,7 +590,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                     ['Booking date', formData.bookingDate ? fmt(formData.bookingDate.split('T')[0]) : '—'],
                     ['Booking ID', <span className="font-mono">{formData.bookingId || '—'}</span>],
                   ]} />
-                  <ReviewPanel title="Vehicle" stepIdx={1} rows={[
+                  <ReviewPanel title="Vehicle" stepIdx={1} media={formData.carModel ? <CarShowcase fleet={fleet} plate={formData.licensePlate} model={formData.carModel} /> : undefined} rows={[
                     ['Model', formData.carModel || '—'],
                     ...(() => { const g = groups.find(x => x.model === (formData.carModel || '').trim()); return g ? [['Category', g.category], ['Transmission', g.transmission], ['Free for dates', g.free === null ? '—' : `${g.free} of ${g.cars.length}`]] as [string, React.ReactNode][] : []; })(),
                     ...(formData.licensePlate ? [['Assigned plate', <span className="font-mono">{formData.licensePlate}</span>]] as [string, React.ReactNode][] : []),

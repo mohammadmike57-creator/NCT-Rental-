@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import CarPicture from './CarPicture';
 import { ChevronRightIcon, PlusIcon, DocumentTextIcon, ClockIcon, ShieldExclamationIcon, CurrencyDollarIcon, CalendarIcon, CarIcon } from './icons';
 import { VehicleArt, vehicleKind, vehicleKindLabel, VehicleKind } from './VehicleGraphics';
 import { Reservation } from '../types';
@@ -149,8 +150,13 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
             <p className="text-[11px] text-slate-500 truncate max-w-[12rem]">{res.contactNumber || '—'}</p>
           </td>
           <td className={table.td}>
-            <p className="text-slate-800 truncate max-w-[10rem]">{res.carModel || '—'}</p>
-            <Plate value={res.licensePlate} />
+            <div className="flex items-center gap-2.5">
+              <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="w-14 h-9" artClassName="w-14 h-9 p-1 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200" />
+              <div className="min-w-0">
+                <p className="text-slate-800 truncate max-w-[10rem]">{res.carModel || '—'}</p>
+                <Plate value={res.licensePlate} />
+              </div>
+            </div>
           </td>
           <td className={`${table.td} text-slate-600 truncate max-w-[9rem]`}>{res.locationName || '—'}</td>
           <td className={`${table.td} text-right`}>{action}</td>

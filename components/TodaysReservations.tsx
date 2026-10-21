@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from 'react';
+import { Fleet } from '../types';
+import CarPicture from './CarPicture';
 import { AppData, Reservation, ReservationStatus, RentalSource } from '../types';
 import { DocumentTextIcon, ClockIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Badge, Plate, Button, EmptyState, table } from './ui/Crm';
 
 interface TodaysReservationsProps {
+  fleet?: Fleet;
   allData: AppData;
   rentalSources: RentalSource[];
   onShowVoucher: (reservation: Reservation, year: number, month: string) => void;
@@ -22,7 +25,7 @@ const splitDate = (value?: string) => ({
   time: value?.split('T')[1]?.substring(0, 5) || '',
 });
 
-const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rentalSources, onShowVoucher }) => {
+const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rentalSources, onShowVoucher, fleet }) => {
     
     const today = new Date();
 
@@ -150,8 +153,13 @@ const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rental
                                             </td>
                                             <td className={table.td}><p className="font-medium text-slate-900 truncate max-w-[12rem]">{res.personName}</p></td>
                                             <td className={table.td}>
-                                                <p className="text-slate-800 truncate max-w-[11rem]">{res.carModel}</p>
-                                                <p className="mt-0.5">{res.licensePlate ? <Plate value={res.licensePlate} /> : <span className="text-[11px] text-slate-400">TBD</span>}</p>
+                                                <div className="flex items-center gap-2.5">
+                                                    <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="w-14 h-9" artClassName="w-14 h-9 p-1 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-slate-800 truncate max-w-[11rem]">{res.carModel}</p>
+                                                        <p className="mt-0.5">{res.licensePlate ? <Plate value={res.licensePlate} /> : <span className="text-[11px] text-slate-400">TBD</span>}</p>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className={`${table.td} whitespace-nowrap tabular-nums`}>
                                                 <p className="text-slate-800">{pickup.date}</p>
@@ -184,6 +192,7 @@ const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rental
                                             <Badge tone={KIND_META[kind].tone}>{KIND_META[kind].label}</Badge>
                                         </div>
                                         <div className="mt-2 flex items-center gap-2 text-xs text-slate-600 min-w-0">
+                                            <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="w-12 h-8" artClassName="w-12 h-8 p-1 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200" />
                                             <span className="truncate">{res.carModel}</span>
                                             {res.licensePlate ? <Plate value={res.licensePlate} /> : <span className="text-slate-400">TBD</span>}
                                         </div>

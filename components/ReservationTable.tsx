@@ -843,7 +843,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                     <SortTh k="pickup">Pickup</SortTh>
                     <SortTh k="return">Return</SortTh>
                     <th className="font-semibold px-3 py-2.5 uppercase tracking-wider">Vehicle</th>
-                    <th className="hidden xl:table-cell font-semibold px-3 py-2.5 uppercase tracking-wider">Source</th>
+                    <th className="hidden 2xl:table-cell font-semibold px-3 py-2.5 uppercase tracking-wider">Source</th>
                     <th className="font-semibold px-3 py-2.5 uppercase tracking-wider text-right">Days</th>
                     <th className="px-3 py-2.5 pr-4"><span className="sr-only">Actions</span></th>
                   </tr>
@@ -860,7 +860,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                         <td className="pl-4 pr-3 py-2.5 whitespace-nowrap">
                           <span className={`font-mono font-semibold ${selected ? 'text-indigo-700' : 'text-slate-900'}`}>{res.bookingId || 'NO-ID'}</span>
                           {isDuplicate && <span className="ml-1.5 px-1 rounded bg-rose-100 text-rose-700 text-[10px] font-semibold uppercase">dup</span>}
-                          <span className="block xl:hidden text-[11px] text-slate-400 truncate max-w-[7rem]">{res.source ? getSourceName(res.source) : ''}</span>
+                          <span className="block 2xl:hidden text-[11px] text-slate-400 truncate max-w-[7rem]">{res.source ? getSourceName(res.source) : ''}</span>
                         </td>
                         <td className="px-3 py-2.5"><StatusBadge res={res} /></td>
                         <td className="px-3 py-2.5">
@@ -877,14 +877,14 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                         </td>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2.5">
-                            <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="hidden 2xl:block w-12 h-8" artClassName="hidden" />
+                            <CarPicture fleet={fleet} plate={res.licensePlate} model={res.carModel} className="w-14 h-9" artClassName="w-14 h-9 p-1 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200" />
                             <div className="min-w-0">
                               <p className="text-slate-800 truncate max-w-[10rem]">{res.carModel || '—'}</p>
                               <p className="flex items-center gap-1.5 text-[11px] text-slate-500"><Plate value={res.licensePlate} /><span>{res.sippCode || vehicleKindLabel[kind]}</span></p>
                             </div>
                           </div>
                         </td>
-                        <td className="hidden xl:table-cell px-3 py-2.5 text-slate-600 truncate max-w-[8rem]">{res.source ? getSourceName(res.source) : '—'}</td>
+                        <td className="hidden 2xl:table-cell px-3 py-2.5 text-slate-600 truncate max-w-[8rem]">{res.source ? getSourceName(res.source) : '—'}</td>
                         <td className="px-3 py-2.5 text-right whitespace-nowrap">
                           <p className="font-semibold text-slate-900 tabular-nums">{rentalDaysOf(res) || '—'}</p>
                           {(res.unpaidExtensionAmount || 0) > 0 && <p className="text-[11px] font-semibold text-amber-600 tabular-nums">{money(res.unpaidExtensionAmount)} due</p>}

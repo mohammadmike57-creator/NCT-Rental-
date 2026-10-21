@@ -1540,6 +1540,7 @@ ${currentUser?.fullName}
     'Agreement': { component: renderReservationView(true), permission: UserPermission.VIEW_AGREEMENTS },
     'Today\'s Reservations': { component: (
       <TodaysReservations
+        fleet={fleet}
         allData={reservations}
         rentalSources={sources}
         onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewVoucher: { reservation, year, month }}))}
