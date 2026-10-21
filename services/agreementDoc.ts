@@ -1,7 +1,7 @@
 import { CarView, CompanyDetails, DamageMarker, Reservation } from '../types';
 import { damageSeverityLabel, damageTypeLabel, DAMAGE_TYPE_AR, DAMAGE_SEVERITY_AR } from './damageMarks';
 import { INSPECTION_LABEL, INSPECTION_SVG } from '../components/VehicleGraphics';
-import { CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, formatMoney } from './returnChargesDoc';
+import { CHARGE_KIND_AR, CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, damageCostByMark, formatMoney } from './returnChargesDoc';
 import { parseTerms, parseTermsAr } from './agreementTerms';
 import { code39Svg } from './barcode';
 
@@ -34,14 +34,14 @@ const km = (n?: number) => (n == null ? '—' : `${n.toLocaleString('en-US')} km
 const day = (s?: string) => { if (!s) return '—'; const d = new Date(s.length === 10 ? s + 'T12:00:00' : s); return Number.isNaN(d.getTime()) ? esc(s) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); };
 const ID_TYPE: Record<string, string> = { passport: 'Passport', national_id: 'National ID', residence: 'Residence permit' };
 const ID_TYPE_AR: Record<string, string> = { passport: 'جواز السفر', national_id: 'الهوية الوطنية', residence: 'الإقامة' };
-const VIEW_AR: Record<CarView, string> = { front: 'الأمام', back: 'الخلف', left: 'جهة السائق', right: 'جهة الراكب' };
+export const VIEW_AR: Record<CarView, string> = { front: 'الأمام', back: 'الخلف', left: 'جهة السائق', right: 'جهة الراكب' };
 /** English label with its Arabic translation beside it. */
 const L = (en: string, ar: string) => `${en}<bdi class="ar">${ar}</bdi>`;
 /** Section header bar: number and English title on the left, Arabic title on the right. */
 const H = (n: string, en: string, ar: string) => `<h2>${n ? `<span class="n">${n}</span>` : ''}<span class="en">${en}</span><bdi class="ar h">${ar}</bdi></h2>`;
 /** The Arabic font ships with the app (public/fonts) so PDFs and prints never depend on a font service. */
 const fontBase = () => (typeof window !== 'undefined' && window.location ? window.location.origin : '');
-const arabicFontCss = () => [400, 600, 700].map(w => `@font-face { font-family: 'Plex Arabic'; font-weight: ${w}; font-style: normal; src: url('${fontBase()}/fonts/plex-arabic-${w}.woff2') format('woff2'); }`).join('\n');
+export const arabicFontCss = () => [400, 600, 700].map(w => `@font-face { font-family: 'Plex Arabic'; font-weight: ${w}; font-style: normal; src: url('${fontBase()}/fonts/plex-arabic-${w}.woff2') format('woff2'); }`).join('\n');
 const PAY_METHOD: Record<string, string> = { card: 'Card', cash: 'Cash', bank_transfer: 'Bank transfer', prepaid: 'Prepaid by partner' };
 /** Products the renter bought that reduce their liability (named like insurance / CDW / protection). */
 const isProtection = (name: string) => /insur|cdw|scdw|waiver|protect|cover|liabil/i.test(name);
@@ -75,7 +75,8 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   const okIn = i.checklistItems.filter(x => back[x]).length;
   const missingAtReturn = closed ? i.checklistItems.filter(x => out[x] && !back[x]) : [];
   const extrasTotal = (r.extras || []).reduce((s, e) => (e.isComplementary ? s : s + e.dailyPrice * i.rentalDays), 0);
-  const rentalTotal = i.baseRentalFee + extrasTotal;
+  const late = closed && r.lateReturnFee && !r.lateReturnFee.isWaived && r.lateReturnFee.status !== 'WAIVED' ? r.lateReturnFee : undefined;
+  const rentalTotal = i.baseRentalFee + extrasTotal + (late ? late.amount : 0);
   const rc = r.returnCharges && r.returnCharges.items.length ? r.returnCharges : undefined;
   const photos = rc ? rc.items.flatMap((it, n) => (it.photos || []).map((src, j) => ({ src, cap: `${n + 1}${(it.photos!.length > 1) ? String.fromCharCode(97 + j) : ''} · ${it.description || CHARGE_KIND_LABEL[it.kind]}` }))).slice(0, 6) : [];
 
@@ -91,9 +92,18 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     ...pickupMarks.map((m, n) => ({ m, n, kind: 'out' as const })),
     ...(closed || returnMarks.length ? returnMarks.map((m, n) => ({ m, n, kind: 'in' as const })) : []),
   ];
+  // Once the car is back, each new mark shows what was charged for it (charges linked to the mark number).
+  const markCost = damageCostByMark(rc);
+  const showCost = closed && returnMarks.length > 0;
+  const costCell = (kind: 'in' | 'out', n: number) => {
+    if (!showCost) return '';
+    if (kind === 'out') return `<td class="num dim">${L('Existing', 'موجود')}</td>`;
+    const amt = markCost.get(n + 1);
+    return amt != null ? `<td class="num cost">${esc(formatMoney(amt, rc!.currency))}</td>` : `<td class="num dim">${L('Not charged', 'غير محتسب')}</td>`;
+  };
   const damageRegister = damageRows.length ? `<table class="dmg">
-      <tr><th style="width:7%">${L('No.', 'رقم')}</th><th style="width:11%">${L('View', 'الجهة')}</th><th style="width:13%">${L('Damage', 'الضرر')}</th><th style="width:19%">${L('Part / location', 'الجزء / الموقع')}</th><th style="width:11%">${L('Size', 'الحجم')}</th><th style="width:10%">${L('Severity', 'الشدة')}</th><th>${L('Description', 'الوصف')}</th></tr>
-      ${damageRows.map(({ m, n, kind }) => `<tr><td><span class="dn ${kind}">${n + 1}</span>${kind === 'in' ? '<span class="dk">NEW</span>' : ''}</td><td>${esc(INSPECTION_LABEL[m.view])}<bdi class="ar">${VIEW_AR[m.view]}</bdi></td><td>${m.type ? `${esc(damageTypeLabel(m.type))}<bdi class="ar">${DAMAGE_TYPE_AR[m.type]}</bdi>` : '—'}</td><td>${esc(m.part || '—')}</td><td>${esc(m.size || '—')}</td><td>${m.severity ? `<b class="sv ${m.severity}">${esc(damageSeverityLabel(m.severity))}</b><bdi class="ar">${DAMAGE_SEVERITY_AR[m.severity]}</bdi>` : '—'}</td><td>${esc(m.note || '')}</td></tr>`).join('')}
+      <tr><th style="width:7%">${L('No.', 'رقم')}</th><th style="width:11%">${L('View', 'الجهة')}</th><th style="width:13%">${L('Damage', 'الضرر')}</th><th style="width:17%">${L('Part / location', 'الجزء / الموقع')}</th><th style="width:9%">${L('Size', 'الحجم')}</th><th style="width:10%">${L('Severity', 'الشدة')}</th><th>${L('Description', 'الوصف')}</th>${showCost ? `<th class="num" style="width:12%">${L('Damage cost', 'تكلفة الضرر')}</th>` : ''}</tr>
+      ${damageRows.map(({ m, n, kind }) => `<tr><td><span class="dn ${kind}">${n + 1}</span>${kind === 'in' ? '<span class="dk">NEW</span>' : ''}</td><td>${esc(INSPECTION_LABEL[m.view])}<bdi class="ar">${VIEW_AR[m.view]}</bdi></td><td>${m.type ? `${esc(damageTypeLabel(m.type))}<bdi class="ar">${DAMAGE_TYPE_AR[m.type]}</bdi>` : '—'}</td><td>${esc(m.part || '—')}</td><td>${esc(m.size || '—')}</td><td>${m.severity ? `<b class="sv ${m.severity}">${esc(damageSeverityLabel(m.severity))}</b><bdi class="ar">${DAMAGE_SEVERITY_AR[m.severity]}</bdi>` : '—'}</td><td>${esc(m.note || '')}</td>${costCell(kind, n)}</tr>`).join('')}
     </table>` : `<div class="nodmg">No damage recorded on the vehicle at check-out${closed ? ' or check-in' : ''}.<bdi class="ar">${closed ? 'لا توجد أضرار مسجّلة على المركبة عند التسليم أو الإرجاع.' : 'لا توجد أضرار مسجّلة على المركبة عند التسليم.'}</bdi></div>`;
   const sig = (img: string | undefined, role: string, name?: string, at?: string) => `
     <div class="sig"><div class="si">${img ? `<img src="${esc(img)}"/>` : ''}</div><div class="sl">${role}</div><div class="sm">${esc([name, at].filter(Boolean).join(' · ') || ' ')}</div></div>`;
@@ -180,6 +190,10 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .dmg .dn.out { border: 1.2px solid #0284c7; color: #0284c7; }
   .dmg .dn.in { background: #e11d48; color: #fff; border: 1.2px solid #e11d48; }
   .dmg .dk { font-size: 5.8pt; font-weight: 800; color: #e11d48; margin-left: 3px; letter-spacing: .04em; }
+  .dmg th.num, .dmg td.num { text-align: right; white-space: nowrap; }
+  .dmg td.cost { font-weight: 700; color: #b91c1c; font-variant-numeric: tabular-nums; }
+  .dmg td.dim { color: #94a3b8; }
+  .rcq { color: #64748b; font-size: 6.8pt; font-weight: 600; }
   .dmg .sv.major { color: #b91c1c; } .dmg .sv.moderate { color: #b45309; } .dmg .sv.minor { color: #334155; }
   .nodmg { margin-top: 5px; font-size: 7.4pt; color: #475569; border: 1px dashed #cbd5e1; padding: 3px 6px; }
   .views4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
@@ -410,6 +424,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
         <tr><th>${L('Description', 'البيان')}</th><th class="num">${L('Qty', 'الكمية')}</th><th class="num">${L('Rate', 'السعر')}</th><th class="num">${L('Amount', 'المبلغ')}</th></tr>
         <tr><td>${L('Vehicle rental', 'أجرة المركبة')}${r.sippCode ? ` (${esc(r.sippCode)})` : ''}</td><td class="num">${i.rentalDays} d</td><td class="num">${usd(i.rentalDays ? i.baseRentalFee / i.rentalDays : i.baseRentalFee)}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
         ${(r.extras || []).map(e => `<tr><td>${esc(e.name)}</td><td class="num">${i.rentalDays} d</td><td class="num">${e.isComplementary ? '—' : usd(e.dailyPrice)}</td><td class="num">${e.isComplementary ? 'Included' : usd(e.dailyPrice * i.rentalDays)}</td></tr>`).join('')}
+        ${late ? `<tr><td>${L('Late return', 'تأخير في الإرجاع')}${late.status === 'PENDING' ? ' (due)' : ''}</td><td class="num">${late.hoursLate} h</td><td class="num">—</td><td class="num">${usd(late.amount)}</td></tr>` : ''}
         <tr class="tot"><td colspan="3">${L('Total', 'الإجمالي')}</td><td class="num">${usd(rentalTotal)}</td></tr>
         <tr class="sub"><td colspan="3">${L('Protection', 'الحماية')}</td><td class="num">${protection.length ? esc(protection.map(e => e.name).join(', ')) : 'Standard cover · تغطية أساسية'}</td></tr>
         ${(r.securityDeposit || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${usd(r.securityDeposit || 0)}</td></tr>` : ''}
@@ -420,14 +435,15 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     ${sideNotes ? `<div class="card">${closed ? H('10', 'Notes', 'ملاحظات') : H('10', 'Check-out notes', 'ملاحظات التسليم')}${closed
       ? `<div class="nl"><span>${L('At check-out', 'عند التسليم')}</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>${L('At check-in', 'عند الإرجاع')}</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`
       : `<div class="notes">${esc(r.pickupNotes)}</div>`}</div>` : ''}
-    ${rc ? `<div class="card">${H('10', `Charges at check-in · ${esc(rc.documentNumber || '')}`, 'رسوم الإرجاع')}
-      <table>
-        ${rc.items.map(it => `<tr><td>${esc(CHARGE_KIND_LABEL[it.kind])} — ${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
-        <tr class="tot"><td>${L('Total', 'الإجمالي')}</td><td class="num">${esc(formatMoney(chargesTotal(rc.items), rc.currency))}</td></tr>
+    ${rc ? `<div class="card">${H('10', `Damages &amp; return charges · ${esc(rc.documentNumber || '')}`, 'الأضرار ورسوم الإرجاع')}
+      <table class="items">
+        <tr><th>${L('Charge', 'البند')}</th><th class="num">${L('Amount', 'المبلغ')}</th></tr>
+        ${rc.items.map(it => `<tr><td><b>${esc(CHARGE_KIND_LABEL[it.kind])}</b><bdi class="ar">${CHARGE_KIND_AR[it.kind]}</bdi>${it.markerNumber ? ` <span class="rcq">· mark #${it.markerNumber}</span>` : ''}<br>${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
+        <tr class="tot"><td>${L('Total return charges', 'إجمالي رسوم الإرجاع')}</td><td class="num">${esc(formatMoney(chargesTotal(rc.items), rc.currency))}</td></tr>
       </table>
       <div class="settle ${rc.settlement === 'paid' ? 'paid' : 'claim'}">${rc.settlement === 'paid'
-        ? `Paid${rc.paymentMethod ? ' by ' + esc(PAYMENT_METHOD_LABEL[rc.paymentMethod].toLowerCase()) : ''}${rc.paymentReference ? ` · ref ${esc(rc.paymentReference)}` : ''} — see invoice ${esc(rc.documentNumber || '')}`
-        : `Payment due${rc.dueDate ? ' by ' + esc(new Date(rc.dueDate + 'T12:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })) : ''} — see claim ${esc(rc.documentNumber || '')}`}</div>
+        ? `${L('Paid', 'مدفوع')}${rc.paymentMethod ? ' by ' + esc(PAYMENT_METHOD_LABEL[rc.paymentMethod].toLowerCase()) : ''}${rc.paymentReference ? ` · ref ${esc(rc.paymentReference)}` : ''} — invoice ${esc(rc.documentNumber || '')}`
+        : `${L('Payment due', 'مستحق الدفع')}${rc.dueDate ? ' by ' + esc(new Date(rc.dueDate + 'T12:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })) : ''} — claim ${esc(rc.documentNumber || '')}`}</div>
     </div>` : ''}
   </div>
 

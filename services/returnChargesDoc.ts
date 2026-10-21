@@ -9,6 +9,23 @@ export const CHARGE_KIND_LABEL: Record<ReturnChargeKind, string> = {
   other: 'Other charge',
 };
 
+export const CHARGE_KIND_AR: Record<ReturnChargeKind, string> = {
+  damage: 'أضرار المركبة',
+  ticket: 'مخالفة مرورية',
+  fuel: 'نقص الوقود',
+  cleaning: 'تنظيف',
+  late: 'تأخير في الإرجاع',
+  other: 'رسوم أخرى',
+};
+
+/** Damage charged against each numbered return mark (mark number → amount). */
+export const damageCostByMark = (c?: ReturnCharges) => {
+  const map = new Map<number, number>();
+  (c?.items || []).forEach(it => { if (it.kind === 'damage' && it.markerNumber) map.set(it.markerNumber, (map.get(it.markerNumber) || 0) + (it.amount || 0)); });
+  return map;
+};
+export const damageChargesTotal = (c?: ReturnCharges) => chargesTotal((c?.items || []).filter(i => i.kind === 'damage'));
+
 export const PAYMENT_METHOD_LABEL: Record<NonNullable<ReturnCharges['paymentMethod']>, string> = {
   cash: 'Cash',
   card: 'Card',

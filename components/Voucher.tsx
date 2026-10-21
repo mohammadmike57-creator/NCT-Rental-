@@ -7,8 +7,8 @@ import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
-import { sendCustomerEmail, recordActivity } from '../firebase/api';
-import { agreementHtmlToPdfBase64 } from '../services/agreementPdf';
+import { recordActivity } from '../firebase/api';
+import { emailAgreementDocuments } from '../services/agreementEmail';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
@@ -17,9 +17,9 @@ import { arOf } from '../services/uiArabic';
 import { Badge, Button, Plate, SectionLabel, inputCls as kitInputCls, textareaCls, labelCls } from './ui/Crm';
 import { DAMAGE_PARTS, DAMAGE_SEVERITIES, DAMAGE_SIZES, DAMAGE_TYPES, DAMAGE_TYPE_AR, DAMAGE_SEVERITY_AR, damageSeverityLabel, damageSummary, isDescribed } from '../services/damageMarks';
 import { buildAgreementHtml as buildAgreementDoc, PICKUP_TERMS_AR, RETURN_TERMS_AR } from '../services/agreementDoc';
-import { buildTerminationHtml, terminationFileName, terminationNumber } from '../services/terminationDoc';
+import { buildTerminationHtml, terminationNumber } from '../services/terminationDoc';
 import { printHtml } from '../services/printDocs';
-import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
+import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
 
 interface VoucherProps {
   /** Used to show the real photo of the car when the fleet has one. */
@@ -714,73 +714,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     if (!printHtml(buildReturnChargesHtml(localReservation, localReservation.returnCharges, companyDetails, URDRIVE_LOGO_B64))) alert('Allow pop-ups for this site to print.');
   };
 
-  // Emails the signed agreement (as a PDF) to the customer right after check-out / check-in.
+  // Emails the signed agreement (as a PDF) to the customer right after check-out; at check-in also the
+  // rental termination statement and any invoice / claim for damages and charges.
   const emailAgreement = async (r: Reservation, kind: 'checkout' | 'checkin') => {
     const to = r.customerEmail?.trim();
     if (!to) return;
     setEmailState({ status: 'sending', to });
-    const html = buildAgreementHtml(r);
-    let attachment: { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string };
-    try {
-      attachment = { fileName: `Rental-Agreement-${r.bookingId}.pdf`, contentType: 'application/pdf', base64: await agreementHtmlToPdfBase64(html) };
-    } catch {
-      attachment = { fileName: `Rental-Agreement-${r.bookingId}.html`, contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(html))) };
-    }
-    const attachments = [attachment];
-    if (kind === 'checkin') {
-      const termHtml = buildTermination(r);
-      try {
-        attachments.push({ fileName: terminationFileName(r.bookingId), contentType: 'application/pdf', base64: await agreementHtmlToPdfBase64(termHtml) });
-      } catch {
-        attachments.push({ fileName: terminationFileName(r.bookingId).replace(/\.pdf$/, '.html'), contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(termHtml))) });
-      }
-    }
     const rc = kind === 'checkin' && r.returnCharges && r.returnCharges.items.length > 0 ? r.returnCharges : undefined;
-    if (rc) {
-      const chargesHtml = buildReturnChargesHtml(r, rc, companyDetails, URDRIVE_LOGO_B64);
-      try {
-        attachments.push({ fileName: chargesFileName(rc, r.bookingId), contentType: 'application/pdf', base64: await agreementHtmlToPdfBase64(chargesHtml) });
-      } catch {
-        attachments.push({ fileName: chargesFileName(rc, r.bookingId).replace(/\.pdf$/, '.html'), contentType: 'text/html', base64: btoa(unescape(encodeURIComponent(chargesHtml))) });
-      }
-    }
-    const days = calculateDaysWithGrace(r.startDate, r.endDate);
-    const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
-    const isCheckout = kind === 'checkout';
-    const outcome = await sendCustomerEmail({
-      to,
-      subject: `${isCheckout ? 'Your rental agreement' : 'Rental agreement closed'} · Booking ${r.bookingId}`,
-      heading: isCheckout ? 'Your rental agreement' : 'Thank you — your vehicle has been returned',
-      intro: `Dear ${r.personName}, ${isCheckout
-        ? `thank you for choosing ${companyDetails.name}. Your signed rental agreement is attached to this email. Please keep it with you for the duration of the rental.`
-        : rc
-          ? `we have checked in your vehicle and your rental agreement is now closed. Attached are your final signed agreement, the rental termination statement ${terminationNumber(r.bookingId)} and ${rc.settlement === 'paid' ? `your paid invoice ${rc.documentNumber}` : `claim ${rc.documentNumber} for the charges found at return`}, including photos.`
-          : `we have checked in your vehicle and your rental agreement is now closed. Attached are your final signed agreement with the return inspection and the rental termination statement ${terminationNumber(r.bookingId)} confirming that nothing further is due.`}`,
-      rows: [
-        ['Booking', r.bookingId],
-        ['Vehicle', `${r.carModel || '—'}${r.licensePlate ? ` · ${r.licensePlate}` : ''}`],
-        ['Pick-up', fmt(r.startDate)],
-        ['Return', fmt(r.endDate)],
-        ['Duration', `${days} day${days === 1 ? '' : 's'}`],
-        ['Total', formatCurrency(r.amount || 0)],
-        ...(isCheckout ? [] : [['Kilometres', r.dropOffKmIn != null && r.pickupKmOut != null ? `${r.pickupKmOut} → ${r.dropOffKmIn}` : '—'] as [string, string]]),
-        ...(rc ? [
-          ...rc.items.map((it, i) => [`${i + 1}. ${CHARGE_KIND_LABEL[it.kind]}`, `${it.description} — ${formatMoney(it.amount, rc.currency)}`] as [string, string]),
-          [rc.settlement === 'paid' ? 'Charges paid' : 'Amount due', `${formatMoney(chargesTotal(rc.items), rc.currency)}${rc.settlement === 'claim' && rc.dueDate ? ` by ${new Date(rc.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}`] as [string, string],
-        ] : []),
-      ],
-      closing: isCheckout ? `We wish you a safe journey. If you need assistance during your rental, call us on ${companyDetails.phone}.`
-        : rc && rc.settlement === 'claim' ? `Please settle the amount due, quoting ${rc.documentNumber}. For questions about the charges, call us on ${companyDetails.phone}.`
-        : 'We hope to see you again soon.',
-      companyName: companyDetails.name,
-      companyAddress: companyDetails.address,
-      companyPhone: companyDetails.phone,
-      companyEmail: companyDetails.email,
-      attachments,
-      badge: isCheckout ? 'RENTAL AGREEMENT' : rc ? (rc.settlement === 'paid' ? 'PAID' : 'PAYMENT DUE') : 'AGREEMENT CLOSED',
-      tone: rc ? (rc.settlement === 'paid' ? 'success' : 'warning') : isCheckout ? 'info' : 'success',
-      highlightLabel: rc ? (rc.settlement === 'paid' ? `Invoice ${rc.documentNumber} · paid` : `Claim ${rc.documentNumber} · amount due`) : isCheckout ? 'Rental total' : undefined,
-      highlightValue: rc ? formatMoney(chargesTotal(rc.items), rc.currency) : isCheckout ? formatCurrency(r.amount || 0) : undefined,
+    const outcome = await emailAgreementDocuments({
+      reservation: r, kind, company: companyDetails,
+      agreementHtml: buildAgreementHtml(r),
+      terminationHtml: kind === 'checkin' ? buildTermination(r) : undefined,
     });
     if (outcome.ok) {
       setEmailState({ status: 'sent', to });
@@ -1678,15 +1622,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-[13px] font-semibold text-slate-900">
-                    {emailState.status === 'sending' ? 'Emailing the agreement…' :
-                     emailState.status === 'sent' ? (localReservation.dropOffCompleted ? 'Closing documents emailed' : 'Agreement emailed') :
+                    {emailState.status === 'sending' ? (localReservation.dropOffCompleted ? 'Emailing the termination statement…' : 'Emailing the agreement…') :
+                     emailState.status === 'sent' ? (localReservation.dropOffCompleted ? 'Termination statement emailed' : 'Agreement emailed') :
                      emailState.status === 'failed' ? 'Email not sent' :
-                     emailState.status === 'unconfigured' ? 'Email is not set up' : 'Email the agreement'}
+                     emailState.status === 'unconfigured' ? 'Email is not set up' : localReservation.dropOffCompleted ? 'Email the termination statement' : 'Email the agreement'}
                   </span>
                   <span className="block text-xs text-slate-500 truncate">
                     {emailState.status === 'unconfigured' ? 'An administrator can turn it on in Email Settings.' :
                      emailState.status === 'failed' ? (emailState.message || 'Please try again.') :
-                     `${localReservation.dropOffCompleted ? `Agreement + termination${localReservation.returnCharges?.items.length ? ` + ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'}` : ''}` : 'Agreement PDF'} to ${localReservation.customerEmail}`}
+                     `${localReservation.dropOffCompleted ? `Termination + agreement${localReservation.returnCharges?.items.length ? ` + ${localReservation.returnCharges.settlement === 'paid' ? 'invoice' : 'claim'}` : ''}` : 'Agreement PDF'} to ${localReservation.customerEmail}`}
                   </span>
                 </span>
                 {(emailState.status === 'failed' || emailState.status === 'idle' || emailState.status === 'unconfigured') && (

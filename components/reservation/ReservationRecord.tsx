@@ -443,7 +443,7 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
           <footer className="px-5 py-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
             {docActs.map(a => (
               <button key={a.key} onClick={a.onClick} className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-md border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                <span className="text-slate-400">{a.icon}</span>{a.label.replace('Print rental agreement', 'Print agreement').replace('Print termination statement', 'Termination').replace('Share booking', 'Share')}
+                <span className="text-slate-400">{a.icon}</span>{a.label.replace('Print rental agreement', 'Print agreement').replace('Print termination statement', 'Termination').replace('Email termination to customer', 'Email termination').replace('Share booking', 'Share')}
               </button>
             ))}
             {danger.map(a => (
