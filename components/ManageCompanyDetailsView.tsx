@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CompanyDetails } from '../types';
 import { TrashIcon, SaveIcon } from './icons';
 import { Page, PageHeader, Panel, Button, Field, inputCls, textareaCls } from './ui/Crm';
-import { DEFAULT_AGREEMENT_TERMS, DEFAULT_AGREEMENT_TERMS_AR, parseTerms, parseTermsAr } from '../services/agreementTerms';
+import { parseTerms } from '../services/agreementTerms';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
@@ -103,30 +103,14 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
         </Panel>
       </SettingsSection>
 
-      <SettingsSection title="Rental agreement terms" description={<>Printed as the <b>Terms and Conditions of Rental</b> page of every rental agreement. One clause per paragraph; the first line of each paragraph is its title. Leave empty to use the standard terms, and have the final text reviewed by your legal adviser.</>}>
-        <Panel footer={saveBar}>
-          <div className="p-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-slate-500">{formData.agreementTerms?.trim() ? `Custom terms · ${parseTerms(formData.agreementTerms).length} clauses` : `Using the standard terms · ${parseTerms('').length} clauses`}</p>
-              <div className="flex gap-2">
-                {!formData.agreementTerms?.trim() && <Button size="sm" onClick={() => handleChange('agreementTerms', DEFAULT_AGREEMENT_TERMS)}>Edit the standard terms</Button>}
-                {formData.agreementTerms?.trim() && <Button size="sm" variant="ghost" onClick={() => { if (window.confirm('Go back to the standard terms? Your custom text will be removed when you save.')) handleChange('agreementTerms', ''); }}>Reset to standard</Button>}
-              </div>
+      <SettingsSection title="Rental agreement terms" description={<>The Terms and Conditions printed on the back of every rental agreement are managed on their own page.</>}>
+        <Panel>
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-slate-900">Agreement Terms <span lang="ar" dir="rtl" className="ar-ui ml-1">شروط العقد</span></p>
+              <p className="text-xs text-slate-500">{formData.agreementTerms?.trim() || formData.agreementTermsAr?.trim() ? 'Customised terms' : 'Standard terms'} · {parseTerms(formData.agreementTerms).length} clauses in English and Arabic{formData.agreementTermsUpdatedAt ? ` · updated ${new Date(formData.agreementTermsUpdatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}</p>
             </div>
-            <textarea rows={14} value={formData.agreementTerms || ''} onChange={e => handleChange('agreementTerms', e.target.value)}
-              placeholder={DEFAULT_AGREEMENT_TERMS.slice(0, 400) + '…'} className={`${textareaCls} font-mono text-[12px] leading-relaxed`} />
-            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-[13px] font-semibold text-slate-900">Arabic terms · الشروط والأحكام بالعربية</p>
-                <p className="text-xs text-slate-500">{formData.agreementTermsAr?.trim() ? `Custom Arabic terms · ${parseTermsAr(formData.agreementTermsAr).length} clauses` : `Using the standard Arabic terms · ${parseTermsAr('').length} clauses`} · printed beside the English text</p>
-              </div>
-              <div className="flex gap-2">
-                {!formData.agreementTermsAr?.trim() && <Button size="sm" onClick={() => handleChange('agreementTermsAr', DEFAULT_AGREEMENT_TERMS_AR)}>Edit the Arabic terms</Button>}
-                {formData.agreementTermsAr?.trim() && <Button size="sm" variant="ghost" onClick={() => { if (window.confirm('Go back to the standard Arabic terms?')) handleChange('agreementTermsAr', ''); }}>Reset to standard</Button>}
-              </div>
-            </div>
-            <textarea rows={14} dir="rtl" lang="ar" value={formData.agreementTermsAr || ''} onChange={e => handleChange('agreementTermsAr', e.target.value)}
-              placeholder={DEFAULT_AGREEMENT_TERMS_AR.slice(0, 300) + '…'} className={`${textareaCls} text-[13px] leading-relaxed`} />
+            <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent('nct:navigate', { detail: 'Agreement Terms' }))}>Edit agreement terms</Button>
           </div>
         </Panel>
       </SettingsSection>

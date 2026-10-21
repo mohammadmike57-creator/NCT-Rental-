@@ -118,7 +118,7 @@ export const PERMISSION_AREAS: PermissionArea[] = [
       sec('web-sources', 'Website Sources', 'Booking sources and commissions', P.ACTION_ADMIN_MANAGE_SOURCES),
       sec('extras', 'Manage Extras', 'The extras catalogue and prices', P.ACTION_ADMIN_MANAGE_EXTRAS),
       sec('locations', 'Manage Locations', 'Branches and pickup points', P.ACTION_ADMIN_MANAGE_LOCATIONS),
-      sec('company', 'Company Details', 'Company profile, agreement terms and settings', P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, [
+      sec('company', 'Company Details & Agreement Terms', 'Company profile, settings and the agreement Terms and Conditions', P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, [
         p(P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, 'Bulk delete', 'Delete a whole month of reservations'),
       ]),
       sec('email', 'Email Settings', 'Outgoing mail server for agreements and invoices', P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS),

@@ -382,6 +382,8 @@ export interface CompanyDetails {
   agreementTerms?: string;
   /** Arabic terms printed beside the English ones; empty = standard Arabic terms. */
   agreementTermsAr?: string;
+  agreementTermsUpdatedAt?: string;
+  agreementTermsUpdatedBy?: string;
 }
 
 export type MonthlyReservations = Reservation[];

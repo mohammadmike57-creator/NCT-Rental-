@@ -30,6 +30,7 @@ const ExtrasManagerModal = React.lazy(() => import('./components/ExtrasManagerMo
 const UnlistedAgreementModal = React.lazy(() => import('./components/UnlistedAgreementModal'));
 const UnlistedAgreementsView = React.lazy(() => import('./components/UnlistedAgreementsView'));
 const ManageCompanyDetailsView = React.lazy(() => import('./components/ManageCompanyDetailsView'));
+const AgreementTermsView = React.lazy(() => import('./components/AgreementTermsView'));
 const ManageYearsView = React.lazy(() => import('./components/ManageYearsView'));
 const UserManagement = React.lazy(() => import('./components/UserManagement'));
 const AccountingDashboard = React.lazy(() => import('./components/AccountingDashboard'));
@@ -1795,6 +1796,21 @@ ${currentUser?.fullName}
             addNotification("Failed to save company details. Check connection.", 'error');
         }
     }} onDeleteAllReservations={handleDeleteAllReservations} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+    'Agreement Terms': { component: <AgreementTermsView details={companyDetails} currentUser={currentUser} onSave={async (newDetails) => {
+        setCompanyDetails(newDetails);
+        try {
+            await saveAllData(cleanUndefined({
+                reservations, sources, fleet, companyDetails: newDetails,
+                trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
+                availableExtras, franchisePayments, activityLog, aggregators, stopSales, years,
+            } as AllData));
+            recordActivity('AGREEMENT_TERMS_UPDATED', 'settings', 'Updated the rental agreement terms and conditions');
+            showConfirmation('Agreement terms saved. New agreements use the updated text.');
+        } catch (err) {
+            console.error('Failed to save agreement terms:', err);
+            addNotification('Failed to save the agreement terms. Check connection.', 'error');
+        }
+    }} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
     'Manage Years': { component: <ManageYearsView years={years} onAddYear={handleAddYear} onRemoveYear={handleRemoveYear} />, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
     'Activity Log': { component: <StaffActivityView users={users} />, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
     'Email Settings': { component: <EmailSettingsView defaultFromName={companyDetails.name} defaultTestTo={currentUser?.email} />, permission: UserPermission.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS },
@@ -1864,6 +1880,7 @@ ${currentUser?.fullName}
         { name: 'Manage Extras', icon: PlusCircleIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EXTRAS },
         { name: 'Manage Locations', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_LOCATIONS },
         { name: 'Company Details', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+        { name: 'Agreement Terms', icon: DocumentReportIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
         { name: 'Email Settings', icon: MailIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS },
         { name: 'Manage Years', icon: CogIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
         { name: 'Activity Log', icon: ClockIcon, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
