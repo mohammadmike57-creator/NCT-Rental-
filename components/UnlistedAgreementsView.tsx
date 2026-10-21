@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { AppData, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus, User } from '../types';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Toolbar, Badge, Button, Plate, EmptyState, Dialog, Field, Segmented, inputCls, selectCls, textareaCls, table } from './ui/Crm';
 import { matchScore } from '../services/agreementLink';
+import PaymentChoice from './PaymentChoice';
+import { BookingPayment, paymentUnset, sourceOf, sourceTakesBoth } from '../services/paymentType';
 import { DocumentReportIcon, PlusIcon, SearchIcon } from './icons';
 
 type Located = { res: Reservation; year: number; month: string };
@@ -51,6 +53,7 @@ export function missingDetails(r: Reservation, sources: RentalSource[]): { key: 
   if (!r.contactNumber?.trim()) out.push({ key: 'contactNumber', label: 'Phone', blocking: false });
   if (!r.locationName?.trim()) out.push({ key: 'locationName', label: 'Branch', blocking: true });
   if (!r.carModel?.trim()) out.push({ key: 'carModel', label: 'Vehicle', blocking: true });
+  if (paymentUnset(r, sources)) out.push({ key: 'paymentType', label: 'Prepaid / pay on arrival', blocking: true });
   return out;
 }
 
@@ -326,8 +329,8 @@ const ListReservationDialog: React.FC<{
     ? candidates.filter(c => [c.res.bookingId, c.res.personName, c.res.contactNumber, c.res.customerEmail].some(v => (v || '').toLowerCase().includes(lt)))
     : candidates.filter(c => c.score >= 25)).slice(0, 8);
   const linkTarget = candidates.find(c => c.res.id === linkId)?.res;
-  // Unlisted agreements store the source by name; normal reservations store its id.
-  const initialSource = sources.find(s => s.id === original.source)?.id || sources.find(s => s.name === original.source)?.id || '';
+  // Reservations store the source by name (older ones may hold its id).
+  const initialSource = sourceOf(original, sources)?.name || '';
   const [f, setF] = useState({
     bookingId: original.bookingId || '',
     source: initialSource,
@@ -342,6 +345,7 @@ const ListReservationDialog: React.FC<{
     locationName: original.locationName || '',
     amount: original.amount || 0,
     notes: original.notes || '',
+    paymentType: original.paymentType as BookingPayment | undefined,
   });
   const [busy, setBusy] = useState<null | 'draft' | 'list'>(null);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF(p => ({ ...p, [k]: v }));
@@ -358,6 +362,7 @@ const ListReservationDialog: React.FC<{
   if (!f.bookingId.trim()) errors.bookingId = 'Enter the booking reference';
   else if (otherIds.has(f.bookingId.trim().toLowerCase())) errors.bookingId = 'Another reservation already uses this reference';
   if (!f.source) errors.source = 'Choose where the booking came from';
+  if (sourceTakesBoth(sourceOf(f, sources)) && !f.paymentType) errors.paymentType = 'Choose prepaid or pay on arrival';
   if (!f.personName.trim()) errors.personName = 'Enter the customer name';
   if (!f.carModel.trim()) errors.carModel = 'Choose the vehicle';
   if (!f.startDate) errors.startDate = 'Enter the pickup date';
@@ -455,9 +460,9 @@ const ListReservationDialog: React.FC<{
                 <Err k="bookingId" />
               </Field>
               <Field label="Source" required>
-                <select className={selCls('source')} value={f.source} onChange={e => set('source', e.target.value)}>
+                <select className={selCls('source')} value={f.source} onChange={e => { set('source', e.target.value); if (!sourceTakesBoth(sourceOf({ source: e.target.value }, sources))) set('paymentType', undefined); }}>
                   <option value="">Select source</option>
-                  {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {sources.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
                 <Err k="source" />
               </Field>
@@ -465,6 +470,11 @@ const ListReservationDialog: React.FC<{
                 <input type="date" className={inputCls} value={f.bookingDate} onChange={e => set('bookingDate', e.target.value)} />
               </Field>
             </div>
+            {f.source && (
+              <div className="mt-3">
+                <PaymentChoice source={sourceOf(f, sources)} value={f.paymentType} onChange={v => set('paymentType', v)} error={errors.paymentType} />
+              </div>
+            )}
           </section>
 
           <section>

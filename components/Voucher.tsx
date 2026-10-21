@@ -551,7 +551,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       if (!localReservation.pickupRenterSignature) { alert("Renter signature is required."); return; }
       if (!localReservation.pickupAgentSignature) { alert("Agent signature is required."); return; }
 
-      const submittedVoucher = { ...localReservation, voucherSubmitted: true };
+      const submittedVoucher = {
+        ...localReservation, voucherSubmitted: true,
+        ...(bookingPayment(localReservation, sources) === PaymentType.PREPAID && !localReservation.paymentMethod ? { paymentMethod: 'prepaid' as const } : {}),
+      };
       onUpdate(submittedVoucher);
       setLocalReservation(submittedVoucher);
       setShowSuccessOverlay(true);
@@ -756,6 +759,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   // How this booking is paid: its own choice, or its source's type. Unset when the source takes both.
   const payType = bookingPayment(localReservation, sources);
   const payUnset = paymentUnset(localReservation, sources);
+  // Set when the reservation was added (or listed): the counter follows it instead of choosing again.
+  const [paymentFromBooking] = useState(() => !!reservation.paymentType);
   const isPayOnArrival = payType === PaymentType.PAY_ON_ARRIVAL;
 
   const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) => (
@@ -1236,7 +1241,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     );
     return (
       <div className="md:col-span-2 space-y-3">
-        {src && src.paymentType === PaymentType.BOTH && (
+        {src && src.paymentType === PaymentType.BOTH && paymentFromBooking && payType && (
+          <p className="text-xs text-slate-500">
+            Payment type set on the reservation{reservation.lastEditedBy || reservation.createdBy ? ` by ${reservation.lastEditedBy || reservation.createdBy}` : ''}: <b className="text-slate-800">{PAYMENT_LABEL[payType]}</b>. To change it, edit the reservation.
+          </p>
+        )}
+        {src && src.paymentType === PaymentType.BOTH && !paymentFromBooking && (
           <PaymentChoice source={src} value={localReservation.paymentType} arabic disabled={!isPickupEditable}
             onChange={v => setLocalReservation(prev => ({ ...prev, paymentType: v, ...(v === PaymentType.PREPAID && !prev.paymentMethod ? { paymentMethod: 'prepaid' } : {}), ...(v === PaymentType.PAY_ON_ARRIVAL && prev.paymentMethod === 'prepaid' ? { paymentMethod: undefined } : {}) }))}
             error={payUnset && !!visited['pickup:payment'] ? 'Choose how this booking is paid before handing over the car.' : undefined} />

@@ -20,7 +20,7 @@ export interface UnlistedBookingDraft {
   locationName: string;
   amount: number;
   notes: string;
-  /** Only for sources that take both prepaid and pay-on-arrival bookings. */
+  /** Required for sources that take both prepaid and pay-on-arrival bookings. */
   paymentType?: BookingPayment;
 }
 
@@ -74,6 +74,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
   if (!d.bookingId.trim()) errors.bookingId = 'A booking reference is required';
   else if (existingBookingIds.has(d.bookingId.trim())) errors.bookingId = 'This reference already exists — open it from the reservation list instead';
   if (!d.carModel.trim()) errors.carModel = 'Choose a vehicle or type the model';
+  if (sourceTakesBoth(sourceOf(d, sources)) && !d.paymentType) errors.paymentType = 'Choose prepaid or pay on arrival';
   if (!d.startDate) errors.startDate = 'Required';
   if (!d.endDate) errors.endDate = 'Required';
   else if (days === 0) errors.endDate = 'Return must be after pick-up';
@@ -148,7 +149,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
               </Field>
               {sourceOf(d, sources) && (
                 <div className="sm:col-span-2">
-                  <PaymentChoice source={sourceOf(d, sources)} value={d.paymentType} onChange={v => set('paymentType', v)} arabic />
+                  <PaymentChoice source={sourceOf(d, sources)} value={d.paymentType} onChange={v => set('paymentType', v)} error={err('paymentType')} arabic />
                 </div>
               )}
               <Field label="Pick-up" required error={err('startDate')}>

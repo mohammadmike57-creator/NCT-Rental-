@@ -16,7 +16,7 @@ const AGREEMENT_FIELDS: (keyof Reservation)[] = [
   'finalAmountCharged', 'pickupPaymentCollected',
 ];
 /** Copied only when the reservation does not already have a value. */
-const FILL_IF_EMPTY: (keyof Reservation)[] = ['customerEmail', 'contactNumber', 'securityDeposit', 'excess', 'locationName'];
+const FILL_IF_EMPTY: (keyof Reservation)[] = ['customerEmail', 'contactNumber', 'securityDeposit', 'excess', 'locationName', 'paymentType'];
 
 export function mergeAgreementInto(target: Reservation, agreement: Reservation, linkedBy?: string): Reservation {
   const merged: Reservation = { ...target };
