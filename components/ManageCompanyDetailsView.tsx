@@ -3,11 +3,14 @@ import { CompanyDetails } from '../types';
 import { TrashIcon, SaveIcon } from './icons';
 import { Page, PageHeader, Panel, Button, Field, inputCls, textareaCls } from './ui/Crm';
 import { parseTerms } from '../services/agreementTerms';
+import DataCleanupPanel, { CleanupSection } from './DataCleanupPanel';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
   onUpdate: (newDetails: CompanyDetails) => void;
-  onDeleteAllReservations: () => void;
+  onDeleteAllReservations?: () => void;
+  /** Data clean-up for administrators; hidden when not provided. */
+  cleanup?: { sections: CleanupSection[]; onClear: (keys: string[]) => Promise<void> };
 }
 
 /** Settings row: short description column on the left (lg), content on the right. */
@@ -24,7 +27,7 @@ const SettingsSection: React.FC<{ title: string; description: React.ReactNode; c
 const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
   details,
   onUpdate,
-  onDeleteAllReservations,
+  cleanup,
 }) => {
   const [formData, setFormData] = useState<CompanyDetails>(details);
 
@@ -115,27 +118,10 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
         </Panel>
       </SettingsSection>
 
-      <SettingsSection title="Danger zone" description="Irreversible actions. Use with care." danger>
-        <Panel className="border-rose-200">
-          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-slate-900">Delete all reservations</p>
-              <p className="text-[13px] text-slate-500">Permanently removes every reservation in the system. This cannot be undone.</p>
-            </div>
-            <Button
-              variant="danger"
-              onClick={() => {
-                if (window.confirm('Are you sure you want to delete ALL reservations? This action cannot be undone.')) {
-                  onDeleteAllReservations();
-                }
-              }}
-              icon={<TrashIcon className="w-4 h-4" />}
-              className="shrink-0"
-            >
-              Delete all reservations
-            </Button>
-          </div>
-        </Panel>
+      <SettingsSection title="Danger zone" description="Irreversible actions, for administrators only. A backup is always taken first." danger>
+        {cleanup ? <DataCleanupPanel sections={cleanup.sections} onClear={cleanup.onClear} /> : (
+          <Panel className="border-rose-200"><p className="p-4 text-[13px] text-slate-500">Only an administrator (staff &amp; permissions) can clear data.</p></Panel>
+        )}
       </SettingsSection>
     </Page>
   );

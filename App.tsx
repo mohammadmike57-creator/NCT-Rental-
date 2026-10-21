@@ -10,7 +10,7 @@ import Tabs from './components/Tabs';
 import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import Notifications from './components/Notifications';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData, fetchCurrentAccount, recordActivity } from './firebase/api';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData, fetchCurrentAccount, recordActivity, rememberServerState, clearDataSections } from './firebase/api';
 
 // Lazy load components
 const ReservationTable = React.lazy(() => import('./components/ReservationTable'));
@@ -311,6 +311,7 @@ export const App: React.FC = () => {
   
   const handleDataUpdate = (data: AllData) => {
       if (!data) return;
+      rememberServerState(data);
 
       console.log('🔄 DATA UPDATE STARTED - Initializing Reservation Engine');
 
@@ -561,6 +562,8 @@ export const App: React.FC = () => {
     setConfirmation(message);
   };
 
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const executeAutoSaveRef = useRef<(() => void) | null>(null);
   const executeAutoSave = useCallback(async () => {
     if (!isAuthenticated) return;
     setSaveStatus('saving');
@@ -579,18 +582,33 @@ export const App: React.FC = () => {
     try {
         const cleanData = cleanUndefined(allData);
         await saveAllData(cleanData);
+        ReservationSyncService.setLocalChanges(false);
         setSaveStatus('saved');
         setLastSaved(new Date().toLocaleTimeString());
     } catch (err) {
         console.error("Failed to auto-save data:", err);
         setSaveStatus('error');
-        addNotification("Auto-save failed. Please check your connection.", 'error');
+        addNotification("Changes not saved yet — retrying automatically. Check your connection.", 'error');
+        // Keep trying until the server has the changes, so nothing entered is lost.
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => executeAutoSaveRef.current?.(), 8000);
     } finally {
         ReservationSyncService.setSaving(false);
     }
   }, [
       isAuthenticated, reservations, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years, addNotification
   ]);
+
+  useEffect(() => { executeAutoSaveRef.current = executeAutoSave; }, [executeAutoSave]);
+
+  // Warn before closing the page while changes are still being saved.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === 'saving' || saveStatus === 'error') { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [saveStatus]);
 
   useEffect(() => {
     if (isLoading || isInitialDataLoad.current) {
@@ -609,6 +627,8 @@ export const App: React.FC = () => {
     }
     
     setSaveStatus('saving');
+    // Unsaved edits on screen: the 15-second refresh must not replace them before they are saved.
+    ReservationSyncService.setLocalChanges(true);
 
     timeoutRef.current = setTimeout(() => {
         console.log("Auto-saving data after 2 seconds of inactivity...");
@@ -1094,6 +1114,44 @@ export const App: React.FC = () => {
               handleSetSelectedYear(newYears[0]);
           }
       }
+  };
+
+  const cleanupSections = [
+    { key: 'reservations', label: 'Reservations & agreements', hint: 'All bookings, agreements (incl. unlisted), charges, extensions and late fees', count: allReservationsFlat.length, defaultOn: true },
+    { key: 'fleet', label: 'Fleet vehicles', hint: 'All cars, with their deposits, excess and photos', count: fleet.length, defaultOn: true },
+    { key: 'trafficTickets', label: 'Traffic tickets', hint: 'Fines recorded against rentals', count: trafficTickets.length, defaultOn: true },
+    { key: 'vehicleDamages', label: 'Vehicle damages', hint: 'Damage reports and repairs', count: vehicleDamages.length, defaultOn: true },
+    { key: 'invoices', label: 'Partner invoices', hint: 'Invoices generated for booking partners', count: invoices.length, defaultOn: true },
+    { key: 'expenses', label: 'Expenses', hint: 'Accounting expenses', count: expenses.length, defaultOn: true },
+    { key: 'franchisePayments', label: 'Franchise fee payments', hint: 'Recorded franchise payments', count: franchisePayments.length, defaultOn: true },
+    { key: 'messages', label: 'Internal messages', hint: 'Staff messages', count: messages.length, defaultOn: false },
+    { key: 'stopSales', label: 'OTA stop sales', hint: 'Channel stop-sale periods', count: stopSales.length, defaultOn: false },
+  ];
+
+  /** Administrator clean-up: downloads a full backup, clears the chosen sections on the server (which keeps its own backup), then reloads. */
+  const handleClearData = async (keys: string[]) => {
+    try {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      const backup = await fetchInitialData();
+      if (!backup) throw new Error('Could not read the current data for the backup.');
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      const blob = new Blob([JSON.stringify(backup, null, 1)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `nct-backup-${stamp}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+      const result = await clearDataSections(keys);
+      const fresh = await fetchInitialData();
+      if (fresh) handleDataUpdate(fresh);
+      setNewReservations([]);
+      recordActivity('DATA_CLEARED', 'settings', `Cleared ${result.cleared.join(', ')}`, undefined, `Server backup ${result.backupId}`);
+      showConfirmation(`Data cleared. Backup downloaded and kept on the server (${result.backupId}).`);
+    } catch (err: any) {
+      console.error('Clean-up failed', err);
+      addNotification(err?.response?.data?.error || 'Clean-up failed — nothing was removed. Please try again.', 'error');
+    }
   };
 
   // FINAL FIX: delete all reservations – fetches state, builds empty structure, and overwrites backend
@@ -1795,7 +1853,7 @@ ${currentUser?.fullName}
             console.error("Failed to save company details:", err);
             addNotification("Failed to save company details. Check connection.", 'error');
         }
-    }} onDeleteAllReservations={handleDeleteAllReservations} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+    }} cleanup={hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_USERS) ? { sections: cleanupSections, onClear: handleClearData } : undefined} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
     'Agreement Terms': { component: <AgreementTermsView details={companyDetails} currentUser={currentUser} onSave={async (newDetails) => {
         setCompanyDetails(newDetails);
         try {

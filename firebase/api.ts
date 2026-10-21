@@ -75,6 +75,7 @@ export const fetchInitialData = async (): Promise<AllData | null> => {
         Pragma: 'no-cache',
       }
     });
+    if (!serverState) rememberServerState(response.data);
     return response.data;
   } catch (error) {
     console.error('Failed to fetch initial data', error);
@@ -82,21 +83,104 @@ export const fetchInitialData = async (): Promise<AllData | null> => {
   }
 };
 
-export const saveAllData = async (data: Partial<AllData>): Promise<void> => {
-  const currentToken = localStorage.getItem('token');
-  try {
-    await axios.post(`${API_URL}/api/state`, data, {
-      headers: { Authorization: `Bearer ${currentToken}` }
+// ---------------------------------------------------------------------------
+// Saving. The server keeps one document with every section of the app's data. To make sure
+// staff working at the same time never overwrite each other, the app sends only what changed
+// since it last read the server: one operation per booking added, changed or deleted, and a
+// whole section only when that section changed. The server applies them in order on the latest
+// saved data.
+// ---------------------------------------------------------------------------
+
+type PatchOp =
+  | { op: 'upsertReservation'; year: string; month: string; reservation: Record<string, unknown> }
+  | { op: 'deleteReservation'; id: string }
+  | { op: 'set'; key: string; value: unknown };
+
+/** What this browser last read from (or successfully saved to) the server. */
+let serverState: Record<string, unknown> | null = null;
+const clone = <T,>(v: T): T => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
+/** Called when server data is applied on screen, so later saves are compared with what the user actually sees. */
+export const rememberServerState = (data: unknown) => { if (data && typeof data === 'object') serverState = clone(data as Record<string, unknown>); };
+
+type Located = { year: string; month: string; json: string; res: Record<string, unknown> };
+const indexReservations = (data: unknown): Map<string, Located> => {
+  const out = new Map<string, Located>();
+  if (!data || typeof data !== 'object') return out;
+  Object.entries(data as Record<string, Record<string, unknown[]>>).forEach(([year, months]) => {
+    Object.entries(months || {}).forEach(([month, list]) => {
+      (Array.isArray(list) ? list : []).forEach((res: any) => {
+        if (res && res.id) out.set(String(res.id), { year, month, json: JSON.stringify(res), res });
+      });
     });
-  } catch (error: any) {
-    console.error('Failed to save data:', error);
-    if (error.response) {
-      console.error('Response data:', error.response.data);
-      console.error('Response status:', error.response.status);
-    }
-    throw error;
-  }
+  });
+  return out;
 };
+
+const diffOps = (data: Partial<AllData>): PatchOp[] => {
+  const base = serverState || {};
+  const ops: PatchOp[] = [];
+  Object.entries(data).forEach(([key, value]) => {
+    if (value === undefined) return;
+    if (key === 'reservations') {
+      const before = indexReservations(base.reservations);
+      const after = indexReservations(value);
+      after.forEach((loc, id) => {
+        const prev = before.get(id);
+        if (!prev || prev.json !== loc.json || prev.year !== loc.year || prev.month !== loc.month) {
+          ops.push({ op: 'upsertReservation', year: loc.year, month: loc.month, reservation: loc.res });
+        }
+      });
+      // Only bookings this browser had and no longer has are deleted; bookings added by others meanwhile are untouched.
+      before.forEach((_, id) => { if (!after.has(id)) ops.push({ op: 'deleteReservation', id }); });
+    } else if (JSON.stringify(value) !== JSON.stringify(base[key])) {
+      ops.push({ op: 'set', key, value });
+    }
+  });
+  return ops;
+};
+
+let saveQueue: Promise<void> = Promise.resolve();
+
+const sendAll = async (data: Partial<AllData>) => {
+  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+  if (!serverState) await fetchInitialData(); // never diff against nothing
+  const ops = diffOps(data);
+  if (!ops.length) return;
+  try {
+    for (let i = 0; i < ops.length; i += 200) {
+      await axios.post(`${API_URL}/api/state/patch`, { ops: ops.slice(i, i + 200) }, { headers });
+    }
+  } catch (error: any) {
+    // Server not updated yet: fall back to the older whole-section save.
+    if (error?.response?.status === 404 || error?.response?.status === 405) {
+      await axios.post(`${API_URL}/api/state`, data, { headers });
+    } else {
+      throw error;
+    }
+  }
+  const next = { ...(serverState || {}) };
+  Object.entries(data).forEach(([k, v]) => { if (v !== undefined) next[k] = clone(v); });
+  serverState = next;
+};
+
+export const saveAllData = (data: Partial<AllData>): Promise<void> => {
+  // Saves run one after another so a later save never races an earlier one.
+  const run = saveQueue.then(() => sendAll(data));
+  saveQueue = run.catch(() => undefined);
+  return run.catch((error: any) => {
+    console.error('Failed to save data:', error);
+    if (error?.response) console.error('Response:', error.response.status, error.response.data);
+    throw error;
+  });
+};
+
+/** Administrator clean-up on the server (a full backup copy is kept there first). */
+export const clearDataSections = async (sections: string[]): Promise<{ backupId: string; cleared: string[] }> => {
+  const response = await axios.post(`${API_URL}/api/state/clear`, { sections }, { headers: authHeaders() });
+  serverState = null; // the app reloads its data next
+  return response.data;
+};
+
 export const registerUser = async (email: string, password: string) => { console.error('registerUser not implemented'); return null; };
 export const sendPasswordReset = async (email: string) => { console.error('sendPasswordReset not implemented'); return null; };
 
