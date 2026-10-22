@@ -3,6 +3,7 @@ import { TrafficTicket, TrafficTicketStatus, AppData, Reservation, User, UserPer
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, CancelIcon, ExportIcon, PaperAirplaneIcon, UploadIcon, DocumentTextIcon, ShareIcon } from './icons';
 import ConfirmationDialog from './ConfirmationDialog';
 import SecurityKeyModal from './SecurityKeyModal';
+import { brandFields, deliverCustomerEmail, supportLine } from '../services/emailBrand';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, Field, EmptyState, DetailList, SectionLabel, Dialog, Drawer, inputCls, selectCls, textareaCls, table } from './ui/Crm';
 
 interface TrafficTicketsProps {
@@ -305,17 +306,35 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
   };
 
   const handleSendEmail = (type: 'claim' | 'receipt', ticket: TrafficTicket, renter: Reservation) => {
-    const signature = `\n\nKind regards,\n\n${companyDetails.name}\n${companyDetails.address}\nTel: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
-
-    const subject = type === 'claim'
+    if (!renter.customerEmail) { alert('This booking has no customer email address.'); return; }
+    const claim = type === 'claim';
+    const vehicle = `${renter.carModel || '—'}${renter.licensePlate ? ` · ${renter.licensePlate}` : ''}`;
+    void deliverCustomerEmail({
+      to: renter.customerEmail,
+      subject: claim
         ? `Traffic Violation Notice – Booking ${renter.bookingId} | ${companyDetails.name}`
-        : `Payment Received: Traffic Violation – Booking ${renter.bookingId} | ${companyDetails.name}`;
-    
-    const body = type === 'claim'
-        ? `Dear ${renter.personName},\n\nWe have been notified by the authorities of a traffic violation recorded during your rental of the ${renter.carModel}${renter.licensePlate ? ` (${renter.licensePlate})` : ''}, booking reference ${renter.bookingId}.\n\nViolation details\n- Date: ${ticket.ticketDate}\n- Description: ${ticket.details}\n- Amount due: ${money(ticket.amount)} JOD\n\nIn accordance with the terms of your rental agreement, traffic violations incurred during the rental period are the responsibility of the renter. We kindly ask you to settle this amount at your earliest convenience. Please contact us on ${companyDetails.phone} to arrange payment, quoting your booking reference.${signature}`
-        : `Dear ${renter.personName},\n\nThank you for your payment. We confirm receipt of the amount below for the traffic violation recorded during your rental, booking reference ${renter.bookingId}.\n\nPayment details\n- Violation date: ${ticket.ticketDate}\n- Amount paid: ${money(ticket.amount)} JOD\n- Status: Settled\n\nNo further action is required on your part. Thank you for your prompt attention to this matter.${signature}`;
-
-    window.location.href = `mailto:${renter.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        : `Payment Confirmation – Traffic Violation – Booking ${renter.bookingId} | ${companyDetails.name}`,
+      heading: claim ? 'Traffic violation notice' : 'Traffic violation payment received',
+      intro: claim
+        ? `Dear ${renter.personName},\n\nWe have been notified by the relevant authorities of a traffic violation recorded against the vehicle you rented from ${companyDetails.name} under booking reference ${renter.bookingId}. The details of the violation are summarised below.\n\nIn accordance with the terms and conditions of your rental agreement, traffic violations, tolls and fines incurred during the rental period are the responsibility of the renter.`
+        : `Dear ${renter.personName},\n\nThank you for your payment. We confirm receipt of the amount below in settlement of the traffic violation recorded during your rental under booking reference ${renter.bookingId}.`,
+      rows: [
+        ['Booking reference', renter.bookingId],
+        ['Vehicle', vehicle],
+        ['Violation date', ticket.ticketDate],
+        ...(claim ? [['Description', ticket.details || '—'] as [string, string]] : []),
+        [claim ? 'Amount due' : 'Amount paid', `${money(ticket.amount)} JOD`],
+        ['Status', claim ? 'Payment required' : 'Settled'],
+      ],
+      closing: claim
+        ? `We kindly request settlement of this amount at your earliest convenience. To arrange payment, or should you have any questions regarding this notice, please contact our customer support team on ${supportLine(companyDetails)}, quoting your booking reference.`
+        : `This matter is now closed and no further action is required on your part. Thank you for your prompt attention.`,
+      ...brandFields(companyDetails),
+      badge: claim ? 'PAYMENT REQUIRED' : 'SETTLED',
+      tone: claim ? 'warning' : 'success',
+      highlightLabel: claim ? 'Amount due' : 'Amount paid',
+      highlightValue: `${money(ticket.amount)} JOD`,
+    }, companyDetails);
   };
 
 

@@ -5,6 +5,7 @@ import { agreementHtmlToPdfBase64 } from './agreementPdf';
 import { terminationFileName, terminationNumber } from './terminationDoc';
 import { buildReturnChargesHtml, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from './returnChargesDoc';
 import { rentalDaysOf } from './rentalDays';
+import { brandFields, supportLine } from './emailBrand';
 
 type Attachment = { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string };
 
@@ -52,31 +53,31 @@ export async function emailAgreementDocuments({ reservation: r, kind, company, a
   const day = (iso?: string) => (iso ? new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '');
   const rcTotal = rc ? formatMoney(chargesTotal(rc.items), rc.currency) : '';
   const brand = company.name;
-  const contact = company.phone && company.email ? `${company.phone} or at ${company.email}` : company.phone || company.email || 'our office';
-  const finesNote = 'Please note that any traffic violations, tolls or parking fines incurred during the rental period remain the renter\'s responsibility, including any notified to us after the return date.';
+  const contact = supportLine(company);
+  const finesNote = 'Please note that traffic violations, tolls and parking fines incurred during the rental period remain the responsibility of the renter, including any notified to us by the authorities after the vehicle has been returned.';
 
   const intro = isCheckout
-    ? `Dear ${r.personName},\n\nThank you for choosing ${brand}. We are pleased to confirm that your vehicle has been handed over and your rental agreement is now in effect.\n\nYour signed rental agreement is attached for your records. It sets out the condition of the vehicle at pick-up, the agreed charges, and the terms and conditions of your rental. We recommend keeping a copy with you throughout the rental period.`
+    ? `Dear ${r.personName},\n\nThank you for choosing ${brand}. Your vehicle has been handed over and your rental agreement is now in effect.\n\nPlease find your signed rental agreement attached. It records the condition of the vehicle at pick-up, the agreed charges and the terms and conditions of your rental. We recommend keeping a copy with you for the duration of your rental.`
     : !rc
-      ? `Dear ${r.personName},\n\nThank you for returning your vehicle. We confirm that it has been inspected and that your rental agreement ${r.bookingId} is now closed.\n\nPlease find attached your rental termination statement ${trm}, which sets out the final account${rentalDue > 0 ? ' and the balance that remains payable' : ' and confirms that no further amount is due'}, together with your final signed rental agreement including the return inspection.`
+      ? `Dear ${r.personName},\n\nThank you for returning your vehicle. Following our return inspection, we confirm that your rental agreement ${r.bookingId} has now been closed.\n\nAttached you will find your rental termination statement ${trm}, which sets out the final account of your rental${rentalDue > 0 ? ' and the balance that remains payable' : ' and confirms that no further amount is due'}, together with your final signed rental agreement including the return inspection.`
       : rc.settlement === 'paid'
-        ? `Dear ${r.personName},\n\nThank you for returning your vehicle. Following the return inspection, your rental agreement ${r.bookingId} is now closed.\n\nThe additional charges identified at return, listed below, were settled at the counter. For your records, please find attached your paid invoice ${rc.documentNumber}, the rental termination statement ${trm} and your final signed rental agreement.`
-        : `Dear ${r.personName},\n\nThank you for returning your vehicle. Following the return inspection, your rental agreement ${r.bookingId} is now closed.\n\nDuring the inspection, the items listed below were identified and have been charged in accordance with the terms of your rental agreement. The attached claim ${rc.documentNumber} describes each item in full, with supporting photographs. The rental termination statement ${trm} and your final signed rental agreement are also attached.`;
+        ? `Dear ${r.personName},\n\nThank you for returning your vehicle. Following our return inspection, we confirm that your rental agreement ${r.bookingId} has now been closed.\n\nThe additional charges identified at return, summarised below, were settled at the counter. For your records, we attach your paid invoice ${rc.documentNumber}, your rental termination statement ${trm} and your final signed rental agreement.`
+        : `Dear ${r.personName},\n\nThank you for returning your vehicle. Following our return inspection, we confirm that your rental agreement ${r.bookingId} has now been closed.\n\nDuring the inspection, the items summarised below were identified and have been charged in accordance with the terms and conditions of your rental agreement. The attached claim ${rc.documentNumber} details each item, with supporting photographs where applicable. Your rental termination statement ${trm} and final signed rental agreement are also attached.`;
 
   const closing = isCheckout
-    ? `Please return the vehicle${r.locationName ? ` to ${r.locationName}` : ''} by ${fmt(r.endDate)} with the same fuel level as at pick-up. Should you need any assistance during your rental, including an extension, please contact us on ${contact}, quoting your booking reference.\n\nWe wish you a safe and pleasant journey.`
+    ? `Please return the vehicle${r.locationName ? ` to ${r.locationName}` : ''} by ${fmt(r.endDate)}, with the same fuel level as at pick-up. Should you wish to extend your rental or require any assistance during your journey, please contact our customer support team on ${contact}, quoting your booking reference ${r.bookingId}.\n\nWe wish you a safe and pleasant journey.`
     : rc && rc.settlement === 'claim'
-      ? `We kindly ask you to arrange payment of ${rcTotal}${rc.dueDate ? ` by ${day(rc.dueDate)}` : ''}, quoting reference ${rc.documentNumber}. If you have any questions about these charges, please contact us on ${contact}.\n\n${finesNote}`
-      : `${rc ? 'No further payment is required. ' : ''}${finesNote}\n\nThank you for choosing ${brand}. We look forward to welcoming you again.`;
+      ? `We kindly request payment of ${rcTotal}${rc.dueDate ? ` by ${day(rc.dueDate)}` : ''}, quoting reference ${rc.documentNumber}. Should you have any questions regarding these charges, our customer support team will be pleased to assist you on ${contact}.\n\n${finesNote}`
+      : `${rc ? 'No further payment is required. ' : rentalDue > 0 ? `We kindly request settlement of the outstanding balance of ${usd(rentalDue)} at your earliest convenience, quoting your booking reference ${r.bookingId}. ` : ''}${finesNote}\n\nThank you for choosing ${brand}. We look forward to welcoming you again.`;
 
   return sendCustomerEmail({
     to,
     subject: isCheckout
       ? `Your Rental Agreement – Booking ${r.bookingId} | ${brand}`
       : rc && rc.settlement === 'claim'
-        ? `Rental Closed – Charges Due (${rc.documentNumber}) – Booking ${r.bookingId} | ${brand}`
-        : `Rental Closed – Termination Statement ${trm} – Booking ${r.bookingId} | ${brand}`,
-    heading: isCheckout ? 'Your rental agreement' : rc && rc.settlement === 'claim' ? 'Your rental is complete: charges due' : 'Your rental is complete',
+        ? `Payment Required – Return Charges ${rc.documentNumber} – Booking ${r.bookingId} | ${brand}`
+        : `Your Rental is Complete – Termination Statement ${trm} – Booking ${r.bookingId} | ${brand}`,
+    heading: isCheckout ? 'Your rental has started' : rc && rc.settlement === 'claim' ? 'Your rental is complete – payment required' : 'Your rental is complete',
     intro,
     rows: [
       ['Booking reference', r.bookingId],
@@ -97,10 +98,7 @@ export async function emailAgreementDocuments({ reservation: r, kind, company, a
       ] : []),
     ],
     closing,
-    companyName: company.name,
-    companyAddress: company.address,
-    companyPhone: company.phone,
-    companyEmail: company.email,
+    ...brandFields(company),
     attachments,
     badge: isCheckout ? 'RENTAL AGREEMENT' : rc ? (rc.settlement === 'paid' ? 'TERMINATED · PAID' : 'TERMINATED · PAYMENT DUE') : 'RENTAL TERMINATED',
     tone: rc ? (rc.settlement === 'paid' ? 'success' : 'warning') : isCheckout ? 'info' : 'success',

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Reservation, ExtensionInfo, ReservationExtra, TrafficTicket, TrafficTicketStatus, CompanyDetails } from '../types';
 import { CloseIcon, ShieldExclamationIcon } from './icons';
 import { sendCustomerEmail } from '../firebase/api';
+import { brandFields, supportLine } from '../services/emailBrand';
 import { Panel, SectionLabel, Badge, Button, DetailList, inputCls } from './ui/Crm';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -96,7 +97,7 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
       to: customerEmail.trim(),
       subject: `Rental Extension Confirmed – Booking ${reservation.bookingId} | ${companyDetails.name}`,
       heading: 'Your rental extension is confirmed',
-      intro: `Dear ${reservation.personName},\n\nWe are pleased to confirm that your rental of the ${reservation.carModel}${reservation.licensePlate ? ` (${reservation.licensePlate})` : ''} has been extended. Your updated rental details are shown below.`,
+      intro: `Dear ${reservation.personName},\n\nThank you for choosing to continue your rental with ${companyDetails.name}. We are pleased to confirm that your rental of the ${reservation.carModel}${reservation.licensePlate ? ` (${reservation.licensePlate})` : ''} has been extended. Your updated rental details are summarised below.`,
       rows: [
         ['Booking reference', reservation.bookingId],
         ['Previous return', fmtDate(currentEndMs)],
@@ -108,11 +109,8 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
         ['New rental total', money(newTotal)],
         ['Payment', payNow ? 'Paid at the counter' : 'Payable on return of the vehicle'],
       ],
-      closing: `${payNow ? 'The extension has been paid in full.' : `The extension amount of ${money(extensionCost)} will be payable when the vehicle is returned.`} Please return the vehicle by ${fmtDate(newEndMs)} to avoid late-return charges.\n\nIf any of the details above are incorrect, or if you need further assistance, please contact us on ${[companyDetails.phone, companyDetails.email].filter(Boolean).join(' or ')}.`,
-      companyName: companyDetails.name,
-      companyAddress: companyDetails.address,
-      companyPhone: companyDetails.phone,
-      companyEmail: companyDetails.email,
+      closing: `${payNow ? 'The extension has been paid in full.' : `The extension amount of ${money(extensionCost)} will be payable when the vehicle is returned.`} Please return the vehicle by ${fmtDate(newEndMs)}, as late returns may incur additional charges in accordance with your rental agreement. All other terms and conditions of your rental agreement remain unchanged.\n\nShould any of the details above be incorrect, or should you require further assistance, please contact our customer support team on ${supportLine(companyDetails)}, quoting your booking reference.\n\nWe wish you a safe and pleasant continuation of your journey.`,
+      ...brandFields(companyDetails),
       badge: 'RENTAL EXTENDED',
       tone: payNow ? 'success' : 'warning',
       highlightLabel: payNow ? 'Extension paid' : 'Payable on return',

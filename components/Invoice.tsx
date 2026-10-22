@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppData, Aggregator, CompanyDetails, InvoiceData, InvoiceLine, PaymentType, RentalSource, Reservation, ReservationStatus, YearData } from '../types';
 import { MONTHS, URDRIVE_LOGO_B64 } from '../constants';
 import { sendCustomerEmail, recordActivity } from '../firebase/api';
+import { brandFields, supportLine } from '../services/emailBrand';
 import { downloadPdf, htmlToPdfBase64 } from '../services/agreementPdf';
 import { printHtml } from '../services/printDocs';
 import {
@@ -454,7 +455,7 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
         to,
         subject: `${st === 'paid' ? 'Paid Invoice' : 'Invoice'} ${invoice.invoiceNumber} – ${company.name}`,
         heading: st === 'paid' ? `Invoice ${invoice.invoiceNumber} — paid` : `Invoice ${invoice.invoiceNumber}`,
-        intro: `Dear ${invoice.billToName} Accounts Team,\n\nPlease find attached invoice ${invoice.invoiceNumber} for ${linesOf(invoice).length} booking${linesOf(invoice).length === 1 ? '' : 's'} with rental start dates between ${fmtDay(invoice.startDate)} and ${fmtDay(invoice.endDate)}. A summary is provided below, and each booking is itemised on the attached invoice.`,
+        intro: `Dear ${invoice.billToName} Accounts Team,\n\nThank you for your continued partnership with ${company.name}. Please find attached invoice ${invoice.invoiceNumber} for ${linesOf(invoice).length} booking${linesOf(invoice).length === 1 ? '' : 's'} with rental start dates between ${fmtDay(invoice.startDate)} and ${fmtDay(invoice.endDate)}. A summary is provided below, and each booking is itemised on the attached invoice.`,
         rows: [
           ['Invoice number', invoice.invoiceNumber],
           ['Issue date', fmtDay(invoice.generatedAt)],
@@ -465,8 +466,8 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
           ...((invoice.taxMode ?? 'included') !== 'none' ? [[`VAT ${Math.round((invoice.taxRate ?? 0.16) * 100)}%`, money(invoice.totalTax, cur)] as [string, string]] : []),
           ['Payment terms', TERMS_LABEL[invoice.terms || 'receipt']],
         ],
-        closing: st === 'paid' ? `This invoice has been settled in full. Thank you for your prompt payment and your continued partnership with ${company.name}.` : `We kindly request payment of the amount due${invoice.dueDate ? ` by ${fmtDay(invoice.dueDate)}` : ''}, quoting invoice number ${invoice.invoiceNumber}. Payment details are provided on the invoice.\n\nShould you have any questions regarding this invoice, please contact us${company.email ? ` at ${company.email}` : ''}${company.phone ? ` or on ${company.phone}` : ''}. We appreciate your continued partnership.`,
-        companyName: company.name, companyAddress: company.address, companyPhone: company.phone, companyEmail: company.email,
+        closing: st === 'paid' ? `We confirm that this invoice has been settled in full and no further payment is required. Thank you for your prompt payment.\n\nShould you have any questions, please contact us on ${supportLine(company)}.` : `We kindly request payment of the amount due${invoice.dueDate ? ` by ${fmtDay(invoice.dueDate)}` : ''}, quoting invoice number ${invoice.invoiceNumber} as the payment reference. Bank and payment details are provided on the invoice.\n\nShould you have any questions regarding this invoice, or require any supporting documentation, please contact us on ${supportLine(company)}.`,
+        ...brandFields(company),
         attachments: [{ fileName, contentType: 'application/pdf', base64 }],
         badge: st === 'paid' ? 'PAID' : st === 'overdue' ? 'OVERDUE' : 'INVOICE',
         tone: st === 'paid' ? 'success' : st === 'overdue' ? 'warning' : 'info',

@@ -53,7 +53,7 @@ public class MailSettingsController {
             email.send(new CustomerEmailRequest(to, "Test email from your rental system",
                 "Outgoing email works", "This is a test message sent from the rental system's email settings. Rental agreements, termination statements, claims and invoices will be sent to customers the same way.",
                 List.of(List.of("Sent by", auth.getName())), "No action is needed.", null, null, null, null, null, null,
-                "TEST", "success", null, null));
+                "TEST", "success", null, null, null, null, null, null));
             activity.record(auth.getName(), "EMAIL_TEST_SENT", "email", "Test email sent to " + to, null, null);
             return ResponseEntity.ok(Map.of("sent", true));
         } catch (CustomerEmailService.EmailException e) {

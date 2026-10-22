@@ -22,7 +22,11 @@ public record CustomerEmailRequest(
         String badge,                 // short status pill under the heading, e.g. "PAID"
         String tone,                  // success | warning | info (badge and highlight colour)
         String highlightLabel,        // optional large figure, e.g. "Amount due"
-        String highlightValue
+        String highlightValue,
+        String companyWebsite,
+        String supportEmail,          // "Customer support" box; also the reply-to address when settings name none
+        String supportPhone,
+        String supportHours
 ) {
     public record Attachment(String fileName, String contentType, String base64) {}
 }

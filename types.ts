@@ -382,6 +382,11 @@ export interface CompanyDetails {
   taxNumber: string;
   requirePaymentApproval?: boolean;
   website?: string;
+  /** Customer support contacts shown in every customer email; empty = the main phone and email. */
+  supportEmail?: string;
+  supportPhone?: string;
+  /** e.g. "Daily, 8:00 AM – 10:00 PM". */
+  supportHours?: string;
   /** Terms and conditions printed on page 2 of the rental agreement. Empty = standard template. */
   agreementTerms?: string;
   /** Arabic terms printed beside the English ones; empty = standard Arabic terms. */

@@ -5,6 +5,7 @@ import { Reservation, CompanyDetails, RentalSource, PaymentType } from '../types
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { MailIcon, PhoneIcon, UserIcon, CarIcon, CalendarIcon, PdfIcon } from './icons';
 import { Button } from './ui/Crm';
+import { brandFields, deliverCustomerEmail, supportLine } from '../services/emailBrand';
 import jsPDF from 'jspdf';
 
 // Forward declaration for html2canvas from CDN
@@ -106,13 +107,31 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
             alert("Customer email is not available for this reservation.");
             return;
         }
-        const signature = `\n\nKind regards,\n\n${companyDetails.name}\n${companyDetails.address}\nTel: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
-
         const period = (d: string) => new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        const subject = `Payment Receipt – Booking ${reservation.bookingId} | ${companyDetails.name}`;
-        const body = `Dear ${reservation.personName},\n\nThank you for your payment. Please find your receipt details below for your records.\n\nReceipt details\n- Receipt no.: RCPT-${reservation.bookingId}\n- Booking reference: ${reservation.bookingId}\n- Vehicle: ${reservation.carModel}\n- Rental period: ${period(reservation.startDate)} to ${period(reservation.endDate)}\n- Total charges: ${formatCurrency(totalCharges)}\n- Amount paid: ${formatCurrency(amountPaid)}\n- Balance due: ${formatCurrency(balanceDue)}\n\nThank you for choosing ${companyDetails.name}. Should you have any questions about this receipt, please do not hesitate to contact us.${signature}`;
-
-        window.location.href = `mailto:${reservation.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        const settled = balanceDue <= 0;
+        void deliverCustomerEmail({
+            to: reservation.customerEmail,
+            subject: `Payment Receipt RCPT-${reservation.bookingId} – Booking ${reservation.bookingId} | ${companyDetails.name}`,
+            heading: 'Thank you for your payment',
+            intro: `Dear ${reservation.personName},\n\nThank you for your payment. We confirm receipt of the amount below for your rental with ${companyDetails.name}. Please retain this email as your receipt.`,
+            rows: [
+                ['Receipt number', `RCPT-${reservation.bookingId}`],
+                ['Booking reference', reservation.bookingId],
+                ['Vehicle', `${reservation.carModel || '—'}${reservation.licensePlate ? ` · ${reservation.licensePlate}` : ''}`],
+                ['Rental period', `${period(reservation.startDate)} – ${period(reservation.endDate)}`],
+                ['Total charges', formatCurrency(totalCharges)],
+                ['Amount paid', formatCurrency(amountPaid)],
+                ['Balance due', formatCurrency(balanceDue)],
+            ],
+            closing: settled
+                ? `Your account for this booking is fully settled and no further payment is required.\n\nThank you for choosing ${companyDetails.name}. We look forward to serving you again.`
+                : `A balance of ${formatCurrency(balanceDue)} remains outstanding on this booking. We kindly request settlement at your earliest convenience, quoting your booking reference.\n\nShould you have any questions regarding this receipt, please contact our customer support team on ${supportLine(companyDetails)}.`,
+            ...brandFields(companyDetails),
+            badge: settled ? 'PAID IN FULL' : 'PAYMENT RECEIVED',
+            tone: settled ? 'success' : 'info',
+            highlightLabel: 'Amount paid',
+            highlightValue: formatCurrency(amountPaid),
+        }, companyDetails);
     };
 
 

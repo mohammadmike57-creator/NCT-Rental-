@@ -321,6 +321,11 @@ export interface CustomerEmailPayload {
   companyAddress?: string;
   companyPhone?: string;
   companyEmail?: string;
+  companyWebsite?: string;
+  /** Shown in the "Customer support" box; replies go here unless email settings name a reply-to address. */
+  supportEmail?: string;
+  supportPhone?: string;
+  supportHours?: string;
   replyTo?: string;
   attachments?: { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string }[];
   badge?: string;

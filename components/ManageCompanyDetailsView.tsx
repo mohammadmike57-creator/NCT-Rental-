@@ -89,6 +89,16 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
         </Panel>
       </SettingsSection>
 
+      <SettingsSection title="Customer support" description="Shown in a support box in every email sent to customers, and customer replies go to the support email. Leave empty to use the contact phone and email above.">
+        <Panel footer={saveBar}>
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {field('Support email', 'supportEmail', { type: 'email', placeholder: formData.email || 'support@yourcompany.com' })}
+            {field('Support phone', 'supportPhone', { type: 'tel', placeholder: formData.phone || '+962 …' })}
+            {field('Support hours', 'supportHours', { full: true, placeholder: 'e.g. Daily, 8:00 AM – 10:00 PM' })}
+          </div>
+        </Panel>
+      </SettingsSection>
+
       <SettingsSection title="Payments" description="Controls for how pay-on-arrival reservations are finalised.">
         <Panel footer={saveBar}>
           <label htmlFor="requirePaymentApproval" className="flex items-start gap-3 p-4 hover:bg-slate-50 cursor-pointer">

@@ -3,6 +3,7 @@ import { VehicleDamage, VehicleDamageStatus, AppData, Reservation, User, UserPer
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, CancelIcon, PaperAirplaneIcon, ShieldExclamationIcon, UploadIcon, DocumentTextIcon, ShareIcon, ExportIcon } from './icons';
 import ConfirmationDialog from './ConfirmationDialog';
 import SecurityKeyModal from './SecurityKeyModal';
+import { brandFields, deliverCustomerEmail, supportLine } from '../services/emailBrand';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, Field, EmptyState, DetailList, SectionLabel, Dialog, Drawer, inputCls, selectCls, textareaCls, labelCls, table } from './ui/Crm';
 import { USD_TO_JOD_RATE } from '../constants';
 
@@ -337,20 +338,37 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
   };
 
   const handleSendEmail = (type: 'claim' | 'receipt', damage: VehicleDamage, renter: Reservation) => {
-    const signature = `\n\nKind regards,\n\n${companyDetails.name}\n${companyDetails.address}\nTel: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
+    if (!renter.customerEmail) { alert('This booking has no customer email address.'); return; }
     const claimableAmount = (damage.policeReportAmount && damage.policeReportAmount > 0)
                             ? damage.policeReportAmount
                             : damage.amount;
-
-    const subject = type === 'claim'
+    const claim = type === 'claim';
+    void deliverCustomerEmail({
+      to: renter.customerEmail,
+      subject: claim
         ? `Vehicle Damage Claim – Booking ${renter.bookingId} | ${companyDetails.name}`
-        : `Payment Received: Vehicle Damage Claim – Booking ${renter.bookingId} | ${companyDetails.name}`;
-    
-    const body = type === 'claim'
-        ? `Dear ${renter.personName},\n\nWe are writing regarding damage to the ${renter.carModel}${renter.licensePlate ? ` (${renter.licensePlate})` : ''} that was identified in connection with your rental, booking reference ${renter.bookingId}.\n\nDamage details\n- Description: ${damage.details}\n${damage.policeReportNumber ? `- Police report no.: ${damage.policeReportNumber}\n` : ''}- Amount due: ${money(claimableAmount)} JOD\n\nIn accordance with the terms of your rental agreement, the renter is responsible for damage occurring during the rental period, up to the agreed excess where applicable. We kindly ask you to contact us on ${companyDetails.phone} to discuss this claim and arrange payment, quoting your booking reference.${signature}`
-        : `Dear ${renter.personName},\n\nThank you for your payment. We confirm receipt of the amount below in settlement of the vehicle damage claim for your rental, booking reference ${renter.bookingId}.\n\nPayment details\n- Amount paid: ${money(claimableAmount)} JOD\n- Status: Settled\n\nThis claim is now closed and no further action is required. We appreciate your cooperation.${signature}`;
-
-    window.location.href = `mailto:${renter.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        : `Payment Confirmation – Vehicle Damage Claim – Booking ${renter.bookingId} | ${companyDetails.name}`,
+      heading: claim ? 'Vehicle damage claim' : 'Damage claim payment received',
+      intro: claim
+        ? `Dear ${renter.personName},\n\nWe are writing regarding damage to the vehicle you rented from ${companyDetails.name} under booking reference ${renter.bookingId}, which was identified in connection with your rental. The details of the claim are summarised below.\n\nIn accordance with the terms and conditions of your rental agreement, the renter is responsible for damage occurring during the rental period, up to the agreed excess where applicable.`
+        : `Dear ${renter.personName},\n\nThank you for your payment. We confirm receipt of the amount below in full settlement of the vehicle damage claim relating to your rental under booking reference ${renter.bookingId}.`,
+      rows: [
+        ['Booking reference', renter.bookingId],
+        ['Vehicle', `${renter.carModel || '—'}${renter.licensePlate ? ` · ${renter.licensePlate}` : ''}`],
+        ...(claim ? [['Description', damage.details || '—'] as [string, string]] : []),
+        ...(damage.policeReportNumber ? [['Police report number', damage.policeReportNumber] as [string, string]] : []),
+        [claim ? 'Amount due' : 'Amount paid', `${money(claimableAmount)} JOD`],
+        ['Status', claim ? 'Payment required' : 'Settled'],
+      ],
+      closing: claim
+        ? `We kindly request that you contact our customer support team on ${supportLine(companyDetails)} to discuss this claim and arrange payment, quoting your booking reference. Supporting photographs and documentation are available on request.`
+        : `This claim is now closed and no further action is required on your part. We appreciate your cooperation.`,
+      ...brandFields(companyDetails),
+      badge: claim ? 'PAYMENT REQUIRED' : 'SETTLED',
+      tone: claim ? 'warning' : 'success',
+      highlightLabel: claim ? 'Amount due' : 'Amount paid',
+      highlightValue: `${money(claimableAmount)} JOD`,
+    }, companyDetails);
   };
 
 

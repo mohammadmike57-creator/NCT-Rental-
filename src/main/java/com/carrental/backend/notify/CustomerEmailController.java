@@ -39,6 +39,6 @@ public class CustomerEmailController {
     /** The booking reference, when the email summary carries one. */
     private static String bookingRef(CustomerEmailRequest req) {
         if (req.rows() == null) return null;
-        return req.rows().stream().filter(r -> r != null && r.size() >= 2 && "Booking".equalsIgnoreCase(r.get(0))).map(r -> r.get(1)).findFirst().orElse(null);
+        return req.rows().stream().filter(r -> r != null && r.size() >= 2 && r.get(0) != null && java.util.Set.of("booking", "booking reference").contains(r.get(0).trim().toLowerCase())).map(r -> r.get(1)).findFirst().orElse(null);
     }
 }
