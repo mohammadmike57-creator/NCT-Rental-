@@ -427,7 +427,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
         ${late ? `<tr><td>${L('Late return', 'تأخير في الإرجاع')}${late.status === 'PENDING' ? ' (due)' : ''}</td><td class="num">${late.hoursLate} h</td><td class="num">—</td><td class="num">${usd(late.amount)}</td></tr>` : ''}
         <tr class="tot"><td colspan="3">${L('Total', 'الإجمالي')}</td><td class="num">${usd(rentalTotal)}</td></tr>
         <tr class="sub"><td colspan="3">${L('Protection', 'الحماية')}</td><td class="num">${protection.length ? esc(protection.map(e => e.name).join(', ')) : 'Standard cover · تغطية أساسية'}</td></tr>
-        ${(r.securityDeposit || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${usd(r.securityDeposit || 0)}</td></tr>` : ''}
+        <tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${(r.securityDeposit || 0) > 0 ? usd(r.securityDeposit || 0) : 'None · لا يوجد'}</td></tr>
         ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Damage excess (your maximum liability)', 'مبلغ التحمّل (الحد الأقصى لمسؤوليتك)')}</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
       </table>
       <div class="settle info">${paymentLine}${r.paymentMethod && !i.prepaid ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && !i.prepaid ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>

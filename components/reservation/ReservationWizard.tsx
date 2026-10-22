@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { depositTermsFor } from '../../services/fleetLookup';
 import CarShowcase from '../CarShowcase';
 import CarPicture from '../CarPicture';
 import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus } from '../../types';
@@ -154,6 +155,12 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
     }).sort((a, b) => a.category.localeCompare(b.category) || a.model.localeCompare(b.model));
   }, [fleet, allReservations, formData.startDate, formData.endDate, formData.id]);
 
+  // Choosing a car brings its security deposit and excess from the fleet onto the booking.
+  const pickModel = (model: string) => {
+    onChange('carModel', model);
+    const terms = depositTermsFor(fleet, formData.licensePlate, model);
+    if (terms) { onChange('securityDeposit', terms.securityDeposit); onChange('excess', terms.excess); }
+  };
   const visibleGroups = groups.filter(g => !modelQuery || `${g.model} ${g.category} ${g.sipp || ''}`.toLowerCase().includes(modelQuery.toLowerCase()));
   const modelInFleet = groups.some(g => g.model === (formData.carModel || '').trim());
 
@@ -441,7 +448,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                         {visibleGroups.map(g => {
                           const sel = (formData.carModel || '').trim() === g.model;
                           return (
-                            <tr key={g.model} onClick={() => onChange('carModel', g.model)} className={cx('cursor-pointer transition-colors', sel ? 'bg-indigo-50/70' : 'hover:bg-slate-50')}>
+                            <tr key={g.model} onClick={() => pickModel(g.model)} className={cx('cursor-pointer transition-colors', sel ? 'bg-indigo-50/70' : 'hover:bg-slate-50')}>
                               <td className="px-3 py-2.5 pl-4">
                                 <span className={cx('w-4 h-4 rounded-full border inline-flex items-center justify-center', sel ? 'border-indigo-600' : 'border-slate-300')}>{sel && <span className="w-2 h-2 rounded-full bg-indigo-600" />}</span>
                               </td>
@@ -471,7 +478,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                         const sel = (formData.carModel || '').trim() === g.model;
                         return (
                           <li key={g.model}>
-                            <button type="button" onClick={() => onChange('carModel', g.model)} className={cx('w-full text-left px-4 py-3 flex items-center gap-3', sel ? 'bg-indigo-50/70' : '')}>
+                            <button type="button" onClick={() => pickModel(g.model)} className={cx('w-full text-left px-4 py-3 flex items-center gap-3', sel ? 'bg-indigo-50/70' : '')}>
                               <span className={cx('w-4 h-4 shrink-0 rounded-full border inline-flex items-center justify-center', sel ? 'border-indigo-600' : 'border-slate-300')}>{sel && <span className="w-2 h-2 rounded-full bg-indigo-600" />}</span>
                               <span className="min-w-0 flex-1">
                                 <span className="block font-medium text-slate-900 truncate">{g.model}</span>
@@ -489,7 +496,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   <Field label={groups.length ? 'Or type another model' : 'Car model'} required={!groups.length} hint={formData.carModel && !modelInFleet && groups.length ? 'This model is not in the fleet list.' : undefined}>
-                    <input type="text" list="res-wizard-models" value={formData.carModel || ''} onChange={e => onChange('carModel', e.target.value)} placeholder="e.g. Toyota Corolla" className={inputCls + errCls('carModel')} />
+                    <input type="text" list="res-wizard-models" value={formData.carModel || ''} onChange={e => pickModel(e.target.value)} placeholder="e.g. Toyota Corolla" className={inputCls + errCls('carModel')} />
                     <datalist id="res-wizard-models">{carModels.map(m => <option key={m} value={m} />)}</datalist>
                   </Field>
                   {formData.licensePlate && (

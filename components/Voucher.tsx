@@ -11,6 +11,7 @@ import { recordActivity } from '../firebase/api';
 import { emailAgreementDocuments } from '../services/agreementEmail';
 import PaymentChoice from './PaymentChoice';
 import { bookingPayment, isPrepaid as bookingIsPrepaid, paymentUnset, sourceOf, PAYMENT_LABEL } from '../services/paymentType';
+import { depositTermsFor } from '../services/fleetLookup';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
@@ -468,6 +469,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   }, [viewMode, processType, localReservation.voucherSubmitted, localReservation.dropOffCompleted, localReservation.pickupDateTime, localReservation.dropOffDateTime, localReservation.endDate, localReservation.lateReturnFee, dailyRate, onUpdate, localReservation]);
 
   const isPickupEditable = !localReservation.voucherSubmitted;
+
+  // Until the car is handed over, the deposit and excess follow the car chosen for the rental (fleet settings).
+  const fleetTerms = depositTermsFor(fleet, localReservation.licensePlate, localReservation.carModel);
+  useEffect(() => {
+    if (!isPickupEditable || !fleetTerms) return;
+    if (localReservation.securityDeposit === fleetTerms.securityDeposit && localReservation.excess === fleetTerms.excess) return;
+    setLocalReservation(prev => ({ ...prev, securityDeposit: fleetTerms.securityDeposit, excess: fleetTerms.excess }));
+  }, [isPickupEditable, fleetTerms?.securityDeposit, fleetTerms?.excess, fleetTerms?.car.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const depositSource = fleetTerms ? `${fleetTerms.car.modelName}${fleetTerms.car.licensePlate ? ` · ${fleetTerms.car.licensePlate}` : ''}` : '';
   const isDropoffBlockedByPendingFee = localReservation.lateReturnFee?.status === 'PENDING';
   const ticketsBlockFlow = hasOutstandingTickets && processType === 'exchange';
   const isDropoffEditable = !!localReservation.voucherSubmitted && !localReservation.dropOffCompleted && !ticketsBlockFlow && !hasDueExtension && !isDropoffBlockedByPendingFee;
@@ -1228,8 +1238,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <div className="flex justify-between text-[13px] border-t border-rose-200 pt-1.5"><span className="font-semibold text-slate-800">Total</span><span className="font-semibold tabular-nums text-rose-700">{formatMoney(chargesTotal(charges.items), charges.currency)}</span></div>
         </div>
       )}
-      <InfoPair label="Security deposit" value={formatCurrency(reservation.securityDeposit || 0)} />
-      <InfoPair label="Excess" value={formatCurrency(reservation.excess || 0)} />
+      <InfoPair label="Security deposit" value={formatCurrency(localReservation.securityDeposit || 0)} />
+      <InfoPair label="Excess" value={formatCurrency(localReservation.excess || 0)} />
       <InfoPair label="Payment type" value={payType
         ? <Badge tone={isPayOnArrival ? 'warning' : 'success'}>{PAYMENT_LABEL[payType]}</Badge>
         : payUnset ? <Badge tone="danger">Not chosen</Badge> : undefined} />
@@ -1240,7 +1250,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const extrasCharged = (reservation.extras || []).reduce((s2, e) => (e.isComplementary ? s2 : s2 + e.dailyPrice * rentalDays), 0);
   const renderPaymentAction = () => {
     const src = sourceOf(localReservation, sources);
-    const deposit = reservation.securityDeposit || 0;
+    const deposit = localReservation.securityDeposit || 0;
     const box = (tone: 'ok' | 'warn' | 'bad', title: React.ReactNode, lines: React.ReactNode[]) => (
       <div className={`rounded-lg border px-4 py-3 ${tone === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : tone === 'warn' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-rose-200 bg-rose-50 text-rose-900'}`}>
         <p className="text-[13px] font-semibold">{title}</p>
@@ -1284,6 +1294,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       </StepSection>
       <InfoBlock title="Payment">
         <div>{payType === PaymentType.PREPAID ? <Badge tone="success">Prepaid · nothing to collect for the rental</Badge> : <Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge>}</div>
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-slate-900"><Bi en="Security deposit" /></p>
+            <p className="text-xs text-slate-500">{(localReservation.securityDeposit || 0) > 0 ? 'Refundable. Hold it at pick-up and release it after the return inspection.' : 'No deposit for this car.'}{depositSource ? ` From the fleet: ${depositSource}.` : ''}</p>
+          </div>
+          <span className="text-base font-semibold tabular-nums text-slate-900 shrink-0">{formatCurrency(localReservation.securityDeposit || 0)}</span>
+        </div>
         {isPickupEditable ? (
           <>
             <div className="grid grid-cols-2 gap-2">

@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Fleet, FleetVehicle } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, CloseIcon, CarIcon, UploadIcon, SearchIcon } from './icons';
 import FleetExcelUpload from './FleetExcelUpload';
+import { CAR_CATEGORIES } from '../constants';
 import CarPicture from './CarPicture';
 import { compressImage } from '../services/imageCompress';
 import { mediaUrl, uploadImage } from '../firebase/api';
@@ -138,6 +139,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
   const expiredCount = (fleet as FleetVehicle[]).filter(v => v.registrationExpiry && v.registrationExpiry < today).length;
   const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const expiringCount = (fleet as FleetVehicle[]).filter(v => v.registrationExpiry && v.registrationExpiry >= today && v.registrationExpiry <= in30).length;
+  const categoryOptions = Array.from(new Set([...CAR_CATEGORIES, ...(fleet as FleetVehicle[]).map(v => (v.category || '').trim()).filter(Boolean)]));
   const categoryCount = new Set((fleet as FleetVehicle[]).map(v => v.category).filter(Boolean)).size;
   const withPhoto = (fleet as FleetVehicle[]).filter(v => v.imageUrl).length;
   const sameModelWithout = formData.modelName
@@ -345,7 +347,10 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
             <input type="text" value={formData.licensePlate || ''} onChange={e => handleChange('licensePlate', e.target.value)} className={inputCls} placeholder="Not registered yet" />
           </Field>
           <Field label="Category">
-            <input type="text" value={formData.category || ''} onChange={e => handleChange('category', e.target.value)} className={inputCls} />
+            <select value={formData.category || ''} onChange={e => handleChange('category', e.target.value)} className={`${selectCls} w-full`}>
+              <option value="">Select category</option>
+              {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </Field>
           <Field label="SIPP code">
             <input type="text" value={formData.sippCode || ''} onChange={e => handleChange('sippCode', e.target.value)} className={inputCls} />

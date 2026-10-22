@@ -37,14 +37,31 @@ export const INITIAL_AVAILABLE_EXTRAS: AvailableExtra[] = [
 ];
 
 export const CAR_CATEGORIES = [
-  'Compact', 
-  'Crossover',
+  'Mini',
   'Economy',
-  'Full size',
+  'Compact',
   'Intermediate',
   'Standard',
+  'Full size',
+  'Premium',
+  'Luxury',
+  'Crossover',
+  'Compact SUV',
+  'Intermediate SUV',
+  'Standard SUV',
+  'Full size SUV',
+  'Premium SUV',
+  'Luxury SUV',
   'SUV',
-  'Van'
+  '4x4 / Off-road',
+  'Minivan',
+  'Van',
+  'Passenger van (9+ seats)',
+  'Pickup',
+  'Convertible',
+  'Sports',
+  'Electric',
+  'Hybrid',
 ];
 
 export const INITIAL_AGGREGATORS: Aggregator[] = [
