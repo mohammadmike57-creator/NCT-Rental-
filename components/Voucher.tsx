@@ -12,6 +12,7 @@ import { emailAgreementDocuments } from '../services/agreementEmail';
 import PaymentChoice from './PaymentChoice';
 import { bookingPayment, isPrepaid as bookingIsPrepaid, paymentUnset, sourceOf, PAYMENT_LABEL } from '../services/paymentType';
 import { depositTermsFor } from '../services/fleetLookup';
+import { counterPayment, DEPOSIT_HOLD_LABEL } from '../services/counterPayment';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
@@ -557,6 +558,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         alert("Authorization Number is required for 'Pay on Arrival' reservations.");
         return;
       }
+      if (!counterMethodOk) {
+        alert(`This booking is prepaid, but ${formatCurrency(pay.toCollect)} for extras and upgrades must be collected. Record the payment method${localReservation.paymentMethod === 'card' ? ' and the authorisation number' : ''} (Charges & payment step).`);
+        return;
+      }
+      if (!pay.depositHeld) {
+        alert(`Hold the security deposit of ${formatCurrency(pay.deposit)}: choose how it is held and enter the card pre-authorisation number (Charges & payment step).`);
+        return;
+      }
 
       if (!localReservation.pickupRenterSignature) { alert("Renter signature is required."); return; }
       if (!localReservation.pickupAgentSignature) { alert("Agent signature is required."); return; }
@@ -780,6 +789,11 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   // Set when the reservation was added (or listed): the counter follows it instead of choosing again.
   const [paymentFromBooking] = useState(() => !!reservation.paymentType);
   const isPayOnArrival = payType === PaymentType.PAY_ON_ARRIVAL;
+  const isPrepaidBooking = payType === PaymentType.PREPAID;
+  // Prepaid: the partner was paid for the rental, so only extras and upgrades are collected. Deposit: always held.
+  const pay = counterPayment(localReservation, isPrepaidBooking, baseRentalFee, extrasTotal);
+  const counterMethodOk = !isPrepaidBooking || pay.toCollect <= 0
+    || (!!localReservation.paymentMethod && localReservation.paymentMethod !== 'prepaid' && (localReservation.paymentMethod !== 'card' || !!localReservation.authNumber?.trim()));
 
   const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) => (
     <div className="w-full">
@@ -1067,7 +1081,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const kmOutValid = localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.pickupKmOut >= 0;
   const kmInValid = localReservation.dropOffKmIn !== undefined && localReservation.dropOffKmIn !== null && localReservation.dropOffKmIn >= 0
     && !(localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.dropOffKmIn < localReservation.pickupKmOut);
-  const pickupAuthOk = !payUnset && (!isPayOnArrival || !!localReservation.authNumber?.trim());
+  const pickupAuthOk = !payUnset && (!isPayOnArrival || !!localReservation.authNumber?.trim()) && counterMethodOk && pay.depositHeld;
   const chargesValid = charges.items.length === 0 || (
     charges.items.every(i => !!i.description.trim() && i.amount > 0) && !!charges.settlement
     && (charges.settlement !== 'paid' || !!charges.paymentMethod) && !!charges.customerSignature);
@@ -1082,7 +1096,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     { key: 'inspection', label: 'Inspection checklist', done: pickupClosed || countChecked(localReservation.pickupChecklist) === checklistItems.length, hint: `${countChecked(localReservation.pickupChecklist)} of ${checklistItems.length} confirmed` },
     { key: 'damage', label: 'Damage', done: pickupClosed || !!visited['pickup:damage'], hint: `${(localReservation.pickupDamageMarkers || []).length} marked` },
     { key: 'fuel', label: 'Fuel & mileage', done: pickupClosed || (kmOutValid && localReservation.pickupFuelLevel !== undefined), hint: kmOutValid ? 'Fuel level not set' : 'Odometer out required' },
-    { key: 'payment', label: 'Charges & payment', done: pickupClosed || (pickupAuthOk && !!visited['pickup:payment']), hint: payUnset ? 'Choose prepaid or pay on arrival' : pickupAuthOk ? `${formatCurrency(totalCost)} · ${payType ? PAYMENT_LABEL[payType].toLowerCase() : ''}` : 'Authorisation required' },
+    { key: 'payment', label: 'Charges & payment', done: pickupClosed || (pickupAuthOk && !!visited['pickup:payment']), hint: payUnset ? 'Choose prepaid or pay on arrival' : pickupAuthOk ? `${formatCurrency(pay.toCollect)} to collect · deposit ${pay.deposit > 0 ? 'held' : 'none'}` : !pay.depositHeld && counterMethodOk && (!isPayOnArrival || !!localReservation.authNumber?.trim()) ? 'Deposit hold required' : 'Payment details required' },
     { key: 'signatures', label: 'Signatures', done: pickupClosed || signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) === 2, hint: `${signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature)} of 2 signed` },
   ];
   const dropoffSteps: FlowStep[] = [
@@ -1221,14 +1235,23 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const renderChargesBreakdown = () => (
     <>
-      <InfoPair label={`Rental (${rentalDays} day${rentalDays === 1 ? '' : 's'})`} value={formatCurrency(baseRentalFee)} />
+      <InfoPair label={`Rental (${rentalDays} day${rentalDays === 1 ? '' : 's'})`} value={isPrepaidBooking
+        ? <span className="inline-flex items-center gap-1.5"><Badge tone="success">Prepaid</Badge>{formatCurrency(pay.rental)}</span>
+        : formatCurrency(pay.rental)} />
       {(reservation.extras || []).map((ex, i) => (
         <InfoPair key={i} label={ex.name} value={ex.isComplementary ? 'Included' : formatCurrency(ex.dailyPrice * rentalDays)} />
       ))}
+      {pay.upgrades > 0 && <InfoPair label="Vehicle upgrade" value={formatCurrency(pay.upgrades)} />}
       <div className="border-t border-slate-200 pt-2.5 flex items-baseline justify-between">
         <span className="text-[13px] font-semibold text-slate-900">Total</span>
-        <span className="text-xl font-semibold text-slate-900 tabular-nums">{formatCurrency(totalCost)}</span>
+        <span className="text-xl font-semibold text-slate-900 tabular-nums">{formatCurrency(pay.total)}</span>
       </div>
+      {isPrepaidBooking && (
+        <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1.5">
+          <div className="flex justify-between gap-3 text-xs"><span className="text-slate-600">Paid in advance{sourceOf(localReservation, sources) ? ` via ${sourceOf(localReservation, sources)!.name}` : ''}</span><span className="font-semibold tabular-nums text-emerald-700">− {formatCurrency(pay.rental)}</span></div>
+          <div className="flex justify-between gap-3 text-[13px] border-t border-slate-200 pt-1.5"><span className="font-semibold text-slate-800">To collect at the counter</span><span className="font-semibold tabular-nums text-slate-900">{formatCurrency(pay.toCollect)}</span></div>
+        </div>
+      )}
       {charges.items.length > 0 && (
         <div className="rounded-lg bg-rose-50/50 border border-rose-200 p-3 space-y-1.5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Return charges{charges.settlement ? ` · ${charges.settlement === 'paid' ? 'paid' : 'claim'}` : ''}</p>
@@ -1272,15 +1295,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         {payUnset ? box('bad', <>Action needed: choose how this booking is paid <span className="ar-ui font-normal" dir="rtl">· اختر طريقة الدفع</span></>, [
             `${src?.name || 'This source'} sends both prepaid and pay-on-arrival bookings. Check the booking confirmation and choose above.`,
           ])
-          : isPayOnArrival ? box('warn', <>Pay on arrival: collect {formatCurrency(totalCost)} now <span className="ar-ui font-normal" dir="rtl">· الدفع عند الاستلام</span></>, [
-            <>Take payment for the rental{extrasCharged ? ' and extras' : ''}: <b>{formatCurrency(totalCost)}</b>.</>,
+          : isPayOnArrival ? box('warn', <>Pay on arrival: collect {formatCurrency(pay.total)} now <span className="ar-ui font-normal" dir="rtl">· الدفع عند الاستلام</span></>, [
+            <>Take payment for the rental{extrasCharged ? ', extras' : ''}{pay.upgrades ? ' and upgrade' : ''}: <b>{formatCurrency(pay.total)}</b>.</>,
             'Record the payment method, card last 4 digits and the terminal authorisation number (required).',
-            ...(deposit ? [<>Hold the refundable security deposit of <b>{formatCurrency(deposit)}</b>.</>] : []),
+            ...(deposit ? [<>Hold the refundable security deposit of <b>{formatCurrency(deposit)}</b> (required).</>] : []),
           ])
-          : payType ? box('ok', <>Prepaid{src ? ` via ${src.name}` : ''}: do not charge the rental <span className="ar-ui font-normal" dir="rtl">· مدفوع مسبقاً</span></>, [
-            `The rental of ${formatCurrency(baseRentalFee)} was paid to ${src?.name || 'the partner'}.`,
-            ...(extrasCharged ? [<>Collect extras added at the counter if they are not in the partner booking: <b>{formatCurrency(extrasCharged)}</b>.</>] : []),
-            ...(deposit ? [<>Hold the refundable security deposit of <b>{formatCurrency(deposit)}</b>.</>] : ['No rental payment or authorisation number is needed.']),
+          : payType ? box('ok', <>Prepaid{src ? ` via ${src.name}` : ''}: do not charge the rental again <span className="ar-ui font-normal" dir="rtl">· مدفوع مسبقاً</span></>, [
+            <>The rental of <b>{formatCurrency(pay.rental)}</b> was paid to {src?.name || 'the partner'}. Do not charge it to the customer.</>,
+            pay.toCollect > 0
+              ? <>Collect only the extras{pay.upgrades ? ' and upgrade' : ''} added for this rental: <b>{formatCurrency(pay.toCollect)}</b>. Record the payment method (and the authorisation number for a card).</>
+              : 'Nothing else to collect: no extras or upgrades.',
+            ...(deposit ? [<>Hold the refundable security deposit of <b>{formatCurrency(deposit)}</b> (required).</>] : []),
           ]) : null}
       </div>
     );
@@ -1293,13 +1318,35 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         <div className="space-y-2.5 text-[13px]">{renderChargesBreakdown()}</div>
       </StepSection>
       <InfoBlock title="Payment">
-        <div>{payType === PaymentType.PREPAID ? <Badge tone="success">Prepaid · nothing to collect for the rental</Badge> : <Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge>}</div>
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[13px] font-semibold text-slate-900"><Bi en="Security deposit" /></p>
-            <p className="text-xs text-slate-500">{(localReservation.securityDeposit || 0) > 0 ? 'Refundable. Hold it at pick-up and release it after the return inspection.' : 'No deposit for this car.'}{depositSource ? ` From the fleet: ${depositSource}.` : ''}</p>
+        <div>{isPrepaidBooking
+          ? (pay.toCollect > 0 ? <Badge tone={counterMethodOk ? 'success' : 'warning'}>Prepaid rental · collect {formatCurrency(pay.toCollect)} for extras</Badge> : <Badge tone="success">Prepaid · nothing to collect</Badge>)
+          : <Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge>}</div>
+        <div className={`rounded-lg border px-3 py-2.5 space-y-2 ${pay.deposit > 0 && !pay.depositHeld ? 'border-amber-300 bg-amber-50/70' : 'border-indigo-200 bg-indigo-50/60'}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-slate-900"><Bi en="Security deposit" />{pay.deposit > 0 && <span className="text-rose-500"> *</span>}</p>
+              <p className="text-xs text-slate-500">{pay.deposit > 0 ? 'Hold it for every booking, prepaid or pay on arrival. Refundable: release it after the return inspection.' : 'No deposit for this car.'}{depositSource ? ` From the fleet: ${depositSource}.` : ''}</p>
+            </div>
+            <span className="text-base font-semibold tabular-nums text-slate-900 shrink-0">{formatCurrency(pay.deposit)}</span>
           </div>
-          <span className="text-base font-semibold tabular-nums text-slate-900 shrink-0">{formatCurrency(localReservation.securityDeposit || 0)}</span>
+          {pay.deposit > 0 && (isPickupEditable ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>Held by</label>
+                <select value={localReservation.depositHoldMethod || ''} onChange={e => handleFieldChange('depositHoldMethod', e.target.value || undefined)} className={inputCls}>
+                  <option value="">Choose</option>
+                  <option value="card">{DEPOSIT_HOLD_LABEL.card}</option>
+                  <option value="cash">{DEPOSIT_HOLD_LABEL.cash}</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Pre-authorisation no.{localReservation.depositHoldMethod === 'card' && <span className="text-rose-500"> *</span>}</label>
+                <input type="text" value={localReservation.depositAuthNumber || ''} disabled={localReservation.depositHoldMethod === 'cash'} onChange={e => handleFieldChange('depositAuthNumber', e.target.value || undefined)} className={`${inputCls} font-mono`} placeholder={localReservation.depositHoldMethod === 'cash' ? 'Not needed for cash' : 'Hold auth code'} />
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-700">{localReservation.depositHoldMethod ? `Held by ${DEPOSIT_HOLD_LABEL[localReservation.depositHoldMethod].toLowerCase()}${localReservation.depositAuthNumber ? ` · auth ${localReservation.depositAuthNumber}` : ''}` : 'Hold not recorded'}</p>
+          ))}
         </div>
         {isPickupEditable ? (
           <>
@@ -1321,12 +1368,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </div>
             </div>
             <div>
-              <label className={labelCls}>Authorisation number{isPayOnArrival && <span className="text-rose-500"> *</span>}</label>
+              <label className={labelCls}>Authorisation number{(isPayOnArrival || (isPrepaidBooking && pay.toCollect > 0 && localReservation.paymentMethod === 'card')) && <span className="text-rose-500"> *</span>}</label>
               <input type="text" value={localReservation.authNumber || ''} onChange={e => handleFieldChange('authNumber', e.target.value)} className={`${inputCls} font-mono`} placeholder="Card terminal auth code" />
             </div>
             <div>
               <label className={labelCls}><Bi en="Amount charged ($)" /></label>
-              <input type="number" step="0.01" value={localReservation.finalAmountCharged || ''} onChange={e => handleFieldChange('finalAmountCharged', parseFloat(e.target.value) || undefined)} className={`${inputCls} tabular-nums`} placeholder={totalCost.toFixed(2)} />
+              <input type="number" step="0.01" value={localReservation.finalAmountCharged || ''} onChange={e => handleFieldChange('finalAmountCharged', parseFloat(e.target.value) || undefined)} className={`${inputCls} tabular-nums`} placeholder={pay.toCollect.toFixed(2)} />
             </div>
           </>
         ) : (

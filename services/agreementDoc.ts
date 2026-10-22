@@ -4,6 +4,7 @@ import { INSPECTION_LABEL, INSPECTION_SVG } from '../components/VehicleGraphics'
 import { CHARGE_KIND_AR, CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, damageCostByMark, formatMoney } from './returnChargesDoc';
 import { parseTerms, parseTermsAr } from './agreementTerms';
 import { code39Svg } from './barcode';
+import { counterPayment, DEPOSIT_HOLD_LABEL } from './counterPayment';
 
 export const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
 export const PICKUP_TERMS_AR = 'بتوقيعه، يقرّ المستأجر باستلام المركبة بالحالة الموثقة أعلاه ويوافق على شروط وأحكام التأجير، ويتحمّل المسؤولية المالية عن جميع الرسوم والمخالفات المرورية والأضرار والخسائر خلال فترة الإيجار. ويؤكد ممثل الشركة صحة حالة المركبة وبيانات الإيجار عند التسليم.';
@@ -76,7 +77,8 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   const missingAtReturn = closed ? i.checklistItems.filter(x => out[x] && !back[x]) : [];
   const extrasTotal = (r.extras || []).reduce((s, e) => (e.isComplementary ? s : s + e.dailyPrice * i.rentalDays), 0);
   const late = closed && r.lateReturnFee && !r.lateReturnFee.isWaived && r.lateReturnFee.status !== 'WAIVED' ? r.lateReturnFee : undefined;
-  const rentalTotal = i.baseRentalFee + extrasTotal + (late ? late.amount : 0);
+  const pay = counterPayment(r, !!i.prepaid, i.baseRentalFee, extrasTotal);
+  const rentalTotal = pay.total + (late ? late.amount : 0);
   const rc = r.returnCharges && r.returnCharges.items.length ? r.returnCharges : undefined;
   const photos = rc ? rc.items.flatMap((it, n) => (it.photos || []).map((src, j) => ({ src, cap: `${n + 1}${(it.photos!.length > 1) ? String.fromCharCode(97 + j) : ''} · ${it.description || CHARGE_KIND_LABEL[it.kind]}` }))).slice(0, 6) : [];
 
@@ -120,7 +122,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   const clauses = parseTerms(i.company.agreementTerms);
   const clausesAr = parseTermsAr(i.company.agreementTermsAr);
   const paymentLine = i.prepaid
-    ? `Prepaid via ${esc(r.source || 'partner')}`
+    ? `Rental prepaid via ${esc(r.source || 'partner')}${r.authNumber ? ` · counter payment auth ${esc(r.authNumber)}` : ''}`
     : r.authNumber ? `Paid${r.finalAmountCharged ? ' ' + usd(r.finalAmountCharged) : ''} · auth ${esc(r.authNumber)}` : 'Payable at the counter';
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Rental Agreement ${esc(r.bookingId)}</title>
@@ -422,15 +424,18 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     <div class="card">${H('9', 'Charges, protection &amp; payment', 'الرسوم والحماية والدفع')}
       <table class="items">
         <tr><th>${L('Description', 'البيان')}</th><th class="num">${L('Qty', 'الكمية')}</th><th class="num">${L('Rate', 'السعر')}</th><th class="num">${L('Amount', 'المبلغ')}</th></tr>
-        <tr><td>${L('Vehicle rental', 'أجرة المركبة')}${r.sippCode ? ` (${esc(r.sippCode)})` : ''}</td><td class="num">${i.rentalDays} d</td><td class="num">${usd(i.rentalDays ? i.baseRentalFee / i.rentalDays : i.baseRentalFee)}</td><td class="num">${usd(i.baseRentalFee)}</td></tr>
+        <tr><td>${L('Vehicle rental', 'أجرة المركبة')}${r.sippCode ? ` (${esc(r.sippCode)})` : ''}</td><td class="num">${i.rentalDays} d</td><td class="num">${usd(i.rentalDays ? pay.rental / i.rentalDays : pay.rental)}</td><td class="num">${usd(pay.rental)}</td></tr>
         ${(r.extras || []).map(e => `<tr><td>${esc(e.name)}</td><td class="num">${i.rentalDays} d</td><td class="num">${e.isComplementary ? '—' : usd(e.dailyPrice)}</td><td class="num">${e.isComplementary ? 'Included' : usd(e.dailyPrice * i.rentalDays)}</td></tr>`).join('')}
+        ${pay.upgrades > 0 ? `<tr><td>${L('Vehicle upgrade', 'ترقية المركبة')}</td><td class="num">—</td><td class="num">—</td><td class="num">${usd(pay.upgrades)}</td></tr>` : ''}
         ${late ? `<tr><td>${L('Late return', 'تأخير في الإرجاع')}${late.status === 'PENDING' ? ' (due)' : ''}</td><td class="num">${late.hoursLate} h</td><td class="num">—</td><td class="num">${usd(late.amount)}</td></tr>` : ''}
         <tr class="tot"><td colspan="3">${L('Total', 'الإجمالي')}</td><td class="num">${usd(rentalTotal)}</td></tr>
+        ${i.prepaid ? `<tr class="sub"><td colspan="3">${L(`Rental prepaid via ${esc(r.source || 'partner')}`, 'مدفوع مسبقاً')}</td><td class="num">− ${usd(pay.rental)}</td></tr>
+        <tr class="sub"><td colspan="3"><b>${L('Collected at the counter', 'المبلغ المحصّل عند الاستلام')}</b></td><td class="num"><b>${usd(rentalTotal - pay.rental)}</b></td></tr>` : ''}
         <tr class="sub"><td colspan="3">${L('Protection', 'الحماية')}</td><td class="num">${protection.length ? esc(protection.map(e => e.name).join(', ')) : 'Standard cover · تغطية أساسية'}</td></tr>
-        <tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${(r.securityDeposit || 0) > 0 ? usd(r.securityDeposit || 0) : 'None · لا يوجد'}</td></tr>
+        <tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${(r.securityDeposit || 0) > 0 ? `${usd(r.securityDeposit || 0)}${r.depositHoldMethod ? ` · held by ${esc(DEPOSIT_HOLD_LABEL[r.depositHoldMethod].toLowerCase())}${r.depositAuthNumber ? ` (auth ${esc(r.depositAuthNumber)})` : ''}` : ''}` : 'None · لا يوجد'}</td></tr>
         ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Damage excess (your maximum liability)', 'مبلغ التحمّل (الحد الأقصى لمسؤوليتك)')}</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
       </table>
-      <div class="settle info">${paymentLine}${r.paymentMethod && !i.prepaid ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && !i.prepaid ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
+      <div class="settle info">${paymentLine}${r.paymentMethod && r.paymentMethod !== 'prepaid' ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && r.paymentMethod !== 'prepaid' ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
     ${sideNotes ? `<div class="card">${closed ? H('10', 'Notes', 'ملاحظات') : H('10', 'Check-out notes', 'ملاحظات التسليم')}${closed
       ? `<div class="nl"><span>${L('At check-out', 'عند التسليم')}</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>${L('At check-in', 'عند الإرجاع')}</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`

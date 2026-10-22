@@ -269,6 +269,10 @@ export interface Reservation {
 
   carExchanges?: CarExchange[];
   securityDeposit?: number;
+  /** How the security deposit was held at pick-up (required for every payment type when there is a deposit). */
+  depositHoldMethod?: 'card' | 'cash';
+  /** Card terminal pre-authorisation code for the deposit hold. */
+  depositAuthNumber?: string;
   excess?: number;
   originalAmount?: number;
   extensionHistory?: ExtensionInfo[];
