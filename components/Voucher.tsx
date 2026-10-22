@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import CarPicture from './CarPicture';
 import CarShowcase from './CarShowcase';
 import { carPhotoFor } from '../services/carPhoto';
-import { Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
+import { AppData, Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon } from './icons';
@@ -14,6 +14,7 @@ import { bookingPayment, isPrepaid as bookingIsPrepaid, paymentUnset, sourceOf, 
 import { depositTermsFor } from '../services/fleetLookup';
 import { changedFields, clearDraft, draftTime, loadDraft, saveDraft } from '../services/drafts';
 import { counterPayment, DEPOSIT_HOLD_LABEL } from '../services/counterPayment';
+import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
@@ -38,6 +39,10 @@ interface VoucherProps {
   onUpdate: (reservation: Reservation) => void;
   /** Called when a check-in closes with charges, so damages and tickets are also recorded in their registers. */
   onRecordReturnCharges?: (reservation: Reservation, charges: ReturnCharges) => void;
+  /** All bookings, so the upgrade picker can show which cars are free. */
+  allData?: AppData;
+  /** Upgrades the booking to another car; given only to staff allowed to upgrade. */
+  onUpgrade?: (reservation: Reservation, newCarId: string, customRate?: number, details?: UpgradeDetails) => Reservation | null;
 }
 
 const InfoBlock: React.FC<{ title: string; children: React.ReactNode; className?: string; icon?: React.ReactNode }> = ({ title, children, className, icon }) => (
@@ -370,7 +375,8 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
   return remainingMs >= gracePeriodInMs ? fullDays + 1 : fullDays;
 };
 
-const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet }) => {
+const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade }) => {
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const getInitialReservationState = (res: Reservation) => {
     const migrated: any = { ...res };
     if (res.checklist && !res.pickupChecklist) migrated.pickupChecklist = res.checklist;
@@ -810,8 +816,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const handleSendEmail = () => emailAgreement(localReservation, localReservation.dropOffCompleted ? 'checkin' : 'checkout');
 
   const rentalDays = calculateDaysWithGrace(reservation.startDate, reservation.endDate);
-  const extrasTotal = (reservation.extras || []).reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0);
-  const baseRentalFee = reservation.baseAmount ?? ((reservation.amount || 0) - extrasTotal);
+  // From the agreement being edited, so an upgrade made at the counter shows at once.
+  const extrasTotal = (localReservation.extras || []).reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0);
+  const baseRentalFee = localReservation.baseAmount ?? ((localReservation.amount || 0) - extrasTotal);
   const totalCost = baseRentalFee + extrasTotal;
 
   // How this booking is paid: its own choice, or its source's type. Unset when the source takes both.
@@ -1253,6 +1260,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <label className={labelCls}><Bi en="License plate" /></label>
                 <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value)} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
               </div>
+              {onUpgrade && fleet && fleet.length > 0 && (
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 flex items-center justify-between gap-3">
+                  <p className="text-xs text-slate-600 min-w-0">Customer wants a better car? Upgrade it here, free or with a supplement.{(localReservation.upgradeHistory || []).length ? ` Upgraded ${localReservation.upgradeHistory!.length}× already.` : ''}</p>
+                  <Button size="sm" variant="primary" onClick={() => setShowUpgrade(true)}>Upgrade vehicle</Button>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -1270,7 +1283,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       <InfoPair label={`Rental (${rentalDays} day${rentalDays === 1 ? '' : 's'})`} value={isPrepaidBooking
         ? <span className="inline-flex items-center gap-1.5"><Badge tone="success">Prepaid</Badge>{formatCurrency(pay.rental)}</span>
         : formatCurrency(pay.rental)} />
-      {(reservation.extras || []).map((ex, i) => (
+      {(localReservation.extras || []).map((ex, i) => (
         <InfoPair key={i} label={ex.name} value={ex.isComplementary ? 'Included' : formatCurrency(ex.dailyPrice * rentalDays)} />
       ))}
       {pay.upgrades > 0 && <InfoPair label="Vehicle upgrade" value={formatCurrency(pay.upgrades)} />}
@@ -1302,7 +1315,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   );
 
   // What the counter has to do about payment for this booking.
-  const extrasCharged = (reservation.extras || []).reduce((s2, e) => (e.isComplementary ? s2 : s2 + e.dailyPrice * rentalDays), 0);
+  const extrasCharged = (localReservation.extras || []).reduce((s2, e) => (e.isComplementary ? s2 : s2 + e.dailyPrice * rentalDays), 0);
   const renderPaymentAction = () => {
     const src = sourceOf(localReservation, sources);
     const deposit = localReservation.securityDeposit || 0;
@@ -1351,7 +1364,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       </StepSection>
       <InfoBlock title="Payment">
         <div>{isPrepaidBooking
-          ? (pay.toCollect > 0 ? <Badge tone={counterMethodOk ? 'success' : 'warning'}>Prepaid rental · collect {formatCurrency(pay.toCollect)} for extras</Badge> : <Badge tone="success">Prepaid · nothing to collect</Badge>)
+          ? (pay.toCollect > 0 ? <Badge tone={counterMethodOk ? 'success' : 'warning'}>Prepaid rental · collect {formatCurrency(pay.toCollect)}{pay.upgrades ? (pay.extras ? " for extras and upgrade" : " for the upgrade") : " for extras"}</Badge> : <Badge tone="success">Prepaid · nothing to collect</Badge>)
           : <Badge tone={paid ? 'success' : 'warning'}>{paid ? 'Paid' : 'Not yet authorised'}</Badge>}</div>
         <div className={`rounded-lg border px-3 py-2.5 space-y-2 ${pay.deposit > 0 && !pay.depositHeld ? 'border-amber-300 bg-amber-50/70' : 'border-indigo-200 bg-indigo-50/60'}`}>
           <div className="flex items-start justify-between gap-3">
@@ -1745,7 +1758,22 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         )}
 
-        {showSuccessOverlay && (
+        {showUpgrade && onUpgrade && fleet && (
+        <UpgradeVehicleModal
+          reservation={localReservation}
+          fleet={fleet}
+          allData={allData || {}}
+          onCancel={() => setShowUpgrade(false)}
+          onConfirm={(carId, details) => {
+            // Only the upgrade is saved now; the rest of the agreement is saved when it is completed.
+            const base: Reservation = { ...reservation, carModel: localReservation.carModel, licensePlate: localReservation.licensePlate, amount: localReservation.amount, upgradeHistory: localReservation.upgradeHistory };
+            const upd = onUpgrade(base, carId, details.fee, details);
+            if (upd) setLocalReservation(prev => ({ ...prev, carModel: upd.carModel, licensePlate: upd.licensePlate, amount: upd.amount, upgradeHistory: upd.upgradeHistory }));
+            setShowUpgrade(false);
+          }}
+        />
+      )}
+      {showSuccessOverlay && (
           <div className="absolute inset-0 bg-slate-50 overflow-y-auto flex flex-col items-center justify-center p-4 sm:p-6 no-print">
             <div className="w-11 h-11 rounded-full bg-emerald-50 ring-1 ring-emerald-200 text-emerald-600 flex items-center justify-center mb-3">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>

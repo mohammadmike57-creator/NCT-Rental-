@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
+import type { UpgradeDetails } from './components/UpgradeVehicleModal';
 import { effectivePermissions } from './services/permissionCatalog';
 import { v4 as uuidv4 } from 'uuid';
 import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
@@ -1545,6 +1546,43 @@ ${currentUser?.fullName}
   if (!authChecked || isLoading) return <LoadingSpinner />;
   if (!isAuthenticated && authChecked) return <Suspense fallback={<LoadingSpinner />}><LoginScreen users={users} /></Suspense>;
   
+  // Moves a booking to another car (from the reservations list or from the agreement at the counter).
+  const handleUpgradeVehicle = (reservation: Reservation, newCarId: string, customRate?: number, details?: UpgradeDetails): Reservation | null => {
+    const newCar = fleet.find(c => c.id === newCarId);
+    if (!newCar) return null;
+
+    const upgradeFee = details?.fee ?? customRate ?? 0;
+    const newTotal = (reservation.amount || 0) + upgradeFee;
+
+    const updatedReservation: Reservation = {
+      ...reservation,
+      carModel: newCar.modelName,
+      ...(details?.licensePlate !== undefined ? { licensePlate: details.licensePlate } : {}),
+      amount: newTotal,
+      lastEditedBy: currentUser?.fullName,
+      upgradeHistory: [
+        ...(reservation.upgradeHistory || []),
+        {
+          date: new Date().toISOString(),
+          fromCar: reservation.carModel,
+          toCar: newCar.modelName,
+          fee: upgradeFee,
+          pricing: details?.pricing,
+          dailyRate: details?.dailyRate,
+          days: details?.days,
+          by: currentUser?.fullName,
+        }
+      ],
+    };
+
+    handleUpdateSingleReservation(updatedReservation);
+    recordActivity('VEHICLE_UPGRADED', 'agreement', `Upgraded ${reservation.personName} from ${reservation.carModel} to ${newCar.modelName} (${upgradeFee > 0 ? `+$${upgradeFee.toFixed(2)}` : 'free'})`, reservation.bookingId, details?.reason ? `Reason: ${details.reason}` : undefined);
+    showConfirmation(upgradeFee > 0
+      ? `Upgraded to ${newCar.modelName} (+$${upgradeFee.toFixed(2)}). New total $${newTotal.toFixed(2)}.`
+      : `Upgraded to ${newCar.modelName} free of charge.`);
+    return updatedReservation;
+  };
+
   const renderReservationView = (isAgreementView = false) => (
     <ReservationTable
       allData={reservations}
@@ -1568,40 +1606,7 @@ ${currentUser?.fullName}
       onShare={handleShareReservation}
       onRequirePaymentConfirmation={handleRequirePaymentConfirmation}
       onEditReservation={handleUpdateSingleReservation}
-      onUpgrade={(reservation, newCarId, customRate, details) => {
-        const newCar = fleet.find(c => c.id === newCarId);
-        if (!newCar) return;
-
-        const upgradeFee = details?.fee ?? customRate ?? 0;
-        const newTotal = (reservation.amount || 0) + upgradeFee;
-
-        const updatedReservation: Reservation = {
-          ...reservation,
-          carModel: newCar.modelName,
-          ...(details?.licensePlate ? { licensePlate: details.licensePlate } : {}),
-          amount: newTotal,
-          lastEditedBy: currentUser?.fullName,
-          upgradeHistory: [
-            ...(reservation.upgradeHistory || []),
-            {
-              date: new Date().toISOString(),
-              fromCar: reservation.carModel,
-              toCar: newCar.modelName,
-              fee: upgradeFee,
-              pricing: details?.pricing,
-              dailyRate: details?.dailyRate,
-              days: details?.days,
-              by: currentUser?.fullName,
-            }
-          ],
-        };
-
-        handleUpdateSingleReservation(updatedReservation);
-        recordActivity('VEHICLE_UPGRADED', 'agreement', `Upgraded ${reservation.personName} from ${reservation.carModel} to ${newCar.modelName} (${upgradeFee > 0 ? `+$${upgradeFee.toFixed(2)}` : 'free'})`, reservation.bookingId, details?.reason ? `Reason: ${details.reason}` : undefined);
-        showConfirmation(upgradeFee > 0
-          ? `Upgraded to ${newCar.modelName} (+$${upgradeFee.toFixed(2)}). New total $${newTotal.toFixed(2)}.`
-          : `Upgraded to ${newCar.modelName} free of charge.`);
-      }}
+      onUpgrade={handleUpgradeVehicle}
       onAssignCar={(reservation) => {
         console.log('Assign car for', reservation.id);
       }}
@@ -2239,7 +2244,7 @@ ${currentUser?.fullName}
 
       <Suspense fallback={<LoadingSpinner />}>
       <AnimatedModal isOpen={!!modals.viewVoucher} onClose={() => setModals(m=>({...m, viewVoucher: null}))}>
-        {modals.viewVoucher && <Voucher fleet={fleet} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
+        {modals.viewVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE) ? handleUpgradeVehicle : undefined} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
       </AnimatedModal>
 
       <AnimatedModal isOpen={showUnlistedAgreement} onClose={() => setShowUnlistedAgreement(false)}>
@@ -2255,7 +2260,7 @@ ${currentUser?.fullName}
         )}
       </AnimatedModal>
       {/* The agreement draws its own full-screen backdrop, so it is not wrapped in AnimatedModal. */}
-      {modals.viewRentalVoucher && <Voucher fleet={fleet} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
+      {modals.viewRentalVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE) ? handleUpgradeVehicle : undefined} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
 
       <AnimatedModal isOpen={!!modals.viewReceipt} onClose={() => setModals(m=>({...m, viewReceipt: null}))}>
         {modals.viewReceipt && <Receipt reservation={modals.viewReceipt} companyDetails={companyDetails} sources={sources} onClose={() => setModals(m=>({...m, viewReceipt: null}))} />}

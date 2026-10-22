@@ -55,9 +55,10 @@ const UpgradeVehicleModal: React.FC<Props> = ({ reservation, fleet, allData, onC
   const cars = useMemo(() => {
     const q = query.trim().toLowerCase();
     return fleet
-      .filter(c => c.licensePlate?.trim().toUpperCase() !== reservation.licensePlate?.trim().toUpperCase())
+      // Leave out the car already on the booking (cars without a plate are always offered).
+      .filter(c => !c.licensePlate?.trim() || c.licensePlate.trim().toUpperCase() !== (reservation.licensePlate || '').trim().toUpperCase())
       .filter(c => !q || `${c.modelName} ${c.licensePlate} ${c.category}`.toLowerCase().includes(q))
-      .map(c => ({ car: c, busy: busyPlates.get((c.licensePlate || '').trim().toUpperCase()) }))
+      .map(c => ({ car: c, busy: c.licensePlate?.trim() ? busyPlates.get(c.licensePlate.trim().toUpperCase()) : undefined }))
       .filter(x => showBusy || !x.busy)
       .sort((a, b) => (a.car.category || '').localeCompare(b.car.category || '') || a.car.modelName.localeCompare(b.car.modelName));
   }, [fleet, query, busyPlates, showBusy, reservation.licensePlate]);
