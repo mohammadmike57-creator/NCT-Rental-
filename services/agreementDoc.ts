@@ -199,15 +199,15 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .views4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .views5 { display: grid; grid-template-columns: 1.35fr repeat(4, 1fr); gap: 6px; }
   .view.photo { overflow: hidden; display: flex; flex-direction: column; }
-  .view.photo img { width: 100%; height: 62px; object-fit: cover; display: block; flex: 1; }
+  .view.photo img { width: 100%; height: 112px; object-fit: cover; display: block; flex: 1; }
   .vhead { display: flex; align-items: center; gap: 7px; margin-bottom: 2px; }
   .vthumb { width: 58px; height: 38px; object-fit: cover; border: 1px solid #d1d5db; flex-shrink: 0; }
   .chips { margin-top: 5px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 12px; }
   .chips span { display: flex; align-items: center; gap: 4px; font-size: 7.6pt; padding: 1px 0; border-bottom: 1px dashed #eef2f6; }
   .chips em { font-style: normal; color: #334155; margin-left: 2px; }
   .view { border: 1px solid #eef2f6; border-radius: 6px; text-align: center; background: #fcfdfe; }
-  .view svg { width: 100%; height: 62px; display: block; }
-  .vl { font-size: 6.8pt; color: #64748b; padding-bottom: 2px; }
+  .view svg { width: 100%; height: 112px; display: block; }
+  .vl { font-size: 7.6pt; color: #64748b; padding: 2px 0 4px; }
   .legend { margin-top: 5px; font-size: 7pt; color: #475569; }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px -1px 8px; vertical-align: baseline; }
   .tot td { border-top: 1.5px solid #0f172a; border-bottom: 0; font-weight: 800; font-size: 9.5pt; padding-top: 5px; }
