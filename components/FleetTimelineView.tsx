@@ -167,7 +167,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
     const visiblePlates = new Set(visibleFleet.map(v => vkey(v)));
     const map = new Map<string, Group>();
     [...visibleFleet]
-      .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.modelName.localeCompare(b.modelName) || (a.licensePlate || '').localeCompare(b.licensePlate || ''))
+      .sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.modelName || '').localeCompare(b.modelName || '') || (a.licensePlate || '').localeCompare(b.licensePlate || ''))
       .forEach(v => {
         const key = norm(v.modelName);
         if (!map.has(key)) map.set(key, { key, model: v.modelName, category: v.category, vehicles: [], byPlate: new Map(), unassigned: [] });
@@ -220,7 +220,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
   const availableNow = useMemo(() => visibleFleet
     .map(v => ({ v, info: vehicleStatus.get(vkey(v)) }))
     .filter(x => (x.info?.status ?? 'available') === 'available')
-    .sort((a, b) => a.v.modelName.localeCompare(b.v.modelName) || a.v.licensePlate.localeCompare(b.v.licensePlate)),
+    .sort((a, b) => (a.v.modelName || '').localeCompare(b.v.modelName || '') || (a.v.licensePlate || '').localeCompare(b.v.licensePlate || '')),
   [visibleFleet, vehicleStatus]);
 
   const rangeLabel = zoom === 'month'

@@ -40,6 +40,30 @@ public class StateController {
         return ResponseEntity.ok().build();
     }
 
+    private static boolean isAdmin(Authentication auth) {
+        return auth != null && auth.getAuthorities().stream().anyMatch(a -> "ACTION_ADMIN_MANAGE_USERS".equals(a.getAuthority()));
+    }
+
+    /** Backup copies of the data that an administrator can restore. */
+    @GetMapping("/backups")
+    public ResponseEntity<?> backups(Authentication auth) {
+        if (!isAdmin(auth)) return ResponseEntity.status(403).body(Map.of("error", "Only an administrator can see backups."));
+        return ResponseEntity.ok(stateService.listBackups());
+    }
+
+    /** Puts a backup copy back as the live data (the current data is kept as a backup first). */
+    @PostMapping("/restore")
+    public ResponseEntity<?> restore(@RequestBody Map<String, String> body, Authentication auth) {
+        if (!isAdmin(auth)) return ResponseEntity.status(403).body(Map.of("error", "Only an administrator can restore a backup."));
+        try {
+            String safetyId = stateService.restoreBackup(body.get("id"));
+            logger.warn("Backup {} restored by {} (previous data kept as {})", body.get("id"), auth.getName(), safetyId);
+            return ResponseEntity.ok(Map.of("restored", body.get("id"), "previousDataBackup", safetyId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     /**
      * Administrator clean-up: clears the chosen sections (bookings, fleet, ...) after keeping a full
      * backup copy on the server. Company details, agreement terms, staff and settings are never touched.

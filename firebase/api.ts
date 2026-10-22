@@ -82,10 +82,8 @@ export const fetchInitialData = async (): Promise<AllData | null> => {
   try {
     const text = await getStateText();
     if (text === null) return null;
-    lastStateText = text;
-    const data = JSON.parse(text);
-    if (!serverState) rememberServerState(data);
-    return data;
+    // Not marked as shown: only data the screen actually applied (rememberServerState) counts.
+    return JSON.parse(text);
   } catch (error) {
     console.error('Failed to fetch initial data', error);
     throw error;
@@ -97,9 +95,7 @@ export const fetchStateIfChanged = async (): Promise<AllData | null> => {
   const text = await getStateText();
   if (text === null || text === lastStateText) return null;
   lastStateText = text;
-  const data = JSON.parse(text);
-  if (!serverState) rememberServerState(data);
-  return data;
+  return JSON.parse(text);
 };
 
 // ---------------------------------------------------------------------------
@@ -160,14 +156,33 @@ const diffOps = (data: Partial<AllData>): PatchOp[] => {
 
 let saveQueue: Promise<void> = Promise.resolve();
 
-const sendAll = async (data: Partial<AllData>) => {
+export interface SaveOptions { /** Set only by actions that deliberately delete many bookings at once. */ allowBulkDelete?: boolean }
+
+/**
+ * Last line of defence against a screen that lost its data overwriting the server: drops
+ * deletions of many bookings at once (unless asked for) and refuses to empty a list that holds
+ * several items. Such changes only come from a screen that failed to load.
+ */
+const guardOps = (ops: PatchOp[], opts: SaveOptions): PatchOp[] => {
+  const deletes = ops.filter(o => o.op === 'deleteReservation').length;
+  const base = (serverState || {}) as Record<string, unknown>;
+  return ops.filter(o => {
+    if (o.op === 'deleteReservation' && deletes > 3 && !opts.allowBulkDelete) { console.warn('Refused bulk delete of', deletes, 'bookings'); return false; }
+    if (o.op === 'set' && Array.isArray(o.value) && o.value.length === 0 && Array.isArray(base[o.key]) && (base[o.key] as unknown[]).length >= 2) { console.warn('Refused to empty', o.key); return false; }
+    return true;
+  });
+};
+
+const sendAll = async (data: Partial<AllData>, opts: SaveOptions = {}) => {
   const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
-  if (!serverState) await fetchInitialData(); // never diff against nothing
-  const ops = diffOps(data);
+  // Never save before this screen has loaded the server's data: the screen would still hold
+  // the built-in starting values, and saving them would overwrite the real data.
+  if (!serverState) { console.warn('Save skipped: server data not loaded yet'); return; }
+  const ops = guardOps(diffOps(data), opts);
   if (!ops.length) return;
   try {
     for (let i = 0; i < ops.length; i += 200) {
-      await axios.post(`${API_URL}/api/state/patch`, { ops: ops.slice(i, i + 200) }, { headers });
+      await axios.post(`${API_URL}/api/state/patch`, { ops: ops.slice(i, i + 200), ...(opts.allowBulkDelete ? { allowBulkDelete: true } : {}) }, { headers });
     }
   } catch (error: any) {
     // Server not updated yet: fall back to the older whole-section save.
@@ -182,15 +197,23 @@ const sendAll = async (data: Partial<AllData>) => {
   serverState = next;
 };
 
-export const saveAllData = (data: Partial<AllData>): Promise<void> => {
+export const saveAllData = (data: Partial<AllData>, opts: SaveOptions = {}): Promise<void> => {
   // Saves run one after another so a later save never races an earlier one.
-  const run = saveQueue.then(() => sendAll(data));
+  const run = saveQueue.then(() => sendAll(data, opts));
   saveQueue = run.catch(() => undefined);
   return run.catch((error: any) => {
     console.error('Failed to save data:', error);
     if (error?.response) console.error('Response:', error.response.status, error.response.data);
     throw error;
   });
+};
+
+export interface DataBackup { id: string; kind: 'automatic' | 'manual'; bookings?: number; fleet?: number; sources?: number; company?: string; size: number }
+export const listBackups = async (): Promise<DataBackup[]> => (await axios.get(`${API_URL}/api/state/backups`, { headers: authHeaders() })).data;
+export const restoreBackup = async (id: string): Promise<{ restored: string; previousDataBackup: string }> => {
+  const response = await axios.post(`${API_URL}/api/state/restore`, { id }, { headers: authHeaders() });
+  serverState = null; // the app reloads its data next
+  return response.data;
 };
 
 /** Administrator clean-up on the server (a full backup copy is kept there first). */

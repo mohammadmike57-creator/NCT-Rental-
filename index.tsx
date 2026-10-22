@@ -4,6 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 // FIX: Use a default import for the App component.
 // FIX: Changed to a named import to resolve the "no default export" error.
 import { App } from './App';
+import ErrorBoundary, { reloadOnce } from './components/ErrorBoundary';
 import './index.css';
 
 // FIX: Added service worker registration to enable PWA functionality.
@@ -17,9 +18,13 @@ if ('serviceWorker' in navigator) {
     });
   });
 
-  // The service worker never caches the app (it is only for notifications), so there is
-  // nothing to reload when it takes over. Reloading here made the page reload by itself.
+  // When an updated worker takes over, reload so an outdated page is replaced by the current
+  // release. Limited to once a minute so it can never turn into a reload loop.
+  navigator.serviceWorker.addEventListener('controllerchange', () => reloadOnce());
 }
+
+// A new release replaced the code files this page was using: reload once to get the new ones.
+window.addEventListener('vite:preloadError', () => reloadOnce());
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -29,6 +34,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary fullPage>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

@@ -9,6 +9,7 @@ import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENT
 import Tabs from './components/Tabs';
 import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
+import ErrorBoundary from './components/ErrorBoundary';
 import Notifications from './components/Notifications';
 import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, rememberServerState, clearDataSections } from './firebase/api';
 
@@ -290,6 +291,8 @@ export const App: React.FC = () => {
 
   // Force table remount when data changes or year/month changes (now only used for logging)
   const [tableKey, setTableKey] = useState(0);
+  /** True once data from the server has been applied; saving is blocked until then. */
+  const serverLoadedRef = useRef(false);
 
   const isInitialDataLoad = useRef(true);
   const skipAutoSaveRef = useRef(false);
@@ -309,9 +312,9 @@ export const App: React.FC = () => {
     }, 5000);
   }, []);
   
-  const handleDataUpdate = (data: AllData) => {
+  const handleDataUpdate = (data: AllData, fromServer = true) => {
       if (!data) return;
-      rememberServerState(data);
+      if (fromServer) { rememberServerState(data); serverLoadedRef.current = true; }
 
       console.log('🔄 DATA UPDATE STARTED - Initializing Reservation Engine');
 
@@ -453,7 +456,7 @@ export const App: React.FC = () => {
         }, 15000);
       } else {
         // Load initial state from constants
-        handleDataUpdate(getInitialState());
+        handleDataUpdate(getInitialState(), false);
         setIsLoading(false);
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
@@ -609,6 +612,8 @@ export const App: React.FC = () => {
         if (!isLoading) isInitialDataLoad.current = false;
         return;
     }
+    // Nothing is saved until the server's data has been loaded onto this screen.
+    if (!serverLoadedRef.current) return;
 
     if (skipAutoSaveRef.current) {
         console.log("Skipping auto-save because data was just updated from backend or manual save.");
@@ -1123,6 +1128,15 @@ export const App: React.FC = () => {
   ];
 
   /** Administrator clean-up: downloads a full backup, clears the chosen sections on the server (which keeps its own backup), then reloads. */
+  const handleBackupRestored = async () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    const fresh = await fetchInitialData();
+    if (fresh) handleDataUpdate(fresh);
+    setNewReservations([]);
+    recordActivity('BACKUP_RESTORED', 'settings', 'Restored a data backup');
+    showConfirmation('Backup restored. The data on screen has been reloaded.');
+  };
+
   const handleClearData = async (keys: string[]) => {
     try {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -1167,7 +1181,7 @@ export const App: React.FC = () => {
       });
 
       skipAutoSaveRef.current = true;
-      await saveAllData({ reservations: cleanReservations });
+      await saveAllData({ reservations: cleanReservations }, { allowBulkDelete: true });
 
       setReservations(cleanReservations);
       setNewReservations([]);
@@ -1849,7 +1863,7 @@ ${currentUser?.fullName}
             console.error("Failed to save company details:", err);
             addNotification("Failed to save company details. Check connection.", 'error');
         }
-    }} cleanup={hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_USERS) ? { sections: cleanupSections, onClear: handleClearData } : undefined} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
+    }} cleanup={hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_USERS) ? { sections: cleanupSections, onClear: handleClearData, onRestored: handleBackupRestored } : undefined} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
     'Agreement Terms': { component: <AgreementTermsView details={companyDetails} currentUser={currentUser} onSave={async (newDetails) => {
         setCompanyDetails(newDetails);
         try {
@@ -2164,7 +2178,7 @@ ${currentUser?.fullName}
             <div className="max-w-[1500px] mx-auto">
             <Suspense fallback={<div className="flex items-center justify-center h-64"><LoadingSpinner /></div>}>
               {currentViewHasAccess 
-                ? mainViews[mainView]?.component
+                ? <ErrorBoundary resetKey={mainView}>{mainViews[mainView]?.component}</ErrorBoundary>
                 : <div className="p-12 text-center bg-white rounded-lg shadow-md">
                     <h2 className="text-xl font-bold text-red-600">Access Denied</h2>
                     <p className="mt-2 text-gray-600">You do not have permission to view this page.</p>

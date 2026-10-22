@@ -79,6 +79,7 @@ public class StateService {
                     newData.setData(INITIAL_STATE);
                     return appDataRepository.save(newData);
                 });
+        autoBackup(appData);
 
         try {
             JsonNode current = objectMapper.readTree(appData.getData());
@@ -89,6 +90,29 @@ public class StateService {
             appDataRepository.save(appData);
         } catch (Exception e) {
             throw new RuntimeException("Failed to merge state: " + e.getMessage(), e);
+        }
+    }
+
+    private static final int AUTO_BACKUPS_KEPT = 72; // three days of hourly copies
+    private Instant lastAutoBackup;
+
+    /**
+     * Before data changes, keeps a full copy of the data as an "auto-<timestamp>" row at most once an
+     * hour (and on the first change after the server starts), so any mistake can be restored.
+     */
+    private void autoBackup(AppData current) {
+        try {
+            Instant now = Instant.now();
+            if (lastAutoBackup != null && now.isBefore(lastAutoBackup.plusSeconds(3600))) return;
+            AppData copy = new AppData();
+            copy.setId("auto-" + now.toString().replace(':', '-'));
+            copy.setData(current.getData());
+            appDataRepository.save(copy);
+            lastAutoBackup = now;
+            List<String> ids = appDataRepository.autoBackupIds();
+            for (int i = AUTO_BACKUPS_KEPT; i < ids.size(); i++) appDataRepository.deleteById(ids.get(i));
+        } catch (Exception e) {
+            // A failed backup must never block saving.
         }
     }
 
@@ -110,16 +134,27 @@ public class StateService {
      */
     public synchronized void applyPatch(String patchJson) {
         AppData appData = loadMain();
+        autoBackup(appData);
         try {
             ObjectNode root = (ObjectNode) objectMapper.readTree(appData.getData());
-            JsonNode ops = objectMapper.readTree(patchJson).path("ops");
+            JsonNode patch = objectMapper.readTree(patchJson);
+            JsonNode ops = patch.path("ops");
+            // Safety net against a screen that failed to load overwriting everything: deleting many
+            // bookings at once needs an explicit flag, and a list holding several items is never emptied.
+            boolean bulkAllowed = patch.path("allowBulkDelete").asBoolean(false);
+            int deletes = 0;
+            for (JsonNode op : ops) if ("deleteReservation".equals(op.path("op").asText())) deletes++;
+            boolean refuseDeletes = deletes > 3 && !bulkAllowed;
             for (JsonNode op : ops) {
                 switch (op.path("op").asText()) {
                     case "upsertReservation" -> upsertReservation(root, op.path("year").asText(), op.path("month").asText(), op.path("reservation"));
-                    case "deleteReservation" -> removeReservation(root, op.path("id").asText(), null);
+                    case "deleteReservation" -> { if (!refuseDeletes) removeReservation(root, op.path("id").asText(), null); }
                     case "set" -> {
                         String key = op.path("key").asText();
-                        if (!key.isEmpty()) root.set(key, op.path("value"));
+                        JsonNode value = op.path("value");
+                        JsonNode existing = root.path(key);
+                        boolean wipesList = value.isArray() && value.size() == 0 && existing.isArray() && existing.size() >= 2;
+                        if (!key.isEmpty() && !wipesList) root.set(key, value);
                     }
                     default -> { /* unknown operations are ignored */ }
                 }
@@ -202,6 +237,45 @@ public class StateService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to clear data: " + e.getMessage(), e);
         }
+    }
+
+    /** Backup copies with what they hold, newest first. */
+    public List<Map<String, Object>> listBackups() {
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (String id : appDataRepository.backupIds()) {
+            appDataRepository.findById(id).ifPresent(b -> {
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("id", id);
+                row.put("kind", id.startsWith("auto-") ? "automatic" : "manual");
+                try {
+                    JsonNode d = objectMapper.readTree(b.getData());
+                    int[] bookings = {0};
+                    d.path("reservations").fields().forEachRemaining(y -> y.getValue().fields().forEachRemaining(m -> bookings[0] += m.getValue().size()));
+                    row.put("bookings", bookings[0]);
+                    row.put("fleet", d.path("fleet").size());
+                    row.put("sources", d.path("sources").size());
+                    row.put("company", d.path("companyDetails").path("name").asText(""));
+                } catch (Exception ignored) { }
+                row.put("size", b.getData() == null ? 0 : b.getData().length());
+                out.add(row);
+            });
+        }
+        return out;
+    }
+
+    /** Replaces the live data with a backup copy, after keeping the current data as a backup too. */
+    public synchronized String restoreBackup(String id) {
+        if (id == null || !(id.startsWith("auto-") || id.startsWith("backup-"))) throw new IllegalArgumentException("Unknown backup");
+        AppData source = appDataRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Backup not found"));
+        AppData main = loadMain();
+        String safetyId = "backup-before-restore-" + Instant.now().toString().replace(':', '-');
+        AppData safety = new AppData();
+        safety.setId(safetyId);
+        safety.setData(main.getData());
+        appDataRepository.save(safety);
+        main.setData(source.getData());
+        appDataRepository.save(main);
+        return safetyId;
     }
 
     private JsonNode deepMerge(JsonNode source, JsonNode target) {

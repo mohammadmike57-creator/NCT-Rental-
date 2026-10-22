@@ -131,7 +131,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
   const nextNumber = useMemo(() => {
     const issueYear = new Date().getFullYear();
     const prefix = `INV-${issueYear}-`;
-    const used = invoices.map(i => i.invoiceNumber).filter(n => n.startsWith(prefix)).map(n => parseInt(n.slice(prefix.length)) || 0);
+    const used = invoices.map(i => i.invoiceNumber).filter(n => (n || '').startsWith(prefix)).map(n => parseInt(n.slice(prefix.length)) || 0);
     return `${prefix}${String((used.length ? Math.max(...used) : 0) + 1).padStart(4, '0')}`;
   }, [invoices]);
 
@@ -164,14 +164,14 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
   // ----- history ------------------------------------------------------------
   const [filter, setFilter] = useState<'all' | InvoiceState>('all');
   const [query, setQuery] = useState('');
-  const sorted = useMemo(() => [...invoices].sort((a, b) => b.generatedAt.localeCompare(a.generatedAt)), [invoices]);
+  const sorted = useMemo(() => [...invoices].sort((a, b) => (b.generatedAt || '').localeCompare(a.generatedAt || '')), [invoices]);
   const visible = sorted.filter(i => (filter === 'all' || invoiceState(i) === filter) && (!query || `${i.invoiceNumber} ${i.billToName} ${i.poNumber || ''}`.toLowerCase().includes(query.toLowerCase())));
 
   const kpi = useMemo(() => {
     const thisYear = String(new Date().getFullYear());
     const live = invoices.filter(i => invoiceState(i) !== 'void');
     const sum = (l: InvoiceData[]) => l.reduce((s, i) => s + (i.grandTotal || 0), 0);
-    const yearL = live.filter(i => i.generatedAt.startsWith(thisYear));
+    const yearL = live.filter(i => (i.generatedAt || '').startsWith(thisYear));
     const unpaid = live.filter(i => invoiceState(i) === 'unpaid');
     const overdue = live.filter(i => invoiceState(i) === 'overdue');
     const paid = yearL.filter(i => invoiceState(i) === 'paid');

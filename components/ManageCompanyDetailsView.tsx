@@ -4,13 +4,14 @@ import { TrashIcon, SaveIcon } from './icons';
 import { Page, PageHeader, Panel, Button, Field, inputCls, textareaCls } from './ui/Crm';
 import { parseTerms } from '../services/agreementTerms';
 import DataCleanupPanel, { CleanupSection } from './DataCleanupPanel';
+import BackupRestorePanel from './BackupRestorePanel';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
   onUpdate: (newDetails: CompanyDetails) => void;
   onDeleteAllReservations?: () => void;
   /** Data clean-up for administrators; hidden when not provided. */
-  cleanup?: { sections: CleanupSection[]; onClear: (keys: string[]) => Promise<void> };
+  cleanup?: { sections: CleanupSection[]; onClear: (keys: string[]) => Promise<void>; onRestored: () => Promise<void> };
 }
 
 /** Settings row: short description column on the left (lg), content on the right. */
@@ -119,7 +120,7 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
       </SettingsSection>
 
       <SettingsSection title="Danger zone" description="Irreversible actions, for administrators only. A backup is always taken first." danger>
-        {cleanup ? <DataCleanupPanel sections={cleanup.sections} onClear={cleanup.onClear} /> : (
+        {cleanup ? <div className="space-y-4"><BackupRestorePanel onRestored={cleanup.onRestored} /><DataCleanupPanel sections={cleanup.sections} onClear={cleanup.onClear} /></div> : (
           <Panel className="border-rose-200"><p className="p-4 text-[13px] text-slate-500">Only an administrator (staff &amp; permissions) can clear data.</p></Panel>
         )}
       </SettingsSection>
