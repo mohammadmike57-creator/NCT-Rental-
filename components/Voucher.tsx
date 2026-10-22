@@ -12,6 +12,7 @@ import { emailAgreementDocuments } from '../services/agreementEmail';
 import PaymentChoice from './PaymentChoice';
 import { bookingPayment, isPrepaid as bookingIsPrepaid, paymentUnset, sourceOf, PAYMENT_LABEL } from '../services/paymentType';
 import { depositTermsFor } from '../services/fleetLookup';
+import { changedFields, clearDraft, draftTime, loadDraft, saveDraft } from '../services/drafts';
 import { counterPayment, DEPOSIT_HOLD_LABEL } from '../services/counterPayment';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
@@ -385,10 +386,37 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     return migrated;
   };
 
-  const [localReservation, setLocalReservation] = useState<Reservation>(getInitialReservationState(reservation));
+  // What staff entered but did not complete yet survives a reload or closing the page (kept in this browser).
+  const draftKey = `agreement:${reservation.id}`;
+  const phaseOf = (r: Reservation) => (!r.voucherSubmitted ? 'pickup' : !r.dropOffCompleted ? 'dropoff' : 'closed');
+  const withDraft = (base: Reservation): Reservation => {
+    const d = loadDraft<{ phase: string; fields: Partial<Reservation> }>(draftKey);
+    if (!d) return base;
+    if (d.data.phase !== phaseOf(base)) { clearDraft(draftKey); return base; }
+    return { ...base, ...d.data.fields };
+  };
+  const [restoredDraftAt, setRestoredDraftAt] = useState<number | null>(() => {
+    const d = loadDraft<{ phase: string }>(draftKey);
+    return d && d.data.phase === phaseOf(reservation) ? d.savedAt : null;
+  });
+  const [localReservation, setLocalReservation] = useState<Reservation>(() => withDraft(getInitialReservationState(reservation)));
   useEffect(() => {
-    setLocalReservation(getInitialReservationState(reservation));
-  }, [reservation]);
+    setLocalReservation(withDraft(getInitialReservationState(reservation)));
+  }, [reservation]); // eslint-disable-line react-hooks/exhaustive-deps
+  const draftSuspended = useRef(false);
+  useEffect(() => {
+    if (draftSuspended.current) return;
+    const t = window.setTimeout(() => {
+      const base = getInitialReservationState(reservation);
+      if (phaseOf(base) === 'closed') return;
+      const fields = changedFields(base, localReservation);
+      if (Object.keys(fields).length) saveDraft(draftKey, { phase: phaseOf(base), fields });
+      else clearDraft(draftKey);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [localReservation]); // eslint-disable-line react-hooks/exhaustive-deps
+  const finishDraft = () => { draftSuspended.current = true; clearDraft(draftKey); setRestoredDraftAt(null); };
+  const discardDraft = () => { clearDraft(draftKey); setRestoredDraftAt(null); setLocalReservation(getInitialReservationState(reservation)); };
 
   const [viewMode, setViewMode] = useState<'pickup' | 'dropoff'>(reservation.voucherSubmitted ? 'dropoff' : 'pickup');
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
@@ -540,8 +568,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   };
 
   const handleSubmit = () => {
-    if (!localReservation.customerEmail?.trim() || !/^\S+@\S+\.\S+$/.test(localReservation.customerEmail)) {
-      alert("Please enter a valid customer email address.");
+    if (localReservation.customerEmail?.trim() && !/^\S+@\S+\.\S+$/.test(localReservation.customerEmail.trim())) {
+      alert("The customer email address is not valid. Correct it, or leave it empty if the customer has none.");
       return;
     }
 
@@ -574,6 +602,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         ...localReservation, voucherSubmitted: true,
         ...(bookingPayment(localReservation, sources) === PaymentType.PREPAID && !localReservation.paymentMethod ? { paymentMethod: 'prepaid' as const } : {}),
       };
+      finishDraft();
       onUpdate(submittedVoucher);
       setLocalReservation(submittedVoucher);
       setShowSuccessOverlay(true);
@@ -607,6 +636,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         }
         const submittedVoucher: Reservation = { ...localReservation, dropOffCompleted: true, returnCharges: finalCharges };
         if (finalCharges && onRecordReturnCharges) onRecordReturnCharges(submittedVoucher, finalCharges);
+        finishDraft();
         onUpdate(submittedVoucher);
         setLocalReservation(submittedVoucher);
         setShowSuccessOverlay(true);
@@ -646,6 +676,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           pickupKmOut: completeExchange.checkoutKmOut,
           carExchanges: [...(localReservation.carExchanges || []), completeExchange],
         };
+        finishDraft();
         onUpdate(updatedReservation);
         recordActivity('VEHICLE_EXCHANGED', 'agreement', `Exchanged ${completeExchange.oldCarLicensePlate} for ${completeExchange.newCarLicensePlate} for ${localReservation.personName}`, localReservation.bookingId, `Reason: ${completeExchange.reason}`);
         onClose();
@@ -1076,7 +1107,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const isWizard = viewMode === 'pickup' || dropoffFlow === 'return';
 
   // Completion states, derived from data already in state. They mirror the checks in handleSubmit.
-  const emailValid = !!localReservation.customerEmail?.trim() && /^\S+@\S+\.\S+$/.test(localReservation.customerEmail);
+  // The email is optional (documents are emailed only when there is one), but must be valid when entered.
+  const emailValid = !localReservation.customerEmail?.trim() || /^\S+@\S+\.\S+$/.test(localReservation.customerEmail.trim());
   const countChecked = (c?: { [item: string]: boolean }) => checklistItems.filter(i => c?.[i]).length;
   const kmOutValid = localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.pickupKmOut >= 0;
   const kmInValid = localReservation.dropOffKmIn !== undefined && localReservation.dropOffKmIn !== null && localReservation.dropOffKmIn >= 0
@@ -1091,7 +1123,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const pickupClosed = !!localReservation.voucherSubmitted;
   const dropoffClosed = !!localReservation.dropOffCompleted;
   const pickupSteps: FlowStep[] = [
-    { key: 'customer', label: 'Customer & documents', done: pickupClosed || emailValid, hint: emailValid ? undefined : 'Valid email required' },
+    { key: 'customer', label: 'Customer & documents', done: pickupClosed || emailValid, hint: emailValid ? undefined : 'Email address not valid' },
     { key: 'vehicle', label: 'Vehicle', done: pickupClosed || !!localReservation.licensePlate?.trim(), hint: 'License plate required' },
     { key: 'inspection', label: 'Inspection checklist', done: pickupClosed || countChecked(localReservation.pickupChecklist) === checklistItems.length, hint: `${countChecked(localReservation.pickupChecklist)} of ${checklistItems.length} confirmed` },
     { key: 'damage', label: 'Damage', done: pickupClosed || !!visited['pickup:damage'], hint: `${(localReservation.pickupDamageMarkers || []).length} marked` },
@@ -1100,7 +1132,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     { key: 'signatures', label: 'Signatures', done: pickupClosed || signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) === 2, hint: `${signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature)} of 2 signed` },
   ];
   const dropoffSteps: FlowStep[] = [
-    { key: 'return', label: 'Return details', done: dropoffClosed || (emailValid && !!visited['dropoff:return']), hint: emailValid ? undefined : 'Customer email missing' },
+    { key: 'return', label: 'Return details', done: dropoffClosed || (emailValid && !!visited['dropoff:return']), hint: emailValid ? undefined : 'Customer email not valid' },
     { key: 'inspection', label: 'Inspection', done: dropoffClosed || countChecked(localReservation.dropOffChecklist) === checklistItems.length, hint: `${countChecked(localReservation.dropOffChecklist)} of ${checklistItems.length} confirmed` },
     { key: 'damage', label: 'Damage', done: dropoffClosed || !!visited['dropoff:damage'], hint: `${(localReservation.dropOffDamageMarkers || []).length} new marked` },
     { key: 'fuel', label: 'Fuel & mileage', done: dropoffClosed || (kmInValid && localReservation.dropOffFuelLevel !== undefined), hint: kmInValid ? 'Fuel level not set' : 'Odometer in required' },
@@ -1183,7 +1215,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-900 truncate">{reservation.personName}</p>
             <p className="text-xs text-slate-500 tabular-nums">{reservation.contactNumber || 'No phone'}</p>
-            <div className="mt-2">{renderTextField('Email (for receipt)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}</div>
+            <div className="mt-2">{renderTextField('Email (optional)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}</div>
           </div>
         </div>
         <div className="space-y-2.5 min-w-0">
@@ -1394,7 +1426,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <SectionLabel><Bi en="Renter" /></SectionLabel>
           <InfoPair label="Name" value={reservation.personName} />
           <InfoPair label="Phone" value={reservation.contactNumber} />
-          {renderTextField('Email (for receipt)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}
+          {renderTextField('Email (optional)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}
           <SectionLabel className="pt-2"><Bi en="Vehicle" /></SectionLabel>
           <InfoPair label="Model" value={localReservation.carModel} />
           <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
@@ -1573,6 +1605,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           {/* Center: active step */}
           <div ref={centerRef} className="flex-1 min-w-0 overflow-y-auto">
             <div id="voucher-print-area" className="p-3 sm:p-5 space-y-4">
+              {restoredDraftAt && (
+                <div className="no-print rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[13px] text-sky-900"><b>Unfinished work restored.</b> The details entered on {draftTime(restoredDraftAt)} were kept. Continue where you left off.</p>
+                  <span className="flex gap-2">
+                    <button type="button" onClick={() => setRestoredDraftAt(null)} className="h-8 px-3 rounded-md text-[13px] font-medium text-sky-900 hover:bg-sky-100">OK</button>
+                    <button type="button" onClick={discardDraft} className="h-8 px-3 rounded-md text-[13px] font-medium text-rose-700 hover:bg-rose-50">Discard and start over</button>
+                  </span>
+                </div>
+              )}
               <details className="lg:hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip group">
                 <summary className="px-4 py-3 flex items-center gap-3 cursor-pointer list-none">
                   <div className="min-w-0 flex-1">

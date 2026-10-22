@@ -257,7 +257,9 @@ export const App: React.FC = () => {
     setSelectedMonth(month);
   };
   
-  const [mainView, setMainView] = useState('Home');
+  // The page in use is remembered, so a reload or reopening the system returns to it.
+  const [mainView, setMainView] = useState<string>(() => { try { return localStorage.getItem('nct.mainView') || 'Home'; } catch { return 'Home'; } });
+  useEffect(() => { try { localStorage.setItem('nct.mainView', mainView); } catch { /* storage unavailable */ } }, [mainView]);
   const [newReservations, setNewReservations] = useState<Reservation[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopView, setIsDesktopView] = useState(window.innerWidth >= 1024);
@@ -293,6 +295,28 @@ export const App: React.FC = () => {
   const [tableKey, setTableKey] = useState(0);
   /** True once data from the server has been applied; saving is blocked until then. */
   const serverLoadedRef = useRef(false);
+  // The agreement being worked on is reopened after a reload (its unfinished entries come back as a draft).
+  const OPEN_AGREEMENT_KEY = 'nct.openAgreement';
+  const agreementRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!agreementRestoredRef.current) return;
+    const v = modals.viewRentalVoucher;
+    try {
+      if (v) localStorage.setItem(OPEN_AGREEMENT_KEY, JSON.stringify({ id: v.reservation.id, year: v.year, month: v.month }));
+      else localStorage.removeItem(OPEN_AGREEMENT_KEY);
+    } catch { /* storage unavailable */ }
+  }, [modals.viewRentalVoucher]);
+  useEffect(() => {
+    if (agreementRestoredRef.current || !serverLoadedRef.current) return;
+    agreementRestoredRef.current = true;
+    try {
+      const saved = JSON.parse(localStorage.getItem(OPEN_AGREEMENT_KEY) || 'null');
+      if (!saved) return;
+      const found = (reservations as any)?.[saved.year]?.[saved.month]?.find((r: Reservation) => r.id === saved.id);
+      if (found && !found.dropOffCompleted) setModals(m => ({ ...m, viewRentalVoucher: { reservation: found, year: saved.year, month: saved.month } }));
+      else localStorage.removeItem(OPEN_AGREEMENT_KEY);
+    } catch { /* ignore */ }
+  }, [reservations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isInitialDataLoad = useRef(true);
   const skipAutoSaveRef = useRef(false);
@@ -728,6 +752,8 @@ export const App: React.FC = () => {
       await signOutUser();
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('nct.mainView');
+      localStorage.removeItem('nct.openAgreement');
       setCurrentUser(null);
     } catch (error) {
       console.error("Error signing out:", error);

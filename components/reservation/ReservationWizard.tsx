@@ -37,6 +37,8 @@ export interface ReservationWizardProps {
   calculatedTotal: number;
   onSave: () => void;
   onClose: () => void;
+  /** Shown when an unfinished new reservation was restored after a reload. */
+  draftNotice?: { savedAt: number; onDiscard: () => void };
   rentalSources: RentalSource[];
   rentalLocations: RentalLocation[];
   fleet: Fleet;
@@ -59,7 +61,7 @@ const fmt = (iso?: string) => {
 
 const ReservationWizard: React.FC<ReservationWizardProps> = ({
   open, mode, formData, onChange, onToggleExtra, durationDays, calculatedTotal, onSave, onClose,
-  rentalSources, rentalLocations, fleet, allData, newReservations = [], availableExtras, duplicateBookingIds, carModels = [],
+  rentalSources, rentalLocations, fleet, allData, newReservations = [], availableExtras, duplicateBookingIds, carModels = [], draftNotice,
 }) => {
   const [step, setStep] = useState(0);
   const [tried, setTried] = useState<Record<number, boolean>>({});
@@ -327,6 +329,12 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
 
           {/* Step body */}
           <div ref={bodyRef} className="flex-1 min-w-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-5 pb-8 text-[13px] [-webkit-overflow-scrolling:touch]">
+            {draftNotice && (
+              <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[13px] text-sky-900"><b>Unfinished reservation restored.</b> The details entered on {new Date(draftNotice.savedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} were kept.</p>
+                <button type="button" onClick={draftNotice.onDiscard} className="h-8 px-3 rounded-md text-[13px] font-medium text-rose-700 hover:bg-rose-50">Discard and start over</button>
+              </div>
+            )}
             {current.key === 'dates' && (
               <div className="space-y-6 max-w-3xl">
                 <div>

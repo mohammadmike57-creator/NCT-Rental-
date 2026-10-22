@@ -7,6 +7,7 @@ import { MONTHS } from '../constants';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
 import ReservationWizard from './reservation/ReservationWizard';
+import { clearDraft, loadDraft, saveDraft } from '../services/drafts';
 import ReservationRecord from './reservation/ReservationRecord';
 import { recordActivity } from '../firebase/api';
 import { emailAgreementDocuments } from '../services/agreementEmail';
@@ -238,10 +239,23 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     setIsModalOpen(true);
   };
 
+  // An unfinished new reservation survives a reload or closing the page.
+  const [restoredDraftAt, setRestoredDraftAt] = useState<number | null>(null);
   const openAddModal = () => {
     setModalMode('add');
+    const d = loadDraft<Partial<Reservation>>('reservation:new');
+    if (d) { setFormData(prev => ({ ...prev, ...d.data })); setRestoredDraftAt(d.savedAt); } else setRestoredDraftAt(null);
     setIsModalOpen(true);
   };
+  useEffect(() => {
+    if (!isModalOpen || modalMode !== 'add') return;
+    const t = window.setTimeout(() => {
+      const f = formData as any;
+      const touched = !!(f.personName || f.contactNumber || f.customerEmail || f.bookingId || f.carModel || f.startDate || f.endDate || f.amount || f.notes || (f.selectedExtras || []).length);
+      if (touched) saveDraft('reservation:new', formData); else clearDraft('reservation:new');
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [formData, isModalOpen, modalMode]);
   // The top bar's "New → Reservation" opens the wizard here.
   useEffect(() => {
     const onNew = () => openAddModal();
@@ -298,6 +312,8 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       createdBy: modalMode === 'add' ? currentUser?.fullName : formData.createdBy,
     };
     if (modalMode === 'add') {
+      clearDraft('reservation:new');
+      setRestoredDraftAt(null);
       if (onSaveNew) {
         onSaveNew(reservationData as Reservation);
       } else if (onAdd) {
@@ -1106,6 +1122,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
         calculatedTotal={calculatedTotal}
         onSave={handleSave}
         onClose={() => setIsModalOpen(false)}
+        draftNotice={modalMode === 'add' && restoredDraftAt ? { savedAt: restoredDraftAt, onDiscard: () => { clearDraft('reservation:new'); setRestoredDraftAt(null); setIsModalOpen(false); window.setTimeout(() => openAddModal(), 0); } } : undefined}
         rentalSources={rentalSources}
         rentalLocations={rentalLocations}
         fleet={fleet}
