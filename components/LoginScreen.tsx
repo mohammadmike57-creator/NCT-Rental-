@@ -154,7 +154,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           <div className="lg-ticker lg-in lg-d4">
             <span><i />All systems running</span>
             <span>Amman <b className="lg-clock">{clock}</b></span>
-            <span>Queen Alia Airport · City Center · Hotel Kiosk</span>
+            <span>Queen Alia Airport · City Center</span>
           </div>
         </div>
       </section>
