@@ -10,7 +10,7 @@ import Tabs from './components/Tabs';
 import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import Notifications from './components/Notifications';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, saveAllData, fetchCurrentAccount, recordActivity, rememberServerState, clearDataSections } from './firebase/api';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, rememberServerState, clearDataSections } from './firebase/api';
 
 // Lazy load components
 const ReservationTable = React.lazy(() => import('./components/ReservationTable'));
@@ -390,17 +390,11 @@ export const App: React.FC = () => {
     console.log('[SYNC LOG] Polling for updates...');
 
     try {
-      // Use SyncService to check if we should fetch
-      const updatedReservations = await ReservationSyncService.syncWithBackend(reservations);
-      
-      if (updatedReservations) {
-        // If we got new reservations, we also need the rest of the state
-        // fetchInitialData already fetched everything, but we need to update all state slices
-        const fullState = await fetchInitialData();
-        if (fullState) {
-          handleDataUpdate(fullState);
-        }
-      }
+      // Never replace what is on screen while it is being saved or has unsaved changes.
+      if (!ReservationSyncService.canSync()) return;
+      // One request; the screen is redrawn only when someone actually changed something.
+      const fullState = await fetchStateIfChanged();
+      if (fullState && ReservationSyncService.canSync()) handleDataUpdate(fullState);
     } catch (error) {
       console.error('[SYNC LOG] Polling fetch failed', error);
     }
@@ -437,11 +431,6 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     // On mount, if token exists, fetch data (for page refresh)
-    const token = localStorage.getItem("token");
-    if (token) {
-      fetchAllData();
-    }
-
     const unsubscribe = onAuthStateChangedListener((user) => {
       setCurrentUser(user);
       setAuthChecked(true);

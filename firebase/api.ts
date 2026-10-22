@@ -63,24 +63,43 @@ export const onAuthStateChangedListener = (callback: (user: any) => void) => {
   return () => {};
 };
 
-export const fetchInitialData = async (): Promise<AllData | null> => {
+// The last state document received, as text, so polling can skip work when nothing changed.
+let lastStateText: string | null = null;
+
+const getStateText = async (): Promise<string | null> => {
   const currentToken = localStorage.getItem('token');
   if (!currentToken) return null;
+  const response = await axios.get(`${API_URL}/api/state`, {
+    params: { ts: Date.now() },
+    responseType: 'text',
+    transformResponse: [(x: unknown) => x],
+    headers: { Authorization: `Bearer ${currentToken}`, 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+  });
+  return typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+};
+
+export const fetchInitialData = async (): Promise<AllData | null> => {
   try {
-    const response = await axios.get(`${API_URL}/api/state`, {
-      params: { ts: Date.now() },
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      }
-    });
-    if (!serverState) rememberServerState(response.data);
-    return response.data;
+    const text = await getStateText();
+    if (text === null) return null;
+    lastStateText = text;
+    const data = JSON.parse(text);
+    if (!serverState) rememberServerState(data);
+    return data;
   } catch (error) {
     console.error('Failed to fetch initial data', error);
     throw error;
   }
+};
+
+/** The server's data, or null when it is exactly what this screen already shows. */
+export const fetchStateIfChanged = async (): Promise<AllData | null> => {
+  const text = await getStateText();
+  if (text === null || text === lastStateText) return null;
+  lastStateText = text;
+  const data = JSON.parse(text);
+  if (!serverState) rememberServerState(data);
+  return data;
 };
 
 // ---------------------------------------------------------------------------

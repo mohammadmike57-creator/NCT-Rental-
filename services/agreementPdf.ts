@@ -77,6 +77,8 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
       if (section) sections.forEach(s => { s.style.display = s === section ? '' : 'none'; });
       await new Promise(r => setTimeout(r, 30));
       const height = Math.max(body.scrollHeight + 32, 1123);
+      // Give the browser a moment between pages so clicks and typing stay responsive.
+      await new Promise(r => setTimeout(r, 60));
       const canvas = await html2canvas(body, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 794, height, windowWidth: 794, windowHeight: height, logging: false });
 
       // Places where a page may end without cutting through a row, card or photo (in CSS px from the top).

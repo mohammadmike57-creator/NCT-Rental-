@@ -14,6 +14,9 @@ export class ReservationSyncService {
     this.hasLocalChanges = value;
   }
 
+  /** False while a save is running or there are changes not saved yet. */
+  static canSync() { return !this.isSaving && !this.hasLocalChanges; }
+
   static async syncWithBackend(currentData: AppData): Promise<AppData | null> {
     if (this.isSaving) {
       console.log('[SYNC LOG] Skipping sync: Saving in progress');

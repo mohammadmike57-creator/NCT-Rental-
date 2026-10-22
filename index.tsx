@@ -17,12 +17,8 @@ if ('serviceWorker' in navigator) {
     });
   });
 
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
+  // The service worker never caches the app (it is only for notifications), so there is
+  // nothing to reload when it takes over. Reloading here made the page reload by itself.
 }
 
 const rootElement = document.getElementById('root');

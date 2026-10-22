@@ -560,7 +560,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       setShowSuccessOverlay(true);
       recordActivity('CHECK_OUT', 'agreement', `Checked out ${submittedVoucher.carModel || 'vehicle'}${submittedVoucher.licensePlate ? ` (${submittedVoucher.licensePlate})` : ''} to ${submittedVoucher.personName}`,
         submittedVoucher.bookingId, `Km out ${submittedVoucher.pickupKmOut ?? '—'} · fuel ${submittedVoucher.pickupFuelLevel ?? '—'}/8 · agent ${submittedVoucher.pickupAgentName || '—'}`);
-      void emailAgreement(submittedVoucher, 'checkout');
+      queueEmail(submittedVoucher, 'checkout');
     } else {
       if (processType === 'return') {
         if (localReservation.dropOffKmIn === undefined || localReservation.dropOffKmIn === null || localReservation.dropOffKmIn < 0) { alert("A valid returning Kilometers In is required for drop-off."); return; }
@@ -593,7 +593,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         setShowSuccessOverlay(true);
         recordActivity('CHECK_IN', 'agreement', `Checked in ${submittedVoucher.carModel || 'vehicle'}${submittedVoucher.licensePlate ? ` (${submittedVoucher.licensePlate})` : ''} from ${submittedVoucher.personName} and closed the agreement`,
           submittedVoucher.bookingId, `Km in ${submittedVoucher.dropOffKmIn ?? '—'} · fuel ${submittedVoucher.dropOffFuelLevel ?? '—'}/8${finalCharges ? ` · charges ${formatMoney(chargesTotal(finalCharges.items), finalCharges.currency)} (${finalCharges.settlement === 'paid' ? 'paid' : 'claim'} ${finalCharges.documentNumber})` : ' · no charges'}`);
-        void emailAgreement(submittedVoucher, 'checkin');
+        queueEmail(submittedVoucher, 'checkin');
       } else if (processType === 'exchange') {
         if (!currentExchange.reason?.trim()) { alert("A reason for the exchange is required."); return; }
         if (!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature) { alert("Signatures for checking in the old car are required."); return; }
@@ -747,6 +747,14 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     } else {
       setEmailState({ status: outcome.reason === 'unconfigured' ? 'unconfigured' : 'failed', to, message: outcome.message });
     }
+  };
+
+  // Building the PDFs keeps the browser busy, so it starts only once the success screen is on show.
+  // Closing the agreement does not cancel it: the email still goes out in the background.
+  const queueEmail = (r: Reservation, kind: 'checkout' | 'checkin') => {
+    if (!r.customerEmail?.trim()) return;
+    setEmailState({ status: 'sending', to: r.customerEmail.trim() });
+    window.setTimeout(() => { void emailAgreement(r, kind); }, 1500);
   };
 
   const handleSendEmail = () => emailAgreement(localReservation, localReservation.dropOffCompleted ? 'checkin' : 'checkout');
