@@ -1,7 +1,7 @@
 import { CarView, CompanyDetails, DamageMarker, Reservation } from '../types';
-import { damageSeverityLabel, damageTypeLabel, DAMAGE_TYPE_AR, DAMAGE_SEVERITY_AR } from './damageMarks';
+import { damageSeverityLabel, damageTypeLabel } from './damageMarks';
 import { INSPECTION_LABEL, INSPECTION_SVG } from '../components/VehicleGraphics';
-import { CHARGE_KIND_AR, CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, damageCostByMark, formatMoney } from './returnChargesDoc';
+import { CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, damageCostByMark, formatMoney } from './returnChargesDoc';
 import { parseTerms, parseTermsAr } from './agreementTerms';
 import { code39Svg } from './barcode';
 import { counterPayment, DEPOSIT_HOLD_LABEL } from './counterPayment';
@@ -103,12 +103,15 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     const amt = markCost.get(n + 1);
     return amt != null ? `<td class="num cost">${esc(formatMoney(amt, rc!.currency))}</td>` : `<td class="num dim">${L('Not charged', 'غير محتسب')}</td>`;
   };
-  const damageRegister = damageRows.length ? `<table class="dmg">
-      <tr><th style="width:7%">${L('No.', 'رقم')}</th><th style="width:11%">${L('View', 'الجهة')}</th><th style="width:13%">${L('Damage', 'الضرر')}</th><th style="width:17%">${L('Part / location', 'الجزء / الموقع')}</th><th style="width:9%">${L('Size', 'الحجم')}</th><th style="width:10%">${L('Severity', 'الشدة')}</th><th>${L('Description', 'الوصف')}</th>${showCost ? `<th class="num" style="width:12%">${L('Damage cost', 'تكلفة الضرر')}</th>` : ''}</tr>
-      ${damageRows.map(({ m, n, kind }) => `<tr><td><span class="dn ${kind}">${n + 1}</span>${kind === 'in' ? '<span class="dk">NEW</span>' : ''}</td><td>${esc(INSPECTION_LABEL[m.view])}<bdi class="ar">${VIEW_AR[m.view]}</bdi></td><td>${m.type ? `${esc(damageTypeLabel(m.type))}<bdi class="ar">${DAMAGE_TYPE_AR[m.type]}</bdi>` : '—'}</td><td>${esc(m.part || '—')}</td><td>${esc(m.size || '—')}</td><td>${m.severity ? `<b class="sv ${m.severity}">${esc(damageSeverityLabel(m.severity))}</b><bdi class="ar">${DAMAGE_SEVERITY_AR[m.severity]}</bdi>` : '—'}</td><td>${esc(m.note || '')}</td>${costCell(kind, n)}</tr>`).join('')}
-    </table>` : `<div class="nodmg">No damage recorded on the vehicle at check-out${closed ? ' or check-in' : ''}.<bdi class="ar">${closed ? 'لا توجد أضرار مسجّلة على المركبة عند التسليم أو الإرجاع.' : 'لا توجد أضرار مسجّلة على المركبة عند التسليم.'}</bdi></div>`;
+  const dmgHead = `<tr><th style="width:7%">${L('No.', 'رقم')}</th><th style="width:11%">${L('View', 'الجهة')}</th><th style="width:13%">${L('Damage', 'الضرر')}</th><th style="width:17%">${L('Part / location', 'الجزء / الموقع')}</th><th style="width:9%">${L('Size', 'الحجم')}</th><th style="width:10%">${L('Severity', 'الشدة')}</th><th>${L('Description', 'الوصف')}</th>${showCost ? `<th class="num" style="width:12%">${L('Damage cost', 'تكلفة الضرر')}</th>` : ''}</tr>`;
+  const dmgRow = ({ m, n, kind }: typeof damageRows[number]) => `<tr><td><span class="dn ${kind}">${n + 1}</span>${kind === 'in' ? '<span class="dk">NEW</span>' : ''}</td><td>${esc(INSPECTION_LABEL[m.view])}</td><td>${m.type ? esc(damageTypeLabel(m.type)) : '—'}</td><td>${esc(m.part || '—')}</td><td>${esc(m.size || '—')}</td><td>${m.severity ? `<b class="sv ${m.severity}">${esc(damageSeverityLabel(m.severity))}</b>` : '—'}</td><td>${esc(m.note || '')}</td>${costCell(kind, n)}</tr>`;
+  const damageRegister = damageRows.length
+    ? `<table class="dmg">${dmgHead}${damageRows.map(dmgRow).join('')}</table>`
+    : `<div class="nodmg">No damage recorded on the vehicle at check-out${closed ? ' or check-in' : ''}.<bdi class="ar">${closed ? 'لا توجد أضرار مسجّلة على المركبة عند التسليم أو الإرجاع.' : 'لا توجد أضرار مسجّلة على المركبة عند التسليم.'}</bdi></div>`;
   const sig = (img: string | undefined, role: string, name?: string, at?: string) => `
     <div class="sig"><div class="si">${img ? `<img src="${esc(img)}"/>` : ''}</div><div class="sl">${role}</div><div class="sm">${esc([name, at].filter(Boolean).join(' · ') || ' ')}</div></div>`;
+  // Long notes are shortened so the agreement stays on one page; the full text stays in the booking.
+  const clip = (t?: string) => (t && t.length > 240 ? t.slice(0, 237).trimEnd() + '…' : t);
   const tick = (v?: boolean, warn?: boolean) => (v ? '<span class="ok">✔</span>' : warn ? '<span class="bad">✕</span>' : '<span class="dim">—</span>');
 
   // Notes sit beside the rental charges when there is no charges-at-return card, to keep one page.
@@ -322,7 +325,64 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .terms-bi .lang { font-size: 6.6pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px; }
   .terms-bi .rtl .lang { letter-spacing: 0; font-size: 7.4pt; }
   .terms-head h1 .ar { display: block; margin: 2px 0 0; color: #111827; font-size: 13pt; font-weight: 700; }
-  @media print { body { padding: 0; zoom: 0.86; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
+  /* ---- Two-page layout: the agreement on page 1, the terms on page 2 ---- */
+  body { font-size: 7.9pt; line-height: 1.32; }
+  .top { padding-bottom: 5px; gap: 14px; }
+  .top img { height: 24px; }
+  .co { font-size: 7pt; margin-top: 2px; line-height: 1.35; }
+  .doc { min-width: 0; }
+  .doc h1 { font-size: 13.5pt; }
+  .doc .ar-title { font-size: 12pt; margin-top: 0; line-height: 1.15; }
+  .doc .sub { margin-top: 2px; font-size: 6.4pt; }
+  .refrow { display: flex; justify-content: flex-end; align-items: flex-end; gap: 10px; margin-top: 4px; }
+  .refrow .ref { margin: 0; width: 215px; }
+  .ref td { padding: 1.5px 7px; font-size: 7pt; }
+  .bc { margin: 0; }
+  .bc svg { height: 22px; width: 150px; }
+  .bc div { font-size: 6pt; letter-spacing: .14em; }
+  .g2a, .g3, .g2 { margin-top: 5px; gap: 5px; }
+  .card { padding: 0 8px 4px; }
+  .card h2 { margin: 0 -8px 4px; padding: 2.5px 8px; font-size: 6.5pt; }
+  .card h2 .ar.h { font-size: 7.6pt; }
+  .name { font-size: 9pt; line-height: 1.25; }
+  .kv, .drv { padding: 1px 0; }
+  .kv span:first-child, .drv span { font-size: 6.7pt; }
+  .kv span:first-child .ar, .drv span .ar, .cmp td:first-child .ar, .ref td:first-child .ar { font-size: 6.6pt; }
+  td, th { padding: 1.5px 4px; }
+  th { font-size: 6.3pt; }
+  th .ar { font-size: 6.2pt; }
+  .cmp td:first-child { font-size: 6.6pt; }
+  .card[style*="margin-top:7px"] { margin-top: 5px !important; }
+  .view svg, .view.photo img { height: 70px; }
+  .vl { font-size: 6.6pt; padding: 0 0 2px; }
+  .views4, .views5 { gap: 4px; }
+  .legend { margin-top: 3px; font-size: 6.6pt; }
+  .dmg { margin-top: 3px; font-size: 6.9pt; }
+  .dmg td, .dmg th { padding: 1.5px 3px; }
+  .nodmg { margin-top: 3px; font-size: 6.9pt; padding: 2px 6px; }
+  .chips { margin-top: 3px; grid-template-columns: repeat(5, 1fr); gap: 0 8px; }
+  .chips span { font-size: 6.8pt; padding: 0; }
+  .g2 { grid-template-columns: 1.2fr 1fr; }
+  .items td:first-child { width: 48%; }
+  .items td .ar, .items th .ar { font-size: 6.4pt; }
+  .tot td { font-size: 8.6pt; padding-top: 3px; }
+  .settle { margin-top: 3px; padding: 3px 7px; font-size: 7pt; }
+  .photos { grid-template-columns: repeat(8, 1fr); gap: 4px; }
+  figure img { height: 42px; }
+  figcaption { font-size: 5.8pt; padding: 1px 3px; }
+  .notes { font-size: 7.2pt; }
+  .terms { font-size: 6.3pt; line-height: 1.35; }
+  .ardecl { font-size: 6.6pt; line-height: 1.45; margin-top: 2px; }
+  .sg { margin-top: 4px; gap: 6px; }
+  .sgrp { padding: 3px 7px 4px; }
+  .sgrp.next p { font-size: 6.8pt; margin-top: 1px; }
+  .si { height: 28px; } .si img { max-height: 28px; }
+  .sl { font-size: 6.8pt; } .sm { font-size: 6.2pt; min-height: 8px; }
+  .foot { margin-top: 5px; padding-top: 3px; font-size: 6.2pt; }
+  .rcd { color: #374151; }
+  .photos { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+  .nl + .nl { margin-top: 2px; } .nl span { font-size: 6pt; }
+  @media print { body { padding: 0; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
 </style></head><body data-breaks="blocks">
 <div class="pdf-page">
   <div class="top">
@@ -333,22 +393,18 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <h1>Vehicle Rental Agreement</h1>
       <div class="ar-title">عقد تأجير مركبة</div>
       <div class="sub">${closed ? 'Closed · check-out &amp; check-in record' : onRent ? 'Open · check-out record' : 'Booking confirmation'}</div>
-      <table class="ref">
-        <tr><td>${L('Agreement no.', 'رقم العقد')}</td><td class="mono">RA-${esc(r.bookingId)}</td></tr>
-        <tr><td>${L('Issued', 'الإصدار')}</td><td>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td></tr>
-        <tr><td>${L('Status', 'الحالة')}</td><td><span class="pill ${status[1]}">${status[0]}</span></td></tr>
-      </table>
-      <div class="bc">${code39Svg('RA-' + (r.bookingId || ''))}<div>RA-${esc(r.bookingId)}</div></div>
+      <div class="refrow">
+        <table class="ref">
+          <tr><td>${L('Agreement no.', 'رقم العقد')}</td><td class="mono">RA-${esc(r.bookingId)}</td></tr>
+          <tr><td>${L('Issued', 'الإصدار')}</td><td>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td></tr>
+          <tr><td>${L('Status', 'الحالة')}</td><td><span class="pill ${status[1]}">${status[0]}</span></td></tr>
+        </table>
+        <div class="bc">${code39Svg('RA-' + (r.bookingId || ''))}<div>RA-${esc(r.bookingId)}</div></div>
+      </div>
     </div>
   </div>
 
-  ${closed ? `<div class="band">
-    <div><span>${L('Returned', 'تاريخ الإرجاع')}</span><b>${returnedAt ? when(returnedAt.toISOString()) : '—'}</b></div>
-    <div><span>${L('Rental', 'مدة الإيجار')}</span><b>${i.rentalDays} day${i.rentalDays === 1 ? '' : 's'}</b></div>
-    <div><span>${L('Distance', 'المسافة')}</span><b>${kmDriven != null ? km(kmDriven) : '—'}</b></div>
-    <div class="${lateHours > 2 ? 'warn' : ''}"><span>${L('On time', 'في الموعد')}</span><b>${lateHours > 2 ? `${lateHours.toFixed(1)} h late` : 'Yes'}</b></div>
-    <div class="${rc ? 'warn' : ''}"><span>${L('Return charges', 'رسوم الإرجاع')}</span><b>${rc ? esc(formatMoney(chargesTotal(rc.items), rc.currency)) : 'None'}</b></div>
-  </div>` : ''}
+
 
   <div class="g2a">
     <div class="card">${H('1', 'Renter &amp; main driver', 'المستأجر والسائق الرئيسي')}
@@ -438,12 +494,12 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <div class="settle info">${paymentLine}${r.paymentMethod && r.paymentMethod !== 'prepaid' ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && r.paymentMethod !== 'prepaid' ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
     ${sideNotes ? `<div class="card">${closed ? H('10', 'Notes', 'ملاحظات') : H('10', 'Check-out notes', 'ملاحظات التسليم')}${closed
-      ? `<div class="nl"><span>${L('At check-out', 'عند التسليم')}</span><div class="notes">${esc(r.pickupNotes || '—')}</div></div><div class="nl"><span>${L('At check-in', 'عند الإرجاع')}</span><div class="notes">${esc(r.dropOffNotes || '—')}</div></div>`
-      : `<div class="notes">${esc(r.pickupNotes)}</div>`}</div>` : ''}
+      ? `<div class="nl"><span>${L('At check-out', 'عند التسليم')}</span><div class="notes">${esc(clip(r.pickupNotes || '—'))}</div></div><div class="nl"><span>${L('At check-in', 'عند الإرجاع')}</span><div class="notes">${esc(clip(r.dropOffNotes || '—'))}</div></div>`
+      : `<div class="notes">${esc(clip(r.pickupNotes))}</div>`}</div>` : ''}
     ${rc ? `<div class="card">${H('10', `Damages &amp; return charges · ${esc(rc.documentNumber || '')}`, 'الأضرار ورسوم الإرجاع')}
       <table class="items">
         <tr><th>${L('Charge', 'البند')}</th><th class="num">${L('Amount', 'المبلغ')}</th></tr>
-        ${rc.items.map(it => `<tr><td><b>${esc(CHARGE_KIND_LABEL[it.kind])}</b><bdi class="ar">${CHARGE_KIND_AR[it.kind]}</bdi>${it.markerNumber ? ` <span class="rcq">· mark #${it.markerNumber}</span>` : ''}<br>${esc(it.description)}</td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
+        ${rc.items.map(it => `<tr><td><b>${esc(CHARGE_KIND_LABEL[it.kind])}</b>${it.markerNumber ? ` <span class="rcq">#${it.markerNumber}</span>` : ''} <span class="rcd">${esc(it.description)}</span></td><td class="num">${esc(formatMoney(it.amount, rc.currency))}</td></tr>`).join('')}
         <tr class="tot"><td>${L('Total return charges', 'إجمالي رسوم الإرجاع')}</td><td class="num">${esc(formatMoney(chargesTotal(rc.items), rc.currency))}</td></tr>
       </table>
       <div class="settle ${rc.settlement === 'paid' ? 'paid' : 'claim'}">${rc.settlement === 'paid'
@@ -452,11 +508,9 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
     </div>` : ''}
   </div>
 
-  ${photos.length ? `<div class="card" style="margin-top:7px">${H('', 'Photo evidence at check-in', 'صور الإثبات عند الإرجاع')}<div class="photos">${photos.map(p => `<figure><img src="${esc(p.src)}"/><figcaption>${esc(p.cap)}</figcaption></figure>`).join('')}</div></div>` : ''}
-
-  ${closed && rc && (r.pickupNotes || r.dropOffNotes) ? `<div class="g2">
-    <div class="card">${H('', 'Check-out notes', 'ملاحظات التسليم')}<div class="notes">${esc(r.pickupNotes || '—')}</div></div>
-    <div class="card">${H('', 'Check-in notes', 'ملاحظات الإرجاع')}<div class="notes">${esc(r.dropOffNotes || '—')}</div></div>
+  ${photos.length || (closed && rc && (r.pickupNotes || r.dropOffNotes)) ? `<div class="${photos.length && closed && rc && (r.pickupNotes || r.dropOffNotes) ? 'g2' : ''}" style="margin-top:5px">
+    ${photos.length ? `<div class="card">${H('', 'Photo evidence at check-in', 'صور الإثبات عند الإرجاع')}<div class="photos">${photos.map(p => `<figure><img src="${esc(p.src)}"/><figcaption>${esc(p.cap)}</figcaption></figure>`).join('')}</div></div>` : ''}
+    ${closed && rc && (r.pickupNotes || r.dropOffNotes) ? `<div class="card">${H('', 'Notes', 'ملاحظات')}<div class="nl"><span>${L('At check-out', 'عند التسليم')}</span><div class="notes">${esc(clip(r.pickupNotes || '—'))}</div></div><div class="nl"><span>${L('At check-in', 'عند الإرجاع')}</span><div class="notes">${esc(clip(r.dropOffNotes || '—'))}</div></div></div>` : ''}
   </div>` : ''}
 
   <div class="card avoid" style="margin-top:7px">${H('11', 'Declaration &amp; signatures', 'الإقرار والتواقيع')}
