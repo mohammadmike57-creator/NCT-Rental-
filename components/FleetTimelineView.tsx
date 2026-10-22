@@ -41,6 +41,8 @@ const LANE_H = 26;
 const BAR_H = 22;
 
 const norm = (s?: string) => (s || '').trim().toUpperCase();
+/** Row key for a car: its plate, or its id when it has no plate yet. */
+const vkey = (v: Vehicle) => norm(v.licensePlate) || `id:${v.id}`;
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
 const useNarrow = () => {
@@ -161,17 +163,17 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
 
   const groups = useMemo(() => {
     const plateMap = new Map<string, Vehicle>();
-    fleet.forEach(v => plateMap.set(norm(v.licensePlate), v));
-    const visiblePlates = new Set(visibleFleet.map(v => norm(v.licensePlate)));
+    fleet.forEach(v => plateMap.set(vkey(v), v));
+    const visiblePlates = new Set(visibleFleet.map(v => vkey(v)));
     const map = new Map<string, Group>();
     [...visibleFleet]
-      .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.modelName.localeCompare(b.modelName) || a.licensePlate.localeCompare(b.licensePlate))
+      .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.modelName.localeCompare(b.modelName) || (a.licensePlate || '').localeCompare(b.licensePlate || ''))
       .forEach(v => {
         const key = norm(v.modelName);
         if (!map.has(key)) map.set(key, { key, model: v.modelName, category: v.category, vehicles: [], byPlate: new Map(), unassigned: [] });
         const g = map.get(key)!;
         g.vehicles.push(v);
-        g.byPlate.set(norm(v.licensePlate), []);
+        g.byPlate.set(vkey(v), []);
       });
     bookings.forEach(b => {
       const plate = norm(b.res.licensePlate);
@@ -216,7 +218,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
   const unassignedCount = groups.reduce((n, g) => n + g.unassigned.filter(inRange).length, 0);
 
   const availableNow = useMemo(() => visibleFleet
-    .map(v => ({ v, info: vehicleStatus.get(norm(v.licensePlate)) }))
+    .map(v => ({ v, info: vehicleStatus.get(vkey(v)) }))
     .filter(x => (x.info?.status ?? 'available') === 'available')
     .sort((a, b) => a.v.modelName.localeCompare(b.v.modelName) || a.v.licensePlate.localeCompare(b.v.licensePlate)),
   [visibleFleet, vehicleStatus]);
@@ -284,7 +286,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
     const groupBookings = [...g.unassigned, ...[...g.byPlate.values()].flat()];
     const vehicleRows = g.vehicles.filter(v => {
       if (vehicleMatches(v)) return true;
-      return (g.byPlate.get(norm(v.licensePlate)) || []).some(b => inRange(b) && bookingMatches(b));
+      return (g.byPlate.get(vkey(v)) || []).some(b => inRange(b) && bookingMatches(b));
     });
     const unassignedInRange = g.unassigned.filter(inRange);
     const showUnassigned = unassignedInRange.length > 0 && (!q || unassignedInRange.some(bookingMatches));
@@ -305,7 +307,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
     const capacity = g.vehicles.length * days;
     const util = capacity > 0 ? Math.min(100, Math.round((bookedDays / capacity) * 100)) : null;
     const isCollapsed = collapsed.has(g.key) && !q;
-    const onRentNow = g.vehicles.filter(v => vehicleStatus.get(norm(v.licensePlate))?.status === 'onrent').length;
+    const onRentNow = g.vehicles.filter(v => vehicleStatus.get(vkey(v))?.status === 'onrent').length;
 
     return (
       <div key={g.key} role="rowgroup">
@@ -368,7 +370,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
               );
             })()}
             {vehicleRows.map(v => {
-              const plate = norm(v.licensePlate);
+              const plate = vkey(v);
               const vMatch = vehicleMatches(v);
               const { bars, lanes } = renderBars(g.byPlate.get(plate) || [], !vMatch);
               const st = VEHICLE_STATUS[vehicleStatus.get(plate)?.status ?? 'available'];
@@ -402,7 +404,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
     const r = selected.res;
     const nights = Math.max(1, dayDiff(selected.start.day, selected.end.day));
     const meta = STAGE_META[selected.stage];
-    const plateKnown = !!fleet.find(v => norm(v.licensePlate) === norm(r.licensePlate));
+    const plateKnown = !!fleet.find(v => vkey(v) === norm(r.licensePlate));
     return (
       <Drawer
         open

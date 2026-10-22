@@ -78,15 +78,11 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
       alert('Model name is required');
       return;
     }
-    if (!formData.licensePlate?.trim()) {
-      alert('License plate is required');
-      return;
-    }
 
     const newVehicle: FleetVehicle = {
       id: editingVehicle?.id || `vehicle-${Date.now()}`,
       modelName: formData.modelName.trim(),
-      licensePlate: formData.licensePlate.trim(),
+      licensePlate: (formData.licensePlate || '').trim(),
       registrationExpiry: formData.registrationExpiry || '',
       category: formData.category || '',
       securityDeposit: formData.securityDeposit || 0,
@@ -245,7 +241,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                           </button>
                           <div className="min-w-0">
                             <p className="font-medium text-slate-900">{vehicle.modelName}</p>
-                            <div className="mt-0.5"><Plate value={vehicle.licensePlate} /></div>
+                            <div className="mt-0.5">{vehicle.licensePlate ? <Plate value={vehicle.licensePlate} /> : <span className="text-[11px] text-slate-400">No plate yet</span>}</div>
                           </div>
                         </div>
                       </td>
@@ -273,7 +269,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-semibold text-slate-900 break-words">{vehicle.modelName}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <Plate value={vehicle.licensePlate} />
+                        {vehicle.licensePlate ? <Plate value={vehicle.licensePlate} /> : <span className="text-[11px] text-slate-400">No plate yet</span>}
                         {vehicle.category && <Badge tone="info" dot={false}>{vehicle.category}</Badge>}
                         {vehicle.transmission && <Badge tone="muted" dot={false}>{vehicle.transmission}</Badge>}
                         {vehicle.sippCode && <Badge tone="muted" dot={false} className="font-mono">{vehicle.sippCode}</Badge>}
@@ -345,8 +341,8 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
           <Field label="Model" required>
             <input type="text" value={formData.modelName || ''} onChange={e => handleChange('modelName', e.target.value)} className={inputCls} required />
           </Field>
-          <Field label="License plate" required>
-            <input type="text" value={formData.licensePlate || ''} onChange={e => handleChange('licensePlate', e.target.value)} className={inputCls} required />
+          <Field label="License plate" hint="Optional. Add it when the car is registered.">
+            <input type="text" value={formData.licensePlate || ''} onChange={e => handleChange('licensePlate', e.target.value)} className={inputCls} placeholder="Not registered yet" />
           </Field>
           <Field label="Category">
             <input type="text" value={formData.category || ''} onChange={e => handleChange('category', e.target.value)} className={inputCls} />

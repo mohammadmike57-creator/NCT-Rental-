@@ -35,7 +35,7 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
         const rowNum = idx + 2; // 1‑based, header row is row 1
         try {
           const modelName = DateUtils.getRowValue(row, ['Model', 'Vehicle Model', 'Car Model', 'Vehicle', 'Car'])?.toString().trim();
-          const licensePlate = DateUtils.getRowValue(row, ['License Plate', 'Plate', 'Plate Number', 'Reg Number', 'License'])?.toString().trim();
+          const licensePlate = DateUtils.getRowValue(row, ['License Plate', 'Plate', 'Plate Number', 'Reg Number', 'License'])?.toString().trim() || '';
           const rawExpiry = DateUtils.getRowValue(row, ['Registration Expiry', 'Expiry', 'Reg Expiry', 'Expiry Date', 'Registration Expiry Date']);
           const registrationExpiry = DateUtils.parseExcelDate(rawExpiry, row, 'Registration') || DateUtils.parseExcelDate(rawExpiry, row, '') || '';
           const category = DateUtils.getRowValue(row, ['Category', 'Type', 'Group', 'Class'])?.toString().trim() || '';
@@ -50,7 +50,6 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
           const transmission = DateUtils.getRowValue(row, ['Transmission', 'Gearbox', 'Gear'])?.toString().trim() || '';
 
           if (!modelName) throw new Error('Model missing');
-          if (!licensePlate) throw new Error('License Plate missing');
           if (isNaN(securityDeposit)) throw new Error('Invalid Security Deposit');
           if (isNaN(excess)) throw new Error('Invalid Excess');
 
@@ -108,7 +107,7 @@ const FleetExcelUpload: React.FC<FleetExcelUploadProps> = ({ onFleetImported }) 
           {uploading ? 'Uploading...' : 'Choose Excel File'}
         </label>
         <p className="mt-2 text-xs text-slate-500">
-          Required columns: <span className="font-medium text-slate-700">Model, License Plate, Security Deposit, Excess</span><br />
+          Required columns: <span className="font-medium text-slate-700">Model, Security Deposit, Excess</span> (License Plate is optional)<br />
           Optional: Registration Expiry, Category, SIPP Code, Transmission
         </p>
       </div>
