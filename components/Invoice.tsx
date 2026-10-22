@@ -452,9 +452,9 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
       const cur = invoice.currency || 'USD';
       const outcome = await sendCustomerEmail({
         to,
-        subject: `${st === 'paid' ? 'Paid invoice' : 'Invoice'} ${invoice.invoiceNumber} from ${company.name}`,
+        subject: `${st === 'paid' ? 'Paid Invoice' : 'Invoice'} ${invoice.invoiceNumber} – ${company.name}`,
         heading: st === 'paid' ? `Invoice ${invoice.invoiceNumber} — paid` : `Invoice ${invoice.invoiceNumber}`,
-        intro: `Dear ${invoice.billToName} team, please find attached our invoice for ${linesOf(invoice).length} booking${linesOf(invoice).length === 1 ? '' : 's'} with a rental start between ${fmtDay(invoice.startDate)} and ${fmtDay(invoice.endDate)}.`,
+        intro: `Dear ${invoice.billToName} Accounts Team,\n\nPlease find attached invoice ${invoice.invoiceNumber} for ${linesOf(invoice).length} booking${linesOf(invoice).length === 1 ? '' : 's'} with rental start dates between ${fmtDay(invoice.startDate)} and ${fmtDay(invoice.endDate)}. A summary is provided below, and each booking is itemised on the attached invoice.`,
         rows: [
           ['Invoice number', invoice.invoiceNumber],
           ['Issue date', fmtDay(invoice.generatedAt)],
@@ -465,7 +465,7 @@ const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; o
           ...((invoice.taxMode ?? 'included') !== 'none' ? [[`VAT ${Math.round((invoice.taxRate ?? 0.16) * 100)}%`, money(invoice.totalTax, cur)] as [string, string]] : []),
           ['Payment terms', TERMS_LABEL[invoice.terms || 'receipt']],
         ],
-        closing: st === 'paid' ? 'Thank you — this invoice has been settled in full.' : `Please arrange payment by ${invoice.dueDate ? fmtDay(invoice.dueDate) : 'return'}, quoting ${invoice.invoiceNumber}. Payment details are on the invoice.`,
+        closing: st === 'paid' ? `This invoice has been settled in full. Thank you for your prompt payment and your continued partnership with ${company.name}.` : `We kindly request payment of the amount due${invoice.dueDate ? ` by ${fmtDay(invoice.dueDate)}` : ''}, quoting invoice number ${invoice.invoiceNumber}. Payment details are provided on the invoice.\n\nShould you have any questions regarding this invoice, please contact us${company.email ? ` at ${company.email}` : ''}${company.phone ? ` or on ${company.phone}` : ''}. We appreciate your continued partnership.`,
         companyName: company.name, companyAddress: company.address, companyPhone: company.phone, companyEmail: company.email,
         attachments: [{ fileName, contentType: 'application/pdf', base64 }],
         badge: st === 'paid' ? 'PAID' : st === 'overdue' ? 'OVERDUE' : 'INVOICE',

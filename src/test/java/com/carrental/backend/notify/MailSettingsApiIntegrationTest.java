@@ -101,7 +101,7 @@ class MailSettingsApiIntegrationTest {
         assertEquals("owner@example.com", first.getAllRecipients()[0].toString());
         // Send-only by default: no Reply-To header and the customer is told replies are not received.
         assertNull(first.getHeader("Reply-To"));
-        assertTrue(com.icegreen.greenmail.util.GreenMailUtil.getWholeMessage(first).contains("automated email"));
+        assertTrue(com.icegreen.greenmail.util.GreenMailUtil.getWholeMessage(first).contains("automated message"));
 
         // With a reply-to address set, replies are routed there and the notice is dropped.
         mvc.perform(put("/api/admin/mail-settings").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
@@ -113,7 +113,7 @@ class MailSettingsApiIntegrationTest {
         assertTrue(smtp.waitForIncomingEmail(5000, 1));
         javax.mail.internet.MimeMessage second = smtp.getReceivedMessages()[0];
         assertEquals("desk@nct.test", second.getHeader("Reply-To")[0]);
-        assertFalse(com.icegreen.greenmail.util.GreenMailUtil.getWholeMessage(second).contains("automated email"));
+        assertFalse(com.icegreen.greenmail.util.GreenMailUtil.getWholeMessage(second).contains("automated message"));
     }
 
     @Test

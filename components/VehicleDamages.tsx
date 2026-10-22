@@ -337,18 +337,18 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
   };
 
   const handleSendEmail = (type: 'claim' | 'receipt', damage: VehicleDamage, renter: Reservation) => {
-    const signature = `\n\nSincerely,\nUR-Drive Jordan\n${companyDetails.address}\nPhone: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
+    const signature = `\n\nKind regards,\n\n${companyDetails.name}\n${companyDetails.address}\nTel: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
     const claimableAmount = (damage.policeReportAmount && damage.policeReportAmount > 0)
                             ? damage.policeReportAmount
                             : damage.amount;
 
     const subject = type === 'claim'
-        ? `Action Required: Vehicle Damage Claim for Rental ${renter.bookingId}`
-        : `Receipt for Vehicle Damage Payment - Rental ${renter.bookingId}`;
+        ? `Vehicle Damage Claim – Booking ${renter.bookingId} | ${companyDetails.name}`
+        : `Payment Received: Vehicle Damage Claim – Booking ${renter.bookingId} | ${companyDetails.name}`;
     
     const body = type === 'claim'
-        ? `Dear ${renter.personName},\n\nThis notice is regarding vehicle damage reported during your rental of a ${renter.carModel} (Booking ID: ${renter.bookingId}).\n\nDamage Details:\n- Description: ${damage.details}\n${damage.policeReportNumber ? `- Police Report #: ${damage.policeReportNumber}\n` : ''}\n- Amount Due: ${money(claimableAmount)} JOD\n\nPlease contact our office to discuss this matter and arrange for payment.${signature.replace('Sincerely', 'Thank you')}`
-        : `Dear ${renter.personName},\n\nThis email confirms your payment for the vehicle damage claim associated with your rental (Booking ID: ${renter.bookingId}).\n\nPayment Details:\n- Amount Paid: ${money(claimableAmount)} JOD\n- Status: COLLECTED\n\nWe appreciate your cooperation.${signature}`;
+        ? `Dear ${renter.personName},\n\nWe are writing regarding damage to the ${renter.carModel}${renter.licensePlate ? ` (${renter.licensePlate})` : ''} that was identified in connection with your rental, booking reference ${renter.bookingId}.\n\nDamage details\n- Description: ${damage.details}\n${damage.policeReportNumber ? `- Police report no.: ${damage.policeReportNumber}\n` : ''}- Amount due: ${money(claimableAmount)} JOD\n\nIn accordance with the terms of your rental agreement, the renter is responsible for damage occurring during the rental period, up to the agreed excess where applicable. We kindly ask you to contact us on ${companyDetails.phone} to discuss this claim and arrange payment, quoting your booking reference.${signature}`
+        : `Dear ${renter.personName},\n\nThank you for your payment. We confirm receipt of the amount below in settlement of the vehicle damage claim for your rental, booking reference ${renter.bookingId}.\n\nPayment details\n- Amount paid: ${money(claimableAmount)} JOD\n- Status: Settled\n\nThis claim is now closed and no further action is required. We appreciate your cooperation.${signature}`;
 
     window.location.href = `mailto:${renter.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };

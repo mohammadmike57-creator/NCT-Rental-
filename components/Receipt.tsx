@@ -106,10 +106,11 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
             alert("Customer email is not available for this reservation.");
             return;
         }
-        const signature = `\n\nSincerely,\nUR-Drive Jordan\n${companyDetails.address}\nPhone: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
+        const signature = `\n\nKind regards,\n\n${companyDetails.name}\n${companyDetails.address}\nTel: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
 
-        const subject = `Your Payment Receipt from UR-Drive Jordan - Booking #${reservation.bookingId}`;
-        const body = `Dear ${reservation.personName},\n\nThank you for your payment. Please find your receipt details below.\n\nReceipt Details:\n- Booking ID: ${reservation.bookingId}\n- Vehicle: ${reservation.carModel}\n- Rental Period: ${reservation.startDate} to ${reservation.endDate}\n- Total Charges: ${formatCurrency(totalCharges)}\n- Amount Paid: ${formatCurrency(amountPaid)}\n- Balance Due: ${formatCurrency(balanceDue)}\n\nWe appreciate your business.${signature}`;
+        const period = (d: string) => new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const subject = `Payment Receipt – Booking ${reservation.bookingId} | ${companyDetails.name}`;
+        const body = `Dear ${reservation.personName},\n\nThank you for your payment. Please find your receipt details below for your records.\n\nReceipt details\n- Receipt no.: RCPT-${reservation.bookingId}\n- Booking reference: ${reservation.bookingId}\n- Vehicle: ${reservation.carModel}\n- Rental period: ${period(reservation.startDate)} to ${period(reservation.endDate)}\n- Total charges: ${formatCurrency(totalCharges)}\n- Amount paid: ${formatCurrency(amountPaid)}\n- Balance due: ${formatCurrency(balanceDue)}\n\nThank you for choosing ${companyDetails.name}. Should you have any questions about this receipt, please do not hesitate to contact us.${signature}`;
 
         window.location.href = `mailto:${reservation.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     };

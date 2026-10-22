@@ -305,15 +305,15 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
   };
 
   const handleSendEmail = (type: 'claim' | 'receipt', ticket: TrafficTicket, renter: Reservation) => {
-    const signature = `\n\nSincerely,\nUR-Drive Jordan\n${companyDetails.address}\nPhone: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
+    const signature = `\n\nKind regards,\n\n${companyDetails.name}\n${companyDetails.address}\nTel: ${companyDetails.phone}\nEmail: ${companyDetails.email}`;
 
     const subject = type === 'claim'
-        ? `Action Required: Traffic Ticket for Rental ${renter.bookingId}`
-        : `Receipt for Traffic Ticket Payment - Rental ${renter.bookingId}`;
+        ? `Traffic Violation Notice – Booking ${renter.bookingId} | ${companyDetails.name}`
+        : `Payment Received: Traffic Violation – Booking ${renter.bookingId} | ${companyDetails.name}`;
     
     const body = type === 'claim'
-        ? `Dear ${renter.personName},\n\nThis notice is regarding a traffic violation that occurred during your rental of a ${renter.carModel} (Booking ID: ${renter.bookingId}).\n\nTicket Details:\n- Violation Date: ${ticket.ticketDate}\n- Description: ${ticket.details}\n- Amount Due: ${money(ticket.amount)} JOD\n\nPlease contact our office at your earliest convenience to settle this amount.${signature.replace('Sincerely', 'Thank you')}`
-        : `Dear ${renter.personName},\n\nThis email confirms that we have received your payment for the traffic ticket associated with your rental (Booking ID: ${renter.bookingId}).\n\nPayment Details:\n- Violation Date: ${ticket.ticketDate}\n- Amount Paid: ${money(ticket.amount)} JOD\n- Status: COLLECTED\n\nThank you for your prompt attention to this matter.${signature}`;
+        ? `Dear ${renter.personName},\n\nWe have been notified by the authorities of a traffic violation recorded during your rental of the ${renter.carModel}${renter.licensePlate ? ` (${renter.licensePlate})` : ''}, booking reference ${renter.bookingId}.\n\nViolation details\n- Date: ${ticket.ticketDate}\n- Description: ${ticket.details}\n- Amount due: ${money(ticket.amount)} JOD\n\nIn accordance with the terms of your rental agreement, traffic violations incurred during the rental period are the responsibility of the renter. We kindly ask you to settle this amount at your earliest convenience. Please contact us on ${companyDetails.phone} to arrange payment, quoting your booking reference.${signature}`
+        : `Dear ${renter.personName},\n\nThank you for your payment. We confirm receipt of the amount below for the traffic violation recorded during your rental, booking reference ${renter.bookingId}.\n\nPayment details\n- Violation date: ${ticket.ticketDate}\n- Amount paid: ${money(ticket.amount)} JOD\n- Status: Settled\n\nNo further action is required on your part. Thank you for your prompt attention to this matter.${signature}`;
 
     window.location.href = `mailto:${renter.customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };

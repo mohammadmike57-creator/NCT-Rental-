@@ -94,11 +94,11 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
     const payNow = paymentMethod === 'payNow';
     const outcome = await sendCustomerEmail({
       to: customerEmail.trim(),
-      subject: `Rental extended · Booking ${reservation.bookingId}`,
-      heading: 'Your rental has been extended',
-      intro: `Dear ${reservation.personName}, your rental of the ${reservation.carModel}${reservation.licensePlate ? ` (${reservation.licensePlate})` : ''} has been extended. Here are the updated details.`,
+      subject: `Rental Extension Confirmed – Booking ${reservation.bookingId} | ${companyDetails.name}`,
+      heading: 'Your rental extension is confirmed',
+      intro: `Dear ${reservation.personName},\n\nWe are pleased to confirm that your rental of the ${reservation.carModel}${reservation.licensePlate ? ` (${reservation.licensePlate})` : ''} has been extended. Your updated rental details are shown below.`,
       rows: [
-        ['Booking', reservation.bookingId],
+        ['Booking reference', reservation.bookingId],
         ['Previous return', fmtDate(currentEndMs)],
         ['New return', fmtDate(newEndMs)],
         ['Extended by', `${extensionDays} day${extensionDays === 1 ? '' : 's'}`],
@@ -106,16 +106,16 @@ const ExtendRentalModal: React.FC<ExtendRentalModalProps> = ({ reservation, traf
         ...(extrasCost > 0 ? [['Extras', money(extrasCost)] as [string, string]] : []),
         ['Extension cost', money(extensionCost)],
         ['New rental total', money(newTotal)],
-        ['Payment', payNow ? 'Paid at the counter' : 'Due when the vehicle is returned'],
+        ['Payment', payNow ? 'Paid at the counter' : 'Payable on return of the vehicle'],
       ],
-      closing: `Please return the vehicle by the new return time to avoid late-return charges. If anything looks wrong, call us on ${companyDetails.phone}.`,
+      closing: `${payNow ? 'The extension has been paid in full.' : `The extension amount of ${money(extensionCost)} will be payable when the vehicle is returned.`} Please return the vehicle by ${fmtDate(newEndMs)} to avoid late-return charges.\n\nIf any of the details above are incorrect, or if you need further assistance, please contact us on ${[companyDetails.phone, companyDetails.email].filter(Boolean).join(' or ')}.`,
       companyName: companyDetails.name,
       companyAddress: companyDetails.address,
       companyPhone: companyDetails.phone,
       companyEmail: companyDetails.email,
       badge: 'RENTAL EXTENDED',
       tone: payNow ? 'success' : 'warning',
-      highlightLabel: payNow ? 'Extension paid' : 'Due on return',
+      highlightLabel: payNow ? 'Extension paid' : 'Payable on return',
       highlightValue: money(extensionCost),
     });
     setBusy(false);

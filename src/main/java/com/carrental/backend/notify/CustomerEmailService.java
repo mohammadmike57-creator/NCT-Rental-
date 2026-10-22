@@ -149,7 +149,7 @@ public class CustomerEmailService {
             + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f1f5f9;padding:28px 12px\"><tr><td align=\"center\">"
             + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:580px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.08)\">"
             + "<tr><td style=\"background:#0f172a;padding:22px 30px\"><div style=\"color:#ffffff;font-size:19px;font-weight:700;letter-spacing:-.01em\">" + esc(company) + "</div>"
-            + "<div style=\"color:#94a3b8;font-size:12px;margin-top:2px\">Car rental</div></td></tr>"
+            + "<div style=\"color:#94a3b8;font-size:12px;margin-top:2px\">Car Rental Services</div></td></tr>"
             + "<tr><td style=\"padding:30px\">"
             + (blank(r.badge()) ? "" : "<span style=\"display:inline-block;margin-bottom:12px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.08em;color:" + tone[0] + ";background:" + tone[1] + ";border:1px solid " + tone[2] + "\">" + esc(r.badge()) + "</span>")
             + "<h1 style=\"margin:0 0 12px;font-size:22px;line-height:1.3;color:#0f172a\">" + esc(r.heading()) + "</h1>"
@@ -164,7 +164,7 @@ public class CustomerEmailService {
             + "<p style=\"margin:22px 0 0;font-size:14px;color:#334155\">Kind regards,<br><strong>" + esc(company) + "</strong></p>"
             + "</td></tr>"
             + "<tr><td style=\"padding:16px 30px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5\">" + contact
-            + (sendOnly ? "<div style=\"margin-top:6px;color:#94a3b8\">This is an automated email — replies to this address are not received." + (blank(r.companyPhone()) ? "" : " Please call " + esc(r.companyPhone()) + ".") + "</div>" : "")
+            + (sendOnly ? "<div style=\"margin-top:6px;color:#94a3b8\">This is an automated message and replies to this address are not monitored." + (blank(r.companyPhone()) ? "" : " For assistance, please call " + esc(r.companyPhone()) + ".") + "</div>" : "")
             + "</td></tr>"
             + "</table></td></tr></table></body></html>";
     }
@@ -178,7 +178,7 @@ public class CustomerEmailService {
         if (r.rows() != null) for (List<String> row : r.rows()) if (row != null && row.size() >= 2) sb.append(row.get(0)).append(": ").append(row.get(1)).append('\n');
         if (!blank(r.closing())) sb.append('\n').append(r.closing()).append('\n');
         sb.append("\n").append(nz(r.companyName())).append('\n');
-        if (sendOnly) sb.append("\nThis is an automated email. Replies to this address are not received.").append(blank(r.companyPhone()) ? "" : " Please call " + r.companyPhone() + ".").append('\n');
+        if (sendOnly) sb.append("\nThis is an automated message and replies to this address are not monitored.").append(blank(r.companyPhone()) ? "" : " For assistance, please call " + r.companyPhone() + ".").append('\n');
         return sb.toString();
     }
 
