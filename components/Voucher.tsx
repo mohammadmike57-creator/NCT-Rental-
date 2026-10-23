@@ -377,6 +377,9 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
 
 const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade }) => {
   const [showUpgrade, setShowUpgrade] = useState(false);
+  // Upgrade asked for during the rental: chosen first, applied when the car swap is completed.
+  const [midUpgrade, setMidUpgrade] = useState<{ carId: string; details: UpgradeDetails; model: string } | null>(null);
+  const [showMidUpgrade, setShowMidUpgrade] = useState(false);
   const getInitialReservationState = (res: Reservation) => {
     const migrated: any = { ...res };
     if (res.checklist && !res.pickupChecklist) migrated.pickupChecklist = res.checklist;
@@ -676,8 +679,15 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           checkoutKmOut: currentExchange.checkoutKmOut || 0,
         };
 
+        let upgraded: Partial<Reservation> = {};
+        if (midUpgrade && onUpgrade) {
+          const base: Reservation = { ...reservation, carModel: localReservation.carModel, licensePlate: localReservation.licensePlate, amount: localReservation.amount, upgradeHistory: localReservation.upgradeHistory };
+          const upd = onUpgrade(base, midUpgrade.carId, midUpgrade.details.fee, midUpgrade.details);
+          if (upd) upgraded = { carModel: upd.carModel, amount: upd.amount, upgradeHistory: upd.upgradeHistory };
+        }
         const updatedReservation: Reservation = {
           ...localReservation,
+          ...upgraded,
           licensePlate: completeExchange.newCarLicensePlate,
           pickupKmOut: completeExchange.checkoutKmOut,
           carExchanges: [...(localReservation.carExchanges || []), completeExchange],
@@ -1680,11 +1690,28 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                             <p className="text-[13px] font-semibold text-slate-900">Vehicle exchange</p>
                             <p className="text-xs text-slate-500">Swap the car and continue the same rental.</p>
                           </button>
+                          {onUpgrade && fleet && fleet.length > 0 && (
+                            <button onClick={() => setShowMidUpgrade(true)} className="sm:col-span-2 text-left p-4 rounded-lg border border-indigo-200 bg-indigo-50/40 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center gap-4">
+                              <div className="flex items-center gap-1 shrink-0"><VehicleArt kind={kind} className="w-12 h-7" /><span className="text-indigo-400">→</span><VehicleArt kind="suv" className="w-14 h-8" /></div>
+                              <span className="min-w-0">
+                                <span className="block text-[13px] font-semibold text-slate-900">Upgrade during rental</span>
+                                <span className="block text-xs text-slate-500">The customer wants a better car for the rest of the rental. Choose the car and the charge, then swap the cars with inspection and signatures.</span>
+                              </span>
+                            </button>
+                          )}
                         </div>
                         </div>
                       </div>
                     ) : dropoffFlow === 'exchange' ? (
-                      exchangeStep === 'checkin' ? renderExchangeStep('checkin') : renderExchangeStep('checkout')
+                      <>
+                        {midUpgrade && (
+                          <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[13px] text-indigo-900"><b>Upgrade during rental:</b> {localReservation.carModel} → {midUpgrade.model} · {midUpgrade.details.fee > 0 ? `+${formatCurrency(midUpgrade.details.fee)} added to the booking` : 'free of charge'}. It is applied when the swap is completed.</p>
+                            <button type="button" onClick={() => setMidUpgrade(null)} className="h-8 px-3 rounded-md text-[13px] font-medium text-rose-700 hover:bg-rose-50">Cancel upgrade</button>
+                          </div>
+                        )}
+                        {exchangeStep === 'checkin' ? renderExchangeStep('checkin') : renderExchangeStep('checkout')}
+                      </>
                     ) : (
                       renderWizardStep()
                     )}
@@ -1758,7 +1785,26 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           </div>
         )}
 
-        {showUpgrade && onUpgrade && fleet && (
+        {showMidUpgrade && onUpgrade && fleet && (
+        <UpgradeVehicleModal
+          reservation={localReservation}
+          fleet={fleet}
+          allData={allData || {}}
+          onCancel={() => setShowMidUpgrade(false)}
+          onConfirm={(carId, details) => {
+            const car = fleet.find(c => c.id === carId);
+            setMidUpgrade({ carId, details, model: car?.modelName || '' });
+            setCurrentExchange(prev => ({
+              ...prev,
+              newCarLicensePlate: car?.licensePlate || prev.newCarLicensePlate,
+              reason: prev.reason || `Upgrade to ${car?.modelName || 'another car'} at the customer's request${details.fee > 0 ? ` (+${formatCurrency(details.fee)})` : ' (free)'}${details.reason ? ` · ${details.reason}` : ''}`,
+            }));
+            setShowMidUpgrade(false);
+            setProcessType('exchange');
+          }}
+        />
+      )}
+      {showUpgrade && onUpgrade && fleet && (
         <UpgradeVehicleModal
           reservation={localReservation}
           fleet={fleet}
