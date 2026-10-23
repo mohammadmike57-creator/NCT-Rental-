@@ -2244,7 +2244,7 @@ ${currentUser?.fullName}
 
       <Suspense fallback={<LoadingSpinner />}>
       <AnimatedModal isOpen={!!modals.viewVoucher} onClose={() => setModals(m=>({...m, viewVoucher: null}))}>
-        {modals.viewVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE) ? handleUpgradeVehicle : undefined} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
+        {modals.viewVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
       </AnimatedModal>
 
       <AnimatedModal isOpen={showUnlistedAgreement} onClose={() => setShowUnlistedAgreement(false)}>
@@ -2260,7 +2260,7 @@ ${currentUser?.fullName}
         )}
       </AnimatedModal>
       {/* The agreement draws its own full-screen backdrop, so it is not wrapped in AnimatedModal. */}
-      {modals.viewRentalVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE) ? handleUpgradeVehicle : undefined} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
+      {modals.viewRentalVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
 
       <AnimatedModal isOpen={!!modals.viewReceipt} onClose={() => setModals(m=>({...m, viewReceipt: null}))}>
         {modals.viewReceipt && <Receipt reservation={modals.viewReceipt} companyDetails={companyDetails} sources={sources} onClose={() => setModals(m=>({...m, viewReceipt: null}))} />}

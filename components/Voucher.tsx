@@ -43,6 +43,8 @@ interface VoucherProps {
   allData?: AppData;
   /** Upgrades the booking to another car; given only to staff allowed to upgrade. */
   onUpgrade?: (reservation: Reservation, newCarId: string, customRate?: number, details?: UpgradeDetails) => Reservation | null;
+  /** Whether the signed-in staff member may upgrade; without it the upgrade options explain how to get access. */
+  canUpgrade?: boolean;
 }
 
 const InfoBlock: React.FC<{ title: string; children: React.ReactNode; className?: string; icon?: React.ReactNode }> = ({ title, children, className, icon }) => (
@@ -375,7 +377,8 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
   return remainingMs >= gracePeriodInMs ? fullDays + 1 : fullDays;
 };
 
-const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade }) => {
+const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade, canUpgrade }) => {
+  const NO_UPGRADE_ACCESS = 'Your account does not have the "Upgrade vehicle" permission. Ask an administrator to turn it on in User & Staff Management → Permissions.';
   const [showUpgrade, setShowUpgrade] = useState(false);
   // Upgrade asked for during the rental: chosen first, applied when the car swap is completed.
   const [midUpgrade, setMidUpgrade] = useState<{ carId: string; details: UpgradeDetails; model: string } | null>(null);
@@ -1273,7 +1276,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               {onUpgrade && fleet && fleet.length > 0 && (
                 <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 flex items-center justify-between gap-3">
                   <p className="text-xs text-slate-600 min-w-0">Customer wants a better car? Upgrade it here, free or with a supplement.{(localReservation.upgradeHistory || []).length ? ` Upgraded ${localReservation.upgradeHistory!.length}× already.` : ''}</p>
-                  <Button size="sm" variant="primary" onClick={() => setShowUpgrade(true)}>Upgrade vehicle</Button>
+                  <Button size="sm" variant="primary" onClick={() => (canUpgrade ? setShowUpgrade(true) : alert(NO_UPGRADE_ACCESS))}>Upgrade vehicle</Button>
                 </div>
               )}
             </>
@@ -1691,11 +1694,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                             <p className="text-xs text-slate-500">Swap the car and continue the same rental.</p>
                           </button>
                           {onUpgrade && fleet && fleet.length > 0 && (
-                            <button onClick={() => setShowMidUpgrade(true)} className="sm:col-span-2 text-left p-4 rounded-lg border border-indigo-200 bg-indigo-50/40 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center gap-4">
+                            <button onClick={() => (canUpgrade ? setShowMidUpgrade(true) : alert(NO_UPGRADE_ACCESS))} className="sm:col-span-2 text-left p-4 rounded-lg border border-indigo-200 bg-indigo-50/40 hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center gap-4">
                               <div className="flex items-center gap-1 shrink-0"><VehicleArt kind={kind} className="w-12 h-7" /><span className="text-indigo-400">→</span><VehicleArt kind="suv" className="w-14 h-8" /></div>
                               <span className="min-w-0">
                                 <span className="block text-[13px] font-semibold text-slate-900">Upgrade during rental</span>
                                 <span className="block text-xs text-slate-500">The customer wants a better car for the rest of the rental. Choose the car and the charge, then swap the cars with inspection and signatures.</span>
+                                {!canUpgrade && <span className="block text-xs font-medium text-amber-700 mt-1">Needs the "Upgrade vehicle" permission.</span>}
                               </span>
                             </button>
                           )}
