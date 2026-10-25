@@ -383,7 +383,59 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .photos { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
   .nl + .nl { margin-top: 2px; } .nl span { font-size: 6pt; }
   @media print { body { padding: 0; } .card, .avoid, figure, tr, .sgrp, .band, .balance, .lead, .facts, .totals, .note, .sum { break-inside: avoid; page-break-inside: avoid; } thead { display: table-header-group; } }
-</style></head><body data-breaks="blocks">
+
+  /* ---- Full-page A4 layout: every page is one A4 sheet, filled from edge to edge ---- */
+  @page { size: A4; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  .pdf-page { width: 210mm; min-height: 297mm; padding: 9mm 8mm 0; break-after: page; page-break-after: always; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .pdf-page::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2.6mm; background: #0b1f3a; }
+  .pdf-page::after { content: ''; position: absolute; left: 0; right: 0; top: 2.6mm; height: .8mm; background: #f59e0b; }
+  .pdf-page > .foot { margin: auto -8mm 0; padding: 3mm 8mm; border-top: 0; background: #0b1f3a; color: #cbd5e1; font-size: 6.6pt; }
+  .pdf-page > .foot span:first-child { color: #fff; font-weight: 600; }
+  .pdf-page:last-child { break-after: auto; page-break-after: auto; }
+  .pdf-page + .pdf-page { break-before: auto; page-break-before: auto; }
+  .view svg, .view.photo img { height: var(--dg, 70px); }
+  .si { height: var(--sg, 28px); } .si img { max-height: var(--sg, 28px); }
+  .terms-page .terms-bi { font-size: var(--tf, 7pt); }
+  .terms-page .terms-bi .rtl { font-size: calc(var(--tf, 7pt) + .4pt); }
+  .terms-page .ack { margin-bottom: 4mm; }
+</style>
+<script>
+  // Makes every page exactly one A4 sheet. A page with room to spare lets the car diagrams, signature
+  // boxes and terms text grow to fill it; a page with too much content is laid out on a slightly larger
+  // sheet (data-scale) that the print and PDF steps then shrink back to A4, so it still fills the page.
+  (function () {
+    var MM = 96 / 25.4, W = 210 * MM, H = 297 * MM - 6;
+    function natural(p) { p.style.minHeight = '0'; var h = p.scrollHeight; p.style.minHeight = ''; return h; }
+    function grow(p, name, from, to, step, unit) {
+      var v = from;
+      p.style.setProperty(name, v + unit);
+      while (natural(p) < H && v + step <= to) { v += step; p.style.setProperty(name, v + unit); }
+      if (natural(p) > H && v > from) { v -= step; p.style.setProperty(name, v + unit); }
+    }
+    function fit() {
+      var pages = document.querySelectorAll('.pdf-page');
+      for (var i = 0; i < pages.length; i++) {
+        var p = pages[i];
+        p.style.width = ''; p.style.minHeight = ''; p.removeAttribute('data-scale');
+        if (p.classList.contains('terms-page')) grow(p, '--tf', 7, 9, 0.1, 'pt');
+        else { grow(p, '--dg', 70, 150, 2, 'px'); grow(p, '--sg', 28, 64, 2, 'px'); }
+        var z = 1;
+        for (var k = 0; k < 8 && natural(p) > H * (1 / z); k++) {
+          z = Math.max(0.5, Math.min(z, H / natural(p)) - 0.004);
+          p.style.width = (W / z) + 'px';
+          p.style.minHeight = (297 * MM / z) + 'px';
+        }
+        if (z < 1) p.setAttribute('data-scale', z.toFixed(4));
+      }
+    }
+    window.__fitPages = fit;
+    if (document.readyState !== 'loading') fit(); else document.addEventListener('DOMContentLoaded', fit);
+    window.addEventListener('load', fit);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+  })();
+</script>
+</head><body data-breaks="blocks" data-fullbleed="1">
 <div class="pdf-page">
   <div class="top">
     <div>${i.logo ? `<img src="${i.logo}" alt="">` : `<div class="name">${esc(i.company.name)}</div>`}

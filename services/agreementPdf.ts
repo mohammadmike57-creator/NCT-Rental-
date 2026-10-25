@@ -62,6 +62,9 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     doc.head.appendChild(fix);
     const body = doc.body;
     body.style.padding = '0';
+    // Full-page documents re-fit their pages now that the extra cell room above is applied.
+    const fullBleed = body.dataset.fullbleed === '1';
+    (iframe.contentWindow as (Window & { __fitPages?: () => void }) | null)?.__fitPages?.();
 
     const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
@@ -76,6 +79,20 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
     for (const section of (sections.length ? sections : [null])) {
       if (section) sections.forEach(s => { s.style.display = s === section ? '' : 'none'; });
       await new Promise(r => setTimeout(r, 30));
+      // A full-page section is one whole A4 sheet. It may be laid out on a slightly larger sheet
+      // (data-scale), so it is captured at its own size and placed to fill the PDF page edge to edge.
+      if (fullBleed && section) {
+        const sw = Math.ceil(section.offsetWidth);
+        const sh = Math.ceil(section.offsetHeight);
+        iframe.style.width = `${Math.max(794, sw)}px`;
+        await new Promise(r => setTimeout(r, 60));
+        const shot = await html2canvas(section, { scale: 2 * 794 / sw, useCORS: true, backgroundColor: '#ffffff', width: sw, height: sh, windowWidth: Math.max(794, sw), windowHeight: sh, logging: false });
+        const drawH = Math.min(pageH, pageW * sh / sw);
+        if (page > 0) pdf.addPage();
+        pdf.addImage(shot.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, drawH);
+        page++;
+        continue;
+      }
       const height = Math.max(body.scrollHeight + 32, 1123);
       // Give the browser a moment between pages so clicks and typing stay responsive.
       await new Promise(r => setTimeout(r, 60));
@@ -135,7 +152,8 @@ export async function agreementHtmlToPdfBase64(html: string): Promise<string> {
         page++;
       }
     }
-    if (page > 1) {
+    // Full-page documents carry their own footer on every page.
+    if (page > 1 && !fullBleed) {
       for (let i = 1; i <= page; i++) {
         pdf.setPage(i);
         pdf.setFontSize(7);

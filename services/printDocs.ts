@@ -40,14 +40,20 @@ const A4_PRINT_HEIGHT_PX = ((297 - 18) * 96) / 25.4 - 10;
 function fitPagesForPrint(d: Document) {
   const pages = Array.from(d.querySelectorAll<HTMLElement>('body > .pdf-page'));
   if (pages.length < 2) return;
-  d.body.style.width = A4_PRINT_WIDTH;
+  // Full-page documents (the rental agreement) print without margins: each page is a whole A4 sheet.
+  const fullBleed = d.body.dataset.fullbleed === '1';
+  const maxH = fullBleed ? (297 * 96) / 25.4 : A4_PRINT_HEIGHT_PX;
+  d.body.style.width = fullBleed ? 'auto' : A4_PRINT_WIDTH;
   d.body.style.margin = '0 auto';
   d.body.style.padding = '0';
   d.body.style.setProperty('zoom', '1');
+  (d.defaultView as (Window & { __fitPages?: () => void }) | null)?.__fitPages?.();
   pages.forEach(page => {
     page.style.setProperty('zoom', '1');
+    // A full page laid out on a larger sheet is shrunk back to exactly one A4 sheet.
+    if (fullBleed) { if (page.dataset.scale) page.style.setProperty('zoom', page.dataset.scale); return; }
     const h = page.getBoundingClientRect().height;
-    if (h > A4_PRINT_HEIGHT_PX) page.style.setProperty('zoom', (A4_PRINT_HEIGHT_PX / h).toFixed(3));
+    if (h > maxH + 1) page.style.setProperty('zoom', (maxH / h).toFixed(3));
   });
   if (!d.getElementById('duplex-tip')) {
     const tip = d.createElement('div');
