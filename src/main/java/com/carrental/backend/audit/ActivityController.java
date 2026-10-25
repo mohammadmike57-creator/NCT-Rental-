@@ -32,7 +32,7 @@ public class ActivityController {
     public ResponseEntity<?> record(@RequestBody Map<String, String> body, Authentication auth) {
         if (auth == null) return ResponseEntity.status(401).build();
         service.record(auth.getName(), body.get("action"), body.get("category"), body.get("summary"), body.get("bookingId"), body.get("details"));
-        presence.touch(auth.getName(), null);
+        presence.seen(auth.getName(), true);
         return ResponseEntity.accepted().body(Map.of("recorded", true));
     }
 
@@ -45,7 +45,7 @@ public class ActivityController {
             service.record(auth.getName(), e.get("action"), e.get("category"), e.get("summary"), e.get("bookingId"), e.get("details"));
             n++;
         }
-        presence.touch(auth.getName(), null);
+        presence.seen(auth.getName(), true);
         return ResponseEntity.accepted().body(Map.of("recorded", n));
     }
 

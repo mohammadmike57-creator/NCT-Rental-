@@ -67,21 +67,31 @@ class ActivityApiIntegrationTest {
             .andExpect(jsonPath("$", hasSize(2)))
             .andExpect(jsonPath("$[*].userEmail", everyItem(is("agent@nct.test"))));
 
-        // Recording activity counts as being seen; the agent shows online with a last-seen time.
+        // Working (recording activity) = online; only reading with the app open = away; never signed in = offline.
+        users.save(user("idle@nct.test", "Sami Idle", List.of(UserPermission.VIEW_RESERVATIONS)));
         mvc.perform(get("/api/admin/users").header("Authorization", admin))
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].presence").value("online"))
             .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].isOnline").value(true))
             .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].lastSeen").isNotEmpty())
-            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].isOnline").value(false));
+            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].presence").value("away"))
+            .andExpect(jsonPath("$[?(@.email == 'idle@nct.test')].presence").value("offline"))
+            .andExpect(jsonPath("$[?(@.email == 'idle@nct.test')].isOnline").value(false));
 
-        mvc.perform(post("/api/account/heartbeat").header("Authorization", manager).contentType(MediaType.APPLICATION_JSON).content("{\"deviceType\":\"mobile\"}"))
+        mvc.perform(post("/api/account/heartbeat").header("Authorization", manager).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"deviceType\":\"mobile\",\"screen\":\"Reservations\"}"))
             .andExpect(status().isNoContent());
         mvc.perform(post("/api/account/signed-out").header("Authorization", agent)).andExpect(status().isNoContent());
-        mvc.perform(get("/api/admin/users").header("Authorization", admin))
-            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].isOnline").value(true))
+        mvc.perform(get("/api/account/online").header("Authorization", admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].presence").value("online"))
+            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].currentScreen").value("Reservations"))
             .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].deviceType").value("mobile"))
-            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].isOnline").value(false))
+            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')]").isEmpty());
+        mvc.perform(get("/api/admin/users").header("Authorization", admin))
+            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].presence").value("offline"))
             .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].lastSeen").isNotEmpty());
+        mvc.perform(get("/api/account/online").header("Authorization", agent)).andExpect(status().isForbidden());
 
         mvc.perform(post("/api/account/heartbeat")).andExpect(status().isUnauthorized());
     }

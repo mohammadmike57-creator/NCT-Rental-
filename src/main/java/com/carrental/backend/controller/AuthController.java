@@ -21,6 +21,9 @@ import java.time.LocalDateTime;
 public class AuthController {
 
     @Autowired
+    private com.carrental.backend.staff.PresenceService presence;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -53,6 +56,7 @@ public class AuthController {
         }
         String token = jwtUtil.generateToken(user.getEmail());
         activity.record(user.getEmail(), "LOGIN", "auth", "Signed in", null, null);
+        presence.seen(user.getEmail(), true);
         return ResponseEntity.ok(new AuthResponse(token, user));
     }
 

@@ -34,7 +34,15 @@ public class User {
 
     private Boolean isOnline;
     private LocalDateTime lastSeen;
+    /** Last time the person actually did something (pressed, typed, saved), in UTC. */
+    private LocalDateTime lastActiveAt;
     private String deviceType;
+    /** Live, not stored: "online", "away" (app open, not touched for a while) or "offline". */
+    @Transient
+    private String presence;
+    /** Live, not stored: the screen the person has open. */
+    @Transient
+    private String currentScreen;
     private Boolean webAppAccess;
     private LocalDateTime passwordLastChanged;
 
@@ -80,6 +88,15 @@ public class User {
 
     public LocalDateTime getLastSeen() { return lastSeen; }
     public void setLastSeen(LocalDateTime lastSeen) { this.lastSeen = lastSeen; }
+
+    public LocalDateTime getLastActiveAt() { return lastActiveAt; }
+    public void setLastActiveAt(LocalDateTime lastActiveAt) { this.lastActiveAt = lastActiveAt; }
+
+    public String getPresence() { return presence; }
+    public void setPresence(String presence) { this.presence = presence; }
+
+    public String getCurrentScreen() { return currentScreen; }
+    public void setCurrentScreen(String currentScreen) { this.currentScreen = currentScreen; }
 
     public String getDeviceType() { return deviceType; }
     public void setDeviceType(String deviceType) { this.deviceType = deviceType; }

@@ -14,6 +14,7 @@ import java.util.Map;
  *   GET    /api/account/me                    current user (fresh permissions)
  *   POST   /api/account/heartbeat             "still here" while the app is in use (last seen)
  *   POST   /api/account/signed-out            shown as offline straight away
+ *   GET    /api/account/online                who is online or away now (ACTION_ADMIN_MANAGE_USERS or VIEW_SYSTEM_ACTIVITY_LOG)
  *   GET    /api/admin/users                   list accounts            (ACTION_ADMIN_MANAGE_USERS)
  *   POST   /api/admin/users                   create account           (ACTION_ADMIN_MANAGE_USERS)
  *   PUT    /api/admin/users/{id}              update profile/access    (ACTION_ADMIN_MANAGE_USERS)
@@ -42,7 +43,7 @@ public class StaffAccountController {
     @PostMapping("/api/account/heartbeat")
     public ResponseEntity<?> heartbeat(@RequestBody(required = false) Map<String, String> body, Authentication auth) {
         if (auth == null) return ResponseEntity.status(401).build();
-        presence.touch(auth.getName(), body == null ? null : body.get("deviceType"));
+        presence.heartbeat(auth.getName(), body == null ? null : body.get("deviceType"), body == null ? null : body.get("screen"));
         return ResponseEntity.noContent().build();
     }
 
@@ -51,6 +52,14 @@ public class StaffAccountController {
         if (auth == null) return ResponseEntity.status(401).build();
         presence.signedOut(auth.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/api/account/online")
+    public ResponseEntity<?> online(Authentication auth) {
+        boolean allowed = auth != null && auth.getAuthorities().stream()
+            .anyMatch(a -> MANAGE_USERS.equals(a.getAuthority()) || "VIEW_SYSTEM_ACTIVITY_LOG".equals(a.getAuthority()));
+        if (!allowed) return forbidden();
+        return ResponseEntity.ok(presence.onlineNow());
     }
 
     @GetMapping("/api/admin/users")

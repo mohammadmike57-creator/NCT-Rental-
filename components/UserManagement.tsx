@@ -7,6 +7,7 @@ import {
 import {
   PERMISSION_AREAS, ALL_PERMISSIONS, effectivePermissions, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate, PermissionArea, PermissionSection,
 } from '../services/permissionCatalog';
+import { OnlineNowPanel, PresenceDot, LastSeenText, presenceOf, serverTime } from './OnlinePresence';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Tabs, Badge, Button, Field, SectionLabel, EmptyState, inputCls, table } from './ui/Crm';
 
 interface UserManagementProps {
@@ -461,7 +462,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState<DrawerMode | null>(null);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'disabled' | 'nologin' | 'admins'>('all');
+  const [filter, setFilter] = useState<'all' | 'online' | 'active' | 'disabled' | 'nologin' | 'admins'>('all');
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -497,7 +498,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
     const merged: User[] = fresh.map(u => {
       const prev = byEmail.get(u.email?.toLowerCase());
       const { password: _p, ...clean } = u as User;
-      return { ...(prev || {}), ...clean, password: undefined, isOnline: prev?.isOnline, lastSeen: prev?.lastSeen, deviceType: prev?.deviceType } as User;
+      return { ...(prev || {}), ...clean, password: undefined, isOnline: prev?.isOnline, lastSeen: prev?.lastSeen, deviceType: prev?.deviceType, presence: undefined, currentScreen: undefined, lastActiveAt: undefined } as User;
     });
     const legacy = (users || []).filter(u => !freshEmails.has(u.email?.toLowerCase())).map(u => ({ ...u, password: undefined }));
     onUpdateUsers([...merged, ...legacy]);
@@ -518,6 +519,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
   const visible = accounts.filter(a => {
     if (q && !`${a.fullName} ${a.email} ${a.username} ${a.position}`.toLowerCase().includes(q)) return false;
     switch (filter) {
+      case 'online': return a.hasLogin && presenceOf(a) !== 'offline';
       case 'active': return a.hasLogin && isActive(a);
       case 'disabled': return a.hasLogin && !isActive(a);
       case 'nologin': return !a.hasLogin;
@@ -528,26 +530,24 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
 
   const counts = {
     all: accounts.length,
+    online: accounts.filter(a => a.hasLogin && presenceOf(a) !== 'offline').length,
     active: accounts.filter(a => a.hasLogin && isActive(a)).length,
     disabled: accounts.filter(a => a.hasLogin && !isActive(a)).length,
     nologin: accounts.filter(a => !a.hasLogin).length,
     admins: accounts.filter(isAdmin).length,
   };
 
-  const filterTabs = ([['all', 'All'], ['active', 'Active'], ['admins', 'Administrators'], ['disabled', 'Disabled'], ['nologin', 'Without login']] as const)
+  const filterTabs = ([['all', 'All'], ['online', 'Online & away'], ['active', 'Active'], ['admins', 'Administrators'], ['disabled', 'Disabled'], ['nologin', 'Without login']] as const)
     .map(([k, label]) => ({ key: k, label, count: counts[k] }));
   const openAccount = (a: Account) => !loadError && setDrawer({ kind: 'edit', account: a });
-  const lastSeen = (a: Account) => {
-    if (a.isOnline) return <span className="text-emerald-700 font-medium">Online now</span>;
-    if (!a.lastSeen) return 'Never';
-    // The server keeps times in UTC without a zone suffix.
-    const t = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(a.lastSeen) ? a.lastSeen : `${a.lastSeen}Z`);
-    if (isNaN(t.getTime())) return '—';
-    const mins = Math.round((Date.now() - t.getTime()) / 60000);
-    const ago = mins < 1 ? 'just now' : mins < 60 ? `${mins} min ago` : mins < 24 * 60 ? `${Math.floor(mins / 60)} h ago` : null;
-    const when = t.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-    return <span title={t.toLocaleString('en-GB')}>{ago ? `${ago} · ${when}` : when}</span>;
-  };
+  const lastSeen = (a: Account) => a.hasLogin ? <LastSeenText user={a} /> : <span className="text-slate-400">No login</span>;
+  // Online first, then away, then most recently active.
+  const rank = (a: Account) => ({ online: 0, away: 1, offline: 2 })[presenceOf(a)];
+  const onlinePeople = accounts.filter(a => a.hasLogin && presenceOf(a) !== 'offline')
+    .sort((x, y) => rank(x) - rank(y) || String(y.lastActiveAt || '').localeCompare(String(x.lastActiveAt || '')));
+  const lastSeenSomeone = accounts.filter(a => a.hasLogin && serverTime(a.lastSeen))
+    .sort((x, y) => String(y.lastSeen).localeCompare(String(x.lastSeen)))[0] || null;
+
 
   return (
     <Page>
@@ -582,6 +582,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
           <ShieldCheckIcon className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
           <p className="text-slate-700"><strong>{counts.nologin}</strong> staff record{counts.nologin === 1 ? ' has' : 's have'} no sign-in account, so {counts.nologin === 1 ? 'this person' : 'these people'} cannot log in. Open them and choose <strong>Create account</strong>.</p>
         </div>
+      )}
+
+      {serverAccounts && !loadError && (
+        <OnlineNowPanel people={onlinePeople} selfEmail={currentUser?.email} avatarClass={avatarColor} lastSeenSomeone={lastSeenSomeone}
+          onOpen={p => { const a = accounts.find(x => x.email === p.email); if (a) openAccount(a); }} />
       )}
 
       <Panel footer={<span className="tabular-nums">{visible.length} of {accounts.length} staff shown</span>}>
@@ -619,7 +624,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="relative">
                             <Avatar name={a.fullName} email={a.email} />
-                            {a.isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />}
+                            <PresenceDot presence={a.hasLogin ? presenceOf(a) : 'offline'} />
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-slate-900 truncate">{a.fullName || a.username}{self && <Badge tone="info" dot={false} className="ml-2 !text-[10px]">You</Badge>}</p>
@@ -647,7 +652,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
                     <button type="button" onClick={() => openAccount(a)} className="w-full px-4 py-3 flex items-start gap-3 text-left active:bg-slate-50">
                       <div className="relative">
                         <Avatar name={a.fullName} email={a.email} />
-                        {a.isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />}
+                        <PresenceDot presence={a.hasLogin ? presenceOf(a) : 'offline'} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
@@ -659,7 +664,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
                           <RoleBadge perms={a.permissions || []} />
                           <span className={`text-xs font-semibold ${a.hasLogin ? 'text-indigo-600' : 'text-amber-700'}`}>{a.hasLogin ? 'Manage' : 'Create login'}</span>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-slate-400 tabular-nums">Last seen {lastSeen(a)}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-400 tabular-nums">{lastSeen(a)}</p>
                       </div>
                     </button>
                   </li>

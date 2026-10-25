@@ -384,9 +384,16 @@ export const recordActivityBatch = (events: ActivityEvent[], keepalive = false) 
 };
 
 /** "Still here": keeps the signed-in user's Last seen current on the server. */
-export const sendHeartbeat = (deviceType: 'mobile' | 'desktop') => {
+export const sendHeartbeat = (deviceType: 'mobile' | 'desktop', screen?: string) => {
   try { if (!localStorage.getItem('token')) return; } catch { return; }
-  axios.post(`${API_URL}/api/account/heartbeat`, { deviceType }, { headers: authHeaders(), timeout: 15000 }).catch(() => { /* offline: skip */ });
+  axios.post(`${API_URL}/api/account/heartbeat`, { deviceType, screen }, { headers: authHeaders(), timeout: 15000 }).catch(() => { /* offline: skip */ });
+};
+
+export interface OnlineStaff { id: string; email: string; fullName?: string; position?: string; presence: 'online' | 'away'; currentScreen?: string; deviceType?: 'desktop' | 'mobile'; lastSeen?: string; lastActiveAt?: string }
+/** Who is online or away right now (managers only). */
+export const fetchOnlineNow = async (): Promise<OnlineStaff[]> => {
+  const res = await axios.get(`${API_URL}/api/account/online`, { headers: authHeaders(), timeout: 15000 });
+  return Array.isArray(res.data) ? res.data : [];
 };
 
 /** Shown as offline straight away when signing out. */

@@ -427,6 +427,12 @@ export interface User {
   // User Activity & Access Control
   isOnline?: boolean;
   lastSeen?: string;
+  /** From the server only: last time they pressed, typed or saved (UTC). */
+  lastActiveAt?: string;
+  /** From the server only: 'online' | 'away' | 'offline', worked out live. */
+  presence?: 'online' | 'away' | 'offline';
+  /** From the server only: the screen they have open. */
+  currentScreen?: string;
   deviceType?: 'desktop' | 'mobile';
   webAppAccess?: boolean;
   passwordLastChanged?: string;

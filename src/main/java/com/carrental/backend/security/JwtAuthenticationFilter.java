@@ -28,6 +28,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private CustomUserDetailsService userDetailsService;
 
+    @Autowired
+    private com.carrental.backend.staff.PresenceService presence;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -76,6 +79,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    // Any signed-in request means the app is open; a change (not a read) means they're working.
+                    // Signing out is handled by its own endpoint.
+                    if (!requestUri.equals("/api/account/signed-out")) presence.seen(email, !request.getMethod().equalsIgnoreCase("GET"));
                 }
             } catch (UsernameNotFoundException e) {
                 // Token for a user that no longer exists: continue unauthenticated (401 for protected routes)
