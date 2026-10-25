@@ -363,7 +363,7 @@ export interface StaffActivityEntry {
   bookingId?: string;
   details?: string;
 }
-export type ActivityCategory = 'auth' | 'reservation' | 'agreement' | 'charges' | 'invoice' | 'email' | 'fleet' | 'finance' | 'settings' | 'staff' | 'other';
+export type ActivityCategory = 'auth' | 'reservation' | 'agreement' | 'charges' | 'invoice' | 'email' | 'fleet' | 'finance' | 'settings' | 'staff' | 'screen' | 'other';
 
 /** Records something the signed-in user did. Fire-and-forget: never blocks or breaks the action. */
 export const recordActivity = (action: string, category: ActivityCategory, summary: string, bookingId?: string, details?: string) => {
@@ -371,6 +371,27 @@ export const recordActivity = (action: string, category: ActivityCategory, summa
     if (!localStorage.getItem('token')) return;
   } catch { return; }
   axios.post(`${API_URL}/api/activity`, { action, category, summary, bookingId, details }, { headers: authHeaders(), timeout: 15000 }).catch(() => { /* offline: skip */ });
+};
+
+export interface ActivityEvent { action: string; category: ActivityCategory; summary: string; bookingId?: string; details?: string }
+
+/** Records several events at once. keepalive lets the last batch go out while the page is closing. */
+export const recordActivityBatch = (events: ActivityEvent[], keepalive = false) => {
+  let token: string | null = null;
+  try { token = localStorage.getItem('token'); } catch { return; }
+  if (!token || !events.length) return;
+  fetch(`${API_URL}/api/activity/batch`, { method: 'POST', keepalive, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(events) }).catch(() => { /* offline: skip */ });
+};
+
+/** "Still here": keeps the signed-in user's Last seen current on the server. */
+export const sendHeartbeat = (deviceType: 'mobile' | 'desktop') => {
+  try { if (!localStorage.getItem('token')) return; } catch { return; }
+  axios.post(`${API_URL}/api/account/heartbeat`, { deviceType }, { headers: authHeaders(), timeout: 15000 }).catch(() => { /* offline: skip */ });
+};
+
+/** Shown as offline straight away when signing out. */
+export const markSignedOut = async () => {
+  try { await axios.post(`${API_URL}/api/account/signed-out`, {}, { headers: authHeaders(), timeout: 5000 }); } catch { /* offline: skip */ }
 };
 
 export const fetchActivity = async (params: { user?: string; category?: string; bookingId?: string; q?: string; from?: string; to?: string; limit?: number }): Promise<StaffActivityEntry[]> => {

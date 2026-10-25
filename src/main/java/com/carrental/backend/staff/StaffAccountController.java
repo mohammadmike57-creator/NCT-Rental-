@@ -12,6 +12,8 @@ import java.util.Map;
 /**
  * Staff login accounts.
  *   GET    /api/account/me                    current user (fresh permissions)
+ *   POST   /api/account/heartbeat             "still here" while the app is in use (last seen)
+ *   POST   /api/account/signed-out            shown as offline straight away
  *   GET    /api/admin/users                   list accounts            (ACTION_ADMIN_MANAGE_USERS)
  *   POST   /api/admin/users                   create account           (ACTION_ADMIN_MANAGE_USERS)
  *   PUT    /api/admin/users/{id}              update profile/access    (ACTION_ADMIN_MANAGE_USERS)
@@ -27,6 +29,7 @@ public class StaffAccountController {
 
     private final StaffAccountService service;
     private final ActivityService activity;
+    private final PresenceService presence;
 
     @GetMapping("/api/account/me")
     public ResponseEntity<?> me(Authentication auth) {
@@ -36,10 +39,24 @@ public class StaffAccountController {
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Account not found")));
     }
 
+    @PostMapping("/api/account/heartbeat")
+    public ResponseEntity<?> heartbeat(@RequestBody(required = false) Map<String, String> body, Authentication auth) {
+        if (auth == null) return ResponseEntity.status(401).build();
+        presence.touch(auth.getName(), body == null ? null : body.get("deviceType"));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/api/account/signed-out")
+    public ResponseEntity<?> signedOut(Authentication auth) {
+        if (auth == null) return ResponseEntity.status(401).build();
+        presence.signedOut(auth.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/api/admin/users")
     public ResponseEntity<?> list(Authentication auth) {
         if (!canManage(auth)) return forbidden();
-        return ResponseEntity.ok(service.list());
+        return ResponseEntity.ok(presence.withLiveStatus(service.list()));
     }
 
     @PostMapping("/api/admin/users")

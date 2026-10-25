@@ -12,7 +12,8 @@ import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBar
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Notifications from './components/Notifications';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, rememberServerState, clearDataSections } from './firebase/api';
+import { startActivityTracking, track, flushActivity, lastInteractionAt } from './services/activityTracker';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, sendHeartbeat, markSignedOut, rememberServerState, clearDataSections } from './firebase/api';
 
 // Lazy load components
 const ReservationTable = React.lazy(() => import('./components/ReservationTable'));
@@ -538,47 +539,32 @@ export const App: React.FC = () => {
           }
       }
 
-      if (!currentUser || isLoading) return;
+  }, [users, currentUser]);
 
-      const updatePresence = () => {
-           const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-           const deviceType = isMobile ? 'mobile' : 'desktop';
-           
-           setUsers(prevUsers => {
-               const userIndex = prevUsers.findIndex(u => u.id === currentUser.id);
-               if (userIndex === -1 && currentUser.id !== MASTER_USER.id) return prevUsers;
+  // Last seen: a heartbeat to the server every minute while the person is actually using the app
+  // (the tab is open and they touched something in the last 5 minutes).
+  const signedInEmail = currentUser?.email;
+  useEffect(() => {
+      if (!signedInEmail || isLoading) return;
+      const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+      const beat = () => { if (document.visibilityState === 'visible' && Date.now() - lastInteractionAt() < 5 * 60000) sendHeartbeat(deviceType); };
+      sendHeartbeat(deviceType);
+      const interval = setInterval(beat, 60000);
+      const onVisible = () => { if (document.visibilityState === 'visible') beat(); };
+      document.addEventListener('visibilitychange', onVisible);
+      return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, [signedInEmail, isLoading]);
 
-               const userToUpdate = userIndex > -1 ? prevUsers[userIndex] : currentUser;
-               
-               const updatedUser = {
-                   ...userToUpdate,
-                   isOnline: true,
-                   lastSeen: new Date().toISOString(),
-                   deviceType: deviceType as 'desktop' | 'mobile',
-                   webAppAccess: userToUpdate.webAppAccess ?? true
-               };
-               
-               if (
-                   userToUpdate.isOnline !== updatedUser.isOnline ||
-                   userToUpdate.deviceType !== updatedUser.deviceType ||
-                   Math.abs(new Date(userToUpdate.lastSeen || 0).getTime() - new Date(updatedUser.lastSeen).getTime()) > 59000 
-               ) {
-                   if (userIndex > -1) {
-                        const newUsers = [...prevUsers];
-                        newUsers[userIndex] = updatedUser;
-                        return newUsers;
-                   }
-               }
-               return prevUsers;
-           });
-      };
-      
-      updatePresence();
-      const interval = setInterval(updatePresence, 60000); 
-      
-      return () => clearInterval(interval);
-
-  }, [users, currentUser, isLoading]);
+  // Activity log: every screen opened and every button, tab, row and field the person touches.
+  const mainViewRef = useRef(mainView);
+  mainViewRef.current = mainView;
+  useEffect(() => {
+      if (!signedInEmail) return;
+      return startActivityTracking(() => mainViewRef.current);
+  }, [signedInEmail]);
+  useEffect(() => {
+      if (signedInEmail) track('UI_VIEW', `Opened screen “${mainView}”`);
+  }, [mainView, signedInEmail]);
 
   const showConfirmation = (message: string) => {
     setConfirmation(message);
@@ -749,7 +735,9 @@ export const App: React.FC = () => {
 
   const handleLogout = async () => {
     recordActivity('LOGOUT', 'auth', 'Signed out');
+    flushActivity();
     try {
+      await markSignedOut();
       await signOutUser();
       localStorage.removeItem('token');
       localStorage.removeItem('user');

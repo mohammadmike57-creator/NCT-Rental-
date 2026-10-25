@@ -20,7 +20,7 @@ public class ActivityService {
 
     private static final Logger log = LoggerFactory.getLogger(ActivityService.class);
     private static final Pattern ACTION = Pattern.compile("^[A-Z][A-Z0-9_]{1,63}$");
-    public static final Set<String> CATEGORIES = Set.of("auth", "reservation", "agreement", "charges", "invoice", "email", "fleet", "finance", "settings", "staff", "other");
+    public static final Set<String> CATEGORIES = Set.of("auth", "reservation", "agreement", "charges", "invoice", "email", "fleet", "finance", "settings", "staff", "screen", "other");
 
     private final StaffActivityRepository repo;
     private final UserRepository users;

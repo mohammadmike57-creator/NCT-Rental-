@@ -13,6 +13,7 @@ import java.util.Map;
 /**
  * Staff activity log.
  *   POST /api/activity            record an action by the signed-in user (any staff member)
+ *   POST /api/activity/batch      record several (up to 100) at once, e.g. screens opened and buttons pressed
  *   GET  /api/activity            search all activity          (VIEW_SYSTEM_ACTIVITY_LOG)
  *   GET  /api/activity/users      per-staff summary            (VIEW_SYSTEM_ACTIVITY_LOG)
  *   GET  /api/activity/mine       the signed-in user's own activity
@@ -25,12 +26,27 @@ public class ActivityController {
 
     static final String VIEW = "VIEW_SYSTEM_ACTIVITY_LOG";
     private final ActivityService service;
+    private final com.carrental.backend.staff.PresenceService presence;
 
     @PostMapping
     public ResponseEntity<?> record(@RequestBody Map<String, String> body, Authentication auth) {
         if (auth == null) return ResponseEntity.status(401).build();
         service.record(auth.getName(), body.get("action"), body.get("category"), body.get("summary"), body.get("bookingId"), body.get("details"));
+        presence.touch(auth.getName(), null);
         return ResponseEntity.accepted().body(Map.of("recorded", true));
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<?> recordBatch(@RequestBody java.util.List<Map<String, String>> body, Authentication auth) {
+        if (auth == null) return ResponseEntity.status(401).build();
+        int n = 0;
+        for (Map<String, String> e : body == null ? java.util.List.<Map<String, String>>of() : body) {
+            if (e == null || n >= 100) continue;
+            service.record(auth.getName(), e.get("action"), e.get("category"), e.get("summary"), e.get("bookingId"), e.get("details"));
+            n++;
+        }
+        presence.touch(auth.getName(), null);
+        return ResponseEntity.accepted().body(Map.of("recorded", n));
     }
 
     @GetMapping

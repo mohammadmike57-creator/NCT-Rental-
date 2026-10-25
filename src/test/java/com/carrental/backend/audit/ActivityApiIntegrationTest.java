@@ -54,6 +54,39 @@ class ActivityApiIntegrationTest {
     }
 
     @Test
+    void batchRecordsEveryTouchAndHeartbeatKeepsLastSeen() throws Exception {
+        users.save(user("admin@nct.test", "Lina Admin", List.of(UserPermission.VIEW_SYSTEM_ACTIVITY_LOG, UserPermission.ACTION_ADMIN_MANAGE_USERS)));
+        String admin = "Bearer " + jwt.generateToken("admin@nct.test");
+
+        mvc.perform(post("/api/activity/batch").header("Authorization", agent).contentType(MediaType.APPLICATION_JSON)
+                .content("[{\"action\":\"UI_VIEW\",\"category\":\"screen\",\"summary\":\"Opened screen Reservations\"},"
+                    + "{\"action\":\"UI_CLICK\",\"category\":\"screen\",\"summary\":\"Pressed New reservation\"}]"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.recorded").value(2));
+        mvc.perform(get("/api/activity").header("Authorization", manager).param("category", "screen"))
+            .andExpect(jsonPath("$", hasSize(2)))
+            .andExpect(jsonPath("$[*].userEmail", everyItem(is("agent@nct.test"))));
+
+        // Recording activity counts as being seen; the agent shows online with a last-seen time.
+        mvc.perform(get("/api/admin/users").header("Authorization", admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].isOnline").value(true))
+            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].lastSeen").isNotEmpty())
+            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].isOnline").value(false));
+
+        mvc.perform(post("/api/account/heartbeat").header("Authorization", manager).contentType(MediaType.APPLICATION_JSON).content("{\"deviceType\":\"mobile\"}"))
+            .andExpect(status().isNoContent());
+        mvc.perform(post("/api/account/signed-out").header("Authorization", agent)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/admin/users").header("Authorization", admin))
+            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].isOnline").value(true))
+            .andExpect(jsonPath("$[?(@.email == 'manager@nct.test')].deviceType").value("mobile"))
+            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].isOnline").value(false))
+            .andExpect(jsonPath("$[?(@.email == 'agent@nct.test')].lastSeen").isNotEmpty());
+
+        mvc.perform(post("/api/account/heartbeat")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void recordsActionsWithServerSideIdentityAndShowsThemPerUser() throws Exception {
         // Sign-in is recorded by the server.
         mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"agent@nct.test\",\"password\":\"Pass-12345\"}"))

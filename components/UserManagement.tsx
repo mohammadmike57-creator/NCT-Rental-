@@ -476,6 +476,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+  // Keep Online / Last seen current while this screen is open (quietly, without the loading state).
+  useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === 'visible') listStaffAccounts().then(setServerAccounts).catch(() => { /* keep the last list */ }); }, 30000);
+    return () => clearInterval(t);
+  }, []);
 
   // Server accounts are the source of truth; staff records in the app without a login are listed too.
   const accounts: Account[] = useMemo(() => {
@@ -532,7 +537,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onUpdateUsers, c
   const filterTabs = ([['all', 'All'], ['active', 'Active'], ['admins', 'Administrators'], ['disabled', 'Disabled'], ['nologin', 'Without login']] as const)
     .map(([k, label]) => ({ key: k, label, count: counts[k] }));
   const openAccount = (a: Account) => !loadError && setDrawer({ kind: 'edit', account: a });
-  const lastSeen = (a: Account) => a.isOnline ? <span className="text-emerald-700 font-medium">Online now</span> : a.lastSeen ? new Date(a.lastSeen).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+  const lastSeen = (a: Account) => {
+    if (a.isOnline) return <span className="text-emerald-700 font-medium">Online now</span>;
+    if (!a.lastSeen) return 'Never';
+    // The server keeps times in UTC without a zone suffix.
+    const t = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(a.lastSeen) ? a.lastSeen : `${a.lastSeen}Z`);
+    if (isNaN(t.getTime())) return '—';
+    const mins = Math.round((Date.now() - t.getTime()) / 60000);
+    const ago = mins < 1 ? 'just now' : mins < 60 ? `${mins} min ago` : mins < 24 * 60 ? `${Math.floor(mins / 60)} h ago` : null;
+    const when = t.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return <span title={t.toLocaleString('en-GB')}>{ago ? `${ago} · ${when}` : when}</span>;
+  };
 
   return (
     <Page>
