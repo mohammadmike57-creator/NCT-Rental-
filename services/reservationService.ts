@@ -30,10 +30,24 @@ export class ReservationService {
     fileName: string
   ): Promise<{ data: AppData; report: ImportReport }> {
     const { reservations, report } = ExcelImportService.processExcelData(data, year, month, fileName);
-    
+    return this.importReservations(reservations, report, { year, month });
+  }
+
+  /**
+   * Adds imported reservations. A booking number that already exists anywhere updates that booking
+   * in place; new ones go to their own storage month (or the fallback month given).
+   * `current` is the data on screen, so nothing saved since the last sync is lost.
+   */
+  async importReservations(
+    reservations: Reservation[],
+    report: ImportReport,
+    fallback: { year: number; month: string },
+    current?: AppData,
+  ): Promise<{ data: AppData; report: ImportReport }> {
+    if (current) this.setData(current);
     const allData = this.repository.getData();
     const updatedData = JSON.parse(JSON.stringify(allData)) as AppData;
-    
+
     // Create a global map of invoice -> {year, month, index}
     const globalInvoiceMap = new Map<string, { y: number; m: string; id: string }>();
     Object.keys(updatedData).forEach(yKey => {
@@ -50,18 +64,28 @@ export class ReservationService {
       const key = res.invoice;
       if (globalInvoiceMap.has(key)) {
         report.duplicates++;
+        report.imported = Math.max(0, report.imported - 1);
         const { y, m, id } = globalInvoiceMap.get(key)!;
         const index = updatedData[y][m].findIndex(r => r.id === id);
         if (index !== -1) {
           const existing = updatedData[y][m][index];
+          // Blank cells in the sheet never wipe what the booking already has; its status is kept.
+          const keep = (k: string, v: unknown) => {
+            if (k === 'status' || k === 'id') return false;
+            if (v === '' || v === undefined || v === null) return false;
+            if ((k === 'amount' || k === 'baseAmount') && v === 0) return false;
+            return true;
+          };
+          const incoming = Object.fromEntries(Object.entries(res).filter(([k, v]) => keep(k, v))) as Partial<Reservation>;
           // Update existing, keeping its original storage bucket and ID
-          updatedData[y][m][index] = { 
-            ...existing, 
-            ...res, 
-            id: id, 
-            storageYear: y, 
+          updatedData[y][m][index] = {
+            ...existing,
+            ...incoming,
+            id: id,
+            storageYear: y,
             storageMonth: m,
-            updatedAt: new Date().toISOString() 
+            createdAt: existing.createdAt || res.createdAt,
+            updatedAt: new Date().toISOString()
           };
           // An agreement opened at the counter before the booking was entered: the import
           // lists it. The car actually handed over and the counter notes are kept.
@@ -74,12 +98,18 @@ export class ReservationService {
               ...(existing.voucherSubmitted ? { carModel: existing.carModel || res.carModel, licensePlate: existing.licensePlate } : {}),
             });
           }
+          // Work already done on the booking (agreement, check-in) keeps the car that was handed over.
+          if (existing.voucherSubmitted || existing.dropOffCompleted) {
+            Object.assign(updatedData[y][m][index], { carModel: existing.carModel, licensePlate: existing.licensePlate });
+          }
         }
       } else {
-        // Create new in target bucket
-        if (!updatedData[year]) updatedData[year] = {};
-        if (!updatedData[year][month]) updatedData[year][month] = [];
-        updatedData[year][month].push(res);
+        const y = res.storageYear || fallback.year;
+        const m = res.storageMonth || fallback.month;
+        if (!updatedData[y]) updatedData[y] = {};
+        if (!updatedData[y][m]) updatedData[y][m] = [];
+        updatedData[y][m].push({ ...res, storageYear: y, storageMonth: m });
+        globalInvoiceMap.set(key, { y, m, id: res.id });
       }
     });
 
@@ -87,10 +117,10 @@ export class ReservationService {
     if (!saved) {
       throw new Error("Failed to save imported reservations to backend");
     }
-    
+
     // Refresh the repository store with the new data
     this.setData(updatedData);
-    
+
     return { data: updatedData, report };
   }
 

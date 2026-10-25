@@ -1356,11 +1356,11 @@ ${currentUser?.fullName}
     setTableKey(prev => prev + 1);
     
     if (report.imported === 0 && report.duplicates === 0) {
-        addNotification(`Import complete: 0 imported. Please check Excel headers.`, 'warning');
+        addNotification(`Import complete: nothing was added or updated.`, 'warning');
     } else {
-        addNotification(`Successfully imported ${report.imported} and updated ${report.duplicates} reservations.`, 'success');
+        addNotification(`Import complete: ${report.imported} added, ${report.duplicates} updated.`, 'success');
     }
-    setMainView('Reservations');
+    recordActivity('RESERVATIONS_IMPORTED', 'reservation', `Imported reservations from Excel: ${report.imported} added, ${report.duplicates} updated, ${report.invalidRows} skipped`);
   }, [addNotification]);
 
   const clearReservationFilters = useCallback(() => {
@@ -1930,7 +1930,16 @@ ${currentUser?.fullName}
             }}
         />
     ), permission: UserPermission.VIEW_MY_PROFILE },
-    'Import Reservations': { component: <ExcelUpload onReservationsImported={handleReservationsImport} years={years} focusYear={selectedYear} focusMonth={selectedMonth} />, permission: UserPermission.VIEW_IMPORT_RESERVATIONS },
+    'Import Reservations': { component: (
+        <ExcelUpload onReservationsImported={handleReservationsImport} years={years} focusYear={selectedYear} focusMonth={selectedMonth}
+            allData={reservations} sources={sources} fleet={fleet}
+            onAddSources={async added => {
+                const next = [...sources, ...added];
+                setSources(next);
+                await saveAllData({ sources: next } as any);
+            }}
+            onOpenReservations={() => setMainView('Reservations')} />
+    ), permission: UserPermission.VIEW_IMPORT_RESERVATIONS },
   };
 
   const sidebarLinks: Record<string, SidebarLink[]> = {
