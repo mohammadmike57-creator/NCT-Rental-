@@ -10,7 +10,8 @@ import { UploadIcon, DocumentTextIcon, AlertIcon, CheckCircleIcon } from './icon
 import { Page, PageHeader, StatGrid, Panel, Badge, Button, Segmented, Tabs, Field, EmptyState, selectCls as crmSelectCls, table } from './ui/Crm';
 
 interface ExcelUploadProps {
-  onReservationsImported: (data: any, report: ImportReport) => void;
+  /** years: every year the imported bookings touch, so the app can list them. */
+  onReservationsImported: (data: any, report: ImportReport, years?: number[]) => void;
   years?: number[];
   focusYear?: number;
   focusMonth?: string;
@@ -192,7 +193,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       const skipped = rows.filter(r => statusOf(r) === 'problem').map(r => ({ row: r.row, details: r.problems.join(' · ') }));
       const report: ImportReport = { imported: reservations.length, skipped: counts.ignored, duplicates: 0, invalidRows: skipped.length, warnings: [], errors: skipped };
       const result = await reservationService.importReservations(reservations, report, { year, month }, allData);
-      onReservationsImported(result.data, result.report);
+      onReservationsImported(result.data, result.report, fileYears);
       setDone({ report: result.report, added: added.map(a => a.name), skipped });
     } catch (e: any) {
       setError(`The import could not be saved: ${e?.message || e}. Nothing was changed.`);
@@ -205,6 +206,11 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const visibleRows = rows.filter(r => { const s = statusOf(r); return s !== 'ignored' && (view === 'all' || s === view); });
   const sample = (c?: number) => (c === undefined || !t ? '' : String(t.rows.find(r => r[c] !== '' && r[c] !== undefined)?.[c] ?? ''));
   const firstDate = rows.find(r => r.pickup);
+  // Years the bookings in this file touch (pick-up or drop-off), e.g. a December rental returning in 2027.
+  const fileYears = Array.from(new Set(rows.filter(r => statusOf(r) !== 'ignored').flatMap(r => [r.pickup, r.dropoff]).filter(Boolean).map(d => +d.slice(0, 4)))).sort();
+  const crossYear = rows.filter(r => r.pickup && r.dropoff && r.pickup.slice(0, 4) !== r.dropoff.slice(0, 4) && statusOf(r) !== 'ignored').length;
+  const fixedRows = rows.filter(r => r.fixes.length && statusOf(r) !== 'ignored').length;
+  const yearOptions = Array.from(new Set([...years, ...fileYears, year])).sort();
   const shownFields: FieldKey[] = ['bookingId', 'customer', 'pickupDate', 'pickupTime', 'dropoffDate', 'dropoffTime', 'vehicle', 'source', 'amount', 'phone', 'email', 'location', 'notes', 'bookingDate', 'firstName', 'lastName'];
   const required: FieldKey[] = ['customer', 'pickupDate', 'dropoffDate'];
 
@@ -302,6 +308,18 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
                       {' '}until <strong className="text-slate-900">{showDate(firstDate.dropoff)}</strong> ({daysBetween(firstDate.pickup, firstDate.dropoff)} days)
                     </p>
                   )}
+                  {fileYears.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+                      <span>Years in this file:</span>
+                      {fileYears.map(y => <Badge key={y} tone={years.includes(y) ? 'muted' : 'info'} dot={false}>{y}{years.includes(y) ? '' : ' · will be added'}</Badge>)}
+                    </div>
+                  )}
+                  {(crossYear > 0 || fixedRows > 0) && (
+                    <ul className="text-xs text-slate-600 space-y-1">
+                      {crossYear > 0 && <li>• {crossYear} rental{crossYear === 1 ? ' runs' : 's run'} into the next year; each is stored by its pick-up date.</li>}
+                      {fixedRows > 0 && <li>• {fixedRows} row{fixedRows === 1 ? ' was' : 's were'} corrected automatically (marked in the list below).</li>}
+                    </ul>
+                  )}
                 </div>
               </Panel>
 
@@ -317,7 +335,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
                       {!byPickupMonth && (
                         <span className="mt-2 grid grid-cols-2 gap-2">
                           <select value={month} onChange={e => setMonth(e.target.value)} className={selectCls}>{MONTHS.map(m => <option key={m}>{m}</option>)}</select>
-                          <select value={year} onChange={e => setYear(+e.target.value)} className={selectCls}>{years.map(y => <option key={y}>{y}</option>)}</select>
+                          <select value={year} onChange={e => setYear(+e.target.value)} className={selectCls}>{yearOptions.map(y => <option key={y}>{y}</option>)}</select>
                         </span>
                       )}
                       {outsideMonth > 0 && <span className="block mt-1.5 text-xs text-amber-700">{outsideMonth} booking{outsideMonth === 1 ? ' picks' : 's pick'} up outside {month} {year}.</span>}
@@ -434,6 +452,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
                           {s === 'new' && <Badge tone="success">New</Badge>}
                           {s === 'update' && <Badge tone="info">Update</Badge>}
                           {s === 'problem' && <span className="text-xs text-amber-800">{r.problems.join(' · ')}</span>}
+                          {s !== 'problem' && r.fixes.map(f => <p key={f} className="mt-1 text-[11px] leading-snug text-sky-700">{f}</p>)}
                         </td>
                       </tr>
                     );

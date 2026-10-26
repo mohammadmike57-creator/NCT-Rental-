@@ -88,6 +88,37 @@ describe('reading a sheet', () => {
     expect(detectDateOrder(t, map)).toBe('MDY');
     expect(prepareRows(t, map, 'MDY')[1].pickup).toBe('2026-11-02T12:00');
   });
+  it('handles rentals into 2027, missing years and a wrong return year', () => {
+    const t = readTables(book([
+      ['Booking ID', 'Name', 'Pickup Date', 'Return Date'],
+      ['Y1', 'A', '28/12/2026', '04/01/2027'],   // runs into 2027
+      ['Y2', 'B', '15/01/2027', '20/01/2027'],   // all in 2027
+      ['Y3', 'C', '30/12/2026', '03/01/2026'],   // return typed with the old year
+      ['Y4', 'D', '27/12', '2/1'],               // no years at all
+      ['Y5', 'E', 46387, 46392],                 // Excel dates: 31 Dec 2026 → 5 Jan 2027
+      ['Y6', 'F', '10/12/2026', '10/06/2027'],   // long rental, kept with a note
+      ['Y7', 'G', '10/01/2027', '05/01/2027'],   // really wrong: return before pick-up
+    ]))[0];
+    const rows = prepareRows(t, detectColumns(t), 'DMY', new Date(2026, 9, 26));
+    const by = (id: string) => rows.find(r => r.bookingId === id)!;
+    expect(by('Y1')).toMatchObject({ pickup: '2026-12-28T12:00', dropoff: '2027-01-04T12:00', problems: [], fixes: [] });
+    expect(by('Y2')).toMatchObject({ pickup: '2027-01-15T12:00', dropoff: '2027-01-20T12:00', problems: [] });
+    expect(by('Y3').dropoff).toBe('2027-01-03T12:00');
+    expect(by('Y3').fixes[0]).toMatch(/corrected to 2027/);
+    expect(by('Y4')).toMatchObject({ pickup: '2026-12-27T12:00', dropoff: '2027-01-02T12:00', problems: [] });
+    expect(by('Y5')).toMatchObject({ pickup: '2026-12-31T12:00', dropoff: '2027-01-05T12:00' });
+    expect(by('Y6').problems).toEqual([]);
+    expect(by('Y6').fixes[0]).toMatch(/Long rental: 182 days/);
+    expect(by('Y7').problems).toContain('Drop-off is before pick-up');
+  });
+  it('fills a missing year with the next time that day comes round', () => {
+    const t = readTables(book([['Ref', 'Customer', 'From', 'To'], ['N1', 'A', '5 Jan', '9 Jan']]))[0];
+    expect(prepareRows(t, detectColumns(t), 'DMY', new Date(2026, 9, 26))[0]).toMatchObject({ pickup: '2027-01-05T12:00', dropoff: '2027-01-09T12:00' });
+  });
+  it('never takes times or amounts for dates', () => {
+    expect(parseDate('10.30')).toBeNull();
+    expect(parseDate(1.5)).toBeNull();
+  });
   it('reads amounts in any format', () => {
     expect(parseAmount('JOD 1,234.50')).toBe(1234.5);
     expect(parseAmount('1.234,50 €')).toBe(1234.5);

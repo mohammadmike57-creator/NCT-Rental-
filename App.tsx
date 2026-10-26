@@ -1349,9 +1349,17 @@ ${currentUser?.fullName}
       }
   };
 
-  const handleReservationsImport = useCallback(async (data: AppData, report: ImportReport) => {
+  const handleReservationsImport = useCallback(async (data: AppData, report: ImportReport, touchedYears: number[] = []) => {
     console.log('[IMPORT LOG] Received imported data:', report);
     setReservations(data);
+    // Bookings in a new year (e.g. returns in 2027) make that year selectable straight away.
+    const dataYears = Object.keys(data).map(Number).filter(n => !isNaN(n));
+    setYears(prev => {
+        const next = [...new Set([...prev, ...dataYears, ...touchedYears])].sort((a, b) => a - b);
+        if (next.length === prev.length) return prev;
+        saveAllData({ years: next } as any).catch(console.error);
+        return next;
+    });
     setSaveStatus('saved');
     setTableKey(prev => prev + 1);
     

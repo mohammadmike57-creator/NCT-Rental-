@@ -72,7 +72,8 @@ const validYmd = (y: number, m: number, d: number) => {
   return d <= new Date(Date.UTC(y, m, 0)).getUTCDate();
 };
 
-export interface ParsedDate { date: string; time?: string }
+/** noYear: the cell had no year (e.g. "05/01" or "5 Jan"); the year is filled in from the booking. */
+export interface ParsedDate { date: string; time?: string; noYear?: boolean }
 
 /** A time written in a cell: 10:30, 10.30 pm, 9am, or the time part of an Excel date. */
 export function parseTime(v: unknown): string | undefined {
@@ -145,6 +146,21 @@ export function parseDate(v: unknown, order: DateOrder = 'DMY'): ParsedDate | nu
     d = +m[1]; mo = MONTHS[m[2]]; y = fullYear(+m[3]);
   } else if ((m = s.match(/^([a-z]{3,9})[\s/.\-,]*(\d{1,2})[\s/.\-,]+(\d{2,4})\b/)) && MONTHS[m[1]]) {
     mo = MONTHS[m[1]]; d = +m[2]; y = fullYear(+m[3]);
+  } else if ((m = s.match(/^(\d{1,2})[/\-](\d{1,2})(?=\s|$)/))) {
+    // No year written: 05/01 or 05-01 10:30 (not 10.30, which is a time). 2024 stands in (a leap year, so 29/02 is accepted).
+    const a = +m[1], b = +m[2];
+    if (order === 'MDY') { mo = a; d = b; } else { d = a; mo = b; }
+    if (mo > 12 && d <= 12) [d, mo] = [mo, d];
+    if (!validYmd(2024, mo, d)) return null;
+    return { date: `2024-${pad(mo)}-${pad(d)}`, time, noYear: true };
+  } else if ((m = s.match(/^(\d{1,2})[\s/.\-,]*([a-z]{3,9})\.?(?=\s|$)/)) && MONTHS[m[2]]) {
+    d = +m[1]; mo = MONTHS[m[2]];
+    if (!validYmd(2024, mo, d)) return null;
+    return { date: `2024-${pad(mo)}-${pad(d)}`, time, noYear: true };
+  } else if ((m = s.match(/^([a-z]{3,9})\.?[\s/.\-,]*(\d{1,2})(?=\s|$)/)) && MONTHS[m[1]]) {
+    mo = MONTHS[m[1]]; d = +m[2];
+    if (!validYmd(2024, mo, d)) return null;
+    return { date: `2024-${pad(mo)}-${pad(d)}`, time, noYear: true };
   } else if ((m = s.match(/^(\d{8})$/))) {
     // 20261025 or 25102026
     const t = m[1];
@@ -344,7 +360,8 @@ export function detectColumns(t: SheetTable): ColumnMap {
 
 const isDateColumn = (vals: unknown[]) => {
   const filled = vals.filter(v => !isBlank(v)).slice(0, 50);
-  return filled.length >= 1 && filled.filter(v => parseDate(v) !== null).length / filled.length >= 0.7;
+  // Only full dates count here, so numbers and times are never mistaken for a date column.
+  return filled.length >= 1 && filled.filter(v => { const d = parseDate(v); return d !== null && !d.noYear; }).length / filled.length >= 0.7;
 };
 
 /** Day/month or month/day for the whole file: month-first only when a date can't be read otherwise. */
@@ -370,6 +387,8 @@ export interface PreparedRow {
   notes: string;
   bookingDate: string;
   problems: string[];
+  /** Things the import put right by itself, shown on the review screen (e.g. a return year). */
+  fixes: string[];
 }
 
 const text = (v: unknown) => (isBlank(v) ? '' : String(v).replace(/\s+/g, ' ').trim());
@@ -388,21 +407,62 @@ const cleanId = (v: unknown) => {
   return text(v);
 };
 
-export function prepareRows(t: SheetTable, map: ColumnMap, order: DateOrder): PreparedRow[] {
+const withYear = (date: string, y: number) => `${y}${date.slice(4)}`;
+const dayDiff = (a: string, b: string) => Math.round((Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10)) - Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10))) / 86400000);
+const realDate = (date: string) => validYmd(+date.slice(0, 4), +date.slice(5, 7), +date.slice(8, 10));
+
+/** Longest rental accepted without a note on the review screen. */
+const LONG_RENTAL_DAYS = 90;
+
+export function prepareRows(t: SheetTable, map: ColumnMap, order: DateOrder, today: Date = new Date()): PreparedRow[] {
   const get = (r: unknown[], f: FieldKey) => (map[f] === undefined ? '' : r[map[f]!]);
   const seen = new Map<string, number>();
+  // The year most pick-ups in the file carry; used for dates written without a year.
+  const yearCount = new Map<number, number>();
+  t.rows.forEach(r => { const p = parseDate(get(r, 'pickupDate'), order); if (p && !p.noYear) { const y = +p.date.slice(0, 4); yearCount.set(y, (yearCount.get(y) || 0) + 1); } });
+  const fileYear = Array.from(yearCount.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   return t.rows.map((r, i) => {
     const row = t.headerRow + 1 + i;
     const problems: string[] = [];
+    const fixes: string[] = [];
     const p = parseDate(get(r, 'pickupDate'), order);
     const d = parseDate(get(r, 'dropoffDate'), order);
     const pTime = parseTime(get(r, 'pickupTime')) || p?.time || '12:00';
     const dTime = parseTime(get(r, 'dropoffTime')) || d?.time || '12:00';
     if (!p) problems.push(isBlank(get(r, 'pickupDate')) ? 'No pick-up date' : `Pick-up date “${text(get(r, 'pickupDate'))}” could not be read`);
     if (!d) problems.push(isBlank(get(r, 'dropoffDate')) ? 'No drop-off date' : `Drop-off date “${text(get(r, 'dropoffDate'))}” could not be read`);
-    const pickup = p ? `${p.date}T${pTime}` : '';
-    const dropoff = d ? `${d.date}T${dTime}` : '';
+
+    let pDate = p?.date || '';
+    let dDate = d?.date || '';
+    if (p?.noYear) {
+      // The file's year; without one, the next time this day comes round (from a month ago).
+      let y = fileYear ?? today.getFullYear();
+      if (fileYear === undefined && dayDiff(todayIso, withYear(pDate, y)) < -31) y += 1;
+      pDate = withYear(pDate, y);
+      if (!realDate(pDate)) { problems.push(`Pick-up date ${text(get(r, 'pickupDate'))} does not exist in ${y}`); pDate = ''; }
+      else fixes.push(`Pick-up year ${y} added`);
+    }
+    if (d?.noYear && pDate) {
+      // Same year as the pick-up, or the next one when the rental runs over New Year.
+      let y = +pDate.slice(0, 4);
+      if (withYear(dDate, y) < pDate) y += 1;
+      dDate = withYear(dDate, y);
+      if (!realDate(dDate)) { problems.push(`Drop-off date ${text(get(r, 'dropoffDate'))} does not exist in ${y}`); dDate = ''; }
+      else fixes.push(`Drop-off year ${y} added`);
+    }
+    // A return typed with the old year over New Year (pick-up 28/12/2026, return 03/01/2026).
+    if (pDate && dDate && dDate < pDate && !d?.noYear) {
+      const next = withYear(dDate, +dDate.slice(0, 4) + 1);
+      if (realDate(next) && next >= pDate && dayDiff(pDate, next) <= 60) {
+        fixes.push(`Drop-off year corrected to ${next.slice(0, 4)} (the rental runs into the new year)`);
+        dDate = next;
+      }
+    }
+    const pickup = pDate ? `${pDate}T${pTime}` : '';
+    const dropoff = dDate ? `${dDate}T${dTime}` : '';
     if (pickup && dropoff && dropoff < pickup) problems.push('Drop-off is before pick-up');
+    if (pDate && dDate && dropoff >= pickup && dayDiff(pDate, dDate) > LONG_RENTAL_DAYS) fixes.push(`Long rental: ${dayDiff(pDate, dDate)} days, please check the dates`);
     let customer = text(get(r, 'customer'));
     if (!customer) customer = [text(get(r, 'firstName')), text(get(r, 'lastName'))].filter(Boolean).join(' ');
     if (!customer) problems.push('No customer name');
@@ -416,12 +476,13 @@ export function prepareRows(t: SheetTable, map: ColumnMap, order: DateOrder): Pr
       const cells = r.map(c => text(c).toLowerCase());
       sourceRaw = CHANNEL_HINTS.find(h => cells.some(c => c.includes(h))) || '';
     }
-    const bd = parseDate(get(r, 'bookingDate'), order);
+    const bdRaw = parseDate(get(r, 'bookingDate'), order);
+    const bd = bdRaw?.noYear ? { ...bdRaw, date: withYear(bdRaw.date, +(pDate || todayIso).slice(0, 4)) } : bdRaw;
     return {
       row, bookingId, customer, pickup, dropoff,
       carRaw: text(get(r, 'vehicle')), sourceRaw, amount: parseAmount(get(r, 'amount')),
       phone: text(get(r, 'phone')), email: text(get(r, 'email')), location: text(get(r, 'location')), notes: text(get(r, 'notes')),
-      bookingDate: bd ? bd.date : '', problems,
+      bookingDate: bd && realDate(bd.date) ? bd.date : '', problems, fixes,
     };
   });
 }
