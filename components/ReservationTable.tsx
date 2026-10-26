@@ -55,6 +55,8 @@ interface ReservationTableProps {
   onUpdate: (reservation: Reservation, oldYear: number, oldMonth: string) => void;
   onAdd: (status?: ReservationStatus) => void;
   onDelete: (id: string, isNew?: boolean, year?: number, month?: string) => void;
+  /** Deletes a finished rental (checked out and checked in) after a typed confirmation. */
+  onDeleteAgreement?: (reservation: Reservation) => void;
   onDeleteMonth: (year: number, month: string) => void;
   onSaveNew: (reservation: Reservation) => void;
   selectedYear: number;
@@ -90,6 +92,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     newReservations,
     onAdd,
     onDelete,
+    onDeleteAgreement,
     onDeleteMonth,
     selectedYear,
     selectedMonth,
@@ -629,6 +632,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     if (upgradePermission && live) list.push({ key: 'upgrade', label: 'Upgrade vehicle', icon: <CarIcon className="w-4 h-4" />, onClick: () => openUpgradeModal(res), section: 'booking' });
     if (onAddExtras && live && hasPermission(UserPermission.ACTION_RESERVATIONS_MANAGE_EXTRAS)) list.push({ key: 'extras', label: 'Manage extras', icon: <PlusCircleIcon className="w-4 h-4" />, onClick: () => onAddExtras(res), section: 'booking' });
     if (!res.voucherSubmitted && !res.dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE)) list.push({ key: 'delete', label: 'Delete reservation', icon: <TrashIcon className="w-4 h-4" />, onClick: () => onDelete(res.id, res.isNew, y, m), danger: true, section: 'danger' });
+    if (stage === 'closed' && onDeleteAgreement && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE)) list.push({ key: 'delete-agreement', label: 'Delete agreement', icon: <TrashIcon className="w-4 h-4" />, onClick: () => onDeleteAgreement(res), danger: true, section: 'danger' });
     return list;
   };
 

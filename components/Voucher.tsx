@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import CarPicture from './CarPicture';
 import CarShowcase from './CarShowcase';
 import { carPhotoFor } from '../services/carPhoto';
-import { AppData, Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
+import { AppData, AvailableExtra, ReservationExtra, Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon } from './icons';
@@ -18,6 +18,7 @@ import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
+import { TimeEditRow, VehiclePicker, ExtrasEditor, withTime, timeOf } from './voucher/AgreementEditors';
 import { Bi } from './ui/Bi';
 import { arOf } from '../services/uiArabic';
 import { Badge, Button, Plate, SectionLabel, inputCls as kitInputCls, textareaCls, labelCls } from './ui/Crm';
@@ -45,6 +46,8 @@ interface VoucherProps {
   onUpgrade?: (reservation: Reservation, newCarId: string, customRate?: number, details?: UpgradeDetails) => Reservation | null;
   /** Whether the signed-in staff member may upgrade; without it the upgrade options explain how to get access. */
   canUpgrade?: boolean;
+  /** Extras set up in Manage Extras, offered on the agreement. */
+  availableExtras?: AvailableExtra[];
 }
 
 const InfoBlock: React.FC<{ title: string; children: React.ReactNode; className?: string; icon?: React.ReactNode }> = ({ title, children, className, icon }) => (
@@ -377,7 +380,7 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
   return remainingMs >= gracePeriodInMs ? fullDays + 1 : fullDays;
 };
 
-const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade, canUpgrade }) => {
+const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade, canUpgrade, availableExtras = [] }) => {
   const NO_UPGRADE_ACCESS = 'Your account does not have the "Upgrade vehicle" permission. Ask an administrator to turn it on in User & Staff Management → Permissions.';
   const [showUpgrade, setShowUpgrade] = useState(false);
   // Upgrade asked for during the rental: chosen first, applied when the car swap is completed.
@@ -544,6 +547,21 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const checklistItems = ["Spare Tire", "Jack & Tools", "Windows & Windshield", "Headlights", "Turn Signals", "AC / Heater", "Audio System", "Mirrors", "Interior Cleanliness"];
 
+  // ---- Counter edits before the car is handed over: times, car and extras ----
+  const setPickupTime = (t: string) => isPickupEditable && setLocalReservation(prev => ({ ...prev, startDate: withTime(prev.startDate, t), pickupDate: withTime(prev.pickupDate || prev.startDate, t) }));
+  const setReturnTime = (t: string) => isPickupEditable && setLocalReservation(prev => ({ ...prev, endDate: withTime(prev.endDate, t), dropoffDate: withTime(prev.dropoffDate || prev.endDate, t) }));
+  const timesInvalid = !!localReservation.startDate && !!localReservation.endDate && new Date(localReservation.endDate).getTime() <= new Date(localReservation.startDate).getTime();
+  const pickCar = (car: import('../types').Vehicle) => isPickupEditable && setLocalReservation(prev => ({
+    ...prev, carModel: car.modelName, licensePlate: car.licensePlate, ...(car.transmission ? { transmission: car.transmission } : {}), ...(car.sippCode ? { sippCode: car.sippCode } : {}),
+  }));
+  /** New extras keep the rental price as it is: the booking total moves by the extras' difference only. */
+  const setExtras = (list: ReservationExtra[]) => isPickupEditable && setLocalReservation(prev => {
+    const days = calculateDaysWithGrace(prev.startDate, prev.endDate);
+    const sum = (l: ReservationExtra[]) => l.reduce((t, e) => (e.isComplementary ? t : t + (e.dailyPrice || 0) * days), 0);
+    const base = prev.baseAmount ?? ((prev.amount || 0) - sum(prev.extras || []));
+    return { ...prev, extras: list, baseAmount: base, amount: Math.round((base + sum(list)) * 100) / 100 };
+  });
+
   const handleFieldChange = (field: keyof Reservation, value: any) => {
     const isEditable = viewMode === 'pickup' ? isPickupEditable : isDropoffEditable;
     const notesAreEditable = (field === 'pickupNotes' && isPickupEditable) || (field === 'dropOffNotes' && !localReservation.dropOffCompleted);
@@ -587,6 +605,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
     if (viewMode === 'pickup') {
       if (!localReservation.licensePlate?.trim()) { alert("License Plate is required."); return; }
+      if (timesInvalid) { alert("The return time must be after the pickup time (Customer step)."); return; }
       if (localReservation.pickupKmOut === undefined || localReservation.pickupKmOut === null || localReservation.pickupKmOut < 0) { alert("A valid starting Kilometers Out is required."); return; }
 
       if (paymentUnset(localReservation, sources)) {
@@ -741,28 +760,28 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const handleDownloadReceiptPDF = () => {
     const doc = new (window as any).jsPDF();
-    const rentalDays = calculateDaysWithGrace(reservation.startDate, reservation.endDate);
-    const extrasTotal = reservation.extras?.reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0) ?? 0;
-    const baseRentalFee = (reservation.baseAmount ?? (reservation.amount || 0)) - extrasTotal;
+    const rentalDays = calculateDaysWithGrace(localReservation.startDate, localReservation.endDate);
+    const extrasTotal = localReservation.extras?.reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0) ?? 0;
+    const baseRentalFee = localReservation.baseAmount ?? ((localReservation.amount || 0) - extrasTotal);
     const totalCharges = baseRentalFee + extrasTotal;
 
     doc.addImage(URDRIVE_LOGO_B64, 'PNG', 14, 15, 60, 10);
     doc.setFontSize(22);
     doc.text('Receipt', 200, 22, { align: 'right' });
     doc.setFontSize(10);
-    doc.text(`Receipt ID: RCPT-${reservation.bookingId}`, 200, 30, { align: 'right' });
+    doc.text(`Receipt ID: RCPT-${localReservation.bookingId}`, 200, 30, { align: 'right' });
     doc.text(`Date: ${new Date().toLocaleDateString()}`, 200, 35, { align: 'right' });
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('Billed To:', 14, 50);
     doc.setFont('helvetica', 'normal');
-    doc.text(reservation.personName, 14, 56);
-    doc.text(reservation.customerEmail || 'No email', 14, 62);
+    doc.text(localReservation.personName, 14, 56);
+    doc.text(localReservation.customerEmail || 'No email', 14, 62);
 
     const tableBody = [
       ['Rental Fee', formatCurrency(baseRentalFee)],
-      ...(reservation.extras || []).map(extra => [
+      ...(localReservation.extras || []).map(extra => [
         `Extra: ${extra.name}`,
         extra.isComplementary ? 'Free' : formatCurrency(extra.dailyPrice * rentalDays)
       ]),
@@ -778,7 +797,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       footStyles: { fontStyle: 'bold', fillColor: [241, 245, 249] },
     });
 
-    doc.save(`receipt-${reservation.bookingId}.pdf`);
+    doc.save(`receipt-${localReservation.bookingId}.pdf`);
   };
 
   const handlePreviewCharges = () => {
@@ -828,7 +847,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   const handleSendEmail = () => emailAgreement(localReservation, localReservation.dropOffCompleted ? 'checkin' : 'checkout');
 
-  const rentalDays = calculateDaysWithGrace(reservation.startDate, reservation.endDate);
+  // From the agreement being edited: the pick-up and return times can be changed at the counter.
+  const rentalDays = calculateDaysWithGrace(localReservation.startDate, localReservation.endDate);
   // From the agreement being edited, so an upgrade made at the counter shows at once.
   const extrasTotal = (localReservation.extras || []).reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0);
   const baseRentalFee = localReservation.baseAmount ?? ((localReservation.amount || 0) - extrasTotal);
@@ -1241,8 +1261,18 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         <div className="space-y-2.5 min-w-0">
           <InfoPair label="Booking" value={<span className="font-mono">#{reservation.bookingId || 'N/A'}</span>} />
           <InfoPair label="Source" value={reservation.source} />
-          <InfoPair label="Pickup" value={fmtDateTime(reservation.startDate)} />
-          <InfoPair label="Return" value={fmtDateTime(reservation.endDate)} />
+          {isPickupEditable ? (
+            <>
+              <TimeEditRow label="Pickup" value={localReservation.startDate} original={reservation.startDate} onChange={t => setPickupTime(t)} />
+              <TimeEditRow label="Return" value={localReservation.endDate} original={reservation.endDate} onChange={t => setReturnTime(t)}
+                error={timesInvalid ? 'Return must be after the pickup' : undefined} />
+            </>
+          ) : (
+            <>
+              <InfoPair label="Pickup" value={fmtDateTime(localReservation.startDate)} />
+              <InfoPair label="Return" value={fmtDateTime(localReservation.endDate)} />
+            </>
+          )}
           <InfoPair label="Duration" value={`${rentalDays} day${rentalDays === 1 ? '' : 's'}`} />
           <InfoPair label="Location" value={`${location?.name || reservation.locationName || 'Location not set'}${location?.address ? ` — ${location.address}` : ''}`} />
         </div>
@@ -1265,14 +1295,27 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         <div className="space-y-2.5 text-[13px] min-w-0">
           {isPickupEditable ? (
             <>
-              <div>
-                <label className={labelCls}><Bi en="Model" /></label>
-                <input type="text" value={localReservation.carModel || ''} onChange={e => handleFieldChange('carModel', e.target.value)} className={inputCls} placeholder="Vehicle model" />
-              </div>
-              <div>
-                <label className={labelCls}><Bi en="License plate" /></label>
-                <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value)} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
-              </div>
+              {fleet && fleet.length > 0 ? (
+                <>
+                  <VehiclePicker fleet={fleet} booking={localReservation} allData={allData} onPick={pickCar} />
+                  <InfoPair label="Model" value={localReservation.carModel} />
+                  <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
+                  {((localReservation.carModel || '') !== (reservation.carModel || '') || (localReservation.licensePlate || '') !== (reservation.licensePlate || '')) && (reservation.carModel || reservation.licensePlate) && (
+                    <p className="text-[11px] text-sky-700">Changed from {reservation.carModel}{reservation.licensePlate ? ` · ${reservation.licensePlate}` : ''}. The deposit and excess follow the new car.</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className={labelCls}><Bi en="Model" /></label>
+                    <input type="text" value={localReservation.carModel || ''} onChange={e => handleFieldChange('carModel', e.target.value)} className={inputCls} placeholder="Vehicle model" />
+                  </div>
+                  <div>
+                    <label className={labelCls}><Bi en="License plate" /></label>
+                    <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value)} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
+                  </div>
+                </>
+              )}
               {onUpgrade && fleet && fleet.length > 0 && (
                 <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 flex items-center justify-between gap-3">
                   <p className="text-xs text-slate-600 min-w-0">Customer wants a better car? Upgrade it here, free or with a supplement.{(localReservation.upgradeHistory || []).length ? ` Upgraded ${localReservation.upgradeHistory!.length}× already.` : ''}</p>
@@ -1372,6 +1415,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const renderPaymentStep = (stepNo: number) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
       {renderPaymentAction()}
+      {(isPickupEditable || (localReservation.extras || []).length > 0) && (
+        <div className="md:col-span-2">
+          <StepSection title="Extras & add-ons" subtitle={isPickupEditable ? 'Add what the customer asks for at the counter: child seat, additional driver, GPS…' : 'Extras on this rental'}>
+            <ExtrasEditor extras={localReservation.extras || []} catalogue={availableExtras} days={rentalDays} editable={isPickupEditable} onChange={setExtras} />
+          </StepSection>
+        </div>
+      )}
       <StepSection step={stepNo} title="Charges" subtitle="Rental, extras, deposit and excess">
         <div className="space-y-2.5 text-[13px]">{renderChargesBreakdown()}</div>
       </StepSection>
@@ -1459,8 +1509,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         </div>
         <div className="space-y-2.5 min-w-0">
           <SectionLabel><Bi en="Timing" /></SectionLabel>
-          <InfoPair label="Checked out" value={localReservation.pickupDateTime || fmtDateTime(reservation.startDate)} />
-          <InfoPair label="Scheduled return" value={fmtDateTime(reservation.endDate)} />
+          <InfoPair label="Checked out" value={localReservation.pickupDateTime || fmtDateTime(localReservation.startDate)} />
+          <InfoPair label="Scheduled return" value={fmtDateTime(localReservation.endDate)} />
           <InfoPair label="Returned" value={localReservation.dropOffDateTime} />
           {localReservation.lateReturnFee && (
             <InfoPair label="Late return" value={<span className="inline-flex items-center gap-2">{localReservation.lateReturnFee.hoursLate} h · {formatCurrency(localReservation.lateReturnFee.amount)}<Badge tone={localReservation.lateReturnFee.status === 'PENDING' ? 'warning' : 'muted'}>{localReservation.lateReturnFee.isWaived ? 'Waived' : localReservation.lateReturnFee.status}</Badge></span>} />
@@ -1523,8 +1573,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
               </div>
               <div className="space-y-2 min-w-0 flex-1">
-                <div><SectionLabel><Bi en="Pickup" /></SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.startDate)}</p></div>
-                <div><SectionLabel><Bi en="Return" /></SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(reservation.endDate)}</p></div>
+                <div><SectionLabel><Bi en="Pickup" /></SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(localReservation.startDate)}</p></div>
+                <div><SectionLabel><Bi en="Return" /></SectionLabel><p className="text-[13px] font-medium text-slate-900 tabular-nums">{fmtDateTime(localReservation.endDate)}</p></div>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-xl font-semibold text-slate-900 tabular-nums">{rentalDays}</p>

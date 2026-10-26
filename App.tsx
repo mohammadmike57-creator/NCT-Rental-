@@ -15,6 +15,7 @@ import Notifications from './components/Notifications';
 import { OnlineNowButton } from './components/OnlinePresence';
 import { pickupMonthOf } from './services/pickupMonth';
 import MisfiledNotice from './components/MisfiledNotice';
+import DeleteAgreementDialog from './components/DeleteAgreementDialog';
 import { startActivityTracking, track, flushActivity, lastInteractionAt } from './services/activityTracker';
 import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, sendHeartbeat, markSignedOut, rememberServerState, clearDataSections } from './firebase/api';
 
@@ -230,6 +231,9 @@ export const App: React.FC = () => {
   
   // State for each data slice
   const [reservations, setReservations] = useState<AppData>({});
+  // A finished rental chosen for deletion (confirmed in DeleteAgreementDialog).
+  const [agreementToDelete, setAgreementToDelete] = useState<Reservation | null>(null);
+  const [deletingAgreement, setDeletingAgreement] = useState(false);
   const [sources, setSources] = useState<RentalSource[]>([]);
   const [fleet, setFleet] = useState<Fleet>(INITIAL_FLEET);
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails>({ name: 'UR-Drive Jordan', subName: '', address: '', phone: '', email: '', taxNumber: '', requirePaymentApproval: false });
@@ -975,6 +979,27 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDeleteAgreement = async (res: Reservation, reason: string) => {
+    setDeletingAgreement(true);
+    setSaveStatus('saving');
+    try {
+      const updatedData = await reservationService.deleteReservation(res.id, res.storageYear, res.storageMonth);
+      setReservations(updatedData);
+      setTableKey(prev => prev + 1);
+      setSaveStatus('saved');
+      setAgreementToDelete(null);
+      showConfirmation(`Agreement ${res.bookingId} deleted.`);
+      recordActivity('AGREEMENT_DELETED', 'agreement', `Deleted the completed agreement for ${res.personName} (${res.carModel || 'vehicle'}${res.licensePlate ? ` ${res.licensePlate}` : ''})`, res.bookingId,
+        `Reason: ${reason}\nRental: ${res.startDate?.slice(0, 16)} → ${res.endDate?.slice(0, 16)}\nAmount: ${res.amount ?? ''}\nSource: ${res.source || ''}`);
+    } catch (err) {
+      setSaveStatus('error');
+      console.error('Failed to delete agreement:', err);
+      addNotification('Could not delete the agreement. Check your connection and try again.', 'error');
+    } finally {
+      setDeletingAgreement(false);
+    }
+  };
+
   // Bookings filed under another month than their pick-up month are moved there.
   const handleMoveToPickupMonths = async () => {
     setSaveStatus('saving');
@@ -1608,6 +1633,7 @@ ${currentUser?.fullName}
       onUpdate={handleUpdateReservations}
       onAdd={handleAddNewReservation}
       onDelete={handleDeleteReservation}
+      onDeleteAgreement={setAgreementToDelete}
       onDeleteMonth={handleDeleteMonthReservations}
       onSaveNew={handleSaveNewReservation}
       selectedYear={selectedYear}
@@ -2286,7 +2312,7 @@ ${currentUser?.fullName}
 
       <Suspense fallback={<LoadingSpinner />}>
       <AnimatedModal isOpen={!!modals.viewVoucher} onClose={() => setModals(m=>({...m, viewVoucher: null}))}>
-        {modals.viewVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
+        {modals.viewVoucher && <Voucher fleet={fleet} allData={reservations} availableExtras={availableExtras} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
       </AnimatedModal>
 
       <AnimatedModal isOpen={showUnlistedAgreement} onClose={() => setShowUnlistedAgreement(false)}>
@@ -2302,12 +2328,13 @@ ${currentUser?.fullName}
         )}
       </AnimatedModal>
       {/* The agreement draws its own full-screen backdrop, so it is not wrapped in AnimatedModal. */}
-      {modals.viewRentalVoucher && <Voucher fleet={fleet} allData={reservations} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
+      {modals.viewRentalVoucher && <Voucher fleet={fleet} allData={reservations} availableExtras={availableExtras} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
 
       <AnimatedModal isOpen={!!modals.viewReceipt} onClose={() => setModals(m=>({...m, viewReceipt: null}))}>
         {modals.viewReceipt && <Receipt reservation={modals.viewReceipt} companyDetails={companyDetails} sources={sources} onClose={() => setModals(m=>({...m, viewReceipt: null}))} />}
       </AnimatedModal>
 
+      {agreementToDelete && <DeleteAgreementDialog reservation={agreementToDelete} busy={deletingAgreement} onCancel={() => setAgreementToDelete(null)} onConfirm={reason => handleDeleteAgreement(agreementToDelete, reason)} />}
       {reservationToExtend && <ExtendRentalModal reservation={reservationToExtend} trafficTickets={trafficTickets} companyDetails={companyDetails} onClose={() => setReservationToExtend(null)} onConfirm={handleConfirmExtension} />}
       {reservationToAddExtras && (
         <ExtrasManagerModal
