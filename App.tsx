@@ -1946,7 +1946,13 @@ ${currentUser?.fullName}
                 setSources(next);
                 await saveAllData({ sources: next } as any);
             }}
-            onOpenReservations={() => setMainView('Reservations')} />
+            onOpenReservations={() => setMainView('Reservations')}
+            onReservationsMoved={(data, moved) => {
+                setReservations(data);
+                setTableKey(prev => prev + 1);
+                addNotification(`${moved} booking${moved === 1 ? '' : 's'} moved to ${moved === 1 ? 'its' : 'their'} pick-up month.`, 'info');
+                recordActivity('RESERVATIONS_MOVED', 'reservation', `Moved ${moved} booking${moved === 1 ? '' : 's'} to their pick-up month`);
+            }} />
     ), permission: UserPermission.VIEW_IMPORT_RESERVATIONS },
   };
 

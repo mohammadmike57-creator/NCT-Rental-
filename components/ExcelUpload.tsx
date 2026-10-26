@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AppData, Fleet, ImportReport, PaymentType, RentalSource, Reservation } from '../types';
 import { MONTHS, INITIAL_YEARS } from '../constants';
-import { reservationService } from '../services/reservationService';
+import { reservationService, ReservationService, pickupMonthOf } from '../services/reservationService';
 import {
   FIELDS, FieldKey, ColumnMap, DateOrder, SheetTable, PreparedRow,
   readTables, detectColumns, detectDateOrder, prepareRows, matchSource, matchCar, toReservations,
@@ -22,6 +22,8 @@ interface ExcelUploadProps {
   /** Saves sources added during the import. */
   onAddSources?: (added: RentalSource[]) => Promise<void> | void;
   onOpenReservations?: () => void;
+  /** Bookings were moved to their pick-up month (tidy-up). */
+  onReservationsMoved?: (data: AppData, moved: number) => void;
 }
 
 const selectCls = `${crmSelectCls} w-full`;
@@ -64,7 +66,7 @@ const StepBar: React.FC<{ step: 1 | 2 | 3 }> = ({ step }) => (
 
 type RowStatus = 'new' | 'update' | 'problem' | 'ignored';
 
-const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years = INITIAL_YEARS, focusYear, focusMonth, allData, sources = [], fleet = [], onAddSources, onOpenReservations }) => {
+const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years = INITIAL_YEARS, focusYear, focusMonth, allData, sources = [], fleet = [], onAddSources, onOpenReservations, onReservationsMoved }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -77,20 +79,25 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const [sourceChoice, setSourceChoice] = useState<Record<string, string>>({});
   const [carChoice, setCarChoice] = useState<Record<string, string>>({});
   const [defaultSource, setDefaultSource] = useState('');
-  const [byPickupMonth, setByPickupMonth] = useState(true);
-  const [month, setMonth] = useState<string>(focusMonth || MONTHS[new Date().getMonth()]);
-  const [year, setYear] = useState<number>(focusYear || new Date().getFullYear());
+  // Only used for a booking without a readable pick-up date (such rows are skipped anyway).
+  const month = focusMonth || MONTHS[new Date().getMonth()];
+  const year = focusYear || new Date().getFullYear();
+  const [tidyOpen, setTidyOpen] = useState(false);
+  const [tidyDone, setTidyDone] = useState<number | null>(null);
   const [view, setView] = useState<'all' | 'new' | 'update' | 'problem'>('all');
   const [done, setDone] = useState<{ report: ImportReport; added: string[]; skipped: { row: number; details: string }[] } | null>(null);
 
   const t = tables[sheetIdx];
   const rows: PreparedRow[] = useMemo(() => (t ? prepareRows(t, columns, order) : []), [t, columns, order]);
 
+  // Booking number → the month it is listed under now.
   const existingIds = useMemo(() => {
-    const ids = new Set<string>();
-    Object.values(allData || reservationService.getData() || {}).forEach(y => Object.values(y || {}).forEach(list => (list as Reservation[]).forEach(r => { const k = r.invoice || r.bookingId; if (k) ids.add(k); })));
+    const ids = new Map<string, string>();
+    const data = allData || reservationService.getData() || {};
+    Object.keys(data).forEach(y => Object.keys(data[+y] || {}).forEach(m => (data[+y][m] || []).forEach((r: Reservation) => { const k = r.invoice || r.bookingId; if (k) ids.set(k, `${m} ${y}`); })));
     return ids;
   }, [allData, done]);
+  const pickupMonthLabel = (pickup: string) => `${MONTHS[+pickup.slice(5, 7) - 1]} ${pickup.slice(0, 4)}`;
 
   const statusOf = (r: PreparedRow): RowStatus => {
     if (!r.bookingId && !r.customer && !r.pickup && !r.dropoff) return 'ignored'; // blank or totals row
@@ -123,13 +130,15 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const carName = (raw: string) => { const v = carValue(raw); return v === KEEP ? raw : v; };
 
   const fleetModels = useMemo(() => Array.from(new Set(fleet.map(v => v.modelName).filter(Boolean))).sort(), [fleet]);
+  const willMove = rows.filter(r => statusOf(r) === 'update' && r.pickup && existingIds.get(r.bookingId) !== pickupMonthLabel(r.pickup)).length;
   const counts = useMemo(() => {
     const c = { new: 0, update: 0, problem: 0, ignored: 0 };
     rows.forEach(r => { c[statusOf(r)]++; });
     return c;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, existingIds]);
-  const outsideMonth = !byPickupMonth ? rows.filter(r => statusOf(r) === 'new' && r.pickup && (MONTHS[+r.pickup.slice(5, 7) - 1] !== month || +r.pickup.slice(0, 4) !== year)).length : 0;
+  // Bookings anywhere in the system listed under a month other than their pick-up month.
+  const misfiled = useMemo(() => ReservationService.misfiled(allData || reservationService.getData() || {}), [allData, done, tidyDone]);
   const newSourceNames = Array.from(new Set(distinctSources.filter(s => sourceValue(s.raw) === NEW).map(s => s.m.suggested).filter(Boolean)))
     .filter(n => !sources.some(s => s.name.toLowerCase() === n.toLowerCase()));
 
@@ -189,7 +198,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       const added: RentalSource[] = newSourceNames.map(name => ({ id: `src-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name, paymentType: PaymentType.PAY_ON_ARRIVAL }));
       if (added.length && onAddSources) await onAddSources(added);
       const ready = rows.filter(r => { const s = statusOf(r); return s === 'new' || s === 'update'; });
-      const reservations = toReservations(ready, { year, month, byPickupMonth, fileName: file.name, sourceFor: sourceName, carFor: carName });
+      const reservations = toReservations(ready, { year, month, byPickupMonth: true, fileName: file.name, sourceFor: sourceName, carFor: carName });
       const skipped = rows.filter(r => statusOf(r) === 'problem').map(r => ({ row: r.row, details: r.problems.join(' · ') }));
       const report: ImportReport = { imported: reservations.length, skipped: counts.ignored, duplicates: 0, invalidRows: skipped.length, warnings: [], errors: skipped };
       const result = await reservationService.importReservations(reservations, report, { year, month }, allData);
@@ -197,6 +206,21 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       setDone({ report: result.report, added: added.map(a => a.name), skipped });
     } catch (e: any) {
       setError(`The import could not be saved: ${e?.message || e}. Nothing was changed.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runTidy = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { data, moved } = await reservationService.moveToPickupMonths(allData);
+      onReservationsMoved?.(data, moved);
+      setTidyDone(moved);
+      setTidyOpen(false);
+    } catch (e: any) {
+      setError(`The bookings could not be moved: ${e?.message || e}. Nothing was changed.`);
     } finally {
       setBusy(false);
     }
@@ -210,7 +234,6 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const fileYears = Array.from(new Set(rows.filter(r => statusOf(r) !== 'ignored').flatMap(r => [r.pickup, r.dropoff]).filter(Boolean).map(d => +d.slice(0, 4)))).sort();
   const crossYear = rows.filter(r => r.pickup && r.dropoff && r.pickup.slice(0, 4) !== r.dropoff.slice(0, 4) && statusOf(r) !== 'ignored').length;
   const fixedRows = rows.filter(r => r.fixes.length && statusOf(r) !== 'ignored').length;
-  const yearOptions = Array.from(new Set([...years, ...fileYears, year])).sort();
   const shownFields: FieldKey[] = ['bookingId', 'customer', 'pickupDate', 'pickupTime', 'dropoffDate', 'dropoffTime', 'vehicle', 'source', 'amount', 'phone', 'email', 'location', 'notes', 'bookingDate', 'firstName', 'lastName'];
   const required: FieldKey[] = ['customer', 'pickupDate', 'dropoffDate'];
 
@@ -223,6 +246,46 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
         actions={step === 2 ? <Button onClick={reset} disabled={busy}>Choose another file</Button> : undefined}
       />
       <StepBar step={step} />
+
+      {tidyDone !== null && !misfiled.length && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex gap-3 text-[13px] text-emerald-800">
+          <CheckCircleIcon className="w-4 h-4 mt-0.5 shrink-0" />
+          <p>{tidyDone} booking{tidyDone === 1 ? ' was' : 's were'} moved to {tidyDone === 1 ? 'its' : 'their'} pick-up month. Every booking is now listed in the month it is picked up.</p>
+        </div>
+      )}
+      {misfiled.length > 0 && step !== 2 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70">
+          <div className="px-4 py-3 flex flex-wrap items-start gap-3">
+            <AlertIcon className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+            <div className="flex-1 min-w-[220px] text-[13px] text-amber-900">
+              <p className="font-semibold">{misfiled.length} booking{misfiled.length === 1 ? ' is' : 's are'} listed under the wrong month</p>
+              <p className="text-xs text-amber-800 mt-0.5">They are filed under a month other than their pick-up month (for example from an earlier import). Moving them makes each month's list and totals correct.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => setTidyOpen(o => !o)}>{tidyOpen ? 'Hide list' : 'Show list'}</Button>
+              <Button size="sm" variant="primary" onClick={runTidy} disabled={busy}>Move to pick-up month</Button>
+            </div>
+          </div>
+          {tidyOpen && (
+            <div className="border-t border-amber-200 bg-white rounded-b-xl max-h-72 overflow-y-auto">
+              <table className={table.wrap}>
+                <thead className={table.head}><tr>{['Booking', 'Customer', 'Pick-up', 'Listed in now', 'Moves to'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+                <tbody className={table.body}>
+                  {misfiled.slice(0, 300).map(({ reservation: r, from, to }) => (
+                    <tr key={r.id}>
+                      <td className={`${table.td} font-mono text-xs whitespace-nowrap`}>{r.bookingId || r.invoice}</td>
+                      <td className={table.td}>{r.personName || r.customer}</td>
+                      <td className={`${table.td} whitespace-nowrap`}>{showDate(String(r.startDate || '').slice(0, 16))}</td>
+                      <td className={`${table.td} whitespace-nowrap text-slate-500`}>{from.m} {from.y}</td>
+                      <td className={`${table.td} whitespace-nowrap font-semibold text-slate-900`}>{to.m} {to.y}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex gap-3 text-[13px] text-rose-700">
@@ -323,25 +386,11 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
                 </div>
               </Panel>
 
-              <Panel title="Store bookings in">
-                <div className="p-4 space-y-3 text-[13px]">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input type="radio" name="store" checked={byPickupMonth} onChange={() => setByPickupMonth(true)} className="mt-0.5" />
-                    <span><span className="font-semibold text-slate-900">Each booking in its pick-up month</span> <Badge tone="success" dot={false} className="ml-1 !text-[10px]">Recommended</Badge><br /><span className="text-xs text-slate-500">A booking picking up on 05 Nov goes to November.</span></span>
-                  </label>
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input type="radio" name="store" checked={!byPickupMonth} onChange={() => setByPickupMonth(false)} className="mt-0.5" />
-                    <span className="flex-1"><span className="font-semibold text-slate-900">All in one month</span>
-                      {!byPickupMonth && (
-                        <span className="mt-2 grid grid-cols-2 gap-2">
-                          <select value={month} onChange={e => setMonth(e.target.value)} className={selectCls}>{MONTHS.map(m => <option key={m}>{m}</option>)}</select>
-                          <select value={year} onChange={e => setYear(+e.target.value)} className={selectCls}>{yearOptions.map(y => <option key={y}>{y}</option>)}</select>
-                        </span>
-                      )}
-                      {outsideMonth > 0 && <span className="block mt-1.5 text-xs text-amber-700">{outsideMonth} booking{outsideMonth === 1 ? ' picks' : 's pick'} up outside {month} {year}.</span>}
-                    </span>
-                  </label>
-                  <p className="text-xs text-slate-500">Bookings already in the system stay where they are and are updated.</p>
+              <Panel title="Listed in the pick-up month">
+                <div className="p-4 space-y-2 text-[13px] text-slate-700">
+                  <p>Every booking is listed and counted in the month it is <strong>picked up</strong>, never the drop-off month.</p>
+                  <p className="text-xs text-slate-500">Example: picked up 29 Dec 2026, returned 03 Jan 2027 → listed in <strong className="text-slate-700">December 2026</strong> only.</p>
+                  {willMove > 0 && <p className="text-xs text-sky-700">{willMove} booking{willMove === 1 ? ' already in the system is' : 's already in the system are'} listed under another month and will move to {willMove === 1 ? 'its' : 'their'} pick-up month.</p>}
                 </div>
               </Panel>
             </div>

@@ -1,8 +1,17 @@
 import { AppData, Reservation, ImportReport } from '../types';
+import { MONTHS } from '../constants';
 import { ReservationRepository } from './ReservationRepository';
 import { ExcelImportService } from './ExcelImportService';
 import { ReservationSummaryService } from './ReservationSummaryService';
 import { ReservationSyncService } from './ReservationSyncService';
+
+/** The year and month a booking picks up, read from its date text (no time-zone shift). */
+export const pickupMonthOf = (r: Reservation): { y: number; m: string } | null => {
+  const s = String(r.startDate || r.pickupDate || '');
+  const iso = s.match(/^(\d{4})-(\d{2})/);
+  if (!iso || +iso[2] < 1 || +iso[2] > 12) return null;
+  return { y: +iso[1], m: MONTHS[+iso[2] - 1] };
+};
 
 export class ReservationService {
   private repository: ReservationRepository;
@@ -102,6 +111,15 @@ export class ReservationService {
           if (existing.voucherSubmitted || existing.dropOffCompleted) {
             Object.assign(updatedData[y][m][index], { carModel: existing.carModel, licensePlate: existing.licensePlate });
           }
+          // A booking is listed in its pick-up month: one filed under another month moves there.
+          const ty = res.storageYear, tm = res.storageMonth;
+          if (ty && tm && (ty !== y || tm !== m)) {
+            const [moved] = updatedData[y][m].splice(index, 1);
+            if (!updatedData[ty]) updatedData[ty] = {};
+            if (!updatedData[ty][tm]) updatedData[ty][tm] = [];
+            updatedData[ty][tm].push({ ...moved, storageYear: ty, storageMonth: tm });
+            globalInvoiceMap.set(key, { y: ty, m: tm, id });
+          }
         }
       } else {
         const y = res.storageYear || fallback.year;
@@ -122,6 +140,37 @@ export class ReservationService {
     this.setData(updatedData);
 
     return { data: updatedData, report };
+  }
+
+  /** Bookings filed under a month other than their pick-up month (e.g. 29 Dec listed in January). */
+  static misfiled(data: AppData): { reservation: Reservation; from: { y: number; m: string }; to: { y: number; m: string } }[] {
+    const out: { reservation: Reservation; from: { y: number; m: string }; to: { y: number; m: string } }[] = [];
+    Object.keys(data || {}).forEach(yKey => {
+      const y = +yKey;
+      Object.keys(data[y] || {}).forEach(m => (data[y][m] || []).forEach(r => {
+        const to = pickupMonthOf(r);
+        if (to && (to.y !== y || to.m !== m)) out.push({ reservation: r, from: { y, m }, to });
+      }));
+    });
+    return out;
+  }
+
+  /** Moves every misfiled booking to its pick-up month and saves. */
+  async moveToPickupMonths(current?: AppData): Promise<{ data: AppData; moved: number }> {
+    if (current) this.setData(current);
+    const updatedData = JSON.parse(JSON.stringify(this.repository.getData())) as AppData;
+    const list = ReservationService.misfiled(updatedData);
+    list.forEach(({ reservation, from, to }) => {
+      updatedData[from.y][from.m] = updatedData[from.y][from.m].filter(r => r.id !== reservation.id);
+      if (!updatedData[to.y]) updatedData[to.y] = {};
+      if (!updatedData[to.y][to.m]) updatedData[to.y][to.m] = [];
+      updatedData[to.y][to.m].push({ ...reservation, storageYear: to.y, storageMonth: to.m });
+    });
+    if (list.length && !(await ReservationSyncService.saveToBackend(updatedData))) {
+      throw new Error('Failed to save the moved reservations');
+    }
+    this.setData(updatedData);
+    return { data: updatedData, moved: list.length };
   }
 
   async updateReservation(reservation: Reservation): Promise<AppData> {
