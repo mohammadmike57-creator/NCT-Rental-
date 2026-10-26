@@ -6,6 +6,7 @@ import {
   FIELDS, FieldKey, ColumnMap, DateOrder, SheetTable, PreparedRow,
   readTables, detectColumns, detectDateOrder, prepareRows, matchSource, matchCar, toReservations,
 } from '../services/smartImport';
+import BookingEditDrawer, { BookingEdit, editProblems } from './import/BookingEditDrawer';
 import { UploadIcon, DocumentTextIcon, AlertIcon, CheckCircleIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Badge, Button, Segmented, Tabs, Field, EmptyState, selectCls as crmSelectCls, table } from './ui/Crm';
 
@@ -64,7 +65,23 @@ const StepBar: React.FC<{ step: 1 | 2 | 3 }> = ({ step }) => (
   </ol>
 );
 
-type RowStatus = 'new' | 'update' | 'problem' | 'ignored';
+type RowStatus = 'new' | 'update' | 'problem' | 'ignored' | 'excluded';
+type Row = PreparedRow & { edited?: boolean };
+
+/** A booking already in the system, as the edit panel shows it. */
+const editOf = (r: Reservation): BookingEdit => ({
+  bookingId: r.bookingId || r.invoice || '', customer: r.personName || r.customer || '',
+  pickup: String(r.startDate || r.pickupDate || '').slice(0, 16), dropoff: String(r.endDate || r.dropoffDate || '').slice(0, 16),
+  car: r.carModel || r.reservationVehicle || r.vehicle || '', source: r.source || '', amount: r.amount || 0,
+  phone: r.contactNumber || '', email: r.customerEmail || '', notes: r.notes || '',
+});
+/** The reservation fields an edit changes (both the old and the new names are kept in step). */
+const reservationPatch = (e: BookingEdit): Partial<Reservation> => ({
+  bookingId: e.bookingId, invoice: e.bookingId, personName: e.customer, customer: e.customer,
+  startDate: e.pickup, pickupDate: e.pickup, endDate: e.dropoff, dropoffDate: e.dropoff,
+  carModel: e.car, reservationVehicle: e.car, vehicle: e.car, source: e.source,
+  amount: e.amount, baseAmount: e.amount, contactNumber: e.phone, customerEmail: e.email, notes: e.notes,
+});
 
 const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years = INITIAL_YEARS, focusYear, focusMonth, allData, sources = [], fleet = [], onAddSources, onOpenReservations, onReservationsMoved }) => {
   const [busy, setBusy] = useState(false);
@@ -84,11 +101,25 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const year = focusYear || new Date().getFullYear();
   const [tidyOpen, setTidyOpen] = useState(false);
   const [tidyDone, setTidyDone] = useState<number | null>(null);
-  const [view, setView] = useState<'all' | 'new' | 'update' | 'problem'>('all');
+  const [tidyEdited, setTidyEdited] = useState(0);
+  const [view, setView] = useState<'all' | 'new' | 'update' | 'problem' | 'excluded'>('all');
+  // Hand edits on the review list (by spreadsheet row) and rows left out of the import.
+  const [rowEdits, setRowEdits] = useState<Record<number, BookingEdit>>({});
+  const [excluded, setExcluded] = useState<Record<number, boolean>>({});
+  const [editing, setEditing] = useState<{ kind: 'row'; row: number } | { kind: 'tidy'; id: string } | null>(null);
+  // Hand edits and the selection on the wrong-month list (by reservation id).
+  const [tidyEdits, setTidyEdits] = useState<Record<string, BookingEdit>>({});
+  const [tidySkip, setTidySkip] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState<{ report: ImportReport; added: string[]; skipped: { row: number; details: string }[] } | null>(null);
 
   const t = tables[sheetIdx];
-  const rows: PreparedRow[] = useMemo(() => (t ? prepareRows(t, columns, order) : []), [t, columns, order]);
+  const baseRows: PreparedRow[] = useMemo(() => (t ? prepareRows(t, columns, order) : []), [t, columns, order]);
+  // Rows as staff corrected them: an edited row carries its exact car and source.
+  const rows: Row[] = useMemo(() => baseRows.map(r => {
+    const e = rowEdits[r.row];
+    if (!e) return r;
+    return { ...r, bookingId: e.bookingId, customer: e.customer, pickup: e.pickup, dropoff: e.dropoff, amount: e.amount, phone: e.phone, email: e.email, notes: e.notes, car: e.car, source: e.source, problems: editProblems(e), fixes: [], edited: true };
+  }), [baseRows, rowEdits]);
 
   // Booking number → the month it is listed under now.
   const existingIds = useMemo(() => {
@@ -101,6 +132,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
   const statusOf = (r: PreparedRow): RowStatus => {
     if (!r.bookingId && !r.customer && !r.pickup && !r.dropoff) return 'ignored'; // blank or totals row
+    if (excluded[r.row]) return 'excluded';
     if (r.problems.length) return 'problem';
     return r.bookingId && existingIds.has(r.bookingId) ? 'update' : 'new';
   };
@@ -132,11 +164,15 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const fleetModels = useMemo(() => Array.from(new Set(fleet.map(v => v.modelName).filter(Boolean))).sort(), [fleet]);
   const willMove = rows.filter(r => statusOf(r) === 'update' && r.pickup && existingIds.get(r.bookingId) !== pickupMonthLabel(r.pickup)).length;
   const counts = useMemo(() => {
-    const c = { new: 0, update: 0, problem: 0, ignored: 0 };
+    const c = { new: 0, update: 0, problem: 0, ignored: 0, excluded: 0 };
     rows.forEach(r => { c[statusOf(r)]++; });
     return c;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, existingIds]);
+  }, [rows, existingIds, excluded]);
+  const carOf = (r: Row) => r.car ?? (r.carRaw ? carName(r.carRaw) : '');
+  const sourceOf = (r: Row) => r.source ?? sourceName(r.sourceRaw);
+  const rowEdit = (r: Row): BookingEdit => rowEdits[r.row] || { bookingId: r.bookingId, customer: r.customer, pickup: r.pickup, dropoff: r.dropoff, car: carOf(r), source: sourceOf(r), amount: r.amount, phone: r.phone, email: r.email, notes: r.notes };
+  const editedCount = rows.filter(r => r.edited && statusOf(r) !== 'ignored').length;
   // Bookings anywhere in the system listed under a month other than their pick-up month.
   const misfiled = useMemo(() => ReservationService.misfiled(allData || reservationService.getData() || {}), [allData, done, tidyDone]);
   const newSourceNames = Array.from(new Set(distinctSources.filter(s => sourceValue(s.raw) === NEW).map(s => s.m.suggested).filter(Boolean)))
@@ -144,6 +180,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
   const reset = () => {
     setFile(null); setTables([]); setColumns({}); setSourceChoice({}); setCarChoice({}); setError(null); setDone(null); setView('all');
+    setRowEdits({}); setExcluded({});
   };
 
   const readFile = async (f: File) => {
@@ -168,6 +205,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
   const pickSheet = (list: SheetTable[], i: number) => {
     setSheetIdx(i);
+    setRowEdits({});
+    setExcluded({});
     const map = detectColumns(list[i]);
     setColumns(map);
     const o = detectDateOrder(list[i], map);
@@ -199,7 +238,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       if (added.length && onAddSources) await onAddSources(added);
       const ready = rows.filter(r => { const s = statusOf(r); return s === 'new' || s === 'update'; });
       const reservations = toReservations(ready, { year, month, byPickupMonth: true, fileName: file.name, sourceFor: sourceName, carFor: carName });
-      const skipped = rows.filter(r => statusOf(r) === 'problem').map(r => ({ row: r.row, details: r.problems.join(' · ') }));
+      const skipped = rows.filter(r => statusOf(r) === 'problem' || statusOf(r) === 'excluded')
+        .map(r => ({ row: r.row, details: statusOf(r) === 'excluded' ? 'Left out by you' : r.problems.join(' · ') }));
       const report: ImportReport = { imported: reservations.length, skipped: counts.ignored, duplicates: 0, invalidRows: skipped.length, warnings: [], errors: skipped };
       const result = await reservationService.importReservations(reservations, report, { year, month }, allData);
       onReservationsImported(result.data, result.report, fileYears);
@@ -215,9 +255,14 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
     setBusy(true);
     setError(null);
     try {
-      const { data, moved } = await reservationService.moveToPickupMonths(allData);
+      const ids = misfiled.map(x => x.reservation.id).filter(id => !tidySkip[id]);
+      const edits = Object.fromEntries(Object.entries(tidyEdits).filter(([id]) => ids.includes(id)).map(([id, e]) => [id, reservationPatch(e)]));
+      const { data, moved, edited } = await reservationService.moveToPickupMonths(allData, { ids, edits });
       onReservationsMoved?.(data, moved);
       setTidyDone(moved);
+      setTidyEdited(edited);
+      setTidyEdits({});
+      setTidySkip({});
       setTidyOpen(false);
     } catch (e: any) {
       setError(`The bookings could not be moved: ${e?.message || e}. Nothing was changed.`);
@@ -247,45 +292,87 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
       />
       <StepBar step={step} />
 
-      {tidyDone !== null && !misfiled.length && (
+      {tidyDone !== null && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex gap-3 text-[13px] text-emerald-800">
           <CheckCircleIcon className="w-4 h-4 mt-0.5 shrink-0" />
-          <p>{tidyDone} booking{tidyDone === 1 ? ' was' : 's were'} moved to {tidyDone === 1 ? 'its' : 'their'} pick-up month. Every booking is now listed in the month it is picked up.</p>
+          <p>
+            {tidyDone} booking{tidyDone === 1 ? ' was' : 's were'} moved to {tidyDone === 1 ? 'its' : 'their'} pick-up month
+            {tidyEdited ? `, ${tidyEdited} with your corrections saved` : ''}.
+            {!misfiled.length && ' Every booking is now listed in the month it is picked up.'}
+          </p>
         </div>
       )}
-      {misfiled.length > 0 && step !== 2 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/70">
-          <div className="px-4 py-3 flex flex-wrap items-start gap-3">
-            <AlertIcon className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
-            <div className="flex-1 min-w-[220px] text-[13px] text-amber-900">
-              <p className="font-semibold">{misfiled.length} booking{misfiled.length === 1 ? ' is' : 's are'} listed under the wrong month</p>
-              <p className="text-xs text-amber-800 mt-0.5">They are filed under a month other than their pick-up month (for example from an earlier import). Moving them makes each month's list and totals correct.</p>
+      {misfiled.length > 0 && step !== 2 && (() => {
+        const items = misfiled.map(x => {
+          const e = tidyEdits[x.reservation.id];
+          const to = e?.pickup ? { y: +e.pickup.slice(0, 4), m: MONTHS[+e.pickup.slice(5, 7) - 1] } : x.to;
+          const problems = e ? editProblems(e) : [];
+          return { ...x, e, to, problems, stays: to.y === x.from.y && to.m === x.from.m };
+        });
+        const chosen = items.filter(i => !tidySkip[i.reservation.id]);
+        const blocked = chosen.filter(i => i.problems.length).length;
+        const allOn = chosen.length === items.length;
+        return (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/70">
+            <div className="px-4 py-3 flex flex-wrap items-start gap-3">
+              <AlertIcon className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+              <div className="flex-1 min-w-[220px] text-[13px] text-amber-900">
+                <p className="font-semibold">{misfiled.length} booking{misfiled.length === 1 ? ' is' : 's are'} listed under the wrong month</p>
+                <p className="text-xs text-amber-800 mt-0.5">They are filed under a month other than their pick-up month (for example from an earlier import). Check or correct them, then move them so each month's list and totals are right.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => setTidyOpen(o => !o)}>{tidyOpen ? 'Hide list' : 'Review & edit'}</Button>
+                <Button size="sm" variant="primary" onClick={runTidy} disabled={busy || !chosen.length || blocked > 0}>
+                  {busy ? 'Saving…' : `${chosen.some(i => i.e) ? 'Save & move' : 'Move'} ${chosen.length === items.length ? 'all' : chosen.length} to pick-up month`}
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => setTidyOpen(o => !o)}>{tidyOpen ? 'Hide list' : 'Show list'}</Button>
-              <Button size="sm" variant="primary" onClick={runTidy} disabled={busy}>Move to pick-up month</Button>
-            </div>
+            {tidyOpen && (
+              <div className="border-t border-amber-200 bg-white rounded-b-xl">
+                <div className="max-h-96 overflow-auto">
+                  <table className={`${table.wrap} min-w-[820px]`}>
+                    <thead className={`${table.head} sticky top-0 z-10`}>
+                      <tr>
+                        <th className={`${table.th} w-10`}><input type="checkbox" aria-label="Select all" checked={allOn} onChange={() => setTidySkip(allOn ? Object.fromEntries(items.map(i => [i.reservation.id, true])) : {})} /></th>
+                        {['Booking', 'Customer', 'Pick-up', 'Drop-off', 'Listed in now', 'Moves to', ''].map(h => <th key={h} className={table.th}>{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody className={table.body}>
+                      {items.slice(0, 300).map(({ reservation: r, from, to, e, problems, stays }) => {
+                        const on = !tidySkip[r.id];
+                        const v = e || editOf(r);
+                        return (
+                          <tr key={r.id} className={on ? table.row : 'opacity-50'}>
+                            <td className={table.td}><input type="checkbox" aria-label={`Include ${v.bookingId}`} checked={on} onChange={() => setTidySkip(p => ({ ...p, [r.id]: on }))} /></td>
+                            <td className={`${table.td} font-mono text-xs whitespace-nowrap`}>{v.bookingId}</td>
+                            <td className={table.td}>
+                              <span className="font-medium text-slate-900">{v.customer || '—'}</span>
+                              {e && <Badge tone="info" dot={false} className="ml-2 !text-[10px]">Edited</Badge>}
+                            </td>
+                            <td className={`${table.td} whitespace-nowrap tabular-nums`}>{showDate(v.pickup) || '—'}</td>
+                            <td className={`${table.td} whitespace-nowrap tabular-nums`}>{showDate(v.dropoff) || '—'}</td>
+                            <td className={`${table.td} whitespace-nowrap text-slate-500`}>{from.m} {from.y}</td>
+                            <td className={`${table.td} whitespace-nowrap`}>
+                              {problems.length ? <span className="text-xs text-rose-600">{problems[0]}</span>
+                                : stays ? <span className="text-xs text-slate-500">Stays · corrections saved</span>
+                                : <span className="font-semibold text-slate-900">{to.m} {to.y}</span>}
+                            </td>
+                            <td className={`${table.td} text-right`}><Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'tidy', id: r.id })}>Edit</Button></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="px-4 py-2.5 border-t border-slate-100 text-xs text-slate-500">
+                  {chosen.length} of {items.length} selected{Object.keys(tidyEdits).length ? ` · ${Object.keys(tidyEdits).length} edited` : ''} · nothing changes until you press Move.
+                  {blocked > 0 && <span className="text-rose-600"> {blocked} selected booking{blocked === 1 ? ' needs' : 's need'} a correction first.</span>}
+                </p>
+              </div>
+            )}
           </div>
-          {tidyOpen && (
-            <div className="border-t border-amber-200 bg-white rounded-b-xl max-h-72 overflow-y-auto">
-              <table className={table.wrap}>
-                <thead className={table.head}><tr>{['Booking', 'Customer', 'Pick-up', 'Listed in now', 'Moves to'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
-                <tbody className={table.body}>
-                  {misfiled.slice(0, 300).map(({ reservation: r, from, to }) => (
-                    <tr key={r.id}>
-                      <td className={`${table.td} font-mono text-xs whitespace-nowrap`}>{r.bookingId || r.invoice}</td>
-                      <td className={table.td}>{r.personName || r.customer}</td>
-                      <td className={`${table.td} whitespace-nowrap`}>{showDate(String(r.startDate || '').slice(0, 16))}</td>
-                      <td className={`${table.td} whitespace-nowrap text-slate-500`}>{from.m} {from.y}</td>
-                      <td className={`${table.td} whitespace-nowrap font-semibold text-slate-900`}>{to.m} {to.y}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex gap-3 text-[13px] text-rose-700">
@@ -469,39 +556,48 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
 
           <Panel
             title="Bookings"
-            subtitle="Exactly what will be saved."
+            subtitle={`Exactly what will be saved. Click Edit to correct any booking by hand${editedCount ? ` · ${editedCount} edited` : ''}.`}
             footer={<span className="tabular-nums">{visibleRows.length} shown</span>}
           >
             <Tabs value={view} onChange={k => setView(k as typeof view)} tabs={[
-              { key: 'all', label: 'All', count: counts.new + counts.update + counts.problem },
+              { key: 'all', label: 'All', count: counts.new + counts.update + counts.problem + counts.excluded },
               { key: 'new', label: 'New', count: counts.new },
               { key: 'update', label: 'Updates', count: counts.update },
               { key: 'problem', label: 'Need attention', count: counts.problem },
+              ...(counts.excluded ? [{ key: 'excluded', label: 'Left out', count: counts.excluded }] : []),
             ]} />
-            <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
-              <table className={`${table.wrap} min-w-[960px]`}>
+            <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
+              <table className={`${table.wrap} min-w-[1080px]`}>
                 <thead className={`${table.head} sticky top-0 z-10`}>
-                  <tr>{['Row', 'Booking', 'Customer', 'Pick-up', 'Drop-off', 'Days', 'Car', 'Source', 'Amount', 'Status'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr>
+                  <tr>{['Row', 'Booking', 'Customer', 'Pick-up', 'Drop-off', 'Days', 'Car', 'Source', 'Amount', 'Status', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody className={table.body}>
                   {visibleRows.slice(0, 500).map(r => {
                     const s = statusOf(r);
                     return (
-                      <tr key={r.row} className={s === 'problem' ? 'bg-amber-50/50' : table.row}>
+                      <tr key={r.row} className={s === 'problem' ? 'bg-amber-50/50' : s === 'excluded' ? 'bg-slate-50 text-slate-400' : table.row}>
                         <td className={`${table.td} text-xs text-slate-400 tabular-nums`}>{r.row}</td>
-                        <td className={`${table.td} font-mono text-xs text-slate-700 whitespace-nowrap`}>{r.bookingId || <span className="text-slate-400 font-sans">auto</span>}</td>
-                        <td className={`${table.td} font-medium text-slate-900`}>{r.customer || '—'}</td>
+                        <td className={`${table.td} font-mono text-xs whitespace-nowrap ${s === 'excluded' ? '' : 'text-slate-700'}`}>{r.bookingId || <span className="text-slate-400 font-sans">auto</span>}</td>
+                        <td className={`${table.td} ${s === 'excluded' ? 'line-through' : 'font-medium text-slate-900'}`}>
+                          {r.customer || '—'}
+                          {r.edited && <Badge tone="info" dot={false} className="ml-2 !text-[10px] no-underline">Edited</Badge>}
+                        </td>
                         <td className={`${table.td} whitespace-nowrap tabular-nums`}>{showDate(r.pickup) || <span className="text-rose-600">—</span>}</td>
                         <td className={`${table.td} whitespace-nowrap tabular-nums`}>{showDate(r.dropoff) || <span className="text-rose-600">—</span>}</td>
                         <td className={`${table.td} tabular-nums text-slate-500`}>{daysBetween(r.pickup, r.dropoff) || ''}</td>
-                        <td className={`${table.td} whitespace-nowrap`}>{r.carRaw ? carName(r.carRaw) : '—'}</td>
-                        <td className={`${table.td} whitespace-nowrap`}>{sourceName(r.sourceRaw) || '—'}</td>
+                        <td className={`${table.td} whitespace-nowrap`}>{carOf(r) || '—'}</td>
+                        <td className={`${table.td} whitespace-nowrap`}>{sourceOf(r) || '—'}</td>
                         <td className={`${table.td} tabular-nums text-right`}>{r.amount ? r.amount.toLocaleString('en-GB', { maximumFractionDigits: 2 }) : '—'}</td>
                         <td className={table.td}>
                           {s === 'new' && <Badge tone="success">New</Badge>}
                           {s === 'update' && <Badge tone="info">Update</Badge>}
+                          {s === 'excluded' && <Badge tone="muted">Left out</Badge>}
                           {s === 'problem' && <span className="text-xs text-amber-800">{r.problems.join(' · ')}</span>}
-                          {s !== 'problem' && r.fixes.map(f => <p key={f} className="mt-1 text-[11px] leading-snug text-sky-700">{f}</p>)}
+                          {(s === 'new' || s === 'update') && r.fixes.map(f => <p key={f} className="mt-1 text-[11px] leading-snug text-sky-700">{f}</p>)}
+                        </td>
+                        <td className={`${table.td} text-right whitespace-nowrap`}>
+                          {s !== 'excluded' && <Button size="sm" variant={s === 'problem' ? 'secondary' : 'ghost'} onClick={() => setEditing({ kind: 'row', row: r.row })}>{s === 'problem' ? 'Fix' : 'Edit'}</Button>}
+                          <Button size="sm" variant="ghost" className="!text-slate-500" onClick={() => setExcluded(p => ({ ...p, [r.row]: !p[r.row] }))}>{s === 'excluded' ? 'Include' : 'Leave out'}</Button>
                         </td>
                       </tr>
                     );
@@ -515,7 +611,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           <div className="sticky bottom-0 z-20 -mx-4 sm:mx-0 px-4 py-3 bg-white/95 backdrop-blur border-t sm:border sm:rounded-xl border-slate-200 shadow-[0_-4px_12px_rgba(15,23,42,0.06)] flex flex-wrap items-center gap-3">
             <p className="text-[13px] text-slate-600 flex-1 min-w-[200px]">
               <strong className="text-slate-900">{counts.new}</strong> new and <strong className="text-slate-900">{counts.update}</strong> updated
-              {counts.problem ? <>, <strong className="text-amber-700">{counts.problem}</strong> skipped</> : null}
+              {counts.problem + counts.excluded ? <>, <strong className="text-amber-700">{counts.problem + counts.excluded}</strong> skipped</> : null}
+              {editedCount ? <> · <strong className="text-slate-900">{editedCount}</strong> edited by hand</> : null}
               {newSourceNames.length ? <> · adds source{newSourceNames.length === 1 ? '' : 's'} <strong className="text-slate-900">{newSourceNames.join(', ')}</strong></> : null}
             </p>
             <Button onClick={reset} disabled={busy}>Cancel</Button>
@@ -557,6 +654,37 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
           )}
         </Panel>
       )}
+      {editing?.kind === 'row' && (() => {
+        const r = rows.find(x => x.row === editing.row);
+        if (!r) return null;
+        return (
+          <BookingEditDrawer
+            title={`Edit row ${r.row}${r.bookingId ? ` · ${r.bookingId}` : ''}`}
+            subtitle="Your corrections are used for this import only; the Excel file is not changed."
+            value={rowEdit(r)}
+            fleetModels={fleetModels}
+            sourceNames={Array.from(new Set([...sources.map(x => x.name), ...newSourceNames]))}
+            takenIds={rows.filter(x => x.row !== r.row && statusOf(x) !== 'ignored' && statusOf(x) !== 'excluded').map(x => x.bookingId).filter(Boolean)}
+            onSave={v => { setRowEdits(p => ({ ...p, [r.row]: v })); setEditing(null); }}
+            onClose={() => setEditing(null)}
+          />
+        );
+      })()}
+      {editing?.kind === 'tidy' && (() => {
+        const item = misfiled.find(x => x.reservation.id === editing.id);
+        if (!item) return null;
+        return (
+          <BookingEditDrawer
+            title={`Edit booking ${item.reservation.bookingId || item.reservation.invoice || ''}`}
+            subtitle={`Listed in ${item.from.m} ${item.from.y} now. Corrections are saved when you press Move.`}
+            value={tidyEdits[item.reservation.id] || editOf(item.reservation)}
+            fleetModels={fleetModels}
+            sourceNames={sources.map(x => x.name)}
+            onSave={v => { setTidyEdits(p => ({ ...p, [item.reservation.id]: v })); setTidySkip(p => ({ ...p, [item.reservation.id]: false })); setEditing(null); }}
+            onClose={() => setEditing(null)}
+          />
+        );
+      })()}
     </Page>
   );
 };

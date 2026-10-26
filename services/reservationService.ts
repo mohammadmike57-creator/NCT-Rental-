@@ -155,22 +155,36 @@ export class ReservationService {
     return out;
   }
 
-  /** Moves every misfiled booking to its pick-up month and saves. */
-  async moveToPickupMonths(current?: AppData): Promise<{ data: AppData; moved: number }> {
+  /**
+   * Moves misfiled bookings to their pick-up month and saves.
+   * edits: corrections made by hand first (by reservation id); ids: only these bookings (default all).
+   */
+  async moveToPickupMonths(current?: AppData, opts: { ids?: string[]; edits?: Record<string, Partial<Reservation>> } = {}): Promise<{ data: AppData; moved: number; edited: number }> {
     if (current) this.setData(current);
     const updatedData = JSON.parse(JSON.stringify(this.repository.getData())) as AppData;
-    const list = ReservationService.misfiled(updatedData);
+    const pick = opts.ids ? new Set(opts.ids) : null;
+    let edited = 0;
+    const now = new Date().toISOString();
+    Object.keys(updatedData).forEach(y => Object.keys(updatedData[+y] || {}).forEach(m => {
+      updatedData[+y][m] = (updatedData[+y][m] || []).map(r => {
+        const e = opts.edits?.[r.id];
+        if (!e || (pick && !pick.has(r.id))) return r;
+        edited++;
+        return { ...r, ...e, updatedAt: now };
+      });
+    }));
+    const list = ReservationService.misfiled(updatedData).filter(x => !pick || pick.has(x.reservation.id));
     list.forEach(({ reservation, from, to }) => {
       updatedData[from.y][from.m] = updatedData[from.y][from.m].filter(r => r.id !== reservation.id);
       if (!updatedData[to.y]) updatedData[to.y] = {};
       if (!updatedData[to.y][to.m]) updatedData[to.y][to.m] = [];
       updatedData[to.y][to.m].push({ ...reservation, storageYear: to.y, storageMonth: to.m });
     });
-    if (list.length && !(await ReservationSyncService.saveToBackend(updatedData))) {
+    if ((list.length || edited) && !(await ReservationSyncService.saveToBackend(updatedData))) {
       throw new Error('Failed to save the moved reservations');
     }
     this.setData(updatedData);
-    return { data: updatedData, moved: list.length };
+    return { data: updatedData, moved: list.length, edited };
   }
 
   async updateReservation(reservation: Reservation): Promise<AppData> {

@@ -32,4 +32,19 @@ describe('bookings are listed in their pick-up month', () => {
     expect(out[2026].December).toHaveLength(1);
     expect(out[2026].December[0]).toMatchObject({ id: 'B1', contactNumber: '+962700', status: 'Completed', storageYear: 2026, storageMonth: 'December' });
   });
+
+  it('applies hand corrections and moves only the selected bookings', async () => {
+    const data: any = { 2027: { January: [
+      res('C1', '2026-12-29T10:00', '2027-01-03T10:00', 2027, 'January'),
+      res('C2', '2026-12-30T10:00', '2027-01-04T10:00', 2027, 'January'),
+      res('C3', '2026-12-31T10:00', '2027-01-05T10:00', 2027, 'January'),
+    ] } };
+    // C1: pick-up was really 2 Jan → stays in January with the corrected dates. C2: moves. C3: not selected.
+    const edits = { C1: { startDate: '2027-01-02T10:00', pickupDate: '2027-01-02T10:00', personName: 'Corrected Name' } };
+    const { data: out, moved, edited } = await new ReservationService().moveToPickupMonths(data, { ids: ['C1', 'C2'], edits });
+    expect({ moved, edited }).toEqual({ moved: 1, edited: 1 });
+    expect(out[2027].January.map((r: any) => r.id).sort()).toEqual(['C1', 'C3']);
+    expect(out[2027].January.find((r: any) => r.id === 'C1')).toMatchObject({ startDate: '2027-01-02T10:00', personName: 'Corrected Name' });
+    expect(out[2026].December.map((r: any) => r.id)).toEqual(['C2']);
+  });
 });

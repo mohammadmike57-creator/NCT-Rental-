@@ -389,6 +389,9 @@ export interface PreparedRow {
   problems: string[];
   /** Things the import put right by itself, shown on the review screen (e.g. a return year). */
   fixes: string[];
+  /** Set when staff edited the row by hand: the exact car and source to save. */
+  car?: string;
+  source?: string;
 }
 
 const text = (v: unknown) => (isBlank(v) ? '' : String(v).replace(/\s+/g, ' ').trim());
@@ -503,7 +506,7 @@ export function toReservations(
     const y = opts.byPickupMonth && r.pickup ? +r.pickup.slice(0, 4) : opts.year;
     const m = opts.byPickupMonth && r.pickup ? MONTH_NAMES[+r.pickup.slice(5, 7) - 1] : opts.month;
     const bookingId = r.bookingId || `IMP-${r.pickup.slice(0, 10).replace(/-/g, '')}-${r.row}`;
-    const car = opts.carFor(r.carRaw);
+    const car = r.car ?? opts.carFor(r.carRaw);
     return {
       id: uuidv4(), uploadBatchId: batch, createdAt: now, updatedAt: now,
       storageYear: y, storageMonth: m,
@@ -514,7 +517,7 @@ export function toReservations(
       status: ReservationStatus.CONFIRMED,
       notes: r.notes,
       originalRowNumber: r.row, originalFileName: opts.fileName,
-      source: opts.sourceFor(r.sourceRaw),
+      source: r.source ?? opts.sourceFor(r.sourceRaw),
       bookingDate: r.bookingDate,
       amount: r.amount, baseAmount: r.amount,
       ...(r.phone ? { contactNumber: r.phone } : {}),
