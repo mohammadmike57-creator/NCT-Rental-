@@ -13,6 +13,8 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Notifications from './components/Notifications';
 import { OnlineNowButton } from './components/OnlinePresence';
+import { pickupMonthOf } from './services/pickupMonth';
+import MisfiledNotice from './components/MisfiledNotice';
 import { startActivityTracking, track, flushActivity, lastInteractionAt } from './services/activityTracker';
 import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, sendHeartbeat, markSignedOut, rememberServerState, clearDataSections } from './firebase/api';
 
@@ -359,13 +361,15 @@ export const App: React.FC = () => {
           const y = parseInt(yKey);
           migratedReservations[y] = {};
           Object.keys(rawReservations[y]).forEach(m => {
-              migratedReservations[y][m] = rawReservations[y][m].map((res: Reservation) => ({
+              migratedReservations[y][m] = rawReservations[y][m].map((res: Reservation, i: number) => ({
                   ...res,
                   ...(res.locationName && branchById.has(res.locationName) ? { locationName: branchById.get(res.locationName) } : {}),
                   ...(res.source && sourceById.has(res.source) && sourceById.get(res.source) !== res.source ? { source: sourceById.get(res.source) } : {}),
-                  id: res.id || uuidv4(),
-                  storageYear: res.storageYear || res.importLockedYear || y,
-                  storageMonth: res.storageMonth || res.importLockedMonth || m,
+                  // A booking without an id gets the same one on every load, so edits and deletes find it.
+                  id: res.id || `legacy-${y}-${m}-${i}-${res.bookingId || res.invoice || ''}`,
+                  // Where the booking is actually filed; edits and deletes look it up there.
+                  storageYear: y,
+                  storageMonth: m,
                   pickupDate: res.pickupDate || res.startDate,
                   dropoffDate: res.dropoffDate || res.endDate,
                   customer: res.customer || res.personName,
@@ -799,8 +803,10 @@ export const App: React.FC = () => {
   const handleSaveNewReservation = async (reservation: Reservation) => {
       const { isNew, id: transientId, ...newResData } = reservation;
       
-      const year = selectedYear;
-      const month = selectedMonth;
+      // Listed in its pick-up month (a booking for 1 Oct goes to October whatever month is open).
+      const pickupMonth = pickupMonthOf(newResData as Reservation);
+      const year = pickupMonth?.y ?? selectedYear;
+      const month = pickupMonth?.m ?? selectedMonth;
       
       const timestamp = new Date().toISOString();
       const reservationToSave: Reservation = {
@@ -953,15 +959,11 @@ export const App: React.FC = () => {
       return;
     }
 
-    if (year === undefined || month === undefined) {
-      console.error("Year and month are required to delete a reservation.");
-      return;
-    }
-
-    const deleted = (reservations[year]?.[month] || []).find(r => r.id === id);
+    // Found wherever it is filed: the list may show it by pick-up date while it is stored under another month.
+    const deleted = allReservationsFlat.find(r => r.id === id);
     setSaveStatus('saving');
     try {
-      const updatedData = await reservationService.deleteReservation(id, year, month);
+      const updatedData = await reservationService.deleteReservation(id, year ?? deleted?.storageYear ?? selectedYear, month ?? deleted?.storageMonth ?? selectedMonth);
       recordActivity('RESERVATION_DELETED', 'reservation', `Deleted reservation${deleted ? ` for ${deleted.personName}` : ''}`, deleted?.bookingId);
       setReservations(updatedData);
       setSaveStatus('saved');
@@ -970,6 +972,23 @@ export const App: React.FC = () => {
       setSaveStatus('error');
       console.error("Failed to delete reservation:", err);
       addNotification("Failed to delete reservation. Check connection.", 'error');
+    }
+  };
+
+  // Bookings filed under another month than their pick-up month are moved there.
+  const handleMoveToPickupMonths = async () => {
+    setSaveStatus('saving');
+    try {
+      const { data, moved } = await reservationService.moveToPickupMonths(reservations);
+      setReservations(data);
+      setTableKey(prev => prev + 1);
+      setSaveStatus('saved');
+      showConfirmation(`${moved} booking${moved === 1 ? '' : 's'} moved to ${moved === 1 ? 'its' : 'their'} pick-up month.`);
+      recordActivity('RESERVATIONS_MOVED', 'reservation', `Moved ${moved} booking${moved === 1 ? '' : 's'} to their pick-up month`);
+    } catch (err) {
+      setSaveStatus('error');
+      console.error('Failed to move reservations:', err);
+      addNotification('Could not move the bookings. Check your connection and try again.', 'error');
     }
   };
 
@@ -2226,7 +2245,13 @@ ${currentUser?.fullName}
             <div className="max-w-[1500px] mx-auto">
             <Suspense fallback={<div className="flex items-center justify-center h-64"><LoadingSpinner /></div>}>
               {currentViewHasAccess 
-                ? <ErrorBoundary resetKey={mainView}>{mainViews[mainView]?.component}</ErrorBoundary>
+                ? <ErrorBoundary resetKey={mainView}>
+                    {mainView === 'Reservations' && hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_EDIT) && (
+                      <MisfiledNotice data={reservations} onMove={handleMoveToPickupMonths}
+                        onReview={hasPermission(currentUser, UserPermission.VIEW_IMPORT_RESERVATIONS) ? () => setMainView('Import Reservations') : undefined} />
+                    )}
+                    {mainViews[mainView]?.component}
+                  </ErrorBoundary>
                 : <div className="p-12 text-center bg-white rounded-lg shadow-md">
                     <h2 className="text-xl font-bold text-red-600">Access Denied</h2>
                     <p className="mt-2 text-gray-600">You do not have permission to view this page.</p>

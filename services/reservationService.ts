@@ -1,17 +1,11 @@
 import { AppData, Reservation, ImportReport } from '../types';
-import { MONTHS } from '../constants';
+import { pickupMonthOf } from './pickupMonth';
 import { ReservationRepository } from './ReservationRepository';
 import { ExcelImportService } from './ExcelImportService';
 import { ReservationSummaryService } from './ReservationSummaryService';
 import { ReservationSyncService } from './ReservationSyncService';
 
-/** The year and month a booking picks up, read from its date text (no time-zone shift). */
-export const pickupMonthOf = (r: Reservation): { y: number; m: string } | null => {
-  const s = String(r.startDate || r.pickupDate || '');
-  const iso = s.match(/^(\d{4})-(\d{2})/);
-  if (!iso || +iso[2] < 1 || +iso[2] > 12) return null;
-  return { y: +iso[1], m: MONTHS[+iso[2] - 1] };
-};
+export { pickupMonthOf };
 
 export class ReservationService {
   private repository: ReservationRepository;

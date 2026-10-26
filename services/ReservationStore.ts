@@ -1,4 +1,5 @@
 import { AppData, Reservation } from '../types';
+import { pickupMonthOf } from './pickupMonth';
 
 export class ReservationStore {
   private data: AppData = {};
@@ -25,39 +26,50 @@ export class ReservationStore {
     return this.data;
   }
 
-  updateReservation(reservation: Reservation): AppData {
-    const { storageYear: year, storageMonth: month, id } = reservation;
-    
-    if (!year || !month) {
-      console.error(`[STORE ERROR] Cannot update reservation ${id}: Missing storage bucket info`, reservation);
-      return this.data;
-    }
-
-    console.log(`[STORE LOG] Updating reservation ${id} in bucket ${year}/${month}`);
-    const bucket = this.getBucket(year, month);
-    const index = bucket.findIndex(r => r.id === id);
-    
-    if (index !== -1) {
-      const newBucket = [...bucket];
-      newBucket[index] = { ...reservation, updatedAt: new Date().toISOString() };
-      return this.setBucket(year, month, newBucket);
-    }
-    
-    console.log(`[STORE LOG] Reservation ${id} not found in bucket ${year}/${month}, adding as new`);
-    const newBucket = [...bucket, { ...reservation, updatedAt: new Date().toISOString() }];
-    return this.setBucket(year, month, newBucket);
+  /** Every month a booking with this id is filed under (normally one). */
+  private locate(id: string): { year: number; month: string }[] {
+    const out: { year: number; month: string }[] = [];
+    Object.keys(this.data).forEach(y => Object.keys(this.data[+y] || {}).forEach(m => {
+      if ((this.data[+y][m] || []).some(r => r.id === id)) out.push({ year: +y, month: m });
+    }));
+    return out;
   }
 
-  deleteReservation(id: string, year: number, month: string): AppData {
-    if (!year || !month) {
-      console.error(`[STORE ERROR] Cannot delete reservation ${id}: Missing storage bucket info`);
+  /**
+   * Saves a booking in its pick-up month. When its pick-up date moved to another month (30 Sep →
+   * 1 Oct), it leaves the old month; any stray copy under another month is removed too.
+   */
+  updateReservation(reservation: Reservation): AppData {
+    const { id } = reservation;
+    const found = this.locate(id);
+    const target = pickupMonthOf(reservation)
+      || (reservation.storageYear && reservation.storageMonth ? { y: +reservation.storageYear, m: reservation.storageMonth } : null)
+      || (found[0] ? { y: found[0].year, m: found[0].month } : null);
+    if (!target) {
+      console.error(`[STORE ERROR] Cannot save reservation ${id}: no pick-up date or month`, reservation);
       return this.data;
     }
+    const saved: Reservation = {
+      ...reservation,
+      storageYear: target.y,
+      storageMonth: target.m,
+      ...(reservation.importLockedYear || reservation.importLockedMonth ? { importLockedYear: target.y, importLockedMonth: target.m } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    found.filter(f => f.year !== target.y || f.month !== target.m)
+      .forEach(f => this.setBucket(f.year, f.month, this.getBucket(f.year, f.month).filter(r => r.id !== id)));
+    const bucket = this.getBucket(target.y, target.m);
+    const index = bucket.findIndex(r => r.id === id);
+    const next = index === -1 ? [...bucket, saved] : bucket.map((r, i) => (i === index ? saved : r));
+    return this.setBucket(target.y, target.m, next);
+  }
 
-    console.log(`[STORE LOG] Deleting reservation ${id} from bucket ${year}/${month}`);
-    const bucket = this.getBucket(year, month);
-    const newBucket = bucket.filter(r => r.id !== id);
-    return this.setBucket(year, month, newBucket);
+  /** Deletes a booking wherever it is filed (year and month are only a hint). */
+  deleteReservation(id: string, year?: number, month?: string): AppData {
+    const found = this.locate(id);
+    if (!found.length) console.warn(`[STORE LOG] Reservation ${id} not found (asked for ${month} ${year})`);
+    found.forEach(f => this.setBucket(f.year, f.month, this.getBucket(f.year, f.month).filter(r => r.id !== id)));
+    return this.data;
   }
 
   addReservations(year: number, month: string, newReservations: Reservation[]): AppData {
