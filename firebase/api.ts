@@ -251,7 +251,19 @@ export const deliverChannelRates = async (channelId: string): Promise<ChannelDel
 export interface ChannelBookingRow {
   reservationNumber: string; brokerReference?: string; status: string; vehicleGroup: string;
   pickupAt: string; returnAt: string; total: number; currency: string; customerName?: string;
-  sandbox: boolean; createdAt: string; updatedAt?: string;
+  sandbox: boolean; createdAt: string; updatedAt?: string; fee?: number; promoCode?: string;
+}
+export interface ChannelStatementRow {
+  reservationNumber: string; brokerReference?: string; customerName?: string; vehicleGroup: string; pickupAt: string; returnAt: string;
+  status: string; total: number; fee: number; commissionable: number; commission: number; net: number; promoCode?: string;
+}
+export interface ChannelStatement {
+  channel: string; month: string; currency: string; commissionPercent: number; rows: ChannelStatementRow[];
+  bookings: number; cancelled: number; noShows: number; gross: number; fees: number; commission: number; net: number;
+}
+export interface ChannelInventory {
+  channel_code: string; from: string; to: string;
+  groups: { vehicle_group: string; name: string; fleet_size: number; days: { date: string; available: number; status: string; reason?: string }[] }[];
 }
 export interface ChannelWebhookRow {
   id: number; eventId: string; eventType: string; reservationNumber?: string; brokerReference?: string;
@@ -273,6 +285,18 @@ export const sendTestWebhook = async (channelId: string): Promise<ChannelWebhook
 };
 export const replayWebhook = async (channelId: string, deliveryId: number): Promise<ChannelWebhookRow> =>
   (await axios.post(channelPath(channelId, `/webhooks/${deliveryId}/replay`), {}, { headers: authHeaders() })).data;
+export const fetchChannelStatement = async (channelId: string, month: string): Promise<ChannelStatement> => {
+  try { return (await axios.get(channelPath(channelId, '/statement'), { params: { month }, headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not load the statement.'); }
+};
+export const fetchChannelInventory = async (channelId: string, days?: number): Promise<ChannelInventory> => {
+  try { return (await axios.get(channelPath(channelId, '/inventory'), { params: days ? { days } : {}, headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not load the inventory.'); }
+};
+export const pushChannelInventory = async (channelId: string): Promise<{ queued: boolean }> => {
+  try { return (await axios.post(channelPath(channelId, '/inventory/push'), {}, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not send the inventory.'); }
+};
 export const runChannelCertification = async (channelId: string): Promise<import('../types').ChannelCertificationReport> => {
   try { return (await axios.post(channelPath(channelId, '/certification'), {}, { headers: authHeaders(), timeout: 60000 })).data; }
   catch (e) { throw apiError(e, 'Could not run the certification tests.'); }

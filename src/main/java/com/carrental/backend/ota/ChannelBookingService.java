@@ -71,7 +71,17 @@ public class ChannelBookingService {
     // =========================================================== reference data
 
     public List<Location> locations(Ctx c) {
-        return c.rules().locations().stream().map(l -> new Location(l.code(), l.name(), l.address(), l.pickup(), l.dropOff())).toList();
+        return c.rules().locations().stream().map(l -> {
+            List<OpeningHours> hours = new ArrayList<>();
+            l.hours().forEach((d, h) -> hours.add(new OpeningHours(d.name().substring(0, 3), h.open().toString(), h.close().toString())));
+            return new Location(l.code(), l.name(), l.address(), l.pickup(), l.dropOff(), l.type(), l.phone(), l.latitude(), l.longitude(),
+                hours, l.afterHoursPickup(), l.afterHoursReturn(), l.afterHoursFee());
+        }).toList();
+    }
+
+    public List<Coverage> coverages(Ctx c) {
+        return c.rules().pricing().coverages().stream()
+            .map(v -> new Coverage(v.code(), v.name(), v.included(), v.dailyPrice(), v.excess(), v.deposit())).toList();
     }
 
     public List<VehicleGroup> vehicleGroups(Ctx c) {
@@ -85,7 +95,8 @@ public class ChannelBookingService {
                 out.put(code, new VehicleGroup(code, groupName(code, car), car == null ? "" : car.path("category").asText(""),
                     car == null ? code : car.path("modelName").asText(code) + " or similar",
                     OtaXml.transmissionOf(car, code), OtaXml.sippAirCon(code), cars.size(),
-                    money(car == null ? 0 : car.path("securityDeposit").asDouble(0)), money(car == null ? 0 : car.path("excess").asDouble(0))));
+                    money(car == null ? 0 : car.path("securityDeposit").asDouble(0)), money(car == null ? 0 : car.path("excess").asDouble(0)),
+                    vehicleInfo(c, code, cars)));
             }
         }
         return new ArrayList<>(out.values());
@@ -166,6 +177,7 @@ public class ChannelBookingService {
             if (s == null || s.vehicleGroup() == null || s.vehicleGroup().isBlank()) {
                 throw ChannelError.INVALID_REQUEST.ex("Send an offer id, or the rental dates, locations and vehicle group");
             }
+            s = withDriverAge(s, req.driver());
             validate(c, s);
             validateCustomer(req.customer());
             validateDriver(c, req.driver(), s.pickupAt());
@@ -193,6 +205,7 @@ public class ChannelBookingService {
             b.setTotal(fresh.totalAmount());
             b.setCurrency(fresh.currency());
             b.setCustomerName(req.customer().fullName());
+            b.setPromoCode(fresh.promoCode());
             b.setStatus("PENDING");
             b.setSandbox(c.sandbox());
             b.setCreatedAt(Instant.now());
@@ -245,10 +258,13 @@ public class ChannelBookingService {
                 in != null && in.pickupAt() != null ? in.pickupAt() : cur.pickupAt(), in != null && in.returnAt() != null ? in.returnAt() : cur.returnAt(),
                 in != null && in.driverAge() != null ? in.driverAge() : cur.driverAge(), cur.driverCountry(),
                 pick(in == null ? null : in.vehicleGroup(), cur.vehicleGroup()),
-                in != null && in.extras() != null ? in.extras() : cur.extras());
-            validate(c, s);
+                in != null && in.extras() != null ? in.extras() : cur.extras(),
+                in != null && in.coverages() != null ? in.coverages() : cur.coverages(),
+                in != null && in.promoCode() != null ? emptyNull(in.promoCode()) : cur.promoCode());
             Customer customer = req.customer() != null ? req.customer() : customerOf(res);
             Driver driver = req.driver() != null ? req.driver() : driverOf(res);
+            if (in == null || in.driverAge() == null) s = withDriverAge(s, req.driver());
+            validate(c, s);
             validateCustomer(customer);
             validateDriver(c, driver, s.pickupAt());
 
@@ -268,6 +284,7 @@ public class ChannelBookingService {
             b.setReturnAt(s.returnAt());
             b.setTotal(fresh.totalAmount());
             b.setCustomerName(customer.fullName());
+            b.setPromoCode(fresh.promoCode());
             b.setUpdatedAt(Instant.now());
             bookings.save(b);
             Reservation view = view(c, b, updated);
@@ -305,6 +322,7 @@ public class ChannelBookingService {
             res.put("updatedAt", Instant.now().toString());
             store(c, b, res);
             b.setStatus("CANCELLED");
+            b.setFeeAmount(fee);
             b.setUpdatedAt(Instant.now());
             bookings.save(b);
             Reservation view = view(c, b, res);
@@ -317,9 +335,118 @@ public class ChannelBookingService {
         }
     }
 
+    /**
+     * Automatic no-shows: live bookings still not picked up this many hours after pick-up time are
+     * marked NO_SHOW, with the agreed no-show fee, and the broker is told. Off when noShowAfterHours is 0.
+     */
+    public int markNoShows(Ctx c) {
+        int hours = c.rules().noShowAfterHours();
+        if (hours <= 0 || c.sandbox()) return 0;
+        int marked = 0;
+        for (ChannelBooking b : bookings.findByChannelIdAndSandboxFalseAndStatusInAndPickupAtBefore(c.channel().id(),
+                List.of("CONFIRMED", "PENDING"), LocalDateTime.now().minusHours(hours))) {
+            bookingLock.lock();
+            try {
+                ObjectNode res = load(c, b);
+                String status = externalStatus(res);
+                if (!"CONFIRMED".equals(status) && !"PENDING".equals(status)) {
+                    b.setStatus(status);           // picked up or cancelled in the app meanwhile
+                    bookings.save(b);
+                    continue;
+                }
+                BigDecimal total = b.getTotal() == null ? BigDecimal.ZERO : b.getTotal();
+                BigDecimal fee = total.multiply(c.rules().noShowFeePercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                res.put("status", "NO_SHOW");
+                res.put("noShowAt", Instant.now().toString());
+                res.put("noShowFee", fee);
+                res.put("cancellationFee", fee);
+                res.put("refundAmount", c.rules().prepaid() ? total.subtract(fee).max(BigDecimal.ZERO) : BigDecimal.ZERO);
+                res.put("refundStatus", c.rules().prepaid() && total.compareTo(fee) > 0 ? "PENDING" : "NOT_APPLICABLE");
+                res.put("updatedAt", Instant.now().toString());
+                res.put("lastEditedBy", "Booking API (" + c.code() + ")");
+                store(c, b, res);
+                b.setStatus("NO_SHOW");
+                b.setFeeAmount(fee);
+                b.setUpdatedAt(Instant.now());
+                bookings.save(b);
+                audit(c, "CHANNEL_BOOKING_NO_SHOW", "Booking " + b.getReservationNumber() + " marked no-show " + hours
+                    + "h after pick-up time — fee " + fee + " " + b.getCurrency(), b);
+                webhooks.emit(c, "reservation.no_show", view(c, b, res));
+                marked++;
+            } catch (RuntimeException e) {
+                // one bad booking must not stop the others
+            } finally {
+                bookingLock.unlock();
+            }
+        }
+        return marked;
+    }
+
+    /** Free cars per group per day (10:00 to 10:00 next day) for the next `days` days, as sent in inventory.updated. */
+    public ObjectNode inventory(Ctx c, int days) {
+        ObjectNode out = JSON.createObjectNode();
+        out.put("channel_code", c.code()).put("currency", c.channel().currency());
+        LocalDate start = LocalDate.now();
+        out.put("from", start.toString()).put("to", start.plusDays(days - 1).toString());
+        ArrayNode groups = out.putArray("groups");
+        for (VehicleGroup g : vehicleGroups(c)) {
+            ObjectNode gn = groups.addObject();
+            gn.put("vehicle_group", g.code()).put("name", g.name()).put("fleet_size", g.fleetSize());
+            ArrayNode daysArr = gn.putArray("days");
+            for (int i = 0; i < days; i++) {
+                LocalDate d = start.plusDays(i);
+                Avail a = check(c, g.code(), d.atTime(10, 0), d.plusDays(1).atTime(10, 0), null, null);
+                ObjectNode dn = daysArr.addObject().put("date", d.toString()).put("available", a.count());
+                dn.put("status", a.count() > 0 ? "OPEN" : "CLOSED");
+                if (a.reason() != null) dn.put("reason", a.reason());
+            }
+        }
+        return out;
+    }
+
+    /** One month of this broker's live bookings by pick-up date, with commission and fees, for settlement. */
+    public ObjectNode statement(ChannelSnapshot ch, YearMonth month) {
+        BigDecimal pct = BigDecimal.valueOf(ch.raw().path("commissionPercent").asDouble(0)).setScale(2, RoundingMode.HALF_UP);
+        ObjectNode out = JSON.createObjectNode();
+        out.put("channel", ch.name()).put("month", month.toString()).put("currency", ch.currency()).put("commissionPercent", pct);
+        ArrayNode rows = out.putArray("rows");
+        BigDecimal gross = BigDecimal.ZERO, commission = BigDecimal.ZERO, fees = BigDecimal.ZERO;
+        int counted = 0, cancelled = 0, noShows = 0;
+        for (ChannelBooking b : bookings.findByChannelIdAndSandboxAndPickupAtBetweenOrderByPickupAtAsc(ch.id(), false,
+                month.atDay(1).atStartOfDay(), month.atEndOfMonth().atTime(23, 59, 59))) {
+            String st = b.getStatus() == null ? "" : b.getStatus();
+            boolean lost = "CANCELLED".equals(st) || "NO_SHOW".equals(st);
+            BigDecimal total = b.getTotal() == null ? BigDecimal.ZERO : b.getTotal();
+            BigDecimal fee = b.getFeeAmount() == null ? BigDecimal.ZERO : b.getFeeAmount();
+            BigDecimal base = lost ? fee : total;          // commission on what was actually earned
+            BigDecimal com = base.multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            ObjectNode r = rows.addObject();
+            r.put("reservationNumber", b.getReservationNumber()).put("brokerReference", b.getBrokerReference())
+             .put("customerName", b.getCustomerName()).put("vehicleGroup", b.getSippCode())
+             .put("pickupAt", b.getPickupAt().toString()).put("returnAt", b.getReturnAt().toString()).put("status", st)
+             .put("total", total).put("fee", fee).put("commissionable", base).put("commission", com).put("net", base.subtract(com))
+             .put("promoCode", b.getPromoCode());
+            if ("CANCELLED".equals(st)) cancelled++;
+            else if ("NO_SHOW".equals(st)) noShows++;
+            else counted++;
+            if (lost) fees = fees.add(fee);
+            gross = gross.add(base);
+            commission = commission.add(com);
+        }
+        out.put("bookings", counted).put("cancelled", cancelled).put("noShows", noShows)
+           .put("gross", gross).put("fees", fees).put("commission", commission).put("net", gross.subtract(commission));
+        return out;
+    }
+
     // =========================================================== pricing
 
+    /**
+     * Prices every published group for the itinerary, in this order: base rate, promotion discount,
+     * extras, optional covers, fees (one-way, after-hours, young / senior driver), then tax.
+     */
     private List<Offer> price(Ctx c, Search s, String excludeOffer, String excludeReservation) {
+        ChannelRules rules = c.rules();
+        ChannelRules.Pricing pr = rules.pricing();
         List<String> codes = new ArrayList<>();
         for (ExtraRequest e : s.extras()) codes.add(e.code());
         List<OtaXml.QuoteLine> lines = OtaXml.quote(c.channel(), new OtaXml.QuoteRequest(s.pickupAt(), s.returnAt(), codes));
@@ -329,45 +456,142 @@ public class ChannelBookingService {
         for (ExtraRequest e : s.extras()) {
             if (!extraByCode.containsKey(e.code().toUpperCase(Locale.ROOT))) throw ChannelError.INVALID_REQUEST.ex("Unknown extra " + e.code());
         }
+        Set<String> chosenCovers = new LinkedHashSet<>();
+        for (String code : s.coverageCodes()) {
+            ChannelRules.Coverage cv = rules.coverage(code);
+            if (cv == null) throw ChannelError.INVALID_REQUEST.ex("Unknown coverage " + code);
+            if (!cv.included()) chosenCovers.add(cv.code());
+        }
+        ChannelRules.Promotion promo = promotion(c, s);
+        ChannelRules.Location pl = rules.location(s.pickupLocation()), rl = rules.location(s.returnLocation());
         boolean oneWay = !s.pickupLocation().equalsIgnoreCase(s.returnLocation());
+        boolean afterPick = pl != null && !pl.openAt(s.pickupAt());
+        boolean afterReturn = rl != null && !rl.openAt(s.returnAt());
+
         List<Offer> out = new ArrayList<>();
         for (OtaXml.QuoteLine l : lines) {
-            if (!c.rules().groupAllowed(l.sippCode())) continue;
+            if (!rules.groupAllowed(l.sippCode())) continue;
+            int days = l.days();
             List<PriceLine> breakdown = new ArrayList<>();
-            breakdown.add(new PriceLine("BASE", l.sippCode(), l.days() + " day" + (l.days() == 1 ? "" : "s") + " × " + l.dailyRate(), l.dailyRate(), l.days(), l.baseTotal()));
+            breakdown.add(new PriceLine("BASE", l.sippCode(), days + " day" + (days == 1 ? "" : "s") + " × " + l.dailyRate(), l.dailyRate(), days, l.baseTotal()));
+            BigDecimal base = l.baseTotal();
+            String appliedPromo = null;
+            if (promo != null && promo.appliesTo(l.sippCode(), s.pickupAt().toLocalDate()) && promo.percentOff().signum() > 0) {
+                BigDecimal off = base.multiply(promo.percentOff()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                breakdown.add(new PriceLine("DISCOUNT", promo.code(), "Promotion " + promo.code() + " (" + promo.percentOff().stripTrailingZeros().toPlainString() + "% off)",
+                    off.negate(), 1, off.negate()));
+                base = base.subtract(off);
+                appliedPromo = promo.code();
+            }
             BigDecimal extrasAmount = BigDecimal.ZERO;
             for (ExtraRequest r : s.extras()) {
                 OtaXml.Extra e = extraByCode.get(r.code().toUpperCase(Locale.ROOT));
                 int qty = Math.max(1, Math.min(r.quantity(), 9));
-                BigDecimal one = e.dailyPrice().multiply(BigDecimal.valueOf(l.days()));
+                BigDecimal one = e.dailyPrice().multiply(BigDecimal.valueOf(days));
                 if (e.maxPerRental() != null && one.compareTo(e.maxPerRental()) > 0) one = e.maxPerRental();
                 BigDecimal amount = one.multiply(BigDecimal.valueOf(qty)).setScale(2, RoundingMode.HALF_UP);
                 breakdown.add(new PriceLine("EXTRA", e.code(), e.name(), one.setScale(2, RoundingMode.HALF_UP), qty, amount));
                 extrasAmount = extrasAmount.add(amount);
             }
-            BigDecimal fees = BigDecimal.ZERO;
-            if (oneWay && c.rules().oneWayFee().signum() > 0) {
-                breakdown.add(new PriceLine("FEE", "ONE_WAY", "One-way fee", c.rules().oneWayFee(), 1, c.rules().oneWayFee()));
-                fees = fees.add(c.rules().oneWayFee());
-            }
             List<JsonNode> cars = OtaXml.vehiclesForSipp(c.channel().fleet(), l.sippCode());
             JsonNode car = cars.isEmpty() ? null : cars.get(0);
+            BigDecimal deposit = money(car == null ? 0 : car.path("securityDeposit").asDouble(0));
+            BigDecimal excess = money(car == null ? 0 : car.path("excess").asDouble(0));
+            List<CoverageOffer> covers = new ArrayList<>();
+            for (ChannelRules.Coverage cv : pr.coverages()) {
+                boolean selected = cv.included() || chosenCovers.contains(cv.code());
+                BigDecimal amount = BigDecimal.ZERO.setScale(2);
+                if (!cv.included() && selected) {
+                    amount = cv.dailyPrice().multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP);
+                    breakdown.add(new PriceLine("COVERAGE", cv.code(), cv.name(), cv.dailyPrice(), days, amount));
+                    extrasAmount = extrasAmount.add(amount);
+                }
+                if (selected && cv.excess() != null && cv.excess().compareTo(excess) < 0) excess = cv.excess();
+                if (selected && cv.deposit() != null && cv.deposit().compareTo(deposit) < 0) deposit = cv.deposit();
+                covers.add(new CoverageOffer(cv.code(), cv.name(), cv.included(), selected, cv.dailyPrice(), amount,
+                    cv.excess() == null ? excess : cv.excess(), cv.deposit() == null ? deposit : cv.deposit()));
+            }
+            BigDecimal fees = BigDecimal.ZERO;
+            if (oneWay && rules.oneWayFee().signum() > 0) fees = fees.add(fee(breakdown, "ONE_WAY", "One-way fee", rules.oneWayFee(), 1));
+            if (afterPick && pl.afterHoursFee().signum() > 0) fees = fees.add(fee(breakdown, "AFTER_HOURS", "After-hours pick-up", pl.afterHoursFee(), 1));
+            if (afterReturn && rl.afterHoursFee().signum() > 0) fees = fees.add(fee(breakdown, "AFTER_HOURS", "After-hours return", rl.afterHoursFee(), 1));
+            Integer age = s.driverAge();
+            if (age != null && pr.youngDriverUnder() > 0 && age < pr.youngDriverUnder() && pr.youngDriverFee().signum() > 0) {
+                fees = fees.add(fee(breakdown, "YOUNG_DRIVER", "Young driver (under " + pr.youngDriverUnder() + ")", pr.youngDriverFee(), days));
+            }
+            if (age != null && pr.seniorDriverFrom() > 0 && age >= pr.seniorDriverFrom() && pr.seniorDriverFee().signum() > 0) {
+                fees = fees.add(fee(breakdown, "SENIOR_DRIVER", "Senior driver (" + pr.seniorDriverFrom() + "+)", pr.seniorDriverFee(), days));
+            }
             String status = l.status();
             String reason = l.closedReason();
             int available = 0;
             if (!"Closed".equals(status)) {
-                available = available(c, l.sippCode(), s.pickupAt(), s.returnAt(), excludeOffer, excludeReservation);
-                if (available <= 0) { status = "Closed"; reason = "Sold out for these dates"; }
+                Avail av = check(c, l.sippCode(), s.pickupAt(), s.returnAt(), excludeOffer, excludeReservation);
+                available = av.count();
+                if (available <= 0) { status = "Closed"; reason = av.reason() != null ? av.reason() : "Sold out for these dates"; }
                 else status = "Available";
             }
-            BigDecimal total = l.baseTotal().add(extrasAmount).add(fees).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal net = base.add(extrasAmount).add(fees).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal tax, total;
+            if (pr.taxPercent().signum() == 0) { tax = BigDecimal.ZERO.setScale(2); total = net; }
+            else if (pr.taxIncluded()) { tax = net.multiply(pr.taxPercent()).divide(pr.taxPercent().add(BigDecimal.valueOf(100)), 2, RoundingMode.HALF_UP); total = net; }
+            else {
+                tax = net.multiply(pr.taxPercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                breakdown.add(new PriceLine("TAX", pr.taxName(), pr.taxName() + " " + pr.taxPercent().stripTrailingZeros().toPlainString() + "%", tax, 1, tax));
+                total = net.add(tax);
+            }
+            Mileage mileage = new Mileage(pr.unlimitedMileage(), pr.unlimitedMileage() ? 0 : pr.kmPerDay(),
+                pr.unlimitedMileage() ? 0 : pr.kmPerDay() * days, pr.unlimitedMileage() ? null : pr.extraKmPrice());
             out.add(new Offer(null, l.sippCode(), groupName(l.sippCode(), car), l.model() + " or similar",
                 car == null ? "" : car.path("category").asText(""), l.transmission(), l.airCon(), status, available, reason,
-                l.days(), c.channel().currency(), l.baseTotal(), extrasAmount, fees, BigDecimal.ZERO.setScale(2), true, total, breakdown,
-                money(car == null ? 0 : car.path("securityDeposit").asDouble(0)), money(car == null ? 0 : car.path("excess").asDouble(0)),
-                c.rules().cancellationPolicyCode(), c.rules().paymentModel(), null, false));
+                days, c.channel().currency(), base, extrasAmount, fees, tax, pr.taxIncluded() || pr.taxPercent().signum() == 0, total, breakdown,
+                deposit, excess, rules.cancellationPolicyCode(), rules.paymentModel(), null, false,
+                vehicleInfo(c, l.sippCode(), cars), mileage, covers, appliedPromo, pr.taxName(), pr.taxPercent()));
         }
         return out;
+    }
+
+    private static BigDecimal fee(List<PriceLine> lines, String code, String name, BigDecimal unit, int qty) {
+        BigDecimal amount = unit.multiply(BigDecimal.valueOf(qty)).setScale(2, RoundingMode.HALF_UP);
+        lines.add(new PriceLine("FEE", code, name, unit, qty, amount));
+        return amount;
+    }
+
+    private ChannelRules.Promotion promotion(Ctx c, Search s) {
+        String code = emptyNull(s.promoCode());
+        if (code == null) return null;
+        ChannelRules.Promotion p = c.rules().promotion(code);
+        if (p == null) throw ChannelError.POLICY_VIOLATION.ex("Unknown promotion code " + code);
+        LocalDate day = s.pickupAt().toLocalDate();
+        if ((p.from() != null && day.isBefore(p.from())) || (p.to() != null && day.isAfter(p.to()))) {
+            throw ChannelError.POLICY_VIOLATION.ex("Promotion " + p.code() + " is not valid for a pick-up on " + day);
+        }
+        return p;
+    }
+
+    /** Capacity, doors, bags, fuel and picture: the channel's group details first, else from the SIPP code and the fleet. */
+    VehicleInfo vehicleInfo(Ctx c, String sipp, List<JsonNode> cars) {
+        ChannelRules.GroupDetail d = c.rules().groupDetails().get(sipp.toUpperCase(Locale.ROOT));
+        Sipp.Spec def = Sipp.spec(sipp);
+        String picture = d != null && d.pictureUrl() != null ? d.pictureUrl() : null;
+        if (picture == null) for (JsonNode car : cars) {
+            String u = car.path("imageUrl").asText("");
+            if (!u.isBlank() && !u.startsWith("data:")) { picture = u; break; }
+        }
+        return new VehicleInfo(
+            d != null && d.seats() != null ? d.seats() : def.seats(), d != null && d.doors() != null ? d.doors() : def.doors(),
+            d != null && d.largeBags() != null ? d.largeBags() : def.largeBags(), d != null && d.smallBags() != null ? d.smallBags() : def.smallBags(),
+            d != null && d.fuel() != null ? d.fuel() : def.fuel(), absolute(picture), d == null ? null : d.description());
+    }
+
+    /** Fleet photos are stored as /api/media/<id>; brokers need the full address. */
+    private static String absolute(String url) {
+        if (url == null || url.isBlank() || url.startsWith("http")) return url;
+        try {
+            return org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath().path(url).toUriString();
+        } catch (IllegalStateException e) {
+            return url;   // no request (background job): keep the path
+        }
     }
 
     private Offer single(Ctx c, Search s, String sipp, String excludeOffer, String excludeReservation) {
@@ -376,12 +600,22 @@ public class ChannelBookingService {
         throw ChannelError.INVALID_VEHICLE_GROUP.ex("Vehicle group " + sipp + " has no published rate for these dates");
     }
 
+    /** Free cars for the period and, when there are none, why. */
+    record Avail(int count, String reason) {}
+
+    int available(Ctx c, String sipp, LocalDateTime from, LocalDateTime to, String excludeOffer, String excludeReservation) {
+        return check(c, sipp, from, to, excludeOffer, excludeReservation).count();
+    }
+
     /**
      * Cars of a group free for the whole period: the group's cars that are not stop-sold or
      * out of registration, minus overlapping bookings and agreements, live holds and the
-     * operational buffer kept back from this channel.
+     * operational buffer kept back from this channel; then capped by the broker's allotment.
      */
-    int available(Ctx c, String sipp, LocalDateTime from, LocalDateTime to, String excludeOffer, String excludeReservation) {
+    Avail check(Ctx c, String sipp, LocalDateTime from, LocalDateTime to, String excludeOffer, String excludeReservation) {
+        LocalDate pickupDay = from.toLocalDate();
+        List<ChannelRules.Allotment> allots = c.rules().allotmentsFor(sipp, pickupDay);
+        for (ChannelRules.Allotment a : allots) if (a.stopSell()) return new Avail(0, "Stop sell for this channel");
         List<JsonNode> cars = OtaXml.vehiclesForSipp(c.channel().fleet(), sipp);
         Set<String> plates = new HashSet<>();
         Set<String> models = new HashSet<>();
@@ -394,7 +628,7 @@ public class ChannelBookingService {
             if (!car.path("licensePlate").asText("").isBlank()) plates.add(car.path("licensePlate").asText().trim().toUpperCase(Locale.ROOT));
             models.add(car.path("modelName").asText("").trim().toLowerCase(Locale.ROOT));
         }
-        if (usable == 0) return 0;
+        if (usable == 0) return new Avail(0, null);
         int busy = 0;
         for (JsonNode r : allReservations(c.state())) {
             if (excludeReservation != null && excludeReservation.equals(r.path("id").asText())) continue;
@@ -406,7 +640,19 @@ public class ChannelBookingService {
             if (inGroup(r, sipp, plates, models)) busy++;
         }
         long holds = offers.countHolds(sipp, from, to, Instant.now(), excludeOffer == null ? "" : excludeOffer);
-        return (int) Math.max(0, usable - busy - holds - c.rules().operationalBuffer());
+        int free = (int) Math.max(0, usable - busy - holds - c.rules().operationalBuffer());
+        long daysAhead = ChronoUnit.DAYS.between(LocalDate.now(), pickupDay);
+        for (ChannelRules.Allotment a : allots) {
+            if (daysAhead <= a.releaseDays()) continue;     // released: free sale
+            long used = bookings.countOverlapping(c.channel().id(), c.sandbox(), sipp.toUpperCase(Locale.ROOT), from, to,
+                excludeReservation == null ? "" : excludeReservation);
+            int left = (int) Math.max(0, a.quantity() - used);
+            if (left < free) {
+                free = left;
+                if (left == 0) return new Avail(0, "Allotment of " + a.quantity() + " used");
+            }
+        }
+        return new Avail(free, null);
     }
 
     private static boolean inGroup(JsonNode r, String sipp, Set<String> plates, Set<String> models) {
@@ -449,7 +695,28 @@ public class ChannelBookingService {
         if (r == null) throw ChannelError.INVALID_LOCATION.ex("Unknown return location " + s.returnLocation());
         if (!p.pickup()) throw ChannelError.INVALID_LOCATION.ex(p.code() + " does not allow pick-ups");
         if (!r.dropOff()) throw ChannelError.INVALID_LOCATION.ex(r.code() + " does not allow returns");
+        if (!p.openAt(s.pickupAt()) && !p.afterHoursPickup()) {
+            throw ChannelError.INVALID_DATE.ex(p.code() + " is closed at " + s.pickupAt().toLocalTime() + " on " + s.pickupAt().getDayOfWeek() + hoursText(p, s.pickupAt()));
+        }
+        if (!r.openAt(s.returnAt()) && !r.afterHoursReturn()) {
+            throw ChannelError.INVALID_DATE.ex(r.code() + " is closed at " + s.returnAt().toLocalTime() + " on " + s.returnAt().getDayOfWeek() + hoursText(r, s.returnAt()));
+        }
         if (s.driverAge() != null) checkAge(c, s.driverAge());
+    }
+
+    private static String hoursText(ChannelRules.Location l, LocalDateTime t) {
+        ChannelRules.Hours h = l.hours().get(t.getDayOfWeek());
+        return h == null ? " (closed all day)" : " (open " + h.open() + "-" + h.close() + ")";
+    }
+
+    /** The driver's age at pick-up from the date of birth, when the search did not give one. */
+    private static Search withDriverAge(Search s, Driver d) {
+        if (s.driverAge() != null || d == null || trim(d.dateOfBirth()).length() < 10) return s;
+        try {
+            return s.with(Period.between(LocalDate.parse(d.dateOfBirth().trim().substring(0, 10)), s.pickupAt().toLocalDate()).getYears());
+        } catch (Exception e) {
+            return s;   // validateDriver reports the bad date
+        }
     }
 
     private void checkAge(Ctx c, int age) {
@@ -512,7 +779,7 @@ public class ChannelBookingService {
         r.put("securityDeposit", o.depositAmount()).put("excess", o.excessAmount());
         ArrayNode extras = r.putArray("extras");
         for (PriceLine l : o.breakdown()) {
-            if (!"EXTRA".equals(l.type())) continue;
+            if (!"EXTRA".equals(l.type()) && !"COVERAGE".equals(l.type())) continue;
             int days = Math.max(1, o.rentalDays());
             BigDecimal perDay = l.amount().divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
             extras.addObject().put("name", l.description() + (l.quantity() > 1 ? " ×" + l.quantity() : "")).put("dailyPrice", perDay).put("isComplementary", false);
@@ -537,6 +804,14 @@ public class ChannelBookingService {
         if (s.driverAge() != null) price.put("driverAge", s.driverAge());
         ArrayNode req = price.putArray("extrasRequested");
         for (ExtraRequest e : s.extras()) req.addObject().put("code", e.code()).put("quantity", e.quantity());
+        ArrayNode cov = price.putArray("coveragesRequested");
+        for (String code : s.coverageCodes()) cov.add(code.toUpperCase(Locale.ROOT));
+        if (o.promoCode() != null) price.put("promoCode", o.promoCode());
+        else if (emptyNull(s.promoCode()) != null) price.put("promoCodeRequested", s.promoCode().trim().toUpperCase(Locale.ROOT));
+        price.put("taxName", o.taxName()).put("taxPercent", o.taxPercent());
+        price.set("coverages", JSON.valueToTree(o.coverages()));
+        price.set("mileage", JSON.valueToTree(o.mileage()));
+        price.set("vehicle", JSON.valueToTree(o.vehicle()));
         if (existing != null && existing.has("channelPrice")) {
             ArrayNode hist = r.withArray("channelPriceHistory");
             hist.add(existing.get("channelPrice"));
@@ -617,6 +892,8 @@ public class ChannelBookingService {
         StringBuilder ex = new StringBuilder();
         for (ExtraRequest e : s.extras()) ex.append(ex.length() == 0 ? "" : ",").append(e.code()).append(':').append(e.quantity());
         row.setExtras(ex.toString());
+        row.setCoverages(String.join(",", s.coverageCodes()));
+        row.setPromoCode(emptyNull(s.promoCode()));
         row.setDriverAge(s.driverAge());
         row.setCurrency(o.currency());
         row.setTotal(o.totalAmount());
@@ -636,15 +913,21 @@ public class ChannelBookingService {
             String[] kv = p.split(":");
             extras.add(new ExtraRequest(kv[0], kv.length > 1 ? Integer.parseInt(kv[1]) : 1));
         }
-        return new Search(o.getPickupLocation(), o.getReturnLocation(), o.getPickupAt(), o.getReturnAt(), o.getDriverAge(), null, o.getSippCode(), extras);
+        List<String> covers = new ArrayList<>();
+        if (o.getCoverages() != null) for (String cv : o.getCoverages().split(",")) if (!cv.isBlank()) covers.add(cv);
+        return new Search(o.getPickupLocation(), o.getReturnLocation(), o.getPickupAt(), o.getReturnAt(), o.getDriverAge(), null, o.getSippCode(),
+            extras, covers, o.getPromoCode());
     }
 
     private static Search searchOf(JsonNode res, ChannelBooking b) {
         JsonNode p = res.path("channelPrice");
         List<ExtraRequest> extras = new ArrayList<>();
         for (JsonNode e : p.path("extrasRequested")) extras.add(new ExtraRequest(e.path("code").asText(), e.path("quantity").asInt(1)));
+        List<String> covers = new ArrayList<>();
+        for (JsonNode cv : p.path("coveragesRequested")) covers.add(cv.asText());
+        String promo = p.path("promoCode").asText(p.path("promoCodeRequested").asText(""));
         return new Search(p.path("pickupLocation").asText(""), p.path("returnLocation").asText(""), b.getPickupAt(), b.getReturnAt(),
-            p.has("driverAge") ? p.path("driverAge").asInt() : null, null, b.getSippCode(), extras);
+            p.has("driverAge") ? p.path("driverAge").asInt() : null, null, b.getSippCode(), extras, covers, promo.isEmpty() ? null : promo);
     }
 
     // =========================================================== views
@@ -668,7 +951,21 @@ public class ChannelBookingService {
             p.path("paymentType").asText(c.rules().paymentModel()), paymentStatus, p.path("cancellationPolicy").asText(c.rules().cancellationPolicyCode()),
             customerOf(res), driverOf(res), assigned, b.getCreatedAt(),
             cancelled ? res.path("cancellationFee").decimalValue() : null, cancelled ? res.path("refundAmount").decimalValue() : null,
-            cancelled ? res.path("refundStatus").asText(null) : null, b.isSandbox());
+            cancelled ? res.path("refundStatus").asText(null) : null, b.isSandbox(),
+            p.has("tax") ? p.path("tax").decimalValue() : BigDecimal.ZERO.setScale(2), p.path("taxIncluded").asBoolean(true),
+            read(p.get("mileage"), Mileage.class), readList(p.get("coverages")), read(p.get("vehicle"), VehicleInfo.class),
+            p.path("promoCode").asText(null));
+    }
+
+    private static <T> T read(JsonNode n, Class<T> type) {
+        if (n == null || n.isNull()) return null;
+        try { return JSON.treeToValue(n, type); } catch (Exception e) { return null; }
+    }
+
+    private static List<CoverageOffer> readList(JsonNode n) {
+        List<CoverageOffer> out = new ArrayList<>();
+        if (n != null) for (JsonNode x : n) { CoverageOffer v = read(x, CoverageOffer.class); if (v != null) out.add(v); }
+        return out;
     }
 
     /** The status a broker sees, derived from the booking as it is in the reservations list now. */
@@ -700,7 +997,8 @@ public class ChannelBookingService {
     private static Offer withId(Offer o, String id, Instant expires, boolean held) {
         return new Offer(id, o.vehicleGroup(), o.groupName(), o.modelExample(), o.category(), o.transmission(), o.airCon(), o.status(),
             o.available(), o.closedReason(), o.rentalDays(), o.currency(), o.baseAmount(), o.extrasAmount(), o.feesAmount(), o.taxAmount(),
-            o.taxIncluded(), o.totalAmount(), o.breakdown(), o.depositAmount(), o.excessAmount(), o.cancellationPolicy(), o.paymentType(), expires, held);
+            o.taxIncluded(), o.totalAmount(), o.breakdown(), o.depositAmount(), o.excessAmount(), o.cancellationPolicy(), o.paymentType(), expires, held,
+            o.vehicle(), o.mileage(), o.coverages(), o.promoCode(), o.taxName(), o.taxPercent());
     }
 
     private static Offer withFee(Offer o, PriceLine fee) {
@@ -709,7 +1007,7 @@ public class ChannelBookingService {
         return new Offer(o.offerId(), o.vehicleGroup(), o.groupName(), o.modelExample(), o.category(), o.transmission(), o.airCon(), o.status(),
             o.available(), o.closedReason(), o.rentalDays(), o.currency(), o.baseAmount(), o.extrasAmount(), o.feesAmount().add(fee.amount()),
             o.taxAmount(), o.taxIncluded(), o.totalAmount().add(fee.amount()), lines, o.depositAmount(), o.excessAmount(),
-            o.cancellationPolicy(), o.paymentType(), o.expiresAt(), o.held());
+            o.cancellationPolicy(), o.paymentType(), o.expiresAt(), o.held(), o.vehicle(), o.mileage(), o.coverages(), o.promoCode(), o.taxName(), o.taxPercent());
     }
 
     // =========================================================== helpers
@@ -767,7 +1065,8 @@ public class ChannelBookingService {
         Customer cu = r.customer();
         Driver d = r.driver();
         return String.join("|", trim(r.offerId()), trim(r.brokerReference()),
-            s == null ? "" : s.pickupLocation() + "," + s.returnLocation() + "," + s.pickupAt() + "," + s.returnAt() + "," + s.vehicleGroup() + "," + s.extras(),
+            s == null ? "" : s.pickupLocation() + "," + s.returnLocation() + "," + s.pickupAt() + "," + s.returnAt() + "," + s.vehicleGroup() + "," + s.extras()
+                + "," + s.coverageCodes() + "," + trim(s.promoCode()) + "," + s.driverAge(),
             cu == null ? "" : trim(cu.firstName()) + "," + trim(cu.lastName()) + "," + trim(cu.email()) + "," + trim(cu.phone()),
             d == null ? "" : trim(d.dateOfBirth()) + "," + trim(d.licenceNumber()),
             r.expectedTotal() == null ? "" : r.expectedTotal().stripTrailingZeros().toPlainString());
@@ -788,4 +1087,5 @@ public class ChannelBookingService {
     private static BigDecimal money(double v) { return BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_UP); }
     private static String trim(String s) { return s == null ? "" : s.trim(); }
     private static String pick(String a, String b) { return a == null || a.isBlank() ? b : a; }
+    private static String emptyNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }
 }

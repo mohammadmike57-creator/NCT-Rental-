@@ -624,11 +624,75 @@ export interface Aggregator {
 
 export type ChannelPaymentModel = 'PAY_AT_COUNTER' | 'BROKER_PREPAID';
 
+export type ChannelLocationType = 'AIRPORT' | 'CITY' | 'HOTEL' | 'RAILWAY' | 'PORT';
+export type ChannelWeekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
 export interface ChannelBookingLocation {
     code: string;        // the code this broker uses, e.g. AMM
     name: string;        // our branch (Manage Locations)
     pickup: boolean;
     dropOff: boolean;
+    type?: ChannelLocationType;
+    phone?: string;
+    latitude?: number;
+    longitude?: number;
+    /** No days set = open around the clock; a day left out = closed that day. */
+    openingHours?: Partial<Record<ChannelWeekday, { open: string; close: string; closed?: boolean }>>;
+    afterHoursPickup?: boolean;
+    afterHoursReturn?: boolean;
+    afterHoursFee?: number;
+}
+
+/** What brokers show for a car group; anything left empty is read from the SIPP code and the fleet photo. */
+export interface ChannelGroupDetail {
+    seats?: number;
+    doors?: number;
+    largeBags?: number;
+    smallBags?: number;
+    fuel?: string;
+    pictureUrl?: string;
+    description?: string;
+}
+
+export interface ChannelCoverage {
+    code: string;          // e.g. CDW, SCDW, TP, PAI
+    name: string;
+    included: boolean;     // in the rate, or sold per day
+    dailyPrice?: number;
+    excess?: number;       // excess that applies with this cover
+    deposit?: number;
+}
+
+export interface ChannelPromotion {
+    code: string;
+    percentOff: number;
+    from?: string;         // pick-up dates, YYYY-MM-DD
+    to?: string;
+    groups?: string[];     // SIPP codes; empty = all
+}
+
+export interface ChannelPricingRules {
+    taxPercent?: number;
+    taxIncluded?: boolean;
+    taxName?: string;
+    unlimitedMileage?: boolean;
+    kmPerDay?: number;
+    extraKmPrice?: number;
+    coverages?: ChannelCoverage[];
+    promotions?: ChannelPromotion[];
+    youngDriverUnder?: number;
+    youngDriverFee?: number;
+    seniorDriverFrom?: number;
+    seniorDriverFee?: number;
+}
+
+export interface ChannelAllotment {
+    group: string;
+    from: string;
+    to: string;
+    quantity: number;
+    releaseDays?: number;
+    stopSell?: boolean;
 }
 
 export interface ChannelBookingRules {
@@ -652,6 +716,12 @@ export interface ChannelBookingRules {
     ipAllowlist?: string[];
     webhookUrl?: string;
     webhookEvents?: string[];
+    pricing?: ChannelPricingRules;
+    groupDetails?: Record<string, ChannelGroupDetail>;
+    allotments?: ChannelAllotment[];
+    noShowAfterHours?: number;
+    noShowFeePercent?: number;
+    inventoryPushDays?: number;
 }
 
 export interface ChannelCertificationResult { id: string; name: string; passed: boolean; detail: string; ms: number }

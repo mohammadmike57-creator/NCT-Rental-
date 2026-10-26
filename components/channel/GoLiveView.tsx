@@ -30,6 +30,13 @@ const TECHNICAL: Tech[] = [
   { id: 'locations', label: 'Location codes mapped', auto: a => !!a.bookingRules?.locations?.length || !!a.locationCode },
   { id: 'groups', label: 'Vehicle groups mapped (cars have SIPP codes)', auto: (a, f) => f.some(v => !!v.sippCode) },
   { id: 'extras', label: 'Extra codes mapped', auto: a => (a.extras || []).every(e => !!e.otaEquipType) },
+  { id: 'stations', label: 'Stations have phone, position and opening hours', auto: a => !!a.bookingRules?.locations?.length
+    && a.bookingRules.locations.every(l => !!l.phone && l.latitude != null && l.longitude != null && !!l.openingHours && Object.keys(l.openingHours).length > 0) },
+  { id: 'pictures', label: 'Every vehicle group has a picture', auto: (a, f) => {
+    const groups = Array.from(new Set(f.map(v => (v.sippCode || '').toUpperCase()).filter(Boolean)));
+    return groups.length > 0 && groups.every(g => !!a.bookingRules?.groupDetails?.[g]?.pictureUrl || f.some(v => (v.sippCode || '').toUpperCase() === g && !!v.imageUrl));
+  } },
+  { id: 'covers', label: 'Tax, mileage and insurance covers set', auto: a => (a.bookingRules?.pricing?.coverages || []).length > 0 },
   { id: 'rules', label: 'Payment and cancellation rules saved', auto: a => !!a.bookingRules?.paymentModel },
   { id: 'webhook', label: 'Webhook URL registered', auto: a => !!a.bookingRules?.webhookUrl },
   { id: 'secret', label: 'Webhook secret exchanged', auto: (_a, _f, s) => s },

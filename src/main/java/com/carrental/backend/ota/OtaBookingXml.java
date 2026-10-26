@@ -73,7 +73,24 @@ public final class OtaBookingXml {
         Element pref = first(root, "VehPref");
         String group = pref == null ? null : (attr(pref, "Code").isEmpty() ? null : attr(pref, "Code").toUpperCase());
         String country = attr(first(first(root, "Address"), "CountryName"), "Code");
-        return new Search(pick, ret, from, to, age, country.isEmpty() ? null : country, group, equipment(root));
+        return new Search(pick, ret, from, to, age, country.isEmpty() ? null : country, group, equipment(root), coverages(root), promo(root));
+    }
+
+    /** CoveragePrefs/CoveragePref CoverageType (our cover code, e.g. SCDW). */
+    private static List<String> coverages(Element root) {
+        List<String> out = new ArrayList<>();
+        for (Element e : all(root, "CoveragePref")) {
+            String code = attr(e, "CoverageType");
+            if (code.isEmpty()) code = attr(e, "Code");
+            if (!code.isEmpty()) out.add(code.toUpperCase());
+        }
+        return out;
+    }
+
+    /** RateQualifier PromotionCode, as OTA sends it. */
+    private static String promo(Element root) {
+        for (Element q : all(root, "RateQualifier")) if (!attr(q, "PromotionCode").isEmpty()) return attr(q, "PromotionCode");
+        return null;
     }
 
     private static List<ExtraRequest> equipment(Element root) {
@@ -131,16 +148,18 @@ public final class OtaBookingXml {
         String id = uniqueId(root);
         Element core = first(root, "VehRentalCore");
         Search s = null;
-        if (core != null || first(root, "VehPref") != null || first(root, "SpecialEquipPrefs") != null) {
+        if (core != null || first(root, "VehPref") != null || first(root, "SpecialEquipPrefs") != null || first(root, "CoveragePrefs") != null
+            || promo(root) != null) {
             LocalDateTime from = core == null ? null : dateTime(attr(core, "PickUpDateTime"), "PickUpDateTime");
             LocalDateTime to = core == null ? null : dateTime(attr(core, "ReturnDateTime"), "ReturnDateTime");
             String pick = core == null ? null : emptyToNull(attr(first(core, "PickUpLocation"), "LocationCode"));
             String ret = core == null ? null : emptyToNull(attr(first(core, "ReturnLocation"), "LocationCode"));
             Element pref = first(root, "VehPref");
             Element driver = first(root, "DriverType");
-            s = new Search(pick, ret, from, to, driver == null ? null : intOf(attr(driver, "Age"), "Age"), null,
+            s = new Search(pick, ret, from, to, driver == null || attr(driver, "Age").isEmpty() ? null : intOf(attr(driver, "Age"), "Age"), null,
                 pref == null ? null : emptyToNull(attr(pref, "Code").toUpperCase()),
-                first(root, "SpecialEquipPrefs") == null ? null : equipment(root));
+                first(root, "SpecialEquipPrefs") == null ? null : equipment(root),
+                first(root, "CoveragePrefs") == null ? null : coverages(root), promo(root));
         }
         Customer c = first(root, "Primary") == null ? null : customer(root);
         return new ModifyRequest(id, s, c, c == null ? null : driver(root, c), expected(root), emptyToNull(text(first(root, "SpecialReqPref"))));
@@ -169,11 +188,26 @@ public final class OtaBookingXml {
         X x = open("OTA_VehLocSearchRS", echo, prod);
         x.line("<Success/>").open("VehMatchedLocs");
         for (Location l : locs) {
-            x.open("VehMatchedLoc").open("LocationDetail", "Code", l.code(), "Name", l.name(), "AtAirport", l.name().toLowerCase().contains("airport"));
+            x.open("VehMatchedLoc").open("LocationDetail", "Code", l.code(), "Name", l.name(), "AtAirport", "AIRPORT".equals(l.type()),
+                "CodeContext", "IATA");
             if (!l.address().isBlank()) x.open("Address").el("AddressLine", l.address()).close();
-            x.open("AdditionalInfo").el("VehRentLocInfos", null).close()
-             .line("<TPA_Extensions><PickUp>" + l.pickup() + "</PickUp><Return>" + l.dropOff() + "</Return><Vendor Code=\"" + OtaXml.escape(vendor) + "\"/></TPA_Extensions>")
-             .close().close();
+            if (l.phone() != null && !l.phone().isBlank()) x.el("Telephone", null, "PhoneNumber", l.phone(), "PhoneTechType", 1);
+            if (l.latitude() != null && l.longitude() != null) x.el("Position", null, "Latitude", BigDecimal.valueOf(l.latitude()).toPlainString(), "Longitude", BigDecimal.valueOf(l.longitude()).toPlainString());
+            x.open("AdditionalInfo").el("VehRentLocInfos", null);
+            if (!l.openingHours().isEmpty()) {
+                x.open("OperationSchedules").open("OperationSchedule").open("OperationTimes");
+                for (OpeningHours h : l.openingHours()) {
+                    String day = h.day().charAt(0) + h.day().substring(1).toLowerCase();   // Mon, Tue … as OTA attribute names
+                    x.el("OperationTime", null, day, true, "Start", h.open(), "End", h.close());
+                }
+                x.close().close().close();
+            }
+            x.close();
+            x.open("TPA_Extensions").el("PickUp", String.valueOf(l.pickup())).el("Return", String.valueOf(l.dropOff()))
+             .el("LocationType", l.type()).el("AfterHours", null, "PickUp", l.afterHoursPickup(), "Return", l.afterHoursReturn(),
+                 "Fee", l.afterHoursFee().signum() > 0 ? l.afterHoursFee() : null)
+             .el("Vendor", null, "Code", vendor).close();
+            x.close().close();
         }
         return x.close().done();
     }
@@ -187,11 +221,13 @@ public final class OtaBookingXml {
         x.open("VehVendorAvails").open("VehVendorAvail").el("Vendor", "NCT Rental", "Code", vendor).open("VehAvails");
         for (Offer o : offers) {
             x.open("VehAvail").open("VehAvailCore", "Status", o.status());
-            vehicle(x, o.vehicleGroup(), o.modelExample(), o.transmission(), o.airCon());
+            vehicle(x, o.vehicleGroup(), o.modelExample(), o.transmission(), o.airCon(), o.vehicle());
             if ("Available".equals(o.status())) {
-                rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), o.currency(), o.cancellationPolicy());
+                Tax tax = new Tax(o.taxAmount(), o.taxIncluded(), o.taxName(), o.taxPercent());
+                rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), o.currency(), o.cancellationPolicy(), o.mileage(), tax, o.promoCode());
                 equips(x, o.breakdown(), o.currency(), o.rentalDays());
-                fees(x, o.breakdown(), o.currency());
+                coverages(x, o.coverages(), o.currency(), o.rentalDays());
+                fees(x, o.breakdown(), o.currency(), tax);
                 x.el("TotalCharge", null, "RateTotalAmount", o.baseAmount(), "EstimatedTotalAmount", o.totalAmount(), "CurrencyCode", o.currency());
                 if (o.offerId() != null) x.el("Reference", null, "Type", 16, "ID", o.offerId(), "DateTime", o.expiresAt() == null ? null : o.expiresAt().toString());
             }
@@ -240,10 +276,12 @@ public final class OtaBookingXml {
         x.el("Vendor", "NCT Rental", "Code", vendor);
         rentalCore(x, r.pickupAt(), r.returnAt(), r.pickupLocation(), r.returnLocation());
         String desc = r.vehicleDescription() == null ? r.vehicleGroup() : r.vehicleDescription().replaceFirst("^[A-Z]{4} · ", "");
-        vehicle(x, r.vehicleGroup(), desc, null, OtaXml.sippAirCon(r.vehicleGroup()));
-        rate(x, r.baseAmount(), r.breakdown(), r.rentalDays(), r.currency(), r.cancellationPolicy());
+        vehicle(x, r.vehicleGroup(), desc, null, OtaXml.sippAirCon(r.vehicleGroup()), r.vehicle());
+        Tax tax = new Tax(r.taxAmount(), r.taxIncluded(), null, null);
+        rate(x, r.baseAmount(), r.breakdown(), r.rentalDays(), r.currency(), r.cancellationPolicy(), r.mileage(), tax, r.promoCode());
         equips(x, r.breakdown(), r.currency(), r.rentalDays());
-        fees(x, r.breakdown(), r.currency());
+        if (r.coverages() != null) coverages(x, r.coverages(), r.currency(), r.rentalDays());
+        fees(x, r.breakdown(), r.currency(), tax);
         x.el("TotalCharge", null, "RateTotalAmount", r.baseAmount(), "EstimatedTotalAmount", r.totalAmount(), "CurrencyCode", r.currency());
         x.close();
         x.open("VehSegmentInfo").open("PaymentRules").el("PaymentRule", null, "RuleType", "PREPAID".equals(r.paymentStatus()) || "BROKER_PREPAID".equals(r.paymentType()) ? 2 : 1,
@@ -252,7 +290,9 @@ public final class OtaBookingXml {
     }
 
     private static void tpa(X x, Reservation r) {
-        x.open("TPA_Extensions")
+        x.open("TPA_Extensions");
+        if (r.promoCode() != null) x.el("PromotionCode", r.promoCode());
+        x
          .el("ReservationStatus", r.status())
          .el("PaymentStatus", r.paymentStatus())
          .el("PaymentType", r.paymentType())
@@ -278,17 +318,54 @@ public final class OtaBookingXml {
          .el("PickUpLocation", null, "LocationCode", pick).el("ReturnLocation", null, "LocationCode", ret).close();
     }
 
-    private static void vehicle(X x, String sipp, String model, String transmission, boolean airCon) {
-        x.open("Vehicle", "AirConditionInd", airCon, "TransmissionType", transmission, "Code", sipp, "CodeContext", "SIPP")
-         .el("VehMakeModel", null, "Name", model, "Code", sipp).close();
+    private static void vehicle(X x, String sipp, String model, String transmission, boolean airCon, VehicleInfo v) {
+        x.open("Vehicle", "AirConditionInd", airCon, "TransmissionType", transmission, "FuelType", v == null ? null : v.fuel(),
+            "PassengerQuantity", v == null ? null : v.seats(), "BaggageQuantity", v == null ? null : v.largeBags() + v.smallBags(),
+            "Code", sipp, "CodeContext", "SIPP");
+        if (v != null) x.el("VehType", null, "VehicleCategory", OtaXml.sippVehicleCategory(sipp), "DoorCount", v.doors());
+        x.el("VehClass", null, "Size", OtaXml.sippSize(sipp));
+        x.el("VehMakeModel", null, "Name", model, "Code", sipp);
+        if (v != null && v.pictureUrl() != null && !v.pictureUrl().isBlank()) x.el("PictureURL", v.pictureUrl());
+        x.close();
     }
 
-    private static void rate(X x, BigDecimal base, List<PriceLine> lines, int days, String cur, String policy) {
+    /** Tax on an offer or booking: amount, whether it is inside the prices, and its name and rate when known. */
+    record Tax(BigDecimal amount, boolean included, String name, BigDecimal percent) {}
+
+    private static void rate(X x, BigDecimal base, List<PriceLine> lines, int days, String cur, String policy, Mileage km, Tax tax, String promo) {
         PriceLine b = lines.stream().filter(l -> "BASE".equals(l.type())).findFirst().orElse(null);
-        x.open("RentalRate").el("RateDistance", null, "Unlimited", true, "DistUnitName", "Km", "VehiclePeriodUnitName", "RentalPeriod")
-         .open("VehicleCharges").open("VehicleCharge", "Purpose", 1, "TaxInclusive", true, "IncludedInRate", false, "Amount", base, "CurrencyCode", cur)
-         .el("Calculation", null, "UnitCharge", b == null ? null : b.unitAmount(), "UnitName", "Day", "Quantity", days).close().close()
-         .el("RateQualifier", null, "RateQualifier", policy, "RatePeriod", "Daily").close();
+        boolean unlimited = km == null || km.unlimited();
+        x.open("RentalRate").el("RateDistance", null, "Unlimited", unlimited, "Quantity", unlimited ? null : km.kmPerDay(), "DistUnitName", "Km",
+            "VehiclePeriodUnitName", unlimited ? "RentalPeriod" : "Day");
+        x.open("VehicleCharges").open("VehicleCharge", "Purpose", 1, "TaxInclusive", tax.included(), "IncludedInRate", false, "Amount", base, "CurrencyCode", cur);
+        if (tax.amount() != null && tax.amount().signum() > 0) {
+            x.open("TaxAmounts").el("TaxAmount", null, "Total", tax.amount(), "CurrencyCode", cur,
+                "Percentage", tax.percent() == null ? null : tax.percent().stripTrailingZeros().toPlainString(), "Description", tax.name()).close();
+        }
+        x.el("Calculation", null, "UnitCharge", b == null ? null : b.unitAmount(), "UnitName", "Day", "Quantity", days).close().close();
+        x.el("RateQualifier", null, "RateQualifier", policy, "RatePeriod", "Daily", "PromotionCode", promo);
+        if (!unlimited && km.extraKmPrice() != null) {
+            x.open("TPA_Extensions").el("ExtraDistanceCharge", null, "Amount", km.extraKmPrice(), "CurrencyCode", cur, "UnitName", "Km")
+             .el("IncludedDistance", null, "Quantity", km.kmIncluded(), "DistUnitName", "Km").close();
+        }
+        x.close();
+    }
+
+    /** Insurance covers: included ones with IncludedInRate=true, optional ones with their daily price. */
+    private static void coverages(X x, List<CoverageOffer> covers, String cur, int days) {
+        if (covers == null || covers.isEmpty()) return;
+        x.open("PricedCoverages");
+        for (CoverageOffer c : covers) {
+            x.open("PricedCoverage", "Required", c.included(), "Selected", c.selected())
+             .open("Coverage", "CoverageType", c.code(), "Code", c.code()).el("Details", c.name(), "CoverageTextType", "Description");
+            if (c.excess() != null) x.el("Deductible", null, "ExcessAmount", c.excess(), "CurrencyCode", cur);
+            x.close();
+            x.open("Charge", "Amount", c.included() ? BigDecimal.ZERO : c.dailyPrice().multiply(BigDecimal.valueOf(days)), "CurrencyCode", cur,
+                    "TaxInclusive", true, "IncludedInRate", c.included())
+             .el("Calculation", null, "UnitCharge", c.included() ? BigDecimal.ZERO : c.dailyPrice(), "UnitName", "Day", "Quantity", days).close();
+            x.close();
+        }
+        x.close();
     }
 
     private static void equips(X x, List<PriceLine> lines, String cur, int days) {
@@ -303,11 +380,12 @@ public final class OtaBookingXml {
         x.close();
     }
 
-    private static void fees(X x, List<PriceLine> lines, String cur) {
-        List<PriceLine> f = lines.stream().filter(l -> "FEE".equals(l.type())).toList();
+    private static void fees(X x, List<PriceLine> lines, String cur, Tax tax) {
+        List<PriceLine> f = lines.stream().filter(l -> "FEE".equals(l.type()) || "DISCOUNT".equals(l.type()) || "TAX".equals(l.type())).toList();
         if (f.isEmpty()) return;
         x.open("Fees");
-        for (PriceLine l : f) x.el("Fee", null, "Purpose", l.code(), "Description", l.description(), "Amount", l.amount(), "CurrencyCode", cur, "TaxInclusive", true);
+        for (PriceLine l : f) x.el("Fee", null, "Purpose", l.code(), "Description", l.description(), "Amount", l.amount(), "CurrencyCode", cur,
+            "TaxInclusive", "TAX".equals(l.type()) ? null : tax.included(), "IncludedInEstTotalInd", true);
         x.close();
     }
 
@@ -351,6 +429,11 @@ public final class OtaBookingXml {
             indent().append('<').append(name).append(attrs(attrs));
             if (text == null) sb.append("/>\n"); else sb.append('>').append(OtaXml.escape(text)).append("</").append(name).append(">\n");
             return this;
+        }
+        /** An element only when it has a value (optional fields are left out, not sent empty). */
+        X opt(String name, Object value) {
+            if (value == null || value.toString().isBlank()) return this;
+            return el(name, value instanceof BigDecimal d ? d.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : value.toString());
         }
         X line(String raw) { indent().append(raw).append('\n'); return this; }
         String done() {

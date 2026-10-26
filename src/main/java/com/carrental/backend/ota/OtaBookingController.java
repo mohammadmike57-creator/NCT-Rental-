@@ -21,6 +21,9 @@ import java.util.function.Function;
  *   POST /ota/v1/{channel}/OTA_VehRetRes        OTA_VehRetResRQ    → RS   retrieve (also /OTA_VehResRetrieve)
  *   POST /ota/v1/{channel}/OTA_VehModify        OTA_VehModifyRQ    → RS   amend dates, car group, extras, driver
  *   POST /ota/v1/{channel}/OTA_VehCancel        OTA_VehCancelRQ    → RS   cancel, with fee and refund
+ *
+ * The same messages are accepted inside a SOAP 1.1 / 1.2 envelope at /ota/v1/{channel}/soap
+ * (OtaSoapController). The key may also travel as POS/Source/RequestorID MessagePassword.
  */
 @RestController
 @RequestMapping("/ota/v1/{channel}")
@@ -39,69 +42,92 @@ public class OtaBookingController {
 
     @PostMapping(value = "/OTA_VehLocSearch", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<String> locations(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
-        return run(channel, body, http, "OTA_VehLocSearch", "OTA_VehLocSearchRS", c -> {
-            OtaBookingXml.Parsed p = body == null || body.isBlank() ? null : OtaBookingXml.parse(body, "OTA_VehLocSearchRQ");
-            return OtaBookingXml.locations(p == null ? null : p.echoToken(), prod(c), core.locations(c.ctx()), c.ctx().channel().vendorCode());
-        });
+        return dispatch(channel, "OTA_VehLocSearchRQ", body, headerKey(http), http.getHeader("Idempotency-Key"), http);
     }
 
     @PostMapping(value = "/OTA_VehAvailRate", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<String> availability(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
-        return run(channel, body, http, "OTA_VehAvailRate", "OTA_VehAvailRateRS", c -> {
-            OtaBookingXml.Parsed p = OtaBookingXml.parse(body, "OTA_VehAvailRateRQ");
-            Search s = OtaBookingXml.search(p.root(), c.ctx().rules());
-            List<Offer> offers;
-            String warning = null;
-            try {
-                offers = core.search(c.ctx(), s);
-                if (offers.stream().noneMatch(o -> "Available".equals(o.status()))) warning = "No vehicles available for these dates";
-            } catch (ChannelException e) {
-                if (e.error != ChannelError.NO_AVAILABILITY) throw e;
-                offers = List.of();
-                warning = e.getMessage();
-            }
-            return OtaBookingXml.availability(p.echoToken(), prod(c), s, offers, c.ctx().channel().vendorCode(), warning);
-        });
+        return dispatch(channel, "OTA_VehAvailRateRQ", body, headerKey(http), null, http);
     }
 
     @PostMapping(value = "/OTA_VehRes", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<String> book(@PathVariable String channel, @RequestBody(required = false) String body,
                                        @RequestHeader(value = "Idempotency-Key", required = false) String idem, HttpServletRequest http) {
-        return run(channel, body, http, "OTA_VehRes", "OTA_VehResRS", c -> {
-            OtaBookingXml.Parsed p = OtaBookingXml.parse(body, "OTA_VehResRQ");
-            Reservation r = core.create(c.ctx(), OtaBookingXml.booking(p.root(), c.ctx().rules(), idem));
-            return OtaBookingXml.reservation("OTA_VehResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
-        });
+        return dispatch(channel, "OTA_VehResRQ", body, headerKey(http), idem, http);
     }
 
     @PostMapping(value = {"/OTA_VehRetRes", "/OTA_VehResRetrieve"}, consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<String> retrieve(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
-        return run(channel, body, http, "OTA_VehRetRes", "OTA_VehRetResRS", c -> {
-            OtaBookingXml.Parsed p = OtaBookingXml.parse(body, "OTA_VehRetResRQ");
-            Reservation r = core.get(c.ctx(), OtaBookingXml.uniqueId(p.root()));
-            checkSurname(p, r);
-            return OtaBookingXml.reservation("OTA_VehRetResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
-        });
+        return dispatch(channel, "OTA_VehRetResRQ", body, headerKey(http), null, http);
     }
 
     @PostMapping(value = "/OTA_VehModify", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<String> modify(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
-        return run(channel, body, http, "OTA_VehModify", "OTA_VehModifyRS", c -> {
-            OtaBookingXml.Parsed p = OtaBookingXml.parse(body, "OTA_VehModifyRQ");
-            Reservation r = core.modify(c.ctx(), OtaBookingXml.modify(p.root(), c.ctx().rules()));
-            return OtaBookingXml.reservation("OTA_VehModifyRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
-        });
+        return dispatch(channel, "OTA_VehModifyRQ", body, headerKey(http), null, http);
     }
 
     @PostMapping(value = "/OTA_VehCancel", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<String> cancel(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
-        return run(channel, body, http, "OTA_VehCancel", "OTA_VehCancelRS", c -> {
-            OtaBookingXml.Parsed p = OtaBookingXml.parse(body, "OTA_VehCancelRQ");
-            String id = OtaBookingXml.uniqueId(p.root());
-            checkSurname(p, core.get(c.ctx(), id));
-            Reservation r = core.cancel(c.ctx(), id, OtaBookingXml.text(OtaBookingXml.first(OtaBookingXml.first(p.root(), "TPA_Extensions"), "Reason")));
-            return OtaBookingXml.reservation("OTA_VehCancelRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
-        });
+        return dispatch(channel, "OTA_VehCancelRQ", body, headerKey(http), null, http);
+    }
+
+    static final java.util.Set<String> MESSAGES = java.util.Set.of("OTA_VehLocSearchRQ", "OTA_VehAvailRateRQ", "OTA_VehResRQ",
+        "OTA_VehRetResRQ", "OTA_VehModifyRQ", "OTA_VehCancelRQ");
+
+    /**
+     * Runs one OTA message (also used by the SOAP endpoint). The key comes from the HTTP headers,
+     * or else from POS/Source/RequestorID MessagePassword in the message itself.
+     */
+    ResponseEntity<String> dispatch(String channel, String rq, String body, String key, String idem, HttpServletRequest http) {
+        String type = rq.substring(0, rq.length() - 2);
+        String errorRoot = type + "RS";
+        if (key == null || key.isBlank()) key = posPassword(body);
+        Function<ChannelGateway.Call, String> action = switch (rq) {
+            case "OTA_VehLocSearchRQ" -> c -> {
+                OtaBookingXml.Parsed p = body == null || body.isBlank() ? null : OtaBookingXml.parse(body, rq);
+                return OtaBookingXml.locations(p == null ? null : p.echoToken(), prod(c), core.locations(c.ctx()), c.ctx().channel().vendorCode());
+            };
+            case "OTA_VehAvailRateRQ" -> c -> {
+                OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
+                Search s = OtaBookingXml.search(p.root(), c.ctx().rules());
+                List<Offer> offers;
+                String warning = null;
+                try {
+                    offers = core.search(c.ctx(), s);
+                    if (offers.stream().noneMatch(o -> "Available".equals(o.status()))) warning = "No vehicles available for these dates";
+                } catch (ChannelException e) {
+                    if (e.error != ChannelError.NO_AVAILABILITY) throw e;
+                    offers = List.of();
+                    warning = e.getMessage();
+                }
+                return OtaBookingXml.availability(p.echoToken(), prod(c), s, offers, c.ctx().channel().vendorCode(), warning);
+            };
+            case "OTA_VehResRQ" -> c -> {
+                OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
+                Reservation r = core.create(c.ctx(), OtaBookingXml.booking(p.root(), c.ctx().rules(), idem));
+                return OtaBookingXml.reservation("OTA_VehResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+            };
+            case "OTA_VehRetResRQ" -> c -> {
+                OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
+                Reservation r = core.get(c.ctx(), OtaBookingXml.uniqueId(p.root()));
+                checkSurname(p, r);
+                return OtaBookingXml.reservation("OTA_VehRetResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+            };
+            case "OTA_VehModifyRQ" -> c -> {
+                OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
+                Reservation r = core.modify(c.ctx(), OtaBookingXml.modify(p.root(), c.ctx().rules()));
+                return OtaBookingXml.reservation("OTA_VehModifyRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+            };
+            case "OTA_VehCancelRQ" -> c -> {
+                OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
+                String id = OtaBookingXml.uniqueId(p.root());
+                checkSurname(p, core.get(c.ctx(), id));
+                Reservation r = core.cancel(c.ctx(), id, OtaBookingXml.text(OtaBookingXml.first(OtaBookingXml.first(p.root(), "TPA_Extensions"), "Reason")));
+                return OtaBookingXml.reservation("OTA_VehCancelRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+            };
+            default -> throw new IllegalArgumentException(rq);
+        };
+        return run(channel, body, key, http, type, errorRoot, action);
     }
 
     /** When the partner sends the surname (as OTA does), it must match the booking. */
@@ -112,13 +138,30 @@ public class OtaBookingController {
         }
     }
 
-    private ResponseEntity<String> run(String channel, String body, HttpServletRequest http, String type, String errorRoot,
+    private ResponseEntity<String> run(String channel, String body, String key, HttpServletRequest http, String type, String errorRoot,
                                        Function<ChannelGateway.Call, String> action) {
-        String key = PartnerKeyVerifier.extractKey(http.getHeader("Authorization"), http.getHeader("X-Api-Key"));
         String echo = echo(body);
         return gateway.handle(channel, key, http, type, body == null ? 0 : body.length(), http.getHeader("X-Request-ID"),
             c -> new ChannelGateway.Rendered(action.apply(c), XML),
             (e, rid) -> new ChannelGateway.Rendered(OtaBookingXml.error(errorRoot, echo, true, e, rid), XML));
+    }
+
+    private static String headerKey(HttpServletRequest http) {
+        return PartnerKeyVerifier.extractKey(http.getHeader("Authorization"), http.getHeader("X-Api-Key"));
+    }
+
+    /** POS/Source/RequestorID MessagePassword, the OTA way of sending credentials inside the message. */
+    static String posPassword(String body) {
+        if (body == null || body.isBlank() || !body.contains("MessagePassword") || body.length() > OtaRequestParser.MAX_REQUEST_BYTES) return null;
+        try {
+            var b = OtaRequestParser.secureBuilder();
+            b.setErrorHandler(null);
+            var doc = b.parse(new org.xml.sax.InputSource(new java.io.StringReader(body)));
+            String pw = OtaBookingXml.attr(OtaBookingXml.first(doc.getDocumentElement(), "RequestorID"), "MessagePassword");
+            return pw.isEmpty() ? null : pw;
+        } catch (Exception e) {
+            return null;     // the message itself is rejected later with a proper error
+        }
     }
 
     private static boolean prod(ChannelGateway.Call c) { return !c.ctx().sandbox(); }

@@ -38,6 +38,17 @@ public class ChannelStateReader {
         return Optional.ofNullable(byId).map(agg -> new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales")));
     }
 
+    /** Every channel, for background jobs (no-shows, inventory push). */
+    public java.util.List<ChannelSnapshot> all() {
+        JsonNode state = readState();
+        java.util.List<ChannelSnapshot> out = new java.util.ArrayList<>();
+        JsonNode aggregators = state.get("aggregators");
+        if (aggregators != null && aggregators.isArray()) {
+            for (JsonNode agg : aggregators) out.add(new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales")));
+        }
+        return out;
+    }
+
     private JsonNode readState() {
         try {
             return objectMapper.readTree(stateService.getFullState());

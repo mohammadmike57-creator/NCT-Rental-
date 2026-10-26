@@ -29,6 +29,8 @@ public class ChannelOffer {
     @Column(nullable = false) private LocalDateTime pickupAt;
     @Column(nullable = false) private LocalDateTime returnAt;
     @Column(length = 500) private String extras;     // CODE:qty,CODE:qty
+    @Column(length = 200) private String coverages;  // optional cover codes, comma-separated
+    @Column(length = 40) private String promoCode;
     private Integer driverAge;
     @Column(nullable = false, length = 3) private String currency;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal total;

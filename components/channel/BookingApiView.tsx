@@ -3,9 +3,11 @@ import { Aggregator, ChannelBookingRules, ChannelBookingLocation, Fleet, RentalL
 import { API_URL, fetchChannelWebhooks, rotateWebhookSecret, sendTestWebhook, replayWebhook, ChannelWebhookRow } from '../../firebase/api';
 import { partnerEndpoints } from '../../services/channelManager';
 import { Panel, Button, Badge, inputCls, selectCls, labelCls } from '../ui/Crm';
+import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSection, OperationsSection } from './CommercialRules';
 
 /** Defaults the server uses when a rule is not set (see ChannelRules.java). */
-export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'allowedGroups' | 'ipAllowlist' | 'webhookUrl' | 'webhookEvents'>> = {
+export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'allowedGroups' | 'ipAllowlist' | 'webhookUrl' | 'webhookEvents'
+  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays'>> = {
   bookingsEnabled: true, paymentModel: 'PAY_AT_COUNTER', freeCancellationHours: 48, lateCancellationFeePercent: 100, modificationFee: 0,
   minLeadHours: 2, maxRentalDays: 60, maxHorizonDays: 365, minDriverAge: 21, maxDriverAge: 0, offerValidityMinutes: 30, holdMinutes: 15,
   operationalBuffer: 0, oneWayFee: 0, rateLimitPerMinute: 120,
@@ -15,7 +17,10 @@ export const WEBHOOK_EVENTS: [string, string][] = [
   ['reservation.created', 'Booking created'], ['reservation.confirmed', 'Booking confirmed'], ['reservation.modified', 'Booking changed'],
   ['reservation.cancelled', 'Booking cancelled'], ['reservation.no_show', 'No-show'], ['reservation.picked_up', 'Car picked up'],
   ['agreement.created', 'Agreement opened'], ['agreement.closed', 'Car returned, agreement closed'],
+  ['inventory.updated', 'Inventory changed (free cars per day)'],
 ];
+/** Events sent when no list is saved: everything except the inventory push, which must be picked. */
+const DEFAULT_EVENTS = WEBHOOK_EVENTS.map(e => e[0]).filter(e => e !== 'inventory.updated');
 
 interface Props {
   aggregator: Aggregator;
@@ -51,6 +56,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [hookError, setHookError] = useState<string | null>(null);
+  const [openLoc, setOpenLoc] = useState<number | null>(null);
   useEffect(() => { setRules(aggregator.bookingRules || {}); setNewSecret(null); }, [aggregator.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const r = { ...RULE_DEFAULTS, ...rules };
@@ -72,7 +78,13 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
     navigator.clipboard?.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(null), 1500); }).catch(() => undefined);
   };
   const save = () => {
-    const clean: ChannelBookingRules = { ...rules, locations: locations.filter(l => l.code.trim()).map(l => ({ ...l, code: l.code.trim().toUpperCase() })) };
+    const p = rules.pricing;
+    const clean: ChannelBookingRules = {
+      ...rules,
+      locations: locations.filter(l => l.code.trim()).map(l => ({ ...l, code: l.code.trim().toUpperCase() })),
+      ...(p ? { pricing: { ...p, coverages: (p.coverages || []).filter(c => c.code.trim()), promotions: (p.promotions || []).filter(c => c.code.trim()) } } : {}),
+      ...(rules.allotments ? { allotments: rules.allotments.filter(a => a.group && a.from && a.to) } : {}),
+    };
     onUpdate({ ...aggregator, bookingRules: clean });
     showConfirmation?.(`Booking rules saved for ${aggregator.name}.`);
   };
@@ -97,6 +109,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
   const endpointRows: [string, string, string][] = [
     ['Locations', 'POST', ep.locSearch], ['Availability & offers', 'POST', ep.availRate], ['Book', 'POST', ep.vehRes],
     ['Retrieve', 'POST', ep.retRes], ['Modify', 'POST', ep.modify], ['Cancel', 'POST', ep.cancel],
+    ['SOAP 1.1 / 1.2 (all OTA messages)', 'POST', ep.soap], ['WSDL', 'GET', ep.wsdl], ['Native XML schema (XSD)', 'GET', ep.nativeXsd],
   ];
 
   return (
@@ -132,7 +145,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
         <div className="rounded-lg border border-slate-200 overflow-hidden">
           {endpointRows.map(([label, method, url]) => (
             <div key={url} className="flex items-center gap-3 px-3 py-2 border-b last:border-b-0 border-slate-100">
-              <span className="text-xs text-slate-500 w-40 shrink-0">{label}</span>
+              <span className="text-xs text-slate-500 w-52 shrink-0">{label}</span>
               <span className="text-[10px] font-semibold font-mono px-1.5 py-px rounded border border-slate-200 bg-slate-50 text-slate-600">{method}</span>
               <code className="text-xs font-mono text-slate-800 truncate flex-1" title={url}>{url}</code>
               <Button size="sm" variant="ghost" onClick={() => copy(url, url)}>{copied === url ? 'Copied' : 'Copy'}</Button>
@@ -194,8 +207,11 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
                 <div className="flex items-center gap-4 text-xs text-slate-600 px-0.5">
                   <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={l.pickup} onChange={e => setLocation(i, { pickup: e.target.checked })} />Pick-ups</label>
                   <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={l.dropOff} onChange={e => setLocation(i, { dropOff: e.target.checked })} />Returns</label>
-                  {locations.length > 1 && <button type="button" onClick={() => set('locations', locations.filter((_, j) => j !== i))} className="ml-auto text-rose-600 font-semibold hover:underline">Remove</button>}
+                  <button type="button" onClick={() => setOpenLoc(openLoc === i ? null : i)} className="ml-auto text-indigo-600 font-semibold hover:underline">
+                    {openLoc === i ? 'Hide details' : `Details${l.phone && l.latitude != null && l.openingHours && Object.keys(l.openingHours).length ? ' ✓' : ''}`}</button>
+                  {locations.length > 1 && <button type="button" onClick={() => set('locations', locations.filter((_, j) => j !== i))} className="text-rose-600 font-semibold hover:underline">Remove</button>}
                 </div>
+                {openLoc === i && <LocationDetails loc={l} currency={aggregator.currency || 'USD'} onChange={p => setLocation(i, p)} />}
               </div>
             ))}
           </div>
@@ -239,13 +255,14 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
         </label>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           {WEBHOOK_EVENTS.map(([ev, label]) => {
-            const on = !(rules.webhookEvents && rules.webhookEvents.length) || rules.webhookEvents.includes(ev);
+            const on = rules.webhookEvents && rules.webhookEvents.length ? rules.webhookEvents.includes(ev) : DEFAULT_EVENTS.includes(ev);
             return (
               <label key={ev} className="inline-flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer">
                 <input type="checkbox" checked={on} onChange={() => {
-                  const cur = rules.webhookEvents && rules.webhookEvents.length ? rules.webhookEvents : WEBHOOK_EVENTS.map(x => x[0]);
+                  const cur = rules.webhookEvents && rules.webhookEvents.length ? rules.webhookEvents : DEFAULT_EVENTS;
                   const next = on ? cur.filter(x => x !== ev) : [...cur, ev];
-                  set('webhookEvents', next.length === WEBHOOK_EVENTS.length ? [] : next);
+                  const same = next.length === DEFAULT_EVENTS.length && DEFAULT_EVENTS.every(x => next.includes(x));
+                  set('webhookEvents', same ? [] : next);
                 }} />
                 {label} <span className="font-mono text-[11px] text-slate-400">{ev}</span>
               </label>
@@ -289,6 +306,11 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
           ) : <p className="px-3 py-4 text-xs text-slate-500">No webhook events yet.</p>}
         </div>
       </Section>
+
+      <VehicleDetailsSection groups={groups} fleet={fleet} details={rules.groupDetails || {}} onChange={d => set('groupDetails', d)} />
+      <PricingSection pricing={rules.pricing || {}} currency={aggregator.currency || 'USD'} groups={groups} onChange={p => set('pricing', p)} />
+      <AllotmentsSection allotments={rules.allotments || []} groups={groups} onChange={a => set('allotments', a)} />
+      <OperationsSection aggregator={aggregator} rules={rules} set={set} saved={saved} showConfirmation={showConfirmation} />
 
       {dirty && <div className="flex justify-end"><Button variant="primary" onClick={save}>Save rules</Button></div>}
     </div>

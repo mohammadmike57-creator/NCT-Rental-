@@ -16,6 +16,9 @@ import java.util.*;
  *   POST /api/channels/{id}/webhooks/test               send a signed test event now
  *   POST /api/channels/{id}/webhooks/{delivery}/replay  send a delivery again
  *   POST /api/channels/{id}/certification               run the certification suite (sandbox)
+ *   GET  /api/channels/{id}/statement?month=YYYY-MM     commission statement (live bookings by pick-up month)
+ *   GET  /api/channels/{id}/inventory?days=N            what inventory.updated would send now
+ *   POST /api/channels/{id}/inventory/push              send inventory.updated now
  */
 @RestController
 @RequestMapping("/api/channels/{channelId}")
@@ -28,9 +31,14 @@ public class ChannelGatewayAdminController {
     private final ChannelWebhookService webhooks;
     private final ChannelWebhookRepository deliveries;
     private final ChannelCertificationService certification;
+    private final ChannelBookingService core;
+    private final ChannelJobs jobs;
 
     public ChannelGatewayAdminController(ChannelStateReader channels, ChannelBookingRepository bookings, ChannelWebhookService webhooks,
-                                         ChannelWebhookRepository deliveries, ChannelCertificationService certification) {
+                                         ChannelWebhookRepository deliveries, ChannelCertificationService certification,
+                                         ChannelBookingService core, ChannelJobs jobs) {
+        this.core = core;
+        this.jobs = jobs;
         this.channels = channels;
         this.bookings = bookings;
         this.webhooks = webhooks;
@@ -53,6 +61,8 @@ public class ChannelGatewayAdminController {
             m.put("total", b.getTotal());
             m.put("currency", b.getCurrency());
             m.put("customerName", b.getCustomerName());
+            m.put("fee", b.getFeeAmount());
+            m.put("promoCode", b.getPromoCode());
             m.put("sandbox", b.isSandbox());
             m.put("createdAt", b.getCreatedAt());
             m.put("updatedAt", b.getUpdatedAt());
@@ -113,6 +123,34 @@ public class ChannelGatewayAdminController {
     public ResponseEntity<?> certify(@PathVariable String channelId, Authentication auth) {
         if (!allowed(auth)) return forbidden();
         return channels.find(channelId).<ResponseEntity<?>>map(ch -> ResponseEntity.ok(certification.run(ch))).orElseGet(this::notFound);
+    }
+
+    @GetMapping("/statement")
+    public ResponseEntity<?> statement(@PathVariable String channelId, @RequestParam String month, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        java.time.YearMonth ym;
+        try { ym = java.time.YearMonth.parse(month); } catch (Exception e) { return ResponseEntity.badRequest().body(Map.of("error", "month must be YYYY-MM")); }
+        return channels.find(channelId).<ResponseEntity<?>>map(ch -> ResponseEntity.ok(core.statement(ch, ym))).orElseGet(this::notFound);
+    }
+
+    @GetMapping("/inventory")
+    public ResponseEntity<?> inventory(@PathVariable String channelId, @RequestParam(required = false) Integer days, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        return channels.find(channelId).<ResponseEntity<?>>map(ch -> {
+            ChannelBookingService.Ctx c = core.context(ch, false);
+            return ResponseEntity.ok(core.inventory(c, days == null ? c.rules().inventoryPushDays() : Math.max(1, Math.min(365, days))));
+        }).orElseGet(this::notFound);
+    }
+
+    @PostMapping("/inventory/push")
+    public ResponseEntity<?> pushInventory(@PathVariable String channelId, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        Optional<ChannelSnapshot> ch = channels.find(channelId);
+        if (ch.isEmpty()) return notFound();
+        ChannelBookingService.Ctx c = core.context(ch.get(), false);
+        if (c.rules().webhookUrl().isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Set the webhook URL first."));
+        if (!c.rules().wantsEvent("inventory.updated")) return ResponseEntity.badRequest().body(Map.of("error", "Tick the inventory.updated event first."));
+        return ResponseEntity.ok(Map.of("queued", jobs.pushInventory(c, true)));
     }
 
     private static Map<String, Object> delivery(ChannelWebhookDelivery d) {

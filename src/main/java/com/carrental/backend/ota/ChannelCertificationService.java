@@ -38,7 +38,7 @@ public class ChannelCertificationService {
         ChannelBookingService.Ctx base = core.context(ch, true);
         ChannelRules r = base.rules();
         // Sandbox, no webhooks.
-        ChannelBookingService.Ctx c = new ChannelBookingService.Ctx(ch, copy(r, "", r.operationalBuffer()), base.state(), true);
+        ChannelBookingService.Ctx c = new ChannelBookingService.Ctx(ch, r.forCertification(r.operationalBuffer()), base.state(), true);
         List<Result> out = new ArrayList<>();
         String loc = r.locations().get(0).code();
         String stamp = String.valueOf(System.currentTimeMillis() % 1_000_000);
@@ -57,6 +57,25 @@ public class ChannelCertificationService {
             if (g.isEmpty()) throw new AssertionError("No vehicle groups: publish rates first (Rates tab)");
             return g.size() + " group(s): " + String.join(", ", g.stream().map(VehicleGroup::code).toList());
         });
+        step(out, "vehicle-details", "Vehicle groups carry seats, doors, bags, fuel and a picture", () -> {
+            List<VehicleGroup> g = core.vehicleGroups(c);
+            if (g.isEmpty()) throw new AssertionError("No vehicle groups");
+            long noPicture = g.stream().filter(v -> v.vehicle().pictureUrl() == null).count();
+            VehicleInfo v = g.get(0).vehicle();
+            String first = g.get(0).code() + ": " + v.seats() + " seats, " + v.doors() + " doors, " + v.largeBags() + "+" + v.smallBags() + " bags, " + v.fuel();
+            if (noPicture > 0) throw new AssertionError(first + " — " + noPicture + " group(s) have no picture (add a fleet photo or a picture URL)");
+            return first;
+        });
+        step(out, "location-details", "Locations carry phone, position and opening hours", () -> {
+            List<String> missing = new ArrayList<>();
+            for (Location l : core.locations(c)) {
+                if (l.phone() == null || l.phone().isBlank()) missing.add(l.code() + " phone");
+                if (l.latitude() == null || l.longitude() == null) missing.add(l.code() + " position");
+                if (l.openingHours().isEmpty()) missing.add(l.code() + " hours");
+            }
+            if (!missing.isEmpty()) throw new AssertionError("Missing: " + String.join(", ", missing));
+            return core.locations(c).size() + " location(s) complete";
+        });
 
         LocalDateTime from = firstSellableDate(c);
         Search search = new Search(loc, loc, from, from.plusDays(3), 30, null, null, List.of());
@@ -68,10 +87,43 @@ public class ChannelCertificationService {
             return list.size() + " offer(s); " + offer[0].vehicleGroup() + " " + offer[0].totalAmount() + " " + offer[0].currency() + " for " + offer[0].rentalDays() + " days";
         });
         step(out, "no-availability", "Sold-out case shows no available cars", () -> {
-            ChannelBookingService.Ctx full = new ChannelBookingService.Ctx(ch, copy(c.rules(), "", 100000), c.state(), true);
+            ChannelBookingService.Ctx full = new ChannelBookingService.Ctx(ch, c.rules().forCertification(100000), c.state(), true);
             boolean any = core.search(full, search).stream().anyMatch(o -> "Available".equals(o.status()));
             if (any) throw new AssertionError("A sold-out group was still offered");
             return "All groups Closed when no car is free";
+        });
+        step(out, "pricing", "Offers show tax, mileage and insurance covers", () -> {
+            Offer o = offer[0];
+            if (o == null) throw new AssertionError("No offer to check");
+            String tax = o.taxPercent().signum() == 0 ? "no tax set" : o.taxName() + " " + o.taxAmount() + (o.taxIncluded() ? " included" : " added");
+            String km = o.mileage().unlimited() ? "unlimited km" : o.mileage().kmIncluded() + " km included";
+            return tax + "; " + km + "; " + o.coverages().size() + " cover(s)";
+        });
+        ChannelRules.Coverage optional = r.pricing().coverages().stream().filter(v -> !v.included()).findFirst().orElse(null);
+        if (optional != null && offer[0] != null) step(out, "coverage", "An optional cover is priced per day", () -> {
+            Search withCover = new Search(loc, loc, from, from.plusDays(3), 30, null, offer[0].vehicleGroup(), List.of(), List.of(optional.code()), null);
+            Offer o = core.search(c, withCover).get(0);
+            BigDecimal expected = optional.dailyPrice().multiply(BigDecimal.valueOf(o.rentalDays())).setScale(2, RoundingMode.HALF_UP);
+            boolean found = o.breakdown().stream().anyMatch(l -> "COVERAGE".equals(l.type()) && l.amount().compareTo(expected) == 0);
+            if (!found) throw new AssertionError(optional.code() + " not charged " + expected);
+            return optional.code() + " adds " + expected + " " + o.currency();
+        });
+        ChannelRules.Promotion promo = r.pricing().promotions().stream().filter(p -> p.appliesTo(offer[0] == null ? "" : offer[0].vehicleGroup(), from.toLocalDate())).findFirst().orElse(null);
+        if (promo != null && offer[0] != null) step(out, "promotion", "A promotion code lowers the base rate", () -> {
+            Offer o = core.search(c, new Search(loc, loc, from, from.plusDays(3), 30, null, offer[0].vehicleGroup(), List.of(), null, promo.code())).get(0);
+            if (!promo.code().equals(o.promoCode()) || o.totalAmount().compareTo(offer[0].totalAmount()) >= 0) throw new AssertionError("Promotion not applied");
+            return promo.code() + ": " + offer[0].totalAmount() + " → " + o.totalAmount() + " " + o.currency();
+        });
+        step(out, "invalid-promo", "An unknown promotion code is refused", () -> {
+            expect(ChannelError.POLICY_VIOLATION, () -> core.search(c, new Search(loc, loc, from, from.plusDays(3), 30, null, null, List.of(), null, "NOPE-" + stamp)));
+            return "POLICY_VIOLATION returned";
+        });
+        ChannelRules.Location home = r.locations().get(0);
+        if (!home.hours().isEmpty() && !home.afterHoursPickup()) step(out, "closed", "A pick-up when the station is closed is refused", () -> {
+            LocalDateTime night = from.toLocalDate().atTime(3, 0);
+            if (home.openAt(night)) return "Station is open at 03:00; nothing to check";
+            expect(ChannelError.INVALID_DATE, () -> core.search(c, new Search(loc, loc, night, night.plusDays(3), 30, null, null, List.of())));
+            return "INVALID_DATE returned for 03:00";
         });
         if (offer[0] == null) return report(out);
         Search booked = new Search(loc, loc, from, from.plusDays(3), 30, null, offer[0].vehicleGroup(), List.of());
@@ -156,8 +208,18 @@ public class ChannelCertificationService {
             new Driver("John", "Doe", "1990-05-01", "CERT123456", "JO"), expected, "Certification test", null);
     }
 
-    /** The first day with published rates, at least two days out. */
+    /** The first day with published rates, at least two days out, at a time the station is open. */
     private static LocalDateTime firstSellableDate(ChannelBookingService.Ctx c) {
+        LocalDateTime d = firstRateDate(c);
+        ChannelRules.Location l = c.rules().locations().get(0);
+        for (int i = 0; i < 14 && !(l.openAt(d) && l.openAt(d.plusDays(3)) && l.openAt(d.plusDays(4))); i++) {
+            ChannelRules.Hours h = l.hours().get(d.getDayOfWeek());
+            d = h != null && !l.openAt(d) ? d.toLocalDate().atTime(h.open().plusHours(1)) : d.plusDays(1);
+        }
+        return d;
+    }
+
+    private static LocalDateTime firstRateDate(ChannelBookingService.Ctx c) {
         LocalDate earliest = LocalDateTime.now().plusHours(c.rules().minLeadHours()).toLocalDate().plusDays(2);
         for (var plan : c.channel().publishedRatePlans()) {
             try {
@@ -193,11 +255,5 @@ public class ChannelCertificationService {
 
     private static Report report(List<Result> out) {
         return new Report(Instant.now(), (int) out.stream().filter(Result::passed).count(), out.size(), out);
-    }
-
-    private static ChannelRules copy(ChannelRules r, String webhookUrl, int buffer) {
-        return new ChannelRules(true, r.paymentModel(), r.freeCancellationHours(), r.lateCancellationFeePercent(), r.modificationFee(),
-            r.minLeadHours(), r.maxRentalDays(), r.maxHorizonDays(), r.minDriverAge(), r.maxDriverAge(), r.offerValidityMinutes(),
-            r.holdMinutes(), buffer, r.oneWayFee(), r.allowedGroups(), r.locations(), webhookUrl, r.webhookEvents());
     }
 }

@@ -115,6 +115,30 @@ public class ChannelWebhookService {
         deliveries.save(d);
     }
 
+    /** Queues a non-reservation event (inventory.updated) with its own data. */
+    public boolean emitData(ChannelBookingService.Ctx c, String event, JsonNode data) {
+        if (c.rules().webhookUrl().isBlank() || !c.rules().wantsEvent(event)) return false;
+        ObjectNode body = ChannelBookingService.JSON.createObjectNode();
+        String eventId = "evt_" + UUID.randomUUID().toString().replace("-", "");
+        body.put("event_id", eventId);
+        body.put("event_type", event);
+        body.put("channel_code", c.code());
+        body.put("occurred_at", Instant.now().toString());
+        body.put("sandbox", c.sandbox());
+        body.set("data", data);
+        ChannelWebhookDelivery d = new ChannelWebhookDelivery();
+        d.setEventId(eventId);
+        d.setChannelId(c.channel().id());
+        d.setEventType(event);
+        d.setUrl(c.rules().webhookUrl());
+        d.setPayload(ChannelBookingService.write(body));
+        d.setStatus(ChannelWebhookDelivery.Status.PENDING);
+        d.setNextAttemptAt(Instant.now());
+        d.setCreatedAt(Instant.now());
+        deliveries.save(d);
+        return true;
+    }
+
     /** A broker booking changed in the app (checked out, checked in, cancelled, edited by staff). */
     @EventListener
     public void onReservationChanged(ReservationChangedEvent e) {

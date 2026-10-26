@@ -35,6 +35,8 @@ public class ChannelBooking {
     private LocalDateTime returnAt;
     @Column(precision = 12, scale = 2) private BigDecimal total;
     @Column(length = 3) private String currency;
+    @Column(precision = 12, scale = 2) private BigDecimal feeAmount;        // cancellation or no-show fee charged
+    @Column(length = 40) private String promoCode;
     @Column(length = 20) private String status;                                // last status told to the broker
     @Column(length = 200) private String customerName;
     @Lob @Column(columnDefinition = "TEXT") private String createResponse;    // JSON view replayed on retries

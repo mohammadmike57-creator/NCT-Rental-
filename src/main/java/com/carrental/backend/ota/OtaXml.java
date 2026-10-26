@@ -107,6 +107,28 @@ public final class OtaXml {
         return code.length() > 3 && "RDHECLAMVU".indexOf(code.charAt(3)) >= 0;
     }
 
+    /** OTA VehicleCategory (code list VEC) from the SIPP type letter. */
+    static int sippVehicleCategory(String code) {
+        char t = code.length() > 1 ? code.charAt(1) : 'D';
+        return switch (t) {
+            case 'V' -> 2;                 // van
+            case 'F', 'G', 'J', 'X' -> 3;  // SUV / crossover
+            case 'T' -> 4;                 // convertible
+            case 'P', 'Q', 'K' -> 5;       // pick-up / truck
+            case 'W' -> 8;                 // wagon
+            default -> 1;                  // car
+        };
+    }
+
+    /** OTA VehClass Size (code list SIZ) from the SIPP category letter. */
+    static int sippSize(String code) {
+        char c = code.isEmpty() ? 'C' : code.charAt(0);
+        return switch (c) {
+            case 'M', 'N' -> 1; case 'E', 'H' -> 3; case 'C', 'D' -> 4; case 'I', 'J' -> 6; case 'S', 'R' -> 7;
+            case 'F', 'G' -> 8; case 'P', 'U' -> 9; case 'L', 'W' -> 10; case 'X', 'O' -> 11; default -> 4;
+        };
+    }
+
     static String transmissionOf(JsonNode vehicle, String sipp) {
         String t = vehicle == null ? "" : vehicle.path("transmission").asText("");
         if (t.equalsIgnoreCase("automatic")) return "Automatic";

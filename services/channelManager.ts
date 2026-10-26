@@ -603,7 +603,10 @@ export const partnerEndpoints = (apiBase: string, agg: Aggregator) => {
     retRes: `${base}/OTA_VehRetRes`,
     modify: `${base}/OTA_VehModify`,
     cancel: `${base}/OTA_VehCancel`,
+    soap: `${base}/soap`,
+    wsdl: `${base}/soap?wsdl`,
     nativeXml: `${root}/xml/v1`,
+    nativeXsd: `${root}/xml/v1/schema.xsd`,
     rest: `${root}/partner/v1/${code}`,
   };
 };

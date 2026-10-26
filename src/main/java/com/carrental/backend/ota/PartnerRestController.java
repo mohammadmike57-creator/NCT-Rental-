@@ -26,6 +26,8 @@ import java.util.function.Function;
  *   GET   /partner/v1/{channel}/locations
  *   GET   /partner/v1/{channel}/vehicle-groups
  *   GET   /partner/v1/{channel}/extras
+ *   GET   /partner/v1/{channel}/coverages                       insurance covers (included and optional)
+ *   GET   /partner/v1/{channel}/inventory?days=60               free cars per group per day
  *   POST  /partner/v1/{channel}/availability                  search → offers
  *   POST  /partner/v1/{channel}/quotes                        {"offer_id"} → re-validated offer, car held
  *   POST  /partner/v1/{channel}/reservations                  book
@@ -62,6 +64,17 @@ public class PartnerRestController {
     @GetMapping("/extras")
     public ResponseEntity<String> extras(@PathVariable String channel, HttpServletRequest http) {
         return run(channel, null, http, "REST extras", c -> envelope(c, "extras", core.extras(c.ctx())));
+    }
+
+    @GetMapping("/coverages")
+    public ResponseEntity<String> coverages(@PathVariable String channel, HttpServletRequest http) {
+        return run(channel, null, http, "REST coverages", c -> envelope(c, "coverages", core.coverages(c.ctx())));
+    }
+
+    @GetMapping("/inventory")
+    public ResponseEntity<String> inventory(@PathVariable String channel, @RequestParam(required = false) Integer days, HttpServletRequest http) {
+        return run(channel, null, http, "REST inventory", c -> envelope(c, "inventory",
+            core.inventory(c.ctx(), days == null ? c.ctx().rules().inventoryPushDays() : Math.max(1, Math.min(365, days)))));
     }
 
     @PostMapping(value = "/availability", consumes = MediaType.ALL_VALUE)
@@ -158,9 +171,17 @@ public class PartnerRestController {
             extras = new ArrayList<>();
             for (JsonNode e : it.path("extras")) extras.add(new ExtraRequest(e.path("code").asText(""), e.path("quantity").asInt(1)));
         } else if (required) extras = List.of();
+        List<String> covers = null;
+        if (it.has("coverages")) {
+            covers = new ArrayList<>();
+            for (JsonNode cv : it.path("coverages")) {
+                String code = cv.isTextual() ? cv.asText() : cv.path("code").asText("");
+                if (!code.isBlank()) covers.add(code.trim().toUpperCase());
+            }
+        }
         return new Search(pick, ret, from == null ? null : OtaBookingXml.dateTime(from, "pickup_at"), to == null ? null : OtaBookingXml.dateTime(to, "return_at"),
             it.has("driver_age") ? it.path("driver_age").asInt() : null, text(it, "driver_country"),
-            text(it, "vehicle_group") == null ? null : text(it, "vehicle_group").toUpperCase(), extras);
+            text(it, "vehicle_group") == null ? null : text(it, "vehicle_group").toUpperCase(), extras, covers, text(it, "promo_code"));
     }
 
     private static Customer customer(JsonNode c) {

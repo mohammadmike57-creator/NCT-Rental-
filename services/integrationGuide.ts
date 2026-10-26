@@ -89,6 +89,7 @@ ${section(1, 'Overview', `
   ${table(['Format', 'Address', 'Use when'], [
     ['OpenTravel XML (OTA 2003/05)', `<code>${esc(otaBase)}/{message}</code>`, 'You already speak OTA (OTA_VehAvailRate, OTA_VehRes …)'],
     ['Native XML', `<code>${esc(ep.nativeXml)}/{Operation}</code>`, 'You prefer simple XML with a Header and Credentials block'],
+    ['OTA over SOAP 1.1 / 1.2', `<code>${esc(ep.soap)}</code>`, 'Your system needs a SOAP envelope (WSDL at <code>?wsdl</code>)'],
     ['REST / JSON', `<code>${esc(ep.rest)}</code>`, 'Modern JSON integrations'],
   ])}
   <h3>Environments</h3>
@@ -97,7 +98,7 @@ ${section(1, 'Overview', `
 ${section(2, 'Authentication and security', `
   <ul>
     <li>HTTPS only (TLS 1.2+). Credentials are never sent in the URL.</li>
-    <li>Send your API key in <code>Authorization: Bearer &lt;key&gt;</code> or <code>X-Api-Key: &lt;key&gt;</code> (native XML may also use <code>Credentials/ApiKey</code>). Keys are issued per channel and stored only as a hash.</li>
+    <li>Send your API key in <code>Authorization: Bearer &lt;key&gt;</code> or <code>X-Api-Key: &lt;key&gt;</code>. In OTA messages it may travel as <code>POS/Source/RequestorID MessagePassword</code>, over SOAP as a WS-Security <code>UsernameToken</code> (Username = <code>${esc(ch)}</code>, Password = key), and in native XML as <code>Credentials/ApiKey</code>. Keys are issued per channel and stored only as a hash.</li>
     <li>Rate limit: <b>${r.rateLimitPerMinute}</b> requests per minute${agg.bookingRules?.ipAllowlist?.length ? `; requests are accepted only from ${esc(agg.bookingRules.ipAllowlist.join(', '))}` : ''}. Over the limit you receive <code>RATE_LIMIT_EXCEEDED</code> (HTTP 429): retry with exponential back-off.</li>
     <li>Every response carries an <code>X-Request-ID</code> header; quote it when contacting support. You may send your own <code>X-Request-ID</code>.</li>
     <li>XML is parsed with DTDs and external entities disabled; requests over 64 KB are refused.</li>
@@ -108,13 +109,15 @@ ${section(3, 'Operations', `
     ['List locations', 'POST OTA_VehLocSearch', 'POST Locations', 'GET /locations'],
     ['List vehicle groups', '—', 'POST VehicleGroups', 'GET /vehicle-groups'],
     ['List extras', '—', 'POST Extras', 'GET /extras'],
+    ['List insurance covers', 'in OTA_VehAvailRate (PricedCoverages)', 'POST Coverages', 'GET /coverages'],
+    ['Free cars per group per day', 'webhook inventory.updated', 'POST Inventory', 'GET /inventory?days=60'],
     ['Search availability & prices', 'POST OTA_VehAvailRate', 'POST Availability', 'POST /availability'],
     ['Re-validate an offer and hold a car', '—', 'POST Quote', 'POST /quotes'],
     ['Create a booking', 'POST OTA_VehRes', 'POST ReservationCreate', 'POST /reservations'],
     ['Retrieve a booking', 'POST OTA_VehRetRes', 'POST ReservationStatus', 'GET /reservations/{id}'],
     ['Modify a booking', 'POST OTA_VehModify', 'POST ReservationModify', 'PATCH /reservations/{id}'],
     ['Cancel a booking', 'POST OTA_VehCancel', 'POST ReservationCancel', 'POST /reservations/{id}/cancel'],
-  ].map(([op, ...cells]) => [esc(op), ...cells.map(c => (c === '—' ? '—' : `<code>${esc(c)}</code>`))]))}
+  ].map(([op, ...cells]) => [esc(op), ...cells.map(c => (c === '—' ? '—' : c.includes(' ') && !c.startsWith('POST') && !c.startsWith('GET') && !c.startsWith('PATCH') ? esc(c) : `<code>${esc(c)}</code>`))]))}
   <h3>Typical flow</h3>
   <ol><li>Search availability. Each available group returns an <b>offer id</b> (valid ${r.offerValidityMinutes} minutes).</li>
   <li>Optional: quote the offer when the customer starts checkout; the car is held for ${r.holdMinutes} minutes.</li>
@@ -289,12 +292,72 @@ ${section(11, 'Commercial terms for this channel', table(['Term', 'Value'], [
   ['Driver age', `${r.minDriverAge}${r.maxDriverAge ? `–${r.maxDriverAge}` : '+'} years`],
   ['Security deposit', 'Held at pick-up for every booking (amount per vehicle group in each offer)'],
   ['Locations', locs.map(l => `<code>${esc(l.code)}</code> ${esc(l.name)}${!l.pickup ? ' (returns only)' : !l.dropOff ? ' (pick-ups only)' : ''}`).join('<br>')],
-  ['Commission', agg.commissionPercent != null ? `${agg.commissionPercent}%` : 'As per agreement'],
+  ['Commission', agg.commissionPercent != null ? `${agg.commissionPercent}% of the booking total (of the fee for cancellations and no-shows), settled monthly by pick-up month` : 'As per agreement'],
+  ['Young / senior driver', [agg.bookingRules?.pricing?.youngDriverFee ? `Under ${agg.bookingRules.pricing.youngDriverUnder}: ${agg.bookingRules.pricing.youngDriverFee} ${cur} a day` : '',
+    agg.bookingRules?.pricing?.seniorDriverFee ? `${agg.bookingRules.pricing.seniorDriverFrom}+: ${agg.bookingRules.pricing.seniorDriverFee} ${cur} a day` : ''].filter(Boolean).join('; ') || 'No surcharge'],
   ['Currency', cur],
 ]))}
 
-${section(12, 'Certification', `
-  <p>Before go-live we run, and you should run in the sandbox, these cases: authentication success and failure; location and vehicle-group lists; availability search; no-availability; quote and hold; expired offer; changed price; booking; duplicate prevention (same key twice); retrieval by both references; modification; cancellation and its fee; invalid location, date and vehicle group; webhook delivery and retry; rate-limit handling.</p>`)}
+${section(12, 'Vehicles, stations, covers, tax and promotions', `
+  <h3>Vehicle details</h3>
+  <p>Every vehicle group carries seats, doors, bags, fuel and a picture. In OTA they are on <code>Vehicle</code>: <code>PassengerQuantity</code>, <code>BaggageQuantity</code>, <code>FuelType</code>, <code>VehType DoorCount</code>, <code>VehClass Size</code> and <code>PictureURL</code>; in native XML under <code>VehicleDetails</code>; in JSON under <code>vehicle</code>.</p>
+  ${code(`<Vehicle AirConditionInd="true" TransmissionType="Automatic" FuelType="Petrol" PassengerQuantity="5" BaggageQuantity="3" Code="ECMR" CodeContext="SIPP">
+  <VehType VehicleCategory="1" DoorCount="4"/><VehClass Size="3"/>
+  <VehMakeModel Name="Kia Picanto or similar" Code="ECMR"/>
+  <PictureURL>https://…/api/media/…</PictureURL>
+</Vehicle>`)}
+  <h3>Stations</h3>
+  <p><code>OTA_VehLocSearchRS</code> returns per station: address, <code>Telephone</code>, <code>Position Latitude/Longitude</code>, opening hours as <code>OperationSchedules/OperationTime Mon="true" Start="08:00" End="20:00"</code>, and in TPA_Extensions the station type and whether after-hours pick-up / return is possible (with its fee). A pick-up or return outside the opening hours is refused with <code>INVALID_DATE</code>, unless after-hours service is offered, in which case the after-hours fee is added to the price.</p>
+  ${table(['Station', 'Type', 'Phone', 'Opening hours', 'After hours'], locs.map(l => {
+    const h = l.openingHours || {};
+    const days = Object.entries(h).filter(([, v]) => v && !v.closed).map(([d, v]) => `${d.slice(0, 1).toUpperCase()}${d.slice(1)} ${v!.open}–${v!.close}`);
+    const open = Object.values(h).filter(v => v && !v.closed);
+    const same = open.length === 7 && open.every(v => v!.open === open[0]!.open && v!.close === open[0]!.close);
+    const hoursText = !days.length ? 'Around the clock' : same ? (open[0]!.open === '00:00' && open[0]!.close >= '23:59' ? 'Around the clock' : `Every day ${open[0]!.open}–${open[0]!.close}`) : days.join(', ');
+    return [`<code>${esc(l.code)}</code> ${esc(l.name)}`, esc(l.type || 'CITY'), esc(l.phone || '—'), esc(hoursText),
+      l.afterHoursPickup || l.afterHoursReturn ? `${[l.afterHoursPickup && 'pick-up', l.afterHoursReturn && 'return'].filter(Boolean).join(' and ')}${l.afterHoursFee ? `, ${l.afterHoursFee} ${cur}` : ''}` : 'No'];
+  }))}
+  <h3>Insurance covers</h3>
+  <p>Each offer lists the covers in <code>PricedCoverages</code>: included covers with <code>IncludedInRate="true"</code>, optional covers with their daily price and the excess that applies with them (<code>Deductible ExcessAmount</code>). To sell an optional cover, send it in the search or booking: <code>&lt;CoveragePrefs&gt;&lt;CoveragePref CoverageType="SCDW"/&gt;&lt;/CoveragePrefs&gt;</code> (native: <code>Coverages/CoverageCode</code>; JSON: <code>"coverages": ["SCDW"]</code>).</p>
+  ${(agg.bookingRules?.pricing?.coverages || []).length ? table(['Code', 'Cover', 'Price', 'Excess with it'], (agg.bookingRules!.pricing!.coverages || []).map(c => [`<code>${esc(c.code)}</code>`, esc(c.name),
+    c.included ? 'Included' : `${c.dailyPrice || 0} ${cur} a day`, c.excess != null ? `${c.excess} ${cur}` : "The car's excess"])) : ''}
+  <h3>Tax, mileage and fees</h3>
+  <p>${(agg.bookingRules?.pricing?.taxPercent || 0) > 0
+    ? `${esc(agg.bookingRules?.pricing?.taxName || 'VAT')} ${agg.bookingRules!.pricing!.taxPercent}% is ${agg.bookingRules?.pricing?.taxIncluded === false ? '<b>added</b> to the prices (a TAX line in the breakdown)' : '<b>included</b> in all prices'} and reported in <code>TaxAmounts</code> (native <code>TaxAmount</code>, JSON <code>tax_amount</code>).`
+    : 'No tax is added to the prices.'}
+    Mileage is in <code>RateDistance</code>: ${agg.bookingRules?.pricing?.unlimitedMileage === false ? `${agg.bookingRules.pricing.kmPerDay || 0} km a day included, then ${agg.bookingRules.pricing.extraKmPrice || 0} ${cur} per km` : 'unlimited'}.
+    Fees appear in <code>Fees</code> with their purpose: <code>ONE_WAY</code>, <code>AFTER_HOURS</code>, <code>YOUNG_DRIVER</code>, <code>SENIOR_DRIVER</code>, <code>MODIFY</code>; discounts with the promotion code.</p>
+  <h3>Promotion codes</h3>
+  <p>Send an agreed code with the search or booking: OTA <code>&lt;RateQualifier PromotionCode="SUMMER10"/&gt;</code>, native <code>&lt;PromoCode&gt;</code>, JSON <code>"promo_code"</code>. It lowers the rental rate by its percentage for the groups and pick-up dates it covers; an unknown or expired code is refused with <code>POLICY_VIOLATION</code>. The applied code is returned with the offer and the booking.</p>`)}
+
+${section(13, 'SOAP, WSDL and XML schema', `
+  <p>All OTA messages are also accepted in a SOAP 1.1 (<code>text/xml</code>) or SOAP 1.2 (<code>application/soap+xml</code>) envelope at <code>${esc(ep.soap)}</code>. The answer comes in the same SOAP version. Business errors are returned as the OTA RS with <code>Errors</code>; a SOAP Fault means the envelope itself could not be read.</p>
+  ${code(`POST ${ep.soap}
+Content-Type: text/xml; charset=utf-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+  <soapenv:Header><wsse:Security><wsse:UsernameToken>
+    <wsse:Username>${esc(ch)}</wsse:Username><wsse:Password>••••••</wsse:Password>
+  </wsse:UsernameToken></wsse:Security></soapenv:Header>
+  <soapenv:Body>
+    <OTA_VehAvailRateRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="A1">…</OTA_VehAvailRateRQ>
+  </soapenv:Body>
+</soapenv:Envelope>`)}
+  ${table(['Document', 'Address'], [['WSDL (SOAP 1.1 and 1.2 bindings)', `<code>${esc(ep.wsdl)}</code>`], ['Native XML schema (XSD)', `<code>${esc(ep.nativeXsd)}</code>`]])}
+  <p>Every native XML request and response validates against the XSD.</p>`)}
+
+${section(14, 'Inventory push, allotments and no-shows', `
+  <p>If you subscribe to <code>inventory.updated</code>, we push the number of free cars per vehicle group per day for the next ${agg.bookingRules?.inventoryPushDays || 60} days whenever it changes (checked every 15 minutes, and at least daily). You can also pull the same data: native <code>Inventory</code>, REST <code>GET /inventory?days=60</code>.</p>
+  ${code(`{ "event_type": "inventory.updated", "channel_code": "${esc(ch)}", "data": { "from": "${y}-05-01", "to": "${y}-06-29",
+  "groups": [ { "vehicle_group": "ECMR", "fleet_size": 6,
+    "days": [ { "date": "${y}-05-01", "available": 3, "status": "OPEN" }, { "date": "${y}-05-02", "available": 0, "status": "CLOSED", "reason": "Sold out for these dates" } ] } ] } }`)}
+  ${(agg.bookingRules?.allotments || []).length ? `<p>Allotments agreed for this channel (cars of a group you may hold at the same time, for pick-ups in the period):</p>
+  ${table(['Group', 'Pick-ups', 'Cars', 'Release'], (agg.bookingRules!.allotments || []).map(a => [`<code>${esc(a.group)}</code>`, `${esc(a.from)} – ${esc(a.to)}`, a.stopSell ? 'Stop sell' : a.quantity, a.releaseDays ? `${a.releaseDays} days before pick-up` : '—']))}` : '<p>No allotments: you sell from our general availability (free sale).</p>'}
+  <p>${agg.bookingRules?.noShowAfterHours ? `A booking not picked up ${agg.bookingRules.noShowAfterHours} hours after its pick-up time becomes <code>NO_SHOW</code>${agg.bookingRules.noShowFeePercent != null ? ` with a fee of ${agg.bookingRules.noShowFeePercent}% of the booking` : ''}, and <code>reservation.no_show</code> is sent.` : 'No-shows are recorded by our staff and sent as <code>reservation.no_show</code>.'}</p>`)}
+
+${section(15, 'Certification', `
+  <p>Before go-live we run, and you should run in the sandbox, these cases: authentication success and failure; location and vehicle-group lists; availability search; no-availability; quote and hold; expired offer; changed price; booking; duplicate prevention (same key twice); retrieval by both references; modification; cancellation and its fee; invalid location, date and vehicle group; vehicle and station details; tax, mileage and covers; optional cover pricing; promotion codes (valid and unknown); closed-station pick-up; webhook delivery and retry; rate-limit handling.</p>`)}
 
 <div class="foot">${esc(company.name)}${company.address ? ` · ${esc(company.address)}` : ''}${company.supportEmail || company.email ? ` · ${esc(company.supportEmail || company.email)}` : ''}${company.supportPhone || company.phone ? ` · ${esc(company.supportPhone || company.phone)}` : ''} — Booking API integration guide for ${esc(agg.name)}, ${esc(today)}.</div>
 </body></html>`;
