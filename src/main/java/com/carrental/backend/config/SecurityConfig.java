@@ -86,6 +86,9 @@ public class SecurityConfig {
                     "/stripe/**",
                     // Partner XML API: authenticated per channel with a feed key (see OtaPartnerController)
                     "/ota/**",
+                    // Booking gateway, native XML and REST/JSON: same per-channel key (see ChannelGateway)
+                    "/xml/**",
+                    "/partner/**",
                     "/api/voucher/**",
                     // Static resources
                     "/favicon.ico",

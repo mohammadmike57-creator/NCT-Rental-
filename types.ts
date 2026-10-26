@@ -616,6 +616,52 @@ export interface Aggregator {
     feedKeyHash?: string;
     feedKeyHint?: string;      // last 4 characters, for identification
     feedKeyCreatedAt?: string;
+    /** Rules for the booking API (search, book, modify, cancel); see ChannelRules on the server. */
+    bookingRules?: ChannelBookingRules;
+    /** Go-live checklist, last certification run and approval. */
+    goLive?: ChannelGoLive;
+}
+
+export type ChannelPaymentModel = 'PAY_AT_COUNTER' | 'BROKER_PREPAID';
+
+export interface ChannelBookingLocation {
+    code: string;        // the code this broker uses, e.g. AMM
+    name: string;        // our branch (Manage Locations)
+    pickup: boolean;
+    dropOff: boolean;
+}
+
+export interface ChannelBookingRules {
+    bookingsEnabled?: boolean;
+    paymentModel?: ChannelPaymentModel;
+    freeCancellationHours?: number;
+    lateCancellationFeePercent?: number;
+    modificationFee?: number;
+    minLeadHours?: number;
+    maxRentalDays?: number;
+    maxHorizonDays?: number;
+    minDriverAge?: number;
+    maxDriverAge?: number;
+    offerValidityMinutes?: number;
+    holdMinutes?: number;
+    operationalBuffer?: number;
+    oneWayFee?: number;
+    allowedGroups?: string[];
+    locations?: ChannelBookingLocation[];
+    rateLimitPerMinute?: number;
+    ipAllowlist?: string[];
+    webhookUrl?: string;
+    webhookEvents?: string[];
+}
+
+export interface ChannelCertificationResult { id: string; name: string; passed: boolean; detail: string; ms: number }
+export interface ChannelCertificationReport { ranAt: string; passed: number; total: number; results: ChannelCertificationResult[] }
+
+export interface ChannelGoLive {
+    checklist?: Record<string, boolean>;
+    certification?: ChannelCertificationReport;
+    approvedBy?: string;
+    approvedAt?: string;
 }
 
 export interface StopSale {

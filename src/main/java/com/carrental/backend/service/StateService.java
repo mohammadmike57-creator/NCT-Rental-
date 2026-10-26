@@ -21,6 +21,7 @@ public class StateService {
 
     private final AppDataRepository appDataRepository;
     private final ObjectMapper objectMapper;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     private static final String INITIAL_STATE = "{" +
         "\"reservations\":{}," +
@@ -145,9 +146,14 @@ public class StateService {
             int deletes = 0;
             for (JsonNode op : ops) if ("deleteReservation".equals(op.path("op").asText())) deletes++;
             boolean refuseDeletes = deletes > 3 && !bulkAllowed;
+            List<ReservationChangedEvent> changed = new java.util.ArrayList<>();
             for (JsonNode op : ops) {
                 switch (op.path("op").asText()) {
-                    case "upsertReservation" -> upsertReservation(root, op.path("year").asText(), op.path("month").asText(), op.path("reservation"));
+                    case "upsertReservation" -> {
+                        JsonNode before = findReservation(root, op.path("reservation").path("id").asText(""));
+                        upsertReservation(root, op.path("year").asText(), op.path("month").asText(), op.path("reservation"));
+                        changed.add(new ReservationChangedEvent(before == null ? null : before.deepCopy(), op.path("reservation")));
+                    }
                     case "deleteReservation" -> { if (!refuseDeletes) removeReservation(root, op.path("id").asText(), null); }
                     case "set" -> {
                         String key = op.path("key").asText();
@@ -161,9 +167,26 @@ public class StateService {
             }
             appData.setData(objectMapper.writeValueAsString(root));
             appDataRepository.save(appData);
+            // Listeners (e.g. broker webhooks) must never make a save fail.
+            for (ReservationChangedEvent e : changed) {
+                try { events.publishEvent(e); } catch (Exception ignored) { /* logged by the listener */ }
+            }
         } catch (Exception e) {
             throw new RuntimeException("Failed to apply changes: " + e.getMessage(), e);
         }
+    }
+
+    /** The booking with this id, wherever it is filed, or null. */
+    private JsonNode findReservation(ObjectNode root, String id) {
+        if (id.isEmpty()) return null;
+        JsonNode years = root.path("reservations");
+        for (Iterator<JsonNode> y = years.elements(); y.hasNext(); ) {
+            for (Iterator<JsonNode> m = y.next().elements(); m.hasNext(); ) {
+                JsonNode list = m.next();
+                if (list.isArray()) for (JsonNode r : list) if (id.equals(r.path("id").asText())) return r;
+            }
+        }
+        return null;
     }
 
     private void upsertReservation(ObjectNode root, String year, String month, JsonNode reservation) {

@@ -48,6 +48,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (requestUri.startsWith("/auth/") ||
             requestUri.startsWith("/stripe/") ||
             requestUri.startsWith("/ota/") ||
+            requestUri.startsWith("/xml/") ||
+            requestUri.startsWith("/partner/") ||
             requestUri.startsWith("/api/voucher") ||
             requestUri.equals("/") ||
             requestUri.equals("/health")) {

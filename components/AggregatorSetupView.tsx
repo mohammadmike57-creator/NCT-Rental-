@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Aggregator, Fleet, StopSale, AvailableExtra } from '../types';
+import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon } from './icons';
+import BookingApiView from './channel/BookingApiView';
+import ChannelBookingsView from './channel/ChannelBookingsView';
+import GoLiveView from './channel/GoLiveView';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Badge, Plate, Button, Field, EmptyState, Dialog, inputCls } from './ui/Crm';
 import ManageRatePlansView from './ManageRatePlansView';
 import ManageTermsView from './ManageTermsView';
@@ -23,10 +26,12 @@ interface AggregatorSetupViewProps {
   onUpdateStopSales: (stopSales: StopSale[]) => void;
   showConfirmation: (message: string) => void;
   currentUserName?: string;
+  rentalLocations?: RentalLocation[];
+  companyDetails?: CompanyDetails;
 }
 
-export type ChannelTab = 'Overview' | 'Connection' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed';
-const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
+export type ChannelTab = 'Overview' | 'Connection' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Go-live';
+const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Booking API', 'Bookings', 'Go-live', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
 
 const STATUS_STYLE: Record<string, { dot: string; label: string; pill: string }> = {
   active: { dot: 'bg-emerald-500', label: 'Live', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -49,6 +54,7 @@ export const relativeTime = (iso?: string) => {
 
 const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   aggregators, onUpdateAggregators, fleet, availableExtras, stopSales, onUpdateStopSales, showConfirmation, currentUserName,
+  rentalLocations = [], companyDetails,
 }) => {
   const [selectedAggregatorId, setSelectedAggregatorId] = useState<string | null>(aggregators.length > 0 ? aggregators[0].id : null);
   const [isAddingPartner, setIsAddingPartner] = useState(false);
@@ -309,6 +315,14 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                   <Panel padded>
                     <ManageTermsView terms={selectedAggregator.termsAndConditions} onUpdate={terms => handleUpdateAggregator({ ...selectedAggregator, termsAndConditions: terms })} />
                   </Panel>
+                )}
+                {activeTab === 'Booking API' && (
+                  <BookingApiView aggregator={selectedAggregator} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                )}
+                {activeTab === 'Bookings' && <ChannelBookingsView aggregator={selectedAggregator} />}
+                {activeTab === 'Go-live' && (
+                  <GoLiveView aggregator={selectedAggregator} fleet={fleet} company={companyDetails || ({ name: 'NCT Rental' } as CompanyDetails)}
+                    currentUserName={currentUserName} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
                 {activeTab === 'XML Feed' && (
                   <XMLPreviewView aggregator={selectedAggregator} fleet={fleet} stopSales={stopSales} />

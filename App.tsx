@@ -1779,6 +1779,8 @@ ${currentUser?.fullName}
             onUpdateStopSales={setStopSales}
             showConfirmation={showConfirmation}
             currentUserName={currentUser?.fullName || currentUser?.username}
+            rentalLocations={rentalLocations}
+            companyDetails={companyDetails}
         />
     ), permission: UserPermission.VIEW_AGGREGATOR_SETUP },
     'User & Staff Management': { component: (

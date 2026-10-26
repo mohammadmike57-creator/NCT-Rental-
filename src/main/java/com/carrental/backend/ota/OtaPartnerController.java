@@ -23,8 +23,8 @@ import java.util.function.Function;
  *   Authorization: Bearer <key>   or   X-Api-Key: <key>
  *
  * Endpoints (channel = channel code, e.g. BKG):
- *   POST /ota/v1/{channel}/OTA_VehAvailRate   body: OTA_VehAvailRateRQ  -> OTA_VehAvailRateRS
- *   GET  /ota/v1/{channel}/OTA_VehAvailRate?pickUp=..&return=..&equip=13,ADD
+ *   GET  /ota/v1/{channel}/OTA_VehAvailRate?pickUp=..&return=..&equip=13,ADD   (quick price check)
+ * Searching and booking (OTA_VehAvailRate POST, OTA_VehRes, …) are in OtaBookingController.
  *   GET  /ota/v1/{channel}/ratesheet          -> published RateSheet
  *   GET  /ota/v1/{channel}/ping               -> connectivity check
  *
@@ -42,21 +42,6 @@ public class OtaPartnerController {
     private final ChannelDeliveryService deliveries;
 
     private final Map<String, long[]> rateWindows = new ConcurrentHashMap<>();
-
-    @PostMapping(value = "/OTA_VehAvailRate", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
-    public ResponseEntity<String> vehAvailRate(@PathVariable String channel, @RequestBody(required = false) String body,
-                                               @RequestHeader(value = "Authorization", required = false) String authorization,
-                                               @RequestHeader(value = "X-Api-Key", required = false) String apiKey,
-                                               HttpServletRequest request) {
-        long bytes = body == null ? 0 : body.length();
-        return handle(channel, authorization, apiKey, request, "OTA_VehAvailRateRS", "OTA_VehAvailRate", bytes, ch -> {
-            OtaRequestParser.ParsedRequest parsed = OtaRequestParser.parse(body);
-            if (!parsed.locationCode().isBlank() && !parsed.locationCode().equalsIgnoreCase(ch.locationCode())) {
-                throw new OtaRequestParser.InvalidRequestException("Unknown pick-up location " + parsed.locationCode());
-            }
-            return OtaXml.vehAvailRateRS(ch, parsed.quote(), parsed.echoToken());
-        });
-    }
 
     @GetMapping("/OTA_VehAvailRate")
     public ResponseEntity<String> vehAvailRateGet(@PathVariable String channel,

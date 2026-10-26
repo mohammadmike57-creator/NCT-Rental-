@@ -246,6 +246,38 @@ export const deliverChannelRates = async (channelId: string): Promise<ChannelDel
   return response.data;
 };
 
+// --- Booking gateway (broker bookings, webhooks, certification) ------------------
+
+export interface ChannelBookingRow {
+  reservationNumber: string; brokerReference?: string; status: string; vehicleGroup: string;
+  pickupAt: string; returnAt: string; total: number; currency: string; customerName?: string;
+  sandbox: boolean; createdAt: string; updatedAt?: string;
+}
+export interface ChannelWebhookRow {
+  id: number; eventId: string; eventType: string; reservationNumber?: string; brokerReference?: string;
+  status: 'PENDING' | 'DELIVERED' | 'FAILED'; attempts: number; lastHttpStatus?: number; lastError?: string;
+  nextAttemptAt?: string; createdAt: string; deliveredAt?: string;
+}
+const channelPath = (id: string, p: string) => `${API_URL}/api/channels/${encodeURIComponent(id)}${p}`;
+export const fetchChannelBookings = async (channelId: string): Promise<ChannelBookingRow[]> =>
+  (await axios.get(channelPath(channelId, '/bookings'), { headers: authHeaders() })).data;
+export const fetchChannelWebhooks = async (channelId: string): Promise<{ secretCreatedAt?: string; deliveries: ChannelWebhookRow[] }> =>
+  (await axios.get(channelPath(channelId, '/webhooks'), { headers: authHeaders() })).data;
+export const rotateWebhookSecret = async (channelId: string): Promise<{ secret: string; createdAt: string }> => {
+  try { return (await axios.post(channelPath(channelId, '/webhooks/secret'), {}, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not create the signing secret.'); }
+};
+export const sendTestWebhook = async (channelId: string): Promise<ChannelWebhookRow> => {
+  try { return (await axios.post(channelPath(channelId, '/webhooks/test'), {}, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not send the test event.'); }
+};
+export const replayWebhook = async (channelId: string, deliveryId: number): Promise<ChannelWebhookRow> =>
+  (await axios.post(channelPath(channelId, `/webhooks/${deliveryId}/replay`), {}, { headers: authHeaders() })).data;
+export const runChannelCertification = async (channelId: string): Promise<import('../types').ChannelCertificationReport> => {
+  try { return (await axios.post(channelPath(channelId, '/certification'), {}, { headers: authHeaders(), timeout: 60000 })).data; }
+  catch (e) { throw apiError(e, 'Could not run the certification tests.'); }
+};
+
 export const fetchChannelDeliveries = async (channelId: string, limit = 50): Promise<ChannelDeliveryLog[]> => {
   const response = await axios.get(`${API_URL}/api/channels/${encodeURIComponent(channelId)}/deliveries`, {
     params: { limit },

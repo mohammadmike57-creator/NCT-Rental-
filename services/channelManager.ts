@@ -591,10 +591,20 @@ export const partnerUrlCode = (agg: Aggregator) => agg.channelCode || agg.id;
 
 export const partnerEndpoints = (apiBase: string, agg: Aggregator) => {
   const base = `${apiBase.replace(/\/$/, '')}/ota/v1/${encodeURIComponent(partnerUrlCode(agg))}`;
+  const root = apiBase.replace(/\/$/, '');
+  const code = encodeURIComponent(partnerUrlCode(agg));
   return {
     availRate: `${base}/OTA_VehAvailRate`,
     rateSheet: `${base}/ratesheet`,
     ping: `${base}/ping`,
+    // Booking API (same key)
+    locSearch: `${base}/OTA_VehLocSearch`,
+    vehRes: `${base}/OTA_VehRes`,
+    retRes: `${base}/OTA_VehRetRes`,
+    modify: `${base}/OTA_VehModify`,
+    cancel: `${base}/OTA_VehCancel`,
+    nativeXml: `${root}/xml/v1`,
+    rest: `${root}/partner/v1/${code}`,
   };
 };
 
