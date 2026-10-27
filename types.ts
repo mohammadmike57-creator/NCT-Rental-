@@ -170,6 +170,21 @@ export interface ExtensionInfo {
   paymentMethod: 'payNow' | 'payLater';
 }
 
+/** One change to a booking's rental price (upgrades and extensions keep their own histories). */
+export interface PriceChange {
+  at: string;
+  by?: string;
+  kind: 'extras' | 'manual';
+  /** Signed: positive when the price went up. */
+  amount: number;
+  fromTotal: number;
+  toTotal: number;
+  detail: string;
+  /** Extras added or removed by this change. */
+  added?: string[];
+  removed?: string[];
+}
+
 export interface LateReturnFee {
   feeAppliedDate: string;
   hoursLate: number;
@@ -294,6 +309,8 @@ export interface Reservation {
   depositAuthNumber?: string;
   excess?: number;
   originalAmount?: number;
+  /** Price changes after booking that no other history explains: extras added or removed, prices edited by hand. */
+  priceChanges?: PriceChange[];
   extensionHistory?: ExtensionInfo[];
   unpaidExtensionAmount?: number;
   // Agreements opened for bookings that were not in the reservation list

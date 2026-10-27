@@ -5,11 +5,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
 import { mergeAgreementInto } from './services/agreementLink';
-import { duplicateKeys, findBooking, describeBooking } from './services/duplicates';
+import { duplicateKeys, findBooking, describeBooking, flatten } from './services/duplicates';
+import { withPriceChange } from './services/addOns';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
-import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon } from './components/icons';
+import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, ReceiptIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Notifications from './components/Notifications';
@@ -30,6 +31,7 @@ const FleetAvailability = React.lazy(() => import('./components/FleetAvailabilit
 const Voucher = React.lazy(() => import('./components/Voucher'));
 const Receipt = React.lazy(() => import('./components/Receipt'));
 const SourcePerformanceReport = React.lazy(() => import('./components/SourcePerformanceReport'));
+const ReservationAddOnsView = React.lazy(() => import('./components/ReservationAddOnsView'));
 const TrafficTickets = React.lazy(() => import('./components/TrafficTickets'));
 const VehicleDamages = React.lazy(() => import('./components/VehicleDamages'));
 const LoginScreen = React.lazy(() => import('./components/LoginScreen'));
@@ -761,12 +763,17 @@ export const App: React.FC = () => {
     }
   };
   
+  // The bookings as last loaded or saved, so a save can be compared with what it replaces.
+  const reservationsRef = useRef<AppData>(reservations);
+  reservationsRef.current = reservations;
   const handleUpdateReservations = useCallback(async (reservation: Reservation) => {
-    const updatedReservation = { 
+    // A changed rental price is logged on the booking (Reservation Add-ons) with the price it was booked at.
+    const previous = flatten(reservationsRef.current).find(r => r.id === reservation.id);
+    const updatedReservation = withPriceChange(previous, {
       ...reservation, 
       lastEditedBy: currentUser?.fullName,
       updatedAt: new Date().toISOString()
-    };
+    }, currentUser?.fullName);
 
     if (reservation.isNew) {
         setNewReservations(prev => prev.map(r => r.id === reservation.id ? updatedReservation : r));
@@ -1757,6 +1764,16 @@ ${currentUser?.fullName}
             onNewWalkIn={hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION) ? () => setShowUnlistedAgreement(true) : undefined}
         />
     ), permission: UserPermission.VIEW_RESERVATIONS },
+    'Reservation Add-ons': { component: (
+        <ReservationAddOnsView
+            allData={reservations}
+            tickets={trafficTickets}
+            damages={vehicleDamages}
+            sources={sources}
+            company={companyDetails}
+            onOpenBooking={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
+        />
+    ), permission: UserPermission.VIEW_RESERVATIONS },
     'Fleet Availability': { component: (
       <FleetAvailability 
         fleet={fleet} 
@@ -2037,6 +2054,7 @@ ${currentUser?.fullName}
         { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_AGREEMENTS },
         { name: 'Agreement for Unlisted Reservation', icon: PlusCircleIcon, permission: UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION, action: () => setShowUnlistedAgreement(true) },
         { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount, badgeText: unlistedNewCount ? `${unlistedNewCount} new` : undefined },
+        { name: 'Reservation Add-ons', icon: ReceiptIcon, permission: UserPermission.VIEW_RESERVATIONS },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
