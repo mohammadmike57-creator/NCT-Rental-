@@ -1304,8 +1304,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               {fleet && fleet.length > 0 ? (
                 <>
                   <VehiclePicker fleet={fleet} booking={localReservation} allData={allData} onPick={pickCar} />
-                  <InfoPair label="Model" value={localReservation.carModel} />
-                  <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
+                  {/* Picking a fleet car fills these; staff can still type the model and plate by hand. */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className={labelCls}><Bi en="Model" /></label>
+                      <input type="text" value={localReservation.carModel || ''} onChange={e => handleFieldChange('carModel', e.target.value)} className={inputCls} placeholder="Vehicle model" />
+                    </div>
+                    <div>
+                      <label className={labelCls}><Bi en="License plate" /> <span className="text-rose-500">*</span></label>
+                      <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value.toUpperCase())} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
+                    </div>
+                  </div>
                   {((localReservation.carModel || '') !== (reservation.carModel || '') || (localReservation.licensePlate || '') !== (reservation.licensePlate || '')) && (reservation.carModel || reservation.licensePlate) && (
                     <p className="text-[11px] text-sky-700">Changed from {reservation.carModel}{reservation.licensePlate ? ` · ${reservation.licensePlate}` : ''}. The deposit and excess follow the new car.</p>
                   )}
@@ -1318,7 +1327,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   </div>
                   <div>
                     <label className={labelCls}><Bi en="License plate" /></label>
-                    <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value)} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
+                    <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value.toUpperCase())} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
                   </div>
                 </>
               )}
