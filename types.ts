@@ -249,6 +249,8 @@ export interface Reservation {
   pickupDateTime?: string;
   pickupRenterSignature?: string;
   pickupAgentSignature?: string;
+  /** Signatures taken by hand on the printed agreement instead of on screen. */
+  pickupSignOnPaper?: boolean;
   pickupAgentName?: string;
   pickupDamageMarkers?: DamageMarker[];
   pickupChecklist?: { [item: string]: boolean };
@@ -260,6 +262,7 @@ export interface Reservation {
   dropOffDateTime?: string;
   dropOffRenterSignature?: string;
   dropOffAgentSignature?: string;
+  dropOffSignOnPaper?: boolean;
   dropOffAgentName?: string;
   dropOffDamageMarkers?: DamageMarker[];
   dropOffChecklist?: { [item: string]: boolean };

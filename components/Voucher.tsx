@@ -344,14 +344,14 @@ const DamageRegister: React.FC<{
   </div>
 );
 
-const SignatureBlock: React.FC<{ title: string; subtitle?: string; signature?: string; onSave: (d: string) => void; onClear: () => void; disabled: boolean; children?: React.ReactNode }> = ({ title, subtitle, signature, onSave, onClear, disabled, children }) => (
+const SignatureBlock: React.FC<{ title: string; subtitle?: string; signature?: string; onSave: (d: string) => void; onClear: () => void; disabled: boolean; onPaper?: boolean; children?: React.ReactNode }> = ({ title, subtitle, signature, onSave, onClear, disabled, onPaper, children }) => (
   <div className="rounded-lg border border-slate-200 p-3 sm:p-4 min-w-0">
     <div className="flex items-start justify-between gap-3 mb-3">
       <div className="min-w-0">
         <h3 className="text-[13px] font-semibold text-slate-900"><Bi en={title} block /></h3>
         {subtitle && <p className="text-xs text-slate-500 truncate">{subtitle}</p>}
       </div>
-      <Badge tone={signature ? 'success' : 'muted'}>{signature ? 'Signed' : 'Required'}</Badge>
+      <Badge tone={signature ? 'success' : onPaper ? 'info' : 'muted'}>{signature ? 'Signed' : onPaper ? 'On paper' : 'Optional'}</Badge>
     </div>
     {children}
     <SignaturePad signature={signature} onSave={onSave} onClear={onClear} disabled={disabled} />
@@ -597,6 +597,19 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     handleFieldChange(field, (localReservation[field] || []).map((m, i) => (i === index ? { ...m, ...patch } : m)));
   };
 
+  /**
+   * Signatures are optional: they can be taken on screen or by hand on the printed agreement.
+   * Returns true when the paper option applies, false when both are signed on screen, null when staff cancel.
+   */
+  const needsPaperSignatures = (mode: 'pickup' | 'dropoff'): boolean | null => {
+    const renter = localReservation[mode === 'pickup' ? 'pickupRenterSignature' : 'dropOffRenterSignature'];
+    const agent = localReservation[mode === 'pickup' ? 'pickupAgentSignature' : 'dropOffAgentSignature'];
+    if (renter && agent) return false;
+    if (localReservation[mode === 'pickup' ? 'pickupSignOnPaper' : 'dropOffSignOnPaper']) return true;
+    const who = [!renter && 'the customer', !agent && 'the company representative'].filter(Boolean).join(' and ');
+    return window.confirm(`No on-screen signature from ${who}.\n\nContinue and have the printed agreement signed by hand? The signature lines are left blank on the print.`) ? true : null;
+  };
+
   const handleSubmit = () => {
     if (!localReservation.customerEmail?.trim()) {
       alert("The customer email address is required: the signed agreement is emailed to the customer.");
@@ -616,25 +629,19 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         alert("Choose whether this booking is prepaid or pay on arrival (Charges & payment step).");
         return;
       }
-      const isPayOnArrival = bookingPayment(localReservation, sources) === PaymentType.PAY_ON_ARRIVAL;
-      if (isPayOnArrival && !localReservation.authNumber?.trim()) {
-        alert("Authorization Number is required for 'Pay on Arrival' reservations.");
-        return;
-      }
       if (!counterMethodOk) {
-        alert(`This booking is prepaid, but ${formatCurrency(pay.toCollect)} for extras and upgrades must be collected. Record the payment method${localReservation.paymentMethod === 'card' ? ' and the authorisation number' : ''} (Charges & payment step).`);
+        alert(`This booking is prepaid, but ${formatCurrency(pay.toCollect)} for extras and upgrades must be collected. Record the payment method (Charges & payment step).`);
         return;
       }
       if (!pay.depositHeld) {
-        alert(`Hold the security deposit of ${formatCurrency(pay.deposit)}: choose how it is held and enter the card pre-authorisation number (Charges & payment step).`);
+        alert(`Hold the security deposit of ${formatCurrency(pay.deposit)}: choose how it is held (Charges & payment step).`);
         return;
       }
-
-      if (!localReservation.pickupRenterSignature) { alert("Renter signature is required."); return; }
-      if (!localReservation.pickupAgentSignature) { alert("Agent signature is required."); return; }
+      const paperPickup = needsPaperSignatures('pickup');
+      if (paperPickup === null) return;
 
       const submittedVoucher = {
-        ...localReservation, voucherSubmitted: true,
+        ...localReservation, voucherSubmitted: true, ...(paperPickup ? { pickupSignOnPaper: true } : {}),
         ...(bookingPayment(localReservation, sources) === PaymentType.PREPAID && !localReservation.paymentMethod ? { paymentMethod: 'prepaid' as const } : {}),
       };
       finishDraft();
@@ -651,8 +658,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           alert("Kilometers In cannot be less than Kilometers Out.");
           return;
         }
-        if (!localReservation.dropOffRenterSignature) { alert("Renter signature is required for drop-off."); return; }
-        if (!localReservation.dropOffAgentSignature) { alert("Agent signature is required for drop-off."); return; }
+        const paperReturn = needsPaperSignatures('dropoff');
+        if (paperReturn === null) return;
 
         let finalCharges: ReturnCharges | undefined;
         if (charges.items.length > 0) {
@@ -669,7 +676,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
             dueDate: charges.settlement === 'claim' ? (charges.dueDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)) : undefined,
           };
         }
-        const submittedVoucher: Reservation = { ...localReservation, dropOffCompleted: true, returnCharges: finalCharges };
+        const submittedVoucher: Reservation = { ...localReservation, dropOffCompleted: true, returnCharges: finalCharges, ...(paperReturn ? { dropOffSignOnPaper: true } : {}) };
         if (finalCharges && onRecordReturnCharges) onRecordReturnCharges(submittedVoucher, finalCharges);
         finishDraft();
         onUpdate(submittedVoucher);
@@ -680,9 +687,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         queueEmail(submittedVoucher, 'checkin');
       } else if (processType === 'exchange') {
         if (!currentExchange.reason?.trim()) { alert("A reason for the exchange is required."); return; }
-        if (!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature) { alert("Signatures for checking in the old car are required."); return; }
         if (!currentExchange.newCarLicensePlate?.trim()) { alert("The new car's license plate is required."); return; }
-        if (!currentExchange.checkoutRenterSignature || !currentExchange.checkoutAgentSignature) { alert("Signatures for checking out the new car are required."); return; }
+        const unsigned = [currentExchange.checkinRenterSignature, currentExchange.checkinAgentSignature, currentExchange.checkoutRenterSignature, currentExchange.checkoutAgentSignature].filter(x => !x).length;
+        if (unsigned > 0 && !window.confirm(`${unsigned} of 4 exchange signatures ${unsigned === 1 ? 'is' : 'are'} not taken on screen.\n\nContinue and have them signed by hand on the printed agreement?`)) return;
 
         const completeExchange: CarExchange = {
           exchangeDate: new Date().toISOString(),
@@ -868,7 +875,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   // Prepaid: the partner was paid for the rental, so only extras and upgrades are collected. Deposit: always held.
   const pay = counterPayment(localReservation, isPrepaidBooking, baseRentalFee, extrasTotal);
   const counterMethodOk = !isPrepaidBooking || pay.toCollect <= 0
-    || (!!localReservation.paymentMethod && localReservation.paymentMethod !== 'prepaid' && (localReservation.paymentMethod !== 'card' || !!localReservation.authNumber?.trim()));
+    || (!!localReservation.paymentMethod && localReservation.paymentMethod !== 'prepaid');
 
   const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) => (
     <div className="w-full">
@@ -1009,7 +1016,23 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               )}
             </StepSection>
 
-            <StepSection step={stepNo} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Both signatures are required to finish">
+            <StepSection step={stepNo} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Sign on screen, or print the agreement and sign it by hand">
+              {(() => {
+                const paperKey = isPickup ? 'pickupSignOnPaper' : 'dropOffSignOnPaper';
+                const onPaper = !!localReservation[paperKey];
+                return (
+                  <div className={`mb-4 rounded-lg border p-3 flex flex-wrap items-center gap-3 ${onPaper ? 'border-sky-200 bg-sky-50' : 'border-slate-200 bg-white'}`}>
+                    <label className={`flex items-start gap-3 flex-1 min-w-[240px] ${isEditable ? 'cursor-pointer' : ''}`}>
+                      <input type="checkbox" className="mt-0.5" checked={onPaper} disabled={!isEditable} onChange={e => handleFieldChange(paperKey, e.target.checked || undefined)} />
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold text-slate-900">Sign on the printed agreement</span>
+                        <span className="block text-xs text-slate-500">The customer and the representative sign the paper copy by hand. On-screen signatures become optional; the print keeps blank signature lines.</span>
+                      </span>
+                    </label>
+                    <Button size="sm" onClick={handleDownloadVoucherPDF} icon={<PdfIcon className="w-4 h-4" />}>Print agreement</Button>
+                  </div>
+                );
+              })()}
               <div className="text-xs leading-relaxed text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 space-y-2"><p>{isPickup ? PICKUP_TERMS : RETURN_TERMS}</p><p lang="ar" dir="rtl" className="ar-ui !font-normal !text-slate-700 !text-[13px] leading-6 pt-2 border-t border-slate-200">{isPickup ? PICKUP_TERMS_AR : RETURN_TERMS_AR}</p></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SignatureBlock
@@ -1019,6 +1042,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   onSave={data => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', data)}
                   onClear={() => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', undefined)}
                   disabled={!isEditable}
+                  onPaper={!!localReservation[isPickup ? 'pickupSignOnPaper' : 'dropOffSignOnPaper']}
                 />
                 <SignatureBlock
                   title="Company representative"
@@ -1026,6 +1050,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                   onSave={data => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', data)}
                   onClear={() => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', undefined)}
                   disabled={!isEditable}
+                  onPaper={!!localReservation[isPickup ? 'pickupSignOnPaper' : 'dropOffSignOnPaper']}
                 >
                   <div className="mb-3">
                     {renderTextField('Representative name', agentName || '', val => handleFieldChange(isPickup ? 'pickupAgentName' : 'dropOffAgentName', val), isEditable)}
@@ -1159,7 +1184,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const kmOutValid = localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.pickupKmOut >= 0;
   const kmInValid = localReservation.dropOffKmIn !== undefined && localReservation.dropOffKmIn !== null && localReservation.dropOffKmIn >= 0
     && !(localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.dropOffKmIn < localReservation.pickupKmOut);
-  const pickupAuthOk = !payUnset && (!isPayOnArrival || !!localReservation.authNumber?.trim()) && counterMethodOk && pay.depositHeld;
+  const pickupAuthOk = !payUnset && counterMethodOk && pay.depositHeld;
+  // Authorisation codes are optional; the payment step only flags them as not recorded.
+  const authMissing = (isPayOnArrival || (pay.toCollect > 0 && localReservation.paymentMethod === 'card')) && !localReservation.authNumber?.trim();
+  const authNote = [authMissing && 'payment auth code', pay.depositAuthMissing && 'deposit pre-auth code'].filter(Boolean).join(' and ');
   const chargesValid = charges.items.length === 0 || (
     charges.items.every(i => !!i.description.trim() && i.amount > 0) && !!charges.settlement
     && (charges.settlement !== 'paid' || !!charges.paymentMethod) && !!charges.customerSignature);
@@ -1174,8 +1202,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     { key: 'inspection', label: 'Inspection checklist', done: pickupClosed || countChecked(localReservation.pickupChecklist) === checklistItems.length, hint: `${countChecked(localReservation.pickupChecklist)} of ${checklistItems.length} confirmed` },
     { key: 'damage', label: 'Damage', done: pickupClosed || !!visited['pickup:damage'], hint: `${(localReservation.pickupDamageMarkers || []).length} marked` },
     { key: 'fuel', label: 'Fuel & mileage', done: pickupClosed || (kmOutValid && localReservation.pickupFuelLevel !== undefined), hint: kmOutValid ? 'Fuel level not set' : 'Odometer out required' },
-    { key: 'payment', label: 'Charges & payment', done: pickupClosed || (pickupAuthOk && !!visited['pickup:payment']), hint: payUnset ? 'Choose prepaid or pay on arrival' : pickupAuthOk ? `${formatCurrency(pay.toCollect)} to collect · deposit ${pay.deposit > 0 ? 'held' : 'none'}` : !pay.depositHeld && counterMethodOk && (!isPayOnArrival || !!localReservation.authNumber?.trim()) ? 'Deposit hold required' : 'Payment details required' },
-    { key: 'signatures', label: 'Signatures', done: pickupClosed || signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) === 2, hint: `${signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature)} of 2 signed` },
+    { key: 'payment', label: 'Charges & payment', done: pickupClosed || (pickupAuthOk && !!visited['pickup:payment']), hint: payUnset ? 'Choose prepaid or pay on arrival' : pickupAuthOk ? `${formatCurrency(pay.toCollect)} to collect · deposit ${pay.deposit > 0 ? 'held' : 'none'}${authNote ? ` · no ${authNote}` : ''}` : !pay.depositHeld && counterMethodOk ? 'Deposit hold method required' : 'Payment method required' },
+    { key: 'signatures', label: 'Signatures', done: pickupClosed || signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) === 2 || !!localReservation.pickupSignOnPaper,
+      hint: localReservation.pickupSignOnPaper && signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) < 2 ? 'Signed on the printed copy' : `${signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature)} of 2 signed · optional` },
   ];
   const dropoffSteps: FlowStep[] = [
     { key: 'return', label: 'Return details', done: dropoffClosed || (emailValid && !!visited['dropoff:return']), hint: emailValid ? undefined : `Customer ${emailHint.toLowerCase()}` },
@@ -1183,7 +1212,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     { key: 'damage', label: 'Damage', done: dropoffClosed || !!visited['dropoff:damage'], hint: `${(localReservation.dropOffDamageMarkers || []).length} new marked` },
     { key: 'fuel', label: 'Fuel & mileage', done: dropoffClosed || (kmInValid && localReservation.dropOffFuelLevel !== undefined), hint: kmInValid ? 'Fuel level not set' : 'Odometer in required' },
     { key: 'charges', label: 'Return charges', done: dropoffClosed || (chargesValid && !!visited['dropoff:charges']), hint: charges.items.length ? `${charges.items.length} charge${charges.items.length === 1 ? '' : 's'} · ${formatMoney(chargesTotal(charges.items), charges.currency)}` : 'No charges' },
-    { key: 'signatures', label: 'Signatures', done: dropoffClosed || signedCount(localReservation.dropOffRenterSignature, localReservation.dropOffAgentSignature) === 2, hint: `${signedCount(localReservation.dropOffRenterSignature, localReservation.dropOffAgentSignature)} of 2 signed` },
+    { key: 'signatures', label: 'Signatures', done: dropoffClosed || signedCount(localReservation.dropOffRenterSignature, localReservation.dropOffAgentSignature) === 2 || !!localReservation.dropOffSignOnPaper,
+      hint: localReservation.dropOffSignOnPaper && signedCount(localReservation.dropOffRenterSignature, localReservation.dropOffAgentSignature) < 2 ? 'Signed on the printed copy' : `${signedCount(localReservation.dropOffRenterSignature, localReservation.dropOffAgentSignature)} of 2 signed · optional` },
   ];
   const flowSteps = viewMode === 'pickup' ? pickupSteps : dropoffSteps;
   const activeIndex = Math.min(step, flowSteps.length - 1);
@@ -1211,12 +1241,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       if (!localReservation.licensePlate?.trim()) return 'vehicle';
       if (!kmOutValid) return 'fuel';
       if (!pickupAuthOk) return 'payment';
-      if (!localReservation.pickupRenterSignature || !localReservation.pickupAgentSignature) return 'signatures';
       return undefined;
     }
     if (!emailValid) return 'return';
     if (!kmInValid) return 'fuel';
-    if (!localReservation.dropOffRenterSignature || !localReservation.dropOffAgentSignature) return 'signatures';
     if (!chargesValid) return 'charges';
     return undefined;
   };
@@ -1231,11 +1259,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     handleSubmit();
   };
 
-  const exchangeNextAllowed = !!currentExchange.checkinRenterSignature && !!currentExchange.checkinAgentSignature && !!currentExchange.reason && !hasOutstandingTickets && !hasDueExtension;
+  // Signatures are optional here too (they can be taken on the printed agreement).
+  const exchangeNextAllowed = !!currentExchange.reason && !hasOutstandingTickets && !hasDueExtension;
   const exchangeRail: WorkflowStep[] = [
-    { key: 'checkin', label: 'Return current car', hint: `${signedCount(currentExchange.checkinRenterSignature, currentExchange.checkinAgentSignature)} of 2 signed`, status: (!!currentExchange.checkinRenterSignature && !!currentExchange.checkinAgentSignature && !!currentExchange.reason?.trim()) ? 'done' : 'pending' },
-    { key: 'checkout', label: 'Hand over new car', hint: exchangeNextAllowed ? 'New plate and signatures' : 'Finish the return first', enabled: exchangeNextAllowed || exchangeStep === 'checkout',
-      status: (!!currentExchange.newCarLicensePlate?.trim() && !!currentExchange.checkoutRenterSignature && !!currentExchange.checkoutAgentSignature) ? 'done' : exchangeStep === 'checkout' ? 'incomplete' : 'pending' },
+    { key: 'checkin', label: 'Return current car', hint: `${signedCount(currentExchange.checkinRenterSignature, currentExchange.checkinAgentSignature)} of 2 signed · optional`, status: currentExchange.reason?.trim() ? 'done' : 'pending' },
+    { key: 'checkout', label: 'Hand over new car', hint: exchangeNextAllowed ? 'New plate · signatures optional' : 'Finish the return first', enabled: exchangeNextAllowed || exchangeStep === 'checkout',
+      status: currentExchange.newCarLicensePlate?.trim() ? 'done' : exchangeStep === 'checkout' ? 'incomplete' : 'pending' },
   ];
   const selectExchangeStep = (i: number) => {
     if (i === 0) setExchangeStep('checkin');
@@ -1463,7 +1492,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Pre-authorisation no.{localReservation.depositHoldMethod === 'card' && <span className="text-rose-500"> *</span>}</label>
+                <label className={labelCls}>Pre-authorisation no. <span className="font-normal text-slate-400">optional</span></label>
                 <input type="text" value={localReservation.depositAuthNumber || ''} disabled={localReservation.depositHoldMethod === 'cash'} onChange={e => handleFieldChange('depositAuthNumber', e.target.value || undefined)} className={`${inputCls} font-mono`} placeholder={localReservation.depositHoldMethod === 'cash' ? 'Not needed for cash' : 'Hold auth code'} />
               </div>
             </div>
@@ -1491,8 +1520,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
               </div>
             </div>
             <div>
-              <label className={labelCls}>Authorisation number{(isPayOnArrival || (isPrepaidBooking && pay.toCollect > 0 && localReservation.paymentMethod === 'card')) && <span className="text-rose-500"> *</span>}</label>
+              <label className={labelCls}>Authorisation number <span className="font-normal text-slate-400">optional</span></label>
               <input type="text" value={localReservation.authNumber || ''} onChange={e => handleFieldChange('authNumber', e.target.value)} className={`${inputCls} font-mono`} placeholder="Card terminal auth code" />
+              {authMissing && <p className="mt-1 text-[11px] text-amber-700">Not recorded yet. Recommended for card payments; it can be added later.</p>}
             </div>
             <div>
               <label className={labelCls}><Bi en="Amount charged ($)" /></label>
@@ -1830,7 +1860,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                         <Button
                           variant="primary"
                           onClick={() => setExchangeStep('checkout')}
-                          disabled={!currentExchange.checkinRenterSignature || !currentExchange.checkinAgentSignature || !currentExchange.reason || hasOutstandingTickets || hasDueExtension}
+                          disabled={!currentExchange.reason || hasOutstandingTickets || hasDueExtension}
                         >
                           Next: hand over new car →
                         </Button>

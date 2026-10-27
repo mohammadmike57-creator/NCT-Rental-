@@ -14,6 +14,8 @@ export function counterPayment(r: Reservation, prepaid: boolean, baseRentalFee: 
   const total = rental + upgrades + extrasTotal;
   const toCollect = prepaid ? upgrades + extrasTotal : total;
   const deposit = r.securityDeposit || 0;
-  const depositHeld = deposit <= 0 || (r.depositHoldMethod === 'cash') || (r.depositHoldMethod === 'card' && !!r.depositAuthNumber?.trim());
-  return { rental, upgrades, extras: extrasTotal, total, toCollect, deposit, depositHeld };
+  // The hold counts once its method is chosen; the card pre-authorisation code is recommended but optional.
+  const depositHeld = deposit <= 0 || r.depositHoldMethod === 'cash' || r.depositHoldMethod === 'card';
+  const depositAuthMissing = deposit > 0 && r.depositHoldMethod === 'card' && !r.depositAuthNumber?.trim();
+  return { rental, upgrades, extras: extrasTotal, total, toCollect, deposit, depositHeld, depositAuthMissing };
 }

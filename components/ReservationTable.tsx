@@ -10,7 +10,7 @@ import ReservationWizard from './reservation/ReservationWizard';
 import { clearDraft, loadDraft, saveDraft } from '../services/drafts';
 import ReservationRecord from './reservation/ReservationRecord';
 import { recordActivity } from '../firebase/api';
-import { emailAgreementDocuments } from '../services/agreementEmail';
+import SendDocumentsDialog from './SendDocumentsDialog';
 import { bookingPayment, paymentUnset } from '../services/paymentType';
 import { agreementHtmlFor, printHtml, terminationHtmlFor } from '../services/printDocs';
 import { rentalDaysOf as billingDays } from '../services/rentalDays';
@@ -585,25 +585,8 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   // Sends the termination statement (with the closed agreement and any invoice / claim) to the customer.
   const [mailNotice, setMailNotice] = useState<{ tone: 'busy' | 'ok' | 'bad'; text: string } | null>(null);
-  const emailTermination = async (res: Reservation) => {
-    const to = res.customerEmail?.trim();
-    if (!to) { setMailNotice({ tone: 'bad', text: `Booking ${res.bookingId} has no customer email. Add it with Edit reservation first.` }); return; }
-    if (!window.confirm(`Email the rental termination statement for ${res.bookingId} to ${to}?`)) return;
-    setMailNotice({ tone: 'busy', text: `Emailing the termination statement to ${to}…` });
-    const ctx = { company: props.companyDetails, sources: rentalSources, locations: rentalLocations, fleet };
-    const outcome = await emailAgreementDocuments({
-      reservation: res, kind: 'checkin', company: props.companyDetails,
-      agreementHtml: agreementHtmlFor(res, ctx), terminationHtml: terminationHtmlFor(res, ctx),
-    });
-    if (outcome.ok) {
-      const sentAt = new Date().toISOString();
-      onEditReservation({ ...res, agreementEmails: [...(res.agreementEmails || []), { to, kind: 'checkin', sentAt }] });
-      recordActivity('TERMINATION_EMAILED', 'email', `Emailed the termination statement to ${res.personName} (${to})`, res.bookingId);
-      setMailNotice({ tone: 'ok', text: `Termination statement emailed to ${to}.` });
-    } else {
-      setMailNotice({ tone: 'bad', text: outcome.reason === 'unconfigured' ? 'Email is not set up. An administrator can turn it on in Email Settings.' : (outcome.message || 'The email could not be sent.') });
-    }
-  };
+
+  const [sendDocs, setSendDocs] = useState<Reservation | null>(null);
   useEffect(() => {
     if (!mailNotice || mailNotice.tone === 'busy') return;
     const t = setTimeout(() => setMailNotice(null), 6000);
@@ -625,7 +608,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     if (canViewVoucherActions) list.push({ key: 'receipt', label: 'Receipt', icon: <CurrencyDollarIcon className="w-4 h-4" />, onClick: () => onShowReceipt(res), section: 'documents' });
     if (canViewVoucherActions && (stage === 'onrent' || stage === 'closed')) list.push({ key: 'print', label: 'Print rental agreement', icon: <PrinterGlyph />, onClick: () => printDoc(res, 'agreement'), section: 'documents' });
     if (canViewVoucherActions && stage === 'closed') list.push({ key: 'term', label: 'Print termination statement', icon: <PdfIcon className="w-4 h-4" />, onClick: () => printDoc(res, 'termination'), section: 'documents' });
-    if (canViewVoucherActions && stage === 'closed') list.push({ key: 'termmail', label: 'Email termination to customer', icon: <MailIcon className="w-4 h-4" />, onClick: () => { void emailTermination(res); }, section: 'documents' });
+    if (canViewVoucherActions && (stage === 'onrent' || stage === 'closed')) list.push({ key: 'docmail', label: stage === 'closed' ? 'Email termination & receipt…' : 'Email agreement & receipt…', icon: <MailIcon className="w-4 h-4" />, onClick: () => setSendDocs(res), section: 'documents' });
     if (hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT)) list.push({ key: 'share', label: 'Share booking', icon: <ShareIcon className="w-4 h-4" />, onClick: () => onShare(res), section: 'documents' });
     if (hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT)) list.push({ key: 'edit', label: 'Edit reservation', icon: <EditIcon className="w-4 h-4" />, onClick: () => openEditModal(res), section: 'booking' });
     if (stage === 'onrent' && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND)) list.push({ key: 'extend', label: 'Extend rental', icon: <ClockIcon className="w-4 h-4" />, onClick: () => onExtend(res), section: 'booking' });
@@ -760,6 +743,11 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   return (
     <>
+      {sendDocs && (
+        <SendDocumentsDialog reservation={sendDocs} onClose={() => setSendDocs(null)}
+          ctx={{ company: props.companyDetails, sources: rentalSources, locations: rentalLocations, fleet }}
+          onSaved={updated => { onEditReservation(updated); setSendDocs(updated); }} />
+      )}
       {mailNotice && (
         <div role="status" className={`fixed z-[80] bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-[13px] font-medium ${
           mailNotice.tone === 'ok' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : mailNotice.tone === 'bad' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-white border-slate-200 text-slate-800'}`}>
