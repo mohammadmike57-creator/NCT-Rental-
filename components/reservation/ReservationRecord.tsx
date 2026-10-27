@@ -126,6 +126,9 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
   if (res.voucherSubmitted) events.push({ at: res.pickupDateTime, title: 'Checked out', detail: [res.pickupAgentName && `by ${res.pickupAgentName}`, res.licensePlate, res.pickupKmOut ? `${res.pickupKmOut.toLocaleString()} km` : ''].filter(Boolean).join(' · '), tone: 'success' });
   exchanges.forEach(x => events.push({ at: x.exchangeDate, title: 'Car exchanged', detail: `${x.oldCarLicensePlate} → ${x.newCarLicensePlate}${x.reason ? ` · ${x.reason}` : ''}`, tone: 'warning' }));
   if (res.dropOffCompleted) events.push({ at: res.dropOffDateTime, title: 'Checked in (returned)', detail: [res.dropOffAgentName && `by ${res.dropOffAgentName}`, res.dropOffKmIn ? `${res.dropOffKmIn.toLocaleString()} km` : ''].filter(Boolean).join(' · '), tone: 'success' });
+  (res.statusHistory || []).forEach(h => events.push({ at: h.at, title: h.to === 'CANCELLED' ? 'Reservation cancelled' : h.to === 'NO_SHOW' ? 'Marked as no-show' : `Status set to ${h.to.toLowerCase().replace('_', ' ')}`,
+    detail: [h.by && `by ${h.by}`, h.reason, h.fee ? `fee ${money(h.fee)}` : ''].filter(Boolean).join(' · ') || undefined,
+    tone: h.to === 'CANCELLED' || h.to === 'NO_SHOW' ? 'danger' : 'success' }));
   if (lateFee) events.push({ at: lateFee.feeAppliedDate, title: `Late return fee ${lateFee.status.toLowerCase()}`, detail: `${lateFee.hoursLate} h late · ${money(lateFee.amount)}`, tone: lateFee.isWaived ? 'default' : 'warning' });
   if (rc?.issuedAt) events.push({ at: rc.issuedAt, title: 'Return charges issued', detail: `${rc.currency} ${rcTotal.toFixed(2)} · ${rc.settlement === 'paid' ? 'paid' : 'claim'}${rc.issuedBy ? ` · by ${rc.issuedBy}` : ''}`, tone: 'warning' });
   (rc?.emails || []).forEach(m => events.push({ at: m.sentAt, title: 'Return charges emailed', detail: m.to, tone: 'default' }));
@@ -209,7 +212,10 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
             <div className={cx('mt-3 rounded-lg border px-3 py-2 text-xs flex items-center gap-2', stage === 'cancelled' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-800')}>
               <span className={cx('w-2 h-2 rounded-full', stage === 'cancelled' ? 'bg-rose-500' : 'bg-amber-500')} />
               <span className="font-semibold">{stage === 'cancelled' ? (res.status === 'NO_SHOW' ? 'No show' : 'Cancelled') : 'Pending'}</span>
-              <span className="text-slate-600">{stage === 'cancelled' ? (res.confirmedAt ? `· ${stamp(res.confirmedAt)}${res.confirmedBy ? ` by ${res.confirmedBy}` : ''}` : '· this booking will not run') : res.awaitingConfirmation ? '· waiting for a supervisor to confirm' : '· not yet confirmed'}</span>
+              <span className="text-slate-600">{stage === 'cancelled'
+                ? (res.statusChangedAt ? `· ${stamp(res.statusChangedAt)}${res.statusChangedBy ? ` by ${res.statusChangedBy}` : ''}${res.statusReason ? ` · ${res.statusReason}` : ''}${res.statusFee ? ` · fee ${money(res.statusFee)}` : ''}`
+                  : res.confirmedAt ? `· ${stamp(res.confirmedAt)}${res.confirmedBy ? ` by ${res.confirmedBy}` : ''}` : '· this booking will not run')
+                : res.awaitingConfirmation ? '· waiting for a supervisor to confirm' : '· not yet confirmed'}</span>
             </div>
           ) : (
             <ol className="mt-3 grid grid-cols-4" aria-label="Rental progress">

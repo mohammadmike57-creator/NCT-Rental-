@@ -111,6 +111,15 @@ export enum ReservationStatus {
   NO_SHOW = 'NO_SHOW',
 }
 
+export interface ReservationStatusChange {
+  from: ReservationStatus;
+  to: ReservationStatus;
+  at: string;
+  by?: string;
+  reason?: string;
+  fee?: number;
+}
+
 export enum TrafficTicketStatus {
   COLLECTED = 'COLLECTED',
   NOT_COLLECTED = 'NOT_COLLECTED',
@@ -215,6 +224,13 @@ export interface Reservation {
   vehicle: string;
   invoice: string;
   status: ReservationStatus;
+  /** Why and by whom the status was last changed by hand (cancelled, no-show, restored…). */
+  statusReason?: string;
+  statusChangedBy?: string;
+  statusChangedAt?: string;
+  /** Cancellation or no-show fee charged to the customer, if any. */
+  statusFee?: number;
+  statusHistory?: ReservationStatusChange[];
   notes: string;
   originalRowNumber?: number;
   originalFileName?: string;

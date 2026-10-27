@@ -11,6 +11,7 @@ import { clearDraft, loadDraft, saveDraft } from '../services/drafts';
 import ReservationRecord from './reservation/ReservationRecord';
 import { recordActivity } from '../firebase/api';
 import SendDocumentsDialog from './SendDocumentsDialog';
+import ChangeStatusDialog, { statusLabel } from './ChangeStatusDialog';
 import { bookingPayment, paymentUnset } from '../services/paymentType';
 import { agreementHtmlFor, printHtml, terminationHtmlFor } from '../services/printDocs';
 import { rentalDaysOf as billingDays } from '../services/rentalDays';
@@ -587,6 +588,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const [mailNotice, setMailNotice] = useState<{ tone: 'busy' | 'ok' | 'bad'; text: string } | null>(null);
 
   const [sendDocs, setSendDocs] = useState<Reservation | null>(null);
+  const [statusFor, setStatusFor] = useState<{ res: Reservation; to?: ReservationStatus } | null>(null);
   useEffect(() => {
     if (!mailNotice || mailNotice.tone === 'busy') return;
     const t = setTimeout(() => setMailNotice(null), 6000);
@@ -614,6 +616,15 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     if (stage === 'onrent' && hasPermission(UserPermission.ACTION_RESERVATIONS_EXTEND)) list.push({ key: 'extend', label: 'Extend rental', icon: <ClockIcon className="w-4 h-4" />, onClick: () => onExtend(res), section: 'booking' });
     if (upgradePermission && live) list.push({ key: 'upgrade', label: 'Upgrade vehicle', icon: <CarIcon className="w-4 h-4" />, onClick: () => openUpgradeModal(res), section: 'booking' });
     if (onAddExtras && live && hasPermission(UserPermission.ACTION_RESERVATIONS_MANAGE_EXTRAS)) list.push({ key: 'extras', label: 'Manage extras', icon: <PlusCircleIcon className="w-4 h-4" />, onClick: () => onAddExtras(res), section: 'booking' });
+    if (!res.voucherSubmitted && !res.dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT)) {
+      if (stage === 'cancelled') {
+        list.push({ key: 'restore', label: 'Restore reservation…', icon: <ClockIcon className="w-4 h-4" />, onClick: () => setStatusFor({ res, to: ReservationStatus.CONFIRMED }), section: 'booking' });
+      } else {
+        list.push({ key: 'noshow', label: 'Mark as no-show…', icon: <ClockIcon className="w-4 h-4" />, onClick: () => setStatusFor({ res, to: ReservationStatus.NO_SHOW }), section: 'booking' });
+        list.push({ key: 'cancel', label: 'Cancel reservation…', icon: <CloseIcon className="w-4 h-4" />, onClick: () => setStatusFor({ res, to: ReservationStatus.CANCELLED }), section: 'booking' });
+      }
+      list.push({ key: 'status', label: 'Change status…', icon: <EditIcon className="w-4 h-4" />, onClick: () => setStatusFor({ res }), section: 'booking' });
+    }
     if (!res.voucherSubmitted && !res.dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE)) list.push({ key: 'delete', label: 'Delete reservation', icon: <TrashIcon className="w-4 h-4" />, onClick: () => onDelete(res.id, res.isNew, y, m), danger: true, section: 'danger' });
     if (stage === 'closed' && onDeleteAgreement && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE)) list.push({ key: 'delete-agreement', label: 'Delete agreement', icon: <TrashIcon className="w-4 h-4" />, onClick: () => onDeleteAgreement(res), danger: true, section: 'danger' });
     return list;
@@ -706,8 +717,9 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     const alert = withAlert ? alertOf(res) : null;
     return (
       <div className="flex flex-col items-start gap-1">
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ring-inset whitespace-nowrap ${STAGE_META[stage].chip}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${STAGE_META[stage].dot}`} />{STAGE_META[stage].label}
+        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ring-inset whitespace-nowrap ${STAGE_META[stage].chip}`}
+          title={stage === 'cancelled' && res.statusReason ? `${res.statusReason}${res.statusChangedBy ? ` · ${res.statusChangedBy}` : ''}` : undefined}>
+          <span className={`w-1.5 h-1.5 rounded-full ${STAGE_META[stage].dot}`} />{stage === 'cancelled' && res.status === ReservationStatus.NO_SHOW ? 'No-show' : STAGE_META[stage].label}
         </span>
         {alert && (
           <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${/overdue/i.test(alert.label) ? 'text-rose-600' : 'text-sky-700'}`}>
@@ -743,6 +755,18 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
 
   return (
     <>
+      {statusFor && (
+        <ChangeStatusDialog reservation={statusFor.res} initial={statusFor.to} currentUserName={currentUser?.fullName}
+          onClose={() => setStatusFor(null)}
+          onSave={updated => {
+            const from = statusFor.res.status || ReservationStatus.CONFIRMED;
+            onEditReservation(updated);
+            recordActivity(updated.status === ReservationStatus.CANCELLED ? 'RESERVATION_CANCELLED' : updated.status === ReservationStatus.NO_SHOW ? 'RESERVATION_NO_SHOW' : 'RESERVATION_STATUS_CHANGED',
+              'reservation', `${statusLabel(from)} → ${statusLabel(updated.status)}: booking ${updated.bookingId} for ${updated.personName}`, updated.bookingId,
+              [updated.statusReason, updated.statusFee ? `fee ${updated.statusFee.toFixed(2)} USD` : ''].filter(Boolean).join(' · ') || undefined);
+            setStatusFor(null);
+          }} />
+      )}
       {sendDocs && (
         <SendDocumentsDialog reservation={sendDocs} onClose={() => setSendDocs(null)}
           ctx={{ company: props.companyDetails, sources: rentalSources, locations: rentalLocations, fleet }}
