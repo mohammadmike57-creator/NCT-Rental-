@@ -1773,7 +1773,7 @@ ${currentUser?.fullName}
             company={companyDetails}
             onOpenBooking={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
         />
-    ), permission: UserPermission.VIEW_RESERVATIONS },
+    ), permission: UserPermission.VIEW_RESERVATION_ADDONS },
     'Fleet Availability': { component: (
       <FleetAvailability 
         fleet={fleet} 
@@ -2054,7 +2054,7 @@ ${currentUser?.fullName}
         { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_AGREEMENTS },
         { name: 'Agreement for Unlisted Reservation', icon: PlusCircleIcon, permission: UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION, action: () => setShowUnlistedAgreement(true) },
         { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount, badgeText: unlistedNewCount ? `${unlistedNewCount} new` : undefined },
-        { name: 'Reservation Add-ons', icon: ReceiptIcon, permission: UserPermission.VIEW_RESERVATIONS },
+        { name: 'Reservation Add-ons', icon: ReceiptIcon, permission: UserPermission.VIEW_RESERVATION_ADDONS },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },

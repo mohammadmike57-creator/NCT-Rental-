@@ -58,6 +58,7 @@ export const PERMISSION_AREAS: PermissionArea[] = [
       sec('unlisted', 'Unlisted Agreements', 'Agreements opened before their booking was in the system', P.VIEW_UNLISTED_AGREEMENTS, [
         p(P.ACTION_UNLISTED_AGREEMENTS_LIST, 'List & link', 'Create or link the reservation, or reject the agreement'),
       ]),
+      sec('addons', 'Reservation Add-ons', 'Price changes and charges on bookings (extras, upgrades, extensions, damages, tickets, fees) against the original reservation', P.VIEW_RESERVATION_ADDONS),
       sec('today', "Today's Reservations", "Today's schedule", P.VIEW_TODAYS_RESERVATIONS),
       sec('messages', 'Internal Messages', 'Send and read staff messages', P.VIEW_INTERNAL_MESSAGES),
       sec('fleet-availability', 'Fleet Availability', 'Which cars are free and the planning board', P.VIEW_FLEET_AVAILABILITY),
@@ -188,7 +189,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     permissions: [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE,
       ...PERMISSION_GROUPS.find(g => g.id === 'reports')!.permissions.map(x => x.key),
       ...PERMISSION_AREAS.find(a => a.id === 'finance')!.sections.filter(x => x.id !== 'tickets' && x.id !== 'damages').flatMap(x => [x.access.key, ...x.actions.map(y => y.key)]),
-      P.VIEW_TRAFFIC_TICKETS],
+      P.VIEW_TRAFFIC_TICKETS, P.VIEW_RESERVATION_ADDONS],
   },
   {
     id: 'fleet', name: 'Fleet & incidents', color: 'bg-amber-600',
@@ -249,6 +250,8 @@ export const effectivePermissions = (perms: string[] = []): P[] => {
   // Opening an agreement for a booking that is not listed yet comes with agreement access, as it always did.
   const withDesk = () => {
     if (set.has(P.VIEW_AGREEMENTS) || set.has(P.ACTION_VOUCHER_MANAGE)) set.add(P.ACTION_AGREEMENT_WITHOUT_RESERVATION);
+    // Reservation Add-ons is shown only to staff given it, and always to administrators.
+    if (set.has(P.ACTION_ADMIN_MANAGE_USERS)) set.add(P.VIEW_RESERVATION_ADDONS);
     return Array.from(set);
   };
   if (SECTION_PERMISSIONS.some(k => set.has(k))) return withDesk();
