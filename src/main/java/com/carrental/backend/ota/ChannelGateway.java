@@ -34,21 +34,28 @@ public class ChannelGateway {
     private final ChannelStateReader channels;
     private final ChannelDeliveryService log2;
     private final ChannelBookingService core;
+    private final ChannelTrafficService traffic;
     private final Map<String, long[]> windows = new ConcurrentHashMap<>();
+    /** Request attribute the staff console sets (server side only) to call a channel without its key, always in sandbox. */
+    static final String CONSOLE_ATTR = "nct.channel.console";
 
-    public ChannelGateway(ChannelStateReader channels, ChannelDeliveryService deliveries, ChannelBookingService core) {
+    public ChannelGateway(ChannelStateReader channels, ChannelDeliveryService deliveries, ChannelBookingService core, ChannelTrafficService traffic) {
         this.channels = channels;
         this.log2 = deliveries;
         this.core = core;
+        this.traffic = traffic;
     }
 
     /**
      * Runs one broker operation. action produces the success body; error renders a ChannelError
      * for this adapter (body + content type) using the request id.
      */
-    public ResponseEntity<String> handle(String channelCode, String key, HttpServletRequest http, String messageType, long bytes,
+    public ResponseEntity<String> handle(String channelCode, String key, HttpServletRequest http, String messageType, String body,
                                          String requestId, Function<Call, Rendered> action,
                                          BiFunction<ChannelException, String, Rendered> error) {
+        long bytes = body == null ? 0 : body.length();
+        boolean console = http.getAttribute(CONSOLE_ATTR) != null;
+        boolean sandbox = console;
         long start = System.nanoTime();
         String rid = requestId == null || requestId.isBlank() ? "REQ-" + UUID.randomUUID().toString().substring(0, 13).toUpperCase(Locale.ROOT)
             : requestId.length() > 80 ? requestId.substring(0, 80) : requestId;
@@ -61,30 +68,40 @@ public class ChannelGateway {
                 ch = found.get();
                 throw ChannelError.RATE_LIMIT_EXCEEDED.ex("Rate limit of " + rateLimit(ch) + " requests a minute exceeded; retry with back-off");
             }
-            if (found.isEmpty() || !PartnerKeyVerifier.matches(found.get(), key)) {
+            boolean consoleOk = console && found.isPresent() && found.get().id().equals(http.getAttribute(CONSOLE_ATTR));
+            if (found.isEmpty() || (!consoleOk && !PartnerKeyVerifier.matches(found.get(), key))) {
                 ch = found.orElse(null);
                 throw ChannelError.AUTH_FAILED.ex("Invalid or missing feed key");
             }
             ch = found.get();
             if ("paused".equalsIgnoreCase(ch.status())) throw ChannelError.PERMISSION_DENIED.ex("Distribution to this channel is paused");
             if (!ipAllowed(ch, remote)) throw ChannelError.PERMISSION_DENIED.ex("Requests from " + remote + " are not allowed for this channel");
-            boolean sandboxHeader = "sandbox".equalsIgnoreCase(http.getHeader("X-Environment"));
-            Rendered ok = action.apply(new Call(core.context(ch, sandboxHeader), rid));
+            boolean sandboxHeader = console || "sandbox".equalsIgnoreCase(http.getHeader("X-Environment"));
+            ChannelBookingService.Ctx ctx = core.context(ch, sandboxHeader);
+            sandbox = ctx.sandbox();
+            Rendered ok = action.apply(new Call(ctx, rid));
             log2.recordInbound(ch, messageType, 200, true, null, bytes, ms(start), remote);
+            traffic.record(ch, http, messageType, body, rid, 200, true, null, null, ok.body(), ms(start), remote, sandbox);
             return respond(200, ok, rid);
         } catch (ChannelException e) {
-            if (ch != null) log2.recordInbound(ch, messageType, e.error.http.value(), false, e.error.name() + ": " + e.getMessage(), bytes, ms(start), remote);
-            return respond(e.error.http.value(), error.apply(e, rid), rid);
+            return failed(ch, http, messageType, body, rid, e.error.http.value(), e, error, start, remote, sandbox);
         } catch (OtaRequestParser.InvalidRequestException e) {
-            ChannelException ce = ChannelError.INVALID_REQUEST.ex(e.getMessage());
-            if (ch != null) log2.recordInbound(ch, messageType, 400, false, "INVALID_REQUEST: " + e.getMessage(), bytes, ms(start), remote);
-            return respond(400, error.apply(ce, rid), rid);
+            return failed(ch, http, messageType, body, rid, 400, ChannelError.INVALID_REQUEST.ex(e.getMessage()), error, start, remote, sandbox);
         } catch (Exception e) {
             log.error("Channel {} {} failed ({})", channelCode, messageType, rid, e);
-            if (ch != null) log2.recordInbound(ch, messageType, 500, false, "SYSTEM_ERROR: " + e.getClass().getSimpleName(), bytes, ms(start), remote);
             // No stack traces or internal details to partners.
-            return respond(500, error.apply(ChannelError.SYSTEM_ERROR.ex("Internal error, reference " + rid), rid), rid);
+            return failed(ch, http, messageType, body, rid, 500, ChannelError.SYSTEM_ERROR.ex("Internal error, reference " + rid), error, start, remote, sandbox);
         }
+    }
+
+    private ResponseEntity<String> failed(ChannelSnapshot ch, HttpServletRequest http, String type, String body, String rid, int status,
+                                          ChannelException e, BiFunction<ChannelException, String, Rendered> error, long start, String remote, boolean sandbox) {
+        Rendered r = error.apply(e, rid);
+        if (ch != null) {
+            log2.recordInbound(ch, type, status, false, e.error.name() + ": " + e.getMessage(), body == null ? 0 : body.length(), ms(start), remote);
+            traffic.record(ch, http, type, body, rid, status, false, e.error.name(), e.getMessage(), r.body(), ms(start), remote, sandbox);
+        }
+        return respond(status, r, rid);
     }
 
     private static ResponseEntity<String> respond(int status, Rendered r, String rid) {
@@ -112,6 +129,8 @@ public class ChannelGateway {
 
     /** The partner's address: the first X-Forwarded-For entry behind the hosting proxy. */
     static String clientIp(HttpServletRequest http) {
+        Object console = http.getAttribute(CONSOLE_ATTR + ".user");
+        if (console != null) return "console:" + console;
         String fwd = http.getHeader("X-Forwarded-For");
         if (fwd != null && !fwd.isBlank()) return fwd.split(",")[0].trim();
         return http.getRemoteAddr();

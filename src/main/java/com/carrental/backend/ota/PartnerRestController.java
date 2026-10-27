@@ -28,6 +28,10 @@ import java.util.function.Function;
  *   GET   /partner/v1/{channel}/extras
  *   GET   /partner/v1/{channel}/coverages                       insurance covers (included and optional)
  *   GET   /partner/v1/{channel}/inventory?days=60               free cars per group per day
+ *   GET   /partner/v1/{channel}/locations/{code}                one station in full
+ *   POST  /partner/v1/{channel}/rate-rules                      {"offer_id"} or {"itinerary"} → full terms before booking
+ *   GET   /partner/v1/{channel}/reservations?from=&to=&status=&page=&size=   reconciliation by pick-up date
+ *   GET   /partner/v1/{channel}/ping
  *   POST  /partner/v1/{channel}/availability                  search → offers
  *   POST  /partner/v1/{channel}/quotes                        {"offer_id"} → re-validated offer, car held
  *   POST  /partner/v1/{channel}/reservations                  book
@@ -66,6 +70,37 @@ public class PartnerRestController {
         return run(channel, null, http, "REST extras", c -> envelope(c, "extras", core.extras(c.ctx())));
     }
 
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping(@PathVariable String channel, HttpServletRequest http) {
+        return run(channel, null, http, "REST ping", c -> envelope(c, "echo", "pong"));
+    }
+
+    @GetMapping("/locations/{code}")
+    public ResponseEntity<String> location(@PathVariable String channel, @PathVariable String code, HttpServletRequest http) {
+        return run(channel, null, http, "REST location", c -> envelope(c, "location", core.location(c.ctx(), code)));
+    }
+
+    @PostMapping(value = "/rate-rules", consumes = MediaType.ALL_VALUE)
+    public ResponseEntity<String> rateRules(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
+        return run(channel, body, http, "REST rate-rules", c -> {
+            JsonNode b = read(body);
+            JsonNode it = b.path("itinerary");
+            return envelope(c, "rate_rule", core.rateRule(c.ctx(), text(b, "offer_id"), it.isObject() ? search(it, c.ctx().rules(), true) : null));
+        });
+    }
+
+    @GetMapping("/reservations")
+    public ResponseEntity<String> list(@PathVariable String channel, @RequestParam String from, @RequestParam String to,
+                                       @RequestParam(required = false) String status, @RequestParam(defaultValue = "1") int page,
+                                       @RequestParam(defaultValue = "50") int size, HttpServletRequest http) {
+        return run(channel, null, http, "REST reservations", c -> {
+            java.time.LocalDate f, t;
+            try { f = java.time.LocalDate.parse(from); t = java.time.LocalDate.parse(to); }
+            catch (Exception e) { throw ChannelError.INVALID_DATE.ex("from and to must be YYYY-MM-DD"); }
+            return envelope(c, "page", core.list(c.ctx(), f, t, status, page, size));
+        });
+    }
+
     @GetMapping("/coverages")
     public ResponseEntity<String> coverages(@PathVariable String channel, HttpServletRequest http) {
         return run(channel, null, http, "REST coverages", c -> envelope(c, "coverages", core.coverages(c.ctx())));
@@ -80,7 +115,9 @@ public class PartnerRestController {
     @PostMapping(value = "/availability", consumes = MediaType.ALL_VALUE)
     public ResponseEntity<String> availability(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
         return run(channel, body, http, "REST availability", c -> {
-            List<Offer> offers = core.search(c.ctx(), search(read(body), c.ctx().rules(), true));
+            JsonNode b = read(body);
+            // {"itinerary": {…}} as documented; the flat form is accepted too.
+            List<Offer> offers = core.search(c.ctx(), search(b.path("itinerary").isObject() ? b.path("itinerary") : b, c.ctx().rules(), true));
             if (offers.stream().noneMatch(o -> "Available".equals(o.status()))) throw ChannelError.NO_AVAILABILITY.ex(null);
             return envelope(c, "offers", offers);
         });
@@ -130,7 +167,7 @@ public class PartnerRestController {
 
     private ResponseEntity<String> run(String channel, String body, HttpServletRequest http, String type, Function<ChannelGateway.Call, String> action) {
         String key = PartnerKeyVerifier.extractKey(http.getHeader("Authorization"), http.getHeader("X-Api-Key"));
-        return gateway.handle(channel, key, http, type, body == null ? 0 : body.length(), http.getHeader("X-Request-ID"),
+        return gateway.handle(channel, key, http, type, body, http.getHeader("X-Request-ID"),
             c -> new ChannelGateway.Rendered(action.apply(c), MediaType.APPLICATION_JSON),
             (e, rid) -> new ChannelGateway.Rendered(error(e, rid), MediaType.APPLICATION_JSON));
     }
@@ -181,7 +218,8 @@ public class PartnerRestController {
         }
         return new Search(pick, ret, from == null ? null : OtaBookingXml.dateTime(from, "pickup_at"), to == null ? null : OtaBookingXml.dateTime(to, "return_at"),
             it.has("driver_age") ? it.path("driver_age").asInt() : null, text(it, "driver_country"),
-            text(it, "vehicle_group") == null ? null : text(it, "vehicle_group").toUpperCase(), extras, covers, text(it, "promo_code"));
+            text(it, "vehicle_group") == null ? null : text(it, "vehicle_group").toUpperCase(), extras, covers, text(it, "promo_code"),
+            text(it, "currency") == null ? null : text(it, "currency").toUpperCase());
     }
 
     private static Customer customer(JsonNode c) {

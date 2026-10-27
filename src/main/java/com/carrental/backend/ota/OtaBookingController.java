@@ -21,6 +21,9 @@ import java.util.function.Function;
  *   POST /ota/v1/{channel}/OTA_VehRetRes        OTA_VehRetResRQ    → RS   retrieve (also /OTA_VehResRetrieve)
  *   POST /ota/v1/{channel}/OTA_VehModify        OTA_VehModifyRQ    → RS   amend dates, car group, extras, driver
  *   POST /ota/v1/{channel}/OTA_VehCancel        OTA_VehCancelRQ    → RS   cancel, with fee and refund
+ *   POST /ota/v1/{channel}/OTA_VehRateRule      OTA_VehRateRuleRQ  → RS   full terms of an offer before booking
+ *   POST /ota/v1/{channel}/OTA_VehLocDetail     OTA_VehLocDetailRQ → RS   one station in full
+ *   POST /ota/v1/{channel}/OTA_Ping             OTA_PingRQ         → RS   credentials and service check
  *
  * The same messages are accepted inside a SOAP 1.1 / 1.2 envelope at /ota/v1/{channel}/soap
  * (OtaSoapController). The key may also travel as POS/Source/RequestorID MessagePassword.
@@ -71,8 +74,23 @@ public class OtaBookingController {
         return dispatch(channel, "OTA_VehCancelRQ", body, headerKey(http), null, http);
     }
 
+    @PostMapping(value = "/OTA_VehRateRule", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
+    public ResponseEntity<String> rateRule(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
+        return dispatch(channel, "OTA_VehRateRuleRQ", body, headerKey(http), null, http);
+    }
+
+    @PostMapping(value = "/OTA_VehLocDetail", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
+    public ResponseEntity<String> locationDetail(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
+        return dispatch(channel, "OTA_VehLocDetailRQ", body, headerKey(http), null, http);
+    }
+
+    @PostMapping(value = "/OTA_Ping", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
+    public ResponseEntity<String> ping(@PathVariable String channel, @RequestBody(required = false) String body, HttpServletRequest http) {
+        return dispatch(channel, "OTA_PingRQ", body, headerKey(http), null, http);
+    }
+
     static final java.util.Set<String> MESSAGES = java.util.Set.of("OTA_VehLocSearchRQ", "OTA_VehAvailRateRQ", "OTA_VehResRQ",
-        "OTA_VehRetResRQ", "OTA_VehModifyRQ", "OTA_VehCancelRQ");
+        "OTA_VehRetResRQ", "OTA_VehModifyRQ", "OTA_VehCancelRQ", "OTA_VehRateRuleRQ", "OTA_VehLocDetailRQ", "OTA_PingRQ");
 
     /**
      * Runs one OTA message (also used by the SOAP endpoint). The key comes from the HTTP headers,
@@ -125,6 +143,25 @@ public class OtaBookingController {
                 Reservation r = core.cancel(c.ctx(), id, OtaBookingXml.text(OtaBookingXml.first(OtaBookingXml.first(p.root(), "TPA_Extensions"), "Reason")));
                 return OtaBookingXml.reservation("OTA_VehCancelRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
             };
+            case "OTA_VehRateRuleRQ" -> c -> {
+                OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
+                String offer = OtaBookingXml.offerReference(p.root());
+                Search s = OtaBookingXml.first(p.root(), "VehRentalCore") == null ? null : OtaBookingXml.search(p.root(), c.ctx().rules());
+                if (offer == null && s == null) throw ChannelError.INVALID_REQUEST.ex("Send Reference Type=\"16\" with the offer id, or VehRentalCore and VehPref");
+                RateRule rr = core.rateRule(c.ctx(), offer, s);
+                return OtaBookingXml.rateRule(p.echoToken(), prod(c), rr.search(), rr, c.ctx().channel().vendorCode());
+            };
+            case "OTA_VehLocDetailRQ" -> c -> {
+                OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
+                String code = OtaBookingXml.attr(OtaBookingXml.first(p.root(), "Location"), "LocationCode");
+                if (code.isEmpty()) code = OtaBookingXml.attr(OtaBookingXml.first(p.root(), "LocationDetail"), "Code");
+                if (code.isEmpty()) throw ChannelError.INVALID_REQUEST.ex("Location LocationCode is required");
+                return OtaBookingXml.locationDetail(p.echoToken(), prod(c), core.location(c.ctx(), code), c.ctx().channel().vendorCode());
+            };
+            case "OTA_PingRQ" -> c -> {
+                OtaBookingXml.Parsed p = body == null || body.isBlank() ? null : OtaBookingXml.parse(body, rq);
+                return OtaBookingXml.ping(p == null ? null : p.echoToken(), prod(c), p == null ? null : OtaBookingXml.text(OtaBookingXml.first(p.root(), "EchoData")));
+            };
             default -> throw new IllegalArgumentException(rq);
         };
         return run(channel, body, key, http, type, errorRoot, action);
@@ -141,7 +178,7 @@ public class OtaBookingController {
     private ResponseEntity<String> run(String channel, String body, String key, HttpServletRequest http, String type, String errorRoot,
                                        Function<ChannelGateway.Call, String> action) {
         String echo = echo(body);
-        return gateway.handle(channel, key, http, type, body == null ? 0 : body.length(), http.getHeader("X-Request-ID"),
+        return gateway.handle(channel, key, http, type, body, http.getHeader("X-Request-ID"),
             c -> new ChannelGateway.Rendered(action.apply(c), XML),
             (e, rid) -> new ChannelGateway.Rendered(OtaBookingXml.error(errorRoot, echo, true, e, rid), XML));
     }

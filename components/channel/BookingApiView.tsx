@@ -3,11 +3,11 @@ import { Aggregator, ChannelBookingRules, ChannelBookingLocation, Fleet, RentalL
 import { API_URL, fetchChannelWebhooks, rotateWebhookSecret, sendTestWebhook, replayWebhook, ChannelWebhookRow } from '../../firebase/api';
 import { partnerEndpoints } from '../../services/channelManager';
 import { Panel, Button, Badge, inputCls, selectCls, labelCls } from '../ui/Crm';
-import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSection, OperationsSection } from './CommercialRules';
+import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSection, OperationsSection, CancellationSchedule, CurrenciesSection } from './CommercialRules';
 
 /** Defaults the server uses when a rule is not set (see ChannelRules.java). */
 export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'allowedGroups' | 'ipAllowlist' | 'webhookUrl' | 'webhookEvents'
-  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays'>> = {
+  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies'>> = {
   bookingsEnabled: true, paymentModel: 'PAY_AT_COUNTER', freeCancellationHours: 48, lateCancellationFeePercent: 100, modificationFee: 0,
   minLeadHours: 2, maxRentalDays: 60, maxHorizonDays: 365, minDriverAge: 21, maxDriverAge: 0, offerValidityMinutes: 30, holdMinutes: 15,
   operationalBuffer: 0, oneWayFee: 0, rateLimitPerMinute: 120,
@@ -109,6 +109,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
   const endpointRows: [string, string, string][] = [
     ['Locations', 'POST', ep.locSearch], ['Availability & offers', 'POST', ep.availRate], ['Book', 'POST', ep.vehRes],
     ['Retrieve', 'POST', ep.retRes], ['Modify', 'POST', ep.modify], ['Cancel', 'POST', ep.cancel],
+    ['Rate rules (terms before booking)', 'POST', ep.rateRule], ['Location detail', 'POST', ep.locDetail], ['Ping', 'POST', ep.otaPing],
     ['SOAP 1.1 / 1.2 (all OTA messages)', 'POST', ep.soap], ['WSDL', 'GET', ep.wsdl], ['Native XML schema (XSD)', 'GET', ep.nativeXsd],
   ];
 
@@ -167,14 +168,11 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
               <option value="BROKER_PREPAID">Broker prepaid — the broker collects and settles with us</option>
             </select>
           </label>
+          <CancellationSchedule rules={rules} set={set} />
           <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Free cancellation until" value={r.freeCancellationHours} onChange={v => set('freeCancellationHours', v)} suffix="hours" />
-            <NumberField label="Fee after that" value={r.lateCancellationFeePercent} onChange={v => set('lateCancellationFeePercent', Math.min(100, v))} max={100} suffix="% of total" />
             <NumberField label="Modification fee" value={r.modificationFee} onChange={v => set('modificationFee', v)} step={0.5} suffix={aggregator.currency || 'USD'} />
             <NumberField label="One-way fee" hint="different return location" value={r.oneWayFee} onChange={v => set('oneWayFee', v)} step={0.5} suffix={aggregator.currency || 'USD'} />
           </div>
-          <p className="text-xs text-slate-500">Policy code sent to the broker: <span className="font-mono font-semibold text-slate-700">{r.lateCancellationFeePercent === 0 ? 'FREE' : `FLEX${r.freeCancellationHours}`}</span>
-            {' '}— free until {r.freeCancellationHours} h before pick-up, then {r.lateCancellationFeePercent}% of the booking.</p>
         </Section>
 
         <Section title="Booking limits" subtitle="Requests outside these limits get INVALID_DATE or POLICY_VIOLATION.">
@@ -309,6 +307,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
 
       <VehicleDetailsSection groups={groups} fleet={fleet} details={rules.groupDetails || {}} onChange={d => set('groupDetails', d)} />
       <PricingSection pricing={rules.pricing || {}} currency={aggregator.currency || 'USD'} groups={groups} onChange={p => set('pricing', p)} />
+      <CurrenciesSection base={aggregator.currency || 'USD'} currencies={rules.currencies || {}} onChange={c => set('currencies', c)} />
       <AllotmentsSection allotments={rules.allotments || []} groups={groups} onChange={a => set('allotments', a)} />
       <OperationsSection aggregator={aggregator} rules={rules} set={set} saved={saved} showConfirmation={showConfirmation} />
 

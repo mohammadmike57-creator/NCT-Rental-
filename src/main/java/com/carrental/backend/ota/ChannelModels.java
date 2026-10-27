@@ -17,16 +17,26 @@ public final class ChannelModels {
     /** A search or booking itinerary. coverages = optional cover codes chosen; promoCode = a promotion agreed with the broker. */
     public record Search(String pickupLocation, String returnLocation, LocalDateTime pickupAt, LocalDateTime returnAt,
                          Integer driverAge, String driverCountry, String vehicleGroup, List<ExtraRequest> extras,
-                         List<String> coverages, String promoCode) {
+                         List<String> coverages, String promoCode, String currency) {
         public Search(String pickupLocation, String returnLocation, LocalDateTime pickupAt, LocalDateTime returnAt,
                       Integer driverAge, String driverCountry, String vehicleGroup, List<ExtraRequest> extras) {
-            this(pickupLocation, returnLocation, pickupAt, returnAt, driverAge, driverCountry, vehicleGroup, extras, null, null);
+            this(pickupLocation, returnLocation, pickupAt, returnAt, driverAge, driverCountry, vehicleGroup, extras, null, null, null);
+        }
+        public Search(String pickupLocation, String returnLocation, LocalDateTime pickupAt, LocalDateTime returnAt,
+                      Integer driverAge, String driverCountry, String vehicleGroup, List<ExtraRequest> extras, List<String> coverages, String promoCode) {
+            this(pickupLocation, returnLocation, pickupAt, returnAt, driverAge, driverCountry, vehicleGroup, extras, coverages, promoCode, null);
         }
         public List<String> coverageCodes() { return coverages == null ? List.of() : coverages; }
         public Search with(Integer age) {
-            return new Search(pickupLocation, returnLocation, pickupAt, returnAt, age, driverCountry, vehicleGroup, extras, coverages, promoCode);
+            return new Search(pickupLocation, returnLocation, pickupAt, returnAt, age, driverCountry, vehicleGroup, extras, coverages, promoCode, currency);
+        }
+        public Search inCurrency(String cur) {
+            return new Search(pickupLocation, returnLocation, pickupAt, returnAt, driverAge, driverCountry, vehicleGroup, extras, coverages, promoCode, cur);
         }
     }
+
+    /** One step of the cancellation schedule: from `from` (hoursBefore pick-up) the fee is percent of the booking. */
+    public record Penalty(LocalDateTime from, int hoursBefore, BigDecimal percent, BigDecimal amount) {}
 
     /** What the broker shows for a car group (from the channel's group details, the SIPP code and the fleet). */
     public record VehicleInfo(int seats, int doors, int largeBags, int smallBags, String fuel, String pictureUrl, String description) {}
@@ -46,7 +56,8 @@ public final class ChannelModels {
                         BigDecimal taxAmount, boolean taxIncluded, BigDecimal totalAmount, List<PriceLine> breakdown,
                         BigDecimal depositAmount, BigDecimal excessAmount, String cancellationPolicy, String paymentType,
                         Instant expiresAt, boolean held, VehicleInfo vehicle, Mileage mileage, List<CoverageOffer> coverages,
-                        String promoCode, String taxName, BigDecimal taxPercent) {}
+                        String promoCode, String taxName, BigDecimal taxPercent, List<Penalty> penalties,
+                        String baseCurrency, BigDecimal exchangeRate) {}
 
     public record Customer(String title, String firstName, String lastName, String email, String phone, String country) {
         public String fullName() {
@@ -69,7 +80,7 @@ public final class ChannelModels {
                               Customer customer, Driver driver, String assignedVehicle, Instant createdAt,
                               BigDecimal cancellationFee, BigDecimal refundAmount, String refundStatus, boolean sandbox,
                               BigDecimal taxAmount, boolean taxIncluded, Mileage mileage, List<CoverageOffer> coverages,
-                              VehicleInfo vehicle, String promoCode) {}
+                              VehicleInfo vehicle, String promoCode, List<Penalty> penalties) {}
 
     public record OpeningHours(String day, String open, String close) {}
 
@@ -83,4 +94,12 @@ public final class ChannelModels {
     public record Coverage(String code, String name, boolean included, BigDecimal dailyPrice, BigDecimal excess, BigDecimal deposit) {}
 
     public record Extra(String code, String name, BigDecimal dailyPrice, BigDecimal maxPerRental) {}
+
+    /** Everything a broker must show before the customer books: price, covers, extras, policies, stations and terms. */
+    public record RateRule(Search search, Offer offer, List<Extra> extras, Location pickupLocation, Location returnLocation,
+                           int minDriverAge, int maxDriverAge, int minLeadHours, int maxRentalDays,
+                           BigDecimal modificationFee, String terms) {}
+
+    /** One page of bookings for reconciliation. */
+    public record ReservationPage(int page, int size, long total, List<Reservation> reservations) {}
 }

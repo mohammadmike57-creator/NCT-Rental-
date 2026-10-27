@@ -34,7 +34,8 @@ public class ChannelBooking {
     private LocalDateTime pickupAt;
     private LocalDateTime returnAt;
     @Column(precision = 12, scale = 2) private BigDecimal total;
-    @Column(length = 3) private String currency;
+    @Column(length = 3) private String currency;                              // the currency sold in
+    @Column(precision = 18, scale = 6) private BigDecimal exchangeRate;       // units of `currency` per 1 channel currency (null = 1)
     @Column(precision = 12, scale = 2) private BigDecimal feeAmount;        // cancellation or no-show fee charged
     @Column(length = 40) private String promoCode;
     @Column(length = 20) private String status;                                // last status told to the broker

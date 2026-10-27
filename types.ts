@@ -722,6 +722,10 @@ export interface ChannelBookingRules {
     noShowAfterHours?: number;
     noShowFeePercent?: number;
     inventoryPushDays?: number;
+    /** Penalty schedule; replaces freeCancellationHours / lateCancellationFeePercent when set. */
+    cancellationTiers?: { hoursBefore: number; feePercent: number }[];
+    /** Currencies brokers may book in: units per 1 channel currency, e.g. { EUR: 0.92 }. */
+    currencies?: Record<string, number>;
 }
 
 export interface ChannelCertificationResult { id: string; name: string; passed: boolean; detail: string; ms: number }

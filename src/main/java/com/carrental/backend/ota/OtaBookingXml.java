@@ -73,7 +73,15 @@ public final class OtaBookingXml {
         Element pref = first(root, "VehPref");
         String group = pref == null ? null : (attr(pref, "Code").isEmpty() ? null : attr(pref, "Code").toUpperCase());
         String country = attr(first(first(root, "Address"), "CountryName"), "Code");
-        return new Search(pick, ret, from, to, age, country.isEmpty() ? null : country, group, equipment(root), coverages(root), promo(root));
+        return new Search(pick, ret, from, to, age, country.isEmpty() ? null : country, group, equipment(root), coverages(root), promo(root),
+            currency(root));
+    }
+
+    /** The currency the broker sells in: POS/Source ISOCurrency (OTA standard) or TPA_Extensions/Currency. */
+    static String currency(Element root) {
+        String c = attr(first(first(root, "POS"), "Source"), "ISOCurrency");
+        if (c.isEmpty()) c = text(first(first(root, "TPA_Extensions"), "Currency"));
+        return c.isEmpty() ? null : c.toUpperCase();
     }
 
     /** CoveragePrefs/CoveragePref CoverageType (our cover code, e.g. SCDW). */
@@ -159,10 +167,19 @@ public final class OtaBookingXml {
             s = new Search(pick, ret, from, to, driver == null || attr(driver, "Age").isEmpty() ? null : intOf(attr(driver, "Age"), "Age"), null,
                 pref == null ? null : emptyToNull(attr(pref, "Code").toUpperCase()),
                 first(root, "SpecialEquipPrefs") == null ? null : equipment(root),
-                first(root, "CoveragePrefs") == null ? null : coverages(root), promo(root));
+                first(root, "CoveragePrefs") == null ? null : coverages(root), promo(root), null);
         }
         Customer c = first(root, "Primary") == null ? null : customer(root);
         return new ModifyRequest(id, s, c, c == null ? null : driver(root, c), expected(root), emptyToNull(text(first(root, "SpecialReqPref"))));
+    }
+
+    /** The offer id of a rate-rule or booking request: Reference Type="16" (or any OFF-… id). */
+    public static String offerReference(Element root) {
+        for (Element r : all(root, "Reference")) {
+            String id = attr(r, "ID");
+            if ("16".equals(attr(r, "Type")) || id.startsWith("OFF-")) return id;
+        }
+        return null;
     }
 
     /** Our reservation number (Type 14) or the broker reference, from UniqueID. */
@@ -188,7 +205,31 @@ public final class OtaBookingXml {
         X x = open("OTA_VehLocSearchRS", echo, prod);
         x.line("<Success/>").open("VehMatchedLocs");
         for (Location l : locs) {
-            x.open("VehMatchedLoc").open("LocationDetail", "Code", l.code(), "Name", l.name(), "AtAirport", "AIRPORT".equals(l.type()),
+            x.open("VehMatchedLoc");
+            locationDetail(x, l, vendor);
+            x.close();
+        }
+        return x.close().done();
+    }
+
+    /** OTA_VehLocDetailRS: one station in full. */
+    public static String locationDetail(String echo, boolean prod, Location l, String vendor) {
+        X x = open("OTA_VehLocDetailRS", echo, prod);
+        x.line("<Success/>");
+        locationDetail(x, l, vendor);
+        return x.close().done();
+    }
+
+    /** OTA_PingRS: echoes EchoData, proving the credentials and the service work. */
+    public static String ping(String echo, boolean prod, String data) {
+        X x = open("OTA_PingRS", echo, prod);
+        x.line("<Success/>").el("EchoData", data == null || data.isBlank() ? "pong" : data);
+        return x.close().done();
+    }
+
+    private static void locationDetail(X x, Location l, String vendor) {
+        {
+            x.open("LocationDetail", "Code", l.code(), "Name", l.name(), "AtAirport", "AIRPORT".equals(l.type()),
                 "CodeContext", "IATA");
             if (!l.address().isBlank()) x.open("Address").el("AddressLine", l.address()).close();
             if (l.phone() != null && !l.phone().isBlank()) x.el("Telephone", null, "PhoneNumber", l.phone(), "PhoneTechType", 1);
@@ -207,9 +248,72 @@ public final class OtaBookingXml {
              .el("LocationType", l.type()).el("AfterHours", null, "PickUp", l.afterHoursPickup(), "Return", l.afterHoursReturn(),
                  "Fee", l.afterHoursFee().signum() > 0 ? l.afterHoursFee() : null)
              .el("Vendor", null, "Code", vendor).close();
-            x.close().close();
+            x.close();
         }
+    }
+
+    /** OTA_VehRateRuleRS: price, covers, extras, payment and cancellation rules, age limits, stations and terms. */
+    public static String rateRule(String echo, boolean prod, Search s, RateRule rr, String vendor) {
+        Offer o = rr.offer();
+        X x = open("OTA_VehRateRuleRS", echo, prod);
+        x.line("<Success/>");
+        rentalCore(x, s.pickupAt(), s.returnAt(), s.pickupLocation(), s.returnLocation());
+        vehicle(x, o.vehicleGroup(), o.modelExample(), o.transmission(), o.airCon(), o.vehicle());
+        Tax tax = new Tax(o.taxAmount(), o.taxIncluded(), o.taxName(), o.taxPercent());
+        rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), o.currency(), o.cancellationPolicy(), o.mileage(), tax, o.promoCode());
+        coverages(x, o.coverages(), o.currency(), o.rentalDays());
+        x.open("PricedEquips");
+        for (Extra e : rr.extras()) {
+            x.open("PricedEquip").open("Equipment", "EquipType", e.code()).el("Description", e.name()).close()
+             .open("Charge", "Amount", e.dailyPrice(), "CurrencyCode", o.currency(), "TaxInclusive", o.taxIncluded(), "IncludedInRate", false)
+             .el("Calculation", null, "UnitCharge", e.dailyPrice(), "UnitName", "Day", "Quantity", 1, "Total", e.maxPerRental()).close().close();
+        }
+        x.close();
+        fees(x, o.breakdown(), o.currency(), tax);
+        x.el("TotalCharge", null, "RateTotalAmount", o.baseAmount(), "EstimatedTotalAmount", o.totalAmount(), "CurrencyCode", o.currency());
+        x.open("RateRules", "MinimumKeep", null)
+         .el("AdvanceBooking", null, "OffsetTimeUnit", "Hour", "OffsetUnitMultiplier", rr.minLeadHours())
+         .el("MaximumRental", null, "UnitName", "Day", "Quantity", rr.maxRentalDays())
+         .el("MinimumAge", null, "Age", rr.minDriverAge())
+         .el("MaximumAge", null, "Age", rr.maxDriverAge() > 0 ? rr.maxDriverAge() : null);
+        x.open("PaymentRules").el("PaymentRule", null, "RuleType", "BROKER_PREPAID".equals(o.paymentType()) ? 2 : 1,
+            "Amount", o.totalAmount(), "CurrencyCode", o.currency()).close();
+        penalties(x, o.penalties(), o.currency());
+        if (rr.modificationFee() != null && rr.modificationFee().signum() > 0) {
+            x.open("ModifyPenalties").el("ModifyPenalty", null, "Amount", rr.modificationFee(), "CurrencyCode", o.currency()).close();
+        }
+        x.close();
+        x.open("LocationDetails");
+        locationDetail(x, rr.pickupLocation(), vendor);
+        if (!rr.returnLocation().code().equals(rr.pickupLocation().code())) locationDetail(x, rr.returnLocation(), vendor);
+        x.close();
+        if (rr.terms() != null && !rr.terms().isBlank()) x.open("RentalTerms").el("Text", rr.terms(), "Formatted", false).close();
+        x.open("TPA_Extensions")
+         .el("Deposit", null, "Amount", o.depositAmount(), "CurrencyCode", o.currency())
+         .el("Excess", null, "Amount", o.excessAmount(), "CurrencyCode", o.currency())
+         .el("PaymentType", o.paymentType())
+         .el("CancellationPolicy", null, "Code", o.cancellationPolicy());
+        if (o.offerId() != null) x.el("Reference", null, "Type", 16, "ID", o.offerId(), "DateTime", o.expiresAt() == null ? null : o.expiresAt().toString());
+        if (o.exchangeRate() != null && o.exchangeRate().compareTo(BigDecimal.ONE) != 0) {
+            x.el("Conversion", null, "SourceCurrencyCode", o.baseCurrency(), "RequestedCurrencyCode", o.currency(), "RateConversion", o.exchangeRate().stripTrailingZeros().toPlainString());
+        }
+        x.close();
         return x.close().done();
+    }
+
+    /** CancelPenalties: one CancelPenalty per step, with its absolute deadline and the fee. */
+    private static void penalties(X x, List<Penalty> list, String cur) {
+        if (list == null || list.isEmpty()) {
+            x.open("CancelPenalties").el("CancelPenalty", null, "NonRefundable", false).close();
+            return;
+        }
+        x.open("CancelPenalties");
+        for (Penalty p : list) {
+            x.open("CancelPenalty").el("Deadline", null, "AbsoluteDeadline", p.from().format(LOCAL), "OffsetTimeUnit", "Hour",
+                "OffsetUnitMultiplier", p.hoursBefore(), "OffsetDropTime", "BeforeArrival")
+             .el("AmountPercent", null, "Percent", p.percent().stripTrailingZeros().toPlainString(), "Amount", p.amount(), "CurrencyCode", cur).close();
+        }
+        x.close();
     }
 
     public static String availability(String echo, boolean prod, Search s, List<Offer> offers, String vendor, String warning) {
@@ -238,6 +342,11 @@ public final class OtaBookingXml {
              .el("Excess", null, "Amount", o.excessAmount(), "CurrencyCode", o.currency())
              .el("PaymentType", o.paymentType())
              .el("CancellationPolicy", null, "Code", o.cancellationPolicy());
+            if ("Available".equals(o.status())) penalties(x, o.penalties(), o.currency());
+            if (o.exchangeRate() != null && o.exchangeRate().compareTo(BigDecimal.ONE) != 0) {
+                x.el("Conversion", null, "SourceCurrencyCode", o.baseCurrency(), "RequestedCurrencyCode", o.currency(),
+                    "RateConversion", o.exchangeRate().stripTrailingZeros().toPlainString());
+            }
             if (o.closedReason() != null && !"Available".equals(o.status())) x.el("ClosedReason", o.closedReason());
             x.close().close().close();
         }
@@ -297,6 +406,7 @@ public final class OtaBookingXml {
          .el("PaymentStatus", r.paymentStatus())
          .el("PaymentType", r.paymentType())
          .el("CancellationPolicy", null, "Code", r.cancellationPolicy());
+        if (r.penalties() != null && !"CANCELLED".equals(r.status())) penalties(x, r.penalties(), r.currency());
         if (r.assignedVehicle() != null && !r.assignedVehicle().isBlank()) x.el("AssignedVehicle", r.assignedVehicle());
         if (r.cancellationFee() != null) {
             x.el("CancellationFee", null, "Amount", r.cancellationFee(), "CurrencyCode", r.currency());

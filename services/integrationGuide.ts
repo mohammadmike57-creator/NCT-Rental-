@@ -113,6 +113,10 @@ ${section(3, 'Operations', `
     ['Free cars per group per day', 'webhook inventory.updated', 'POST Inventory', 'GET /inventory?days=60'],
     ['Search availability & prices', 'POST OTA_VehAvailRate', 'POST Availability', 'POST /availability'],
     ['Re-validate an offer and hold a car', '—', 'POST Quote', 'POST /quotes'],
+    ['Full terms of an offer before booking', 'POST OTA_VehRateRule', 'POST RateRules', 'POST /rate-rules'],
+    ['One station in full', 'POST OTA_VehLocDetail', 'POST LocationDetail', 'GET /locations/{code}'],
+    ['Reconciliation: bookings by pick-up date', '—', 'POST ReservationList', 'GET /reservations?from=&to='],
+    ['Credentials and service check', 'POST OTA_Ping', 'POST Ping', 'GET /ping'],
     ['Create a booking', 'POST OTA_VehRes', 'POST ReservationCreate', 'POST /reservations'],
     ['Retrieve a booking', 'POST OTA_VehRetRes', 'POST ReservationStatus', 'GET /reservations/{id}'],
     ['Modify a booking', 'POST OTA_VehModify', 'POST ReservationModify', 'PATCH /reservations/{id}'],
@@ -356,7 +360,38 @@ ${section(14, 'Inventory push, allotments and no-shows', `
   ${table(['Group', 'Pick-ups', 'Cars', 'Release'], (agg.bookingRules!.allotments || []).map(a => [`<code>${esc(a.group)}</code>`, `${esc(a.from)} – ${esc(a.to)}`, a.stopSell ? 'Stop sell' : a.quantity, a.releaseDays ? `${a.releaseDays} days before pick-up` : '—']))}` : '<p>No allotments: you sell from our general availability (free sale).</p>'}
   <p>${agg.bookingRules?.noShowAfterHours ? `A booking not picked up ${agg.bookingRules.noShowAfterHours} hours after its pick-up time becomes <code>NO_SHOW</code>${agg.bookingRules.noShowFeePercent != null ? ` with a fee of ${agg.bookingRules.noShowFeePercent}% of the booking` : ''}, and <code>reservation.no_show</code> is sent.` : 'No-shows are recorded by our staff and sent as <code>reservation.no_show</code>.'}</p>`)}
 
-${section(15, 'Certification', `
+${section(15, 'Rate rules, cancellation schedule and currencies', `
+  <h3>Rate rules before booking</h3>
+  <p>Before the customer pays, ask for the full terms of the offer: <code>OTA_VehRateRuleRQ</code> with <code>&lt;Reference Type="16" ID="OFF-…"/&gt;</code> (or an itinerary and <code>VehPref</code>). The answer has the price and breakdown, covers, every extra with its price, payment rules, the cancellation schedule, age limits, cut-off and maximum rental, both stations in full and our rental terms (<code>RentalTerms</code>).</p>
+  ${code(`<OTA_VehRateRuleRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="RR1">
+  <Reference Type="16" ID="OFF-3F2A9C1D7E5B4A60"/>
+</OTA_VehRateRuleRQ>`)}
+  <h3>Cancellation schedule</h3>
+  <p>Every offer, rate rule and booking carries the schedule with absolute deadlines. A booking keeps the schedule it was made under, even if our policy changes later.</p>
+  ${table(['Cancelled', 'Fee'], (() => {
+    const t = (agg.bookingRules?.cancellationTiers?.length ? agg.bookingRules.cancellationTiers : [{ hoursBefore: r.freeCancellationHours, feePercent: r.lateCancellationFeePercent }])
+      .slice().sort((a, b) => b.hoursBefore - a.hoursBefore).filter(x => x.feePercent > 0);
+    const h = (n: number) => (n % 24 === 0 ? `${n / 24} day${n === 24 ? '' : 's'}` : `${n} hours`);
+    return t.length ? [[`More than ${h(t[0].hoursBefore)} before pick-up`, 'Free'], ...t.map(x => [`Less than ${h(x.hoursBefore)} before pick-up`, `${x.feePercent}% of the booking`])] : [['At any time', 'Free']];
+  })())}
+  ${code(`<CancelPenalties>
+  <CancelPenalty>
+    <Deadline AbsoluteDeadline="${y}-04-29T10:00:00" OffsetTimeUnit="Hour" OffsetUnitMultiplier="48" OffsetDropTime="BeforeArrival"/>
+    <AmountPercent Percent="100" Amount="135.00" CurrencyCode="${cur}"/>
+  </CancelPenalty>
+</CancelPenalties>`)}
+  <p>Native XML: <code>Policies/CancellationPenalties/Penalty From HoursBefore Percent Amount</code>; JSON: <code>penalties</code>.</p>
+  <h3>Prices in your currency</h3>
+  <p>${Object.keys(agg.bookingRules?.currencies || {}).length
+    ? `Besides ${cur}, you may ask for prices in ${Object.keys(agg.bookingRules!.currencies!).map(esc).join(', ')}: OTA <code>&lt;POS&gt;&lt;Source ISOCurrency="EUR"/&gt;&lt;/POS&gt;</code>, native <code>&lt;Currency&gt;</code>, JSON <code>"currency"</code>. Every amount in the answer is converted, the breakdown adds up exactly, and the rate used is returned (<code>TPA_Extensions/Conversion</code>). The booking is charged in the currency it was made in.`
+    : `All prices are in ${cur}. Other currencies can be enabled on request.`} An unsupported currency is refused with <code>INVALID_REQUEST</code>.</p>
+  <h3>Reconciliation</h3>
+  <p>List your bookings by pick-up date to match them with your own records: native <code>ReservationList</code> (From, To, optional Status, Page, PageSize) or <code>GET ${esc(ep.rest)}/reservations?from=${y}-05-01&amp;to=${y}-05-31</code>. At most one year and 200 bookings per page.</p>`)}
+
+${section(16, 'Support and monitoring', `
+  <p>Every request you send is logged with its full request and response (keys, passwords and card numbers masked) for 30 days. When you contact support, quote the <code>X-Request-ID</code> of the call: we can see exactly what was sent and answered. Use <code>OTA_Ping</code> (or <code>GET /ping</code>) for your own health checks; it verifies the credentials without touching inventory.</p>`)}
+
+${section(17, 'Certification', `
   <p>Before go-live we run, and you should run in the sandbox, these cases: authentication success and failure; location and vehicle-group lists; availability search; no-availability; quote and hold; expired offer; changed price; booking; duplicate prevention (same key twice); retrieval by both references; modification; cancellation and its fee; invalid location, date and vehicle group; vehicle and station details; tax, mileage and covers; optional cover pricing; promotion codes (valid and unknown); closed-station pick-up; webhook delivery and retry; rate-limit handling.</p>`)}
 
 <div class="foot">${esc(company.name)}${company.address ? ` · ${esc(company.address)}` : ''}${company.supportEmail || company.email ? ` · ${esc(company.supportEmail || company.email)}` : ''}${company.supportPhone || company.phone ? ` · ${esc(company.supportPhone || company.phone)}` : ''} — Booking API integration guide for ${esc(agg.name)}, ${esc(today)}.</div>

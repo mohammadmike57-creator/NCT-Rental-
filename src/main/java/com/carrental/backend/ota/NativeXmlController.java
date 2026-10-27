@@ -26,6 +26,10 @@ import java.util.function.Function;
  *   POST /xml/v1/Extras              ExtrasRequest              → ExtrasResponse
  *   POST /xml/v1/Coverages           CoveragesRequest           → CoveragesResponse
  *   POST /xml/v1/Inventory           InventoryRequest           → InventoryResponse (free cars per group per day)
+ *   POST /xml/v1/RateRules           RateRulesRequest           → RateRulesResponse (full terms of an offer before booking)
+ *   POST /xml/v1/LocationDetail      LocationDetailRequest      → LocationDetailResponse
+ *   POST /xml/v1/ReservationList     ReservationListRequest     → ReservationListResponse (reconciliation, by pick-up date)
+ *   POST /xml/v1/Ping                PingRequest                → PingResponse
  *   POST /xml/v1/Availability        AvailabilityRequest        → AvailabilityResponse
  *   POST /xml/v1/Quote               QuoteRequest               → QuoteResponse (holds the car)
  *   POST /xml/v1/ReservationCreate   ReservationCreateRequest   → ReservationCreateResponse
@@ -49,7 +53,8 @@ public class NativeXmlController {
         Map.entry("Coverages", "CoveragesRequest"), Map.entry("Inventory", "InventoryRequest"),
         Map.entry("Availability", "AvailabilityRequest"), Map.entry("Quote", "QuoteRequest"), Map.entry("ReservationCreate", "ReservationCreateRequest"),
         Map.entry("ReservationStatus", "ReservationStatusRequest"), Map.entry("ReservationModify", "ReservationModifyRequest"),
-        Map.entry("ReservationCancel", "ReservationCancelRequest"));
+        Map.entry("ReservationCancel", "ReservationCancelRequest"), Map.entry("RateRules", "RateRulesRequest"),
+        Map.entry("LocationDetail", "LocationDetailRequest"), Map.entry("ReservationList", "ReservationListRequest"), Map.entry("Ping", "PingRequest"));
 
     private final ChannelGateway gateway;
     private final ChannelBookingService core;
@@ -91,17 +96,7 @@ public class NativeXmlController {
         Function<ChannelGateway.Call, String> action = switch (operation) {
             case "Locations" -> c -> ok(responseRoot, c, x -> {
                 x.open("Locations");
-                for (Location l : core.locations(c.ctx())) {
-                    x.open("Location").el("Code", l.code()).el("Name", l.name()).el("Type", l.type()).opt("Address", l.address())
-                     .opt("Phone", l.phone())
-                     .opt("Latitude", plain(l.latitude())).opt("Longitude", plain(l.longitude()))
-                     .el("PickupAllowed", String.valueOf(l.pickup())).el("ReturnAllowed", String.valueOf(l.dropOff()));
-                    x.open("OpeningHours");
-                    for (OpeningHours oh : l.openingHours()) x.el("Day", null, "Name", oh.day(), "Open", oh.open(), "Close", oh.close());
-                    x.close();
-                    x.el("AfterHours", null, "Pickup", l.afterHoursPickup(), "Return", l.afterHoursReturn(), "Fee", l.afterHoursFee().signum() > 0 ? l.afterHoursFee() : null);
-                    x.close();
-                }
+                for (Location l : core.locations(c.ctx())) location(x, l);
                 x.close();
             });
             case "VehicleGroups" -> c -> ok(responseRoot, c, x -> {
@@ -121,6 +116,40 @@ public class NativeXmlController {
                     .opt("MaxPerRental", e.maxPerRental()).close();
                 x.close();
             });
+            case "Ping" -> c -> ok(responseRoot, c, x -> x.el("EchoData", val(r, "EchoData").isEmpty() ? "pong" : val(r, "EchoData")));
+            case "LocationDetail" -> c -> {
+                Location l = core.location(c.ctx(), val(r, "LocationCode"));
+                return ok(responseRoot, c, x -> location(x, l));
+            };
+            case "RateRules" -> c -> {
+                String offerId = val(r, "OfferID");
+                RateRule rr = core.rateRule(c.ctx(), offerId.isEmpty() ? null : offerId,
+                    OtaBookingXml.first(r, "Itinerary") == null ? null : search(r, c.ctx().rules()));
+                return ok(responseRoot, c, x -> {
+                    offer(x, rr.offer());
+                    x.open("Extras");
+                    for (Extra e : rr.extras()) x.open("Extra").el("Code", e.code()).el("Name", e.name()).el("DailyPrice", money(e.dailyPrice()))
+                        .opt("MaxPerRental", e.maxPerRental()).close();
+                    x.close();
+                    x.open("Rules").el("MinimumDriverAge", String.valueOf(rr.minDriverAge()))
+                     .opt("MaximumDriverAge", rr.maxDriverAge() > 0 ? String.valueOf(rr.maxDriverAge()) : null)
+                     .el("BookingCutOffHours", String.valueOf(rr.minLeadHours())).el("MaximumRentalDays", String.valueOf(rr.maxRentalDays()))
+                     .opt("ModificationFee", rr.modificationFee() != null && rr.modificationFee().signum() > 0 ? rr.modificationFee() : null).close();
+                    x.open("PickupLocation"); locationBody(x, rr.pickupLocation()); x.close();
+                    x.open("ReturnLocation"); locationBody(x, rr.returnLocation()); x.close();
+                    x.opt("Terms", rr.terms());
+                });
+            };
+            case "ReservationList" -> c -> {
+                String from = val(r, "From"), to = val(r, "To"), page = val(r, "Page"), size = val(r, "PageSize");
+                ReservationPage pg = core.list(c.ctx(), date(from, "From"), date(to, "To"), emptyNull(val(r, "Status")),
+                    page.isEmpty() ? 1 : OtaBookingXml.intOf(page, "Page"), size.isEmpty() ? 50 : OtaBookingXml.intOf(size, "PageSize"));
+                return ok(responseRoot, c, x -> {
+                    x.open("Reservations", "Page", pg.page(), "PageSize", pg.size(), "Total", pg.total());
+                    for (Reservation res : pg.reservations()) reservation(x, res);
+                    x.close();
+                });
+            };
             case "Coverages" -> c -> ok(responseRoot, c, x -> {
                 x.open("Coverages");
                 for (Coverage v : core.coverages(c.ctx())) x.open("Coverage").el("Code", v.code()).el("Name", v.name())
@@ -175,7 +204,7 @@ public class NativeXmlController {
             };
             default -> throw new IllegalStateException();
         };
-        return gateway.handle(channel, key, http, "XML " + operation, body == null ? 0 : body.length(), rid,
+        return gateway.handle(channel, key, http, "XML " + operation, body, rid,
             c -> new ChannelGateway.Rendered(action.apply(c), XML),
             (e, id) -> new ChannelGateway.Rendered(error(responseRoot, e, id), XML));
     }
@@ -193,7 +222,8 @@ public class NativeXmlController {
         return new Search(pick, ret, OtaBookingXml.dateTime(val(it, "PickupDateTime"), "PickupDateTime"),
             OtaBookingXml.dateTime(val(it, "ReturnDateTime"), "ReturnDateTime"),
             age.isEmpty() ? null : OtaBookingXml.intOf(age, "DriverAge"), emptyNull(val(it, "DriverCountry")),
-            emptyNull(val(it, "VehicleGroupCode").toUpperCase()), extras(r), coverages(r), emptyNull(val(r, "PromoCode")));
+            emptyNull(val(it, "VehicleGroupCode").toUpperCase()), extras(r), coverages(r), emptyNull(val(r, "PromoCode")),
+            emptyNull(val(r, "Currency").toUpperCase()));
     }
 
     private static List<String> coverages(Element r) {
@@ -290,7 +320,12 @@ public class NativeXmlController {
         mileage(x, o.mileage());
         covers(x, o.coverages());
         x.open("Policies").el("CancellationPolicyCode", o.cancellationPolicy()).el("PaymentType", o.paymentType())
-         .el("DepositAmount", money(o.depositAmount())).el("ExcessAmount", money(o.excessAmount())).close();
+         .el("DepositAmount", money(o.depositAmount())).el("ExcessAmount", money(o.excessAmount()));
+        if ("Available".equals(o.status())) penalties(x, o.penalties());
+        x.close();
+        if (o.exchangeRate() != null && o.exchangeRate().compareTo(BigDecimal.ONE) != 0) {
+            x.el("Conversion", null, "BaseCurrency", o.baseCurrency(), "Rate", o.exchangeRate().stripTrailingZeros().toPlainString());
+        }
         if (o.expiresAt() != null) x.el("QuoteExpiresAt", o.expiresAt().toString());
         if (o.held()) x.el("Held", "true");
         x.close();
@@ -309,6 +344,7 @@ public class NativeXmlController {
         vehicle(x, r.vehicle());
         mileage(x, r.mileage());
         covers(x, r.coverages());
+        if (r.penalties() != null && !r.penalties().isEmpty()) penalties(x, r.penalties());
         x.open("Customer").el("FirstName", r.customer().firstName()).el("LastName", r.customer().lastName())
          .opt("Email", r.customer().email()).opt("Phone", r.customer().phone()).close();
         if (r.assignedVehicle() != null && !r.assignedVehicle().isBlank()) x.el("AssignedVehicle", r.assignedVehicle());
@@ -338,6 +374,35 @@ public class NativeXmlController {
         for (CoverageOffer c : list) x.el("Coverage", c.name(), "Code", c.code(), "Included", c.included(), "Selected", c.selected(),
             "DailyPrice", c.dailyPrice(), "Amount", c.amount(), "ExcessAmount", c.excess(), "DepositAmount", c.deposit());
         x.close();
+    }
+
+    private static void penalties(OtaBookingXml.X x, List<Penalty> list) {
+        x.open("CancellationPenalties");
+        for (Penalty p : list) x.el("Penalty", null, "From", p.from().format(LOCAL), "HoursBefore", p.hoursBefore(),
+            "Percent", p.percent().stripTrailingZeros().toPlainString(), "Amount", p.amount());
+        x.close();
+    }
+
+    private static void location(OtaBookingXml.X x, Location l) {
+        x.open("Location");
+        locationBody(x, l);
+        x.close();
+    }
+
+    private static void locationBody(OtaBookingXml.X x, Location l) {
+        x.el("Code", l.code()).el("Name", l.name()).el("Type", l.type()).opt("Address", l.address())
+         .opt("Phone", l.phone())
+         .opt("Latitude", plain(l.latitude())).opt("Longitude", plain(l.longitude()))
+         .el("PickupAllowed", String.valueOf(l.pickup())).el("ReturnAllowed", String.valueOf(l.dropOff()));
+        x.open("OpeningHours");
+        for (OpeningHours oh : l.openingHours()) x.el("Day", null, "Name", oh.day(), "Open", oh.open(), "Close", oh.close());
+        x.close();
+        x.el("AfterHours", null, "Pickup", l.afterHoursPickup(), "Return", l.afterHoursReturn(), "Fee", l.afterHoursFee().signum() > 0 ? l.afterHoursFee() : null);
+    }
+
+    private static java.time.LocalDate date(String v, String field) {
+        try { return java.time.LocalDate.parse(v.trim().substring(0, 10)); }
+        catch (Exception e) { throw ChannelError.INVALID_DATE.ex(field + " must be YYYY-MM-DD"); }
     }
 
     private static void lines(OtaBookingXml.X x, List<PriceLine> lines) {

@@ -297,6 +297,30 @@ export const pushChannelInventory = async (channelId: string): Promise<{ queued:
   try { return (await axios.post(channelPath(channelId, '/inventory/push'), {}, { headers: authHeaders() })).data; }
   catch (e) { throw apiError(e, 'Could not send the inventory.'); }
 };
+export interface ChannelTrafficRow {
+  id: number; createdAt: string; requestId?: string; format: string; operation: string; httpStatus: number; success: boolean;
+  errorCode?: string; errorMessage?: string; durationMs: number; requestBytes: number; responseBytes: number; remoteIp?: string;
+  sandbox: boolean; reservationNumber?: string;
+}
+export interface ChannelTrafficMessage extends ChannelTrafficRow { requestBody?: string; responseBody?: string }
+export interface ChannelTrafficStats {
+  hours: number; calls: number; errors: number; errorRate: number; avgMs: number; p95Ms: number; maxMs: number;
+  searches: number; bookings: number; lookToBook: number | null; retentionDays: number;
+  operations: { operation: string; calls: number; errors: number; avgMs: number }[];
+  errorCodes: { code: string; count: number }[];
+  series: { at: string; calls: number; errors: number }[];
+}
+export interface ChannelConsoleResult { status: number; durationMs: number; requestId: string; contentType?: string; body: string }
+export const fetchChannelTraffic = async (channelId: string, f: { hours?: number; operation?: string; result?: string; q?: string; limit?: number }): Promise<ChannelTrafficRow[]> =>
+  (await axios.get(channelPath(channelId, '/traffic'), { params: f, headers: authHeaders() })).data;
+export const fetchChannelTrafficMessage = async (channelId: string, id: number): Promise<ChannelTrafficMessage> =>
+  (await axios.get(channelPath(channelId, `/traffic/${id}`), { headers: authHeaders() })).data;
+export const fetchChannelTrafficStats = async (channelId: string, hours: number): Promise<ChannelTrafficStats> =>
+  (await axios.get(channelPath(channelId, '/traffic/stats'), { params: { hours }, headers: authHeaders() })).data;
+export const sendChannelConsole = async (channelId: string, req: { format: string; operation?: string; method?: string; body?: string }): Promise<ChannelConsoleResult> => {
+  try { return (await axios.post(channelPath(channelId, '/console'), req, { headers: authHeaders(), timeout: 60000 })).data; }
+  catch (e) { throw apiError(e, 'The console could not send the message.'); }
+};
 export const runChannelCertification = async (channelId: string): Promise<import('../types').ChannelCertificationReport> => {
   try { return (await axios.post(channelPath(channelId, '/certification'), {}, { headers: authHeaders(), timeout: 60000 })).data; }
   catch (e) { throw apiError(e, 'Could not run the certification tests.'); }

@@ -4,6 +4,8 @@ import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon } from './icons';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
+import TrafficView from './channel/TrafficView';
+import ConsoleView from './channel/ConsoleView';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Badge, Plate, Button, Field, EmptyState, Dialog, inputCls } from './ui/Crm';
 import ManageRatePlansView from './ManageRatePlansView';
 import ManageTermsView from './ManageTermsView';
@@ -30,8 +32,8 @@ interface AggregatorSetupViewProps {
   companyDetails?: CompanyDetails;
 }
 
-export type ChannelTab = 'Overview' | 'Connection' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Go-live';
-const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Booking API', 'Bookings', 'Go-live', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
+export type ChannelTab = 'Overview' | 'Connection' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
+const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Booking API', 'Bookings', 'Traffic', 'Test console', 'Go-live', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
 
 const STATUS_STYLE: Record<string, { dot: string; label: string; pill: string }> = {
   active: { dot: 'bg-emerald-500', label: 'Live', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -320,6 +322,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                   <BookingApiView aggregator={selectedAggregator} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
                 {activeTab === 'Bookings' && <ChannelBookingsView aggregator={selectedAggregator} />}
+                {activeTab === 'Traffic' && <TrafficView aggregator={selectedAggregator} />}
+                {activeTab === 'Test console' && <ConsoleView aggregator={selectedAggregator} fleet={fleet} />}
                 {activeTab === 'Go-live' && (
                   <GoLiveView aggregator={selectedAggregator} fleet={fleet} company={companyDetails || ({ name: 'NCT Rental' } as CompanyDetails)}
                     currentUserName={currentUserName} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />

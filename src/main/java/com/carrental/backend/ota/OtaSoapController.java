@@ -84,6 +84,8 @@ public class OtaSoapController {
             // The UsernameToken names the channel; when it disagrees with the URL, authentication must fail.
             if (user != null && !user.isBlank() && !user.equalsIgnoreCase(channel)) key = "";
 
+            http.setAttribute(ChannelTrafficService.FORMAT_ATTR, "SOAP");
+            http.setAttribute(ChannelTrafficService.RAW_BODY_ATTR, body);   // the log keeps the whole envelope
             ResponseEntity<String> rs = ota.dispatch(channel, rq, serialize(message), key, idem, http);
             String inner = rs.getBody() == null ? "" : rs.getBody().replaceFirst("^<\\?xml[^>]*\\?>\\s*", "");
             // OTA errors travel in the RS; the HTTP status stays 200 except for authentication and server errors.

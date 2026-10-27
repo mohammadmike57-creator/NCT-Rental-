@@ -33,11 +33,15 @@ public class ChannelJobs {
     private final ChannelBookingService core;
     private final ChannelWebhookService webhooks;
     private final ChannelInventorySnapshotRepository snapshots;
+    private final ChannelTrafficService traffic;
     private final boolean enabled;
+    private long lastPurge;
     private ScheduledExecutorService worker;
 
     public ChannelJobs(ChannelStateReader channels, ChannelBookingService core, ChannelWebhookService webhooks,
-                       ChannelInventorySnapshotRepository snapshots, @Value("${channel.jobs.enabled:true}") boolean enabled) {
+                       ChannelInventorySnapshotRepository snapshots, ChannelTrafficService traffic,
+                       @Value("${channel.jobs.enabled:true}") boolean enabled) {
+        this.traffic = traffic;
         this.channels = channels;
         this.core = core;
         this.webhooks = webhooks;
@@ -57,6 +61,9 @@ public class ChannelJobs {
     void stop() { if (worker != null) worker.shutdownNow(); }
 
     void tick() {
+        if (System.currentTimeMillis() - lastPurge > 6 * 3600_000L) {
+            try { traffic.purge(); lastPurge = System.currentTimeMillis(); } catch (Exception e) { log.warn("Traffic purge: {}", e.getMessage()); }
+        }
         try {
             for (ChannelSnapshot ch : channels.all()) {
                 if ("paused".equalsIgnoreCase(ch.status()) || ch.urlCode().isBlank()) continue;

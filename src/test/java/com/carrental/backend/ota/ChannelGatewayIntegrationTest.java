@@ -479,6 +479,7 @@ class ChannelGatewayIntegrationTest {
             ObjectNode p = r.putObject("pricing");
             p.put("taxPercent", 16).put("unlimitedMileage", false).put("kmPerDay", 250).put("extraKmPrice", 0.2);
             p.putArray("coverages").addObject().put("code", "SCDW").put("name", "Super cover").put("dailyPrice", 10).put("excess", 0);
+            r.putObject("currencies").put("EUR", 0.9);
         });
         String head = "<Header><RequestID>V-1</RequestID><ChannelCode>BKG</ChannelCode></Header><Credentials><ApiKey>" + KEY + "</ApiKey></Credentials>";
         String it = "<Itinerary><PickupLocationCode>AMM</PickupLocationCode><PickupDateTime>" + Y + "-06-01T10:00:00</PickupDateTime>"
@@ -496,6 +497,11 @@ class ChannelGatewayIntegrationTest {
             {"ReservationStatus", "<ReservationStatusRequest>" + head + "<BrokerReference>XSD-1</BrokerReference></ReservationStatusRequest>"},
             {"ReservationCancel", "<ReservationCancelRequest>" + head + "<BrokerReference>XSD-1</BrokerReference></ReservationCancelRequest>"},
             {"ReservationStatus", "<ReservationStatusRequest>" + head + "<BrokerReference>MISSING</BrokerReference></ReservationStatusRequest>"},
+            {"Ping", "<PingRequest>" + head + "<EchoData>hello</EchoData></PingRequest>"},
+            {"LocationDetail", "<LocationDetailRequest>" + head + "<LocationCode>AQJ</LocationCode></LocationDetailRequest>"},
+            {"RateRules", "<RateRulesRequest>" + head + it.replace("</Itinerary>", "<VehicleGroupCode>SDAR</VehicleGroupCode></Itinerary>") + "<Currency>EUR</Currency></RateRulesRequest>"},
+            {"Availability", "<AvailabilityRequest>" + head + it + "<Currency>EUR</Currency></AvailabilityRequest>"},
+            {"ReservationList", "<ReservationListRequest>" + head + "<From>" + Y + "-06-01</From><To>" + Y + "-06-30</To></ReservationListRequest>"},
         };
         for (String[] c : calls) {
             schema.newValidator().validate(new javax.xml.transform.stream.StreamSource(new java.io.StringReader(c[1])));
@@ -560,5 +566,128 @@ class ChannelGatewayIntegrationTest {
             .andExpect(jsonPath("$.bookings").value(1)).andExpect(jsonPath("$.cancelled").value(1))
             .andExpect(jsonPath("$.gross").value(100.0)).andExpect(jsonPath("$.commission").value(15.0))
             .andExpect(jsonPath("$.net").value(85.0)).andExpect(jsonPath("$.rows.length()").value(2));
+    }
+
+    // ======================================================================= enterprise: penalties, currencies, rate rules, traffic, console
+
+    @Test
+    void tieredCancellationPenaltiesWithDeadlines() throws Exception {
+        rules((agg, r) -> {
+            ArrayNode t = r.putArray("cancellationTiers");
+            t.addObject().put("hoursBefore", 24 * 365).put("feePercent", 25);    // already applies for a pick-up next year
+            t.addObject().put("hoursBefore", 24).put("feePercent", 100);
+        });
+        String a = send("/ota/v1/BKG/OTA_VehAvailRate", avail("T1"));
+        assertTrue(a.contains("<CancellationPolicy Code=\"TIERED8760\"/>"), a);
+        assertTrue(a.contains("<AmountPercent Percent=\"25\" Amount=\"56.25\" CurrencyCode=\"USD\"/>"), a);
+        assertTrue(a.contains("AbsoluteDeadline=\"" + Y + "-04-30T10:00:00\" OffsetTimeUnit=\"Hour\" OffsetUnitMultiplier=\"24\""), a);
+        String r = send("/ota/v1/BKG/OTA_VehRes", vehRes(firstOffer(a), "TIER-1"));
+        String number = r.substring(r.indexOf("ID=\"RSV-") + 4, r.indexOf('"', r.indexOf("ID=\"RSV-") + 4));
+        // The agreed schedule applies even if the channel's rules change afterwards
+        rules((agg, rr) -> rr.remove("cancellationTiers"));
+        String c = send("/ota/v1/BKG/OTA_VehCancel", """
+            <OTA_VehCancelRQ xmlns="http://www.opentravel.org/OTA/2003/05"><VehCancelRQCore><UniqueID Type="14" ID="%s"/></VehCancelRQCore></OTA_VehCancelRQ>""".formatted(number));
+        assertTrue(c.contains("<CancellationFee Amount=\"56.25\""), c);
+    }
+
+    @Test
+    void pricesInTheBrokersCurrency() throws Exception {
+        rules((agg, r) -> r.putObject("currencies").put("EUR", 0.9).put("JOD", 0.709));
+        String rq = avail("C1").replace("<VehAvailRQCore>", "<POS><Source ISOCurrency=\"EUR\"/></POS><VehAvailRQCore>");
+        String a = send("/ota/v1/BKG/OTA_VehAvailRate", rq);
+        assertTrue(a.contains("EstimatedTotalAmount=\"202.50\" CurrencyCode=\"EUR\""), a);      // 225 USD × 0.9
+        assertTrue(a.contains("<Conversion SourceCurrencyCode=\"USD\" RequestedCurrencyCode=\"EUR\" RateConversion=\"0.9\"/>"), a);
+        String r = send("/ota/v1/BKG/OTA_VehRes", vehRes(firstOffer(a), "EUR-1"));
+        assertTrue(r.contains("EstimatedTotalAmount=\"202.50\" CurrencyCode=\"EUR\""), r);
+        JsonNode res = reservations().path(Y).path("May").get(0);
+        assertEquals(225.0, res.path("amount").asDouble(), "the reservations list keeps the channel currency");
+        assertEquals("EUR", res.path("channelPrice").path("currency").asText());
+        mvc.perform(post("/ota/v1/BKG/OTA_VehAvailRate").header("X-Api-Key", KEY).contentType(MediaType.APPLICATION_XML)
+                .content(rq.replace("EUR", "XXX")))
+            .andExpect(status().isBadRequest()).andExpect(content().string(containsString("Currency XXX is not offered")));
+        mvc.perform(post("/partner/v1/BKG/availability").header("X-Api-Key", KEY).contentType(MediaType.APPLICATION_JSON).content("""
+                {"itinerary":{"pickup_location":"AMM","pickup_at":"%s-05-01T10:00:00","return_at":"%s-05-06T10:00:00","currency":"JOD"}}""".formatted(Y, Y)))
+            .andDo(x -> assertEquals(200, x.getResponse().getStatus(), x.getResponse().getContentAsString()))
+            .andExpect(jsonPath("$.offers[0].currency").value("JOD"));
+    }
+
+    @Test
+    void rateRulesLocationDetailPingAndReconciliation() throws Exception {
+        rules((agg, r) -> agg.put("termsAndConditions", "Fuel: full to full."));
+        String rr = send("/ota/v1/BKG/OTA_VehRateRule", """
+            <OTA_VehRateRuleRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="RR1"><RentalInfo>
+              <VehRentalCore PickUpDateTime="%s-05-01T10:00:00" ReturnDateTime="%s-05-06T10:00:00"><PickUpLocation LocationCode="AMM"/></VehRentalCore>
+              <VehPref Code="SDAR"/></RentalInfo></OTA_VehRateRuleRQ>""".formatted(Y, Y));
+        assertTrue(rr.contains("<OTA_VehRateRuleRS") && rr.contains("<Success/>") && rr.contains("EchoToken=\"RR1\""), rr);
+        assertTrue(rr.contains("<MinimumAge Age=\"21\"/>") && rr.contains("<CancelPenalties>") && rr.contains("<RentalTerms>"), rr);
+        assertTrue(rr.contains("<Equipment EquipType=\"13\">") && rr.contains("Reference Type=\"16\" ID=\"OFF-"), rr);
+        OtaXmlTest.parse(rr);
+        // …and by the offer id it returned
+        String offer = rr.substring(rr.indexOf("ID=\"OFF-") + 4, rr.indexOf('"', rr.indexOf("ID=\"OFF-") + 4));
+        assertTrue(send("/ota/v1/BKG/OTA_VehRateRule", "<OTA_VehRateRuleRQ><Reference Type=\"16\" ID=\"" + offer + "\"/></OTA_VehRateRuleRQ>")
+            .contains("EstimatedTotalAmount=\"200.00\""));
+
+        String ld = send("/ota/v1/BKG/OTA_VehLocDetail", "<OTA_VehLocDetailRQ><Location LocationCode=\"AQJ\"/></OTA_VehLocDetailRQ>");
+        assertTrue(ld.contains("<OTA_VehLocDetailRS") && ld.contains("Code=\"AQJ\"") && ld.contains("Start=\"08:00\""), ld);
+        assertTrue(send("/ota/v1/BKG/OTA_Ping", "<OTA_PingRQ EchoToken=\"P\"><EchoData>hello</EchoData></OTA_PingRQ>").contains("<EchoData>hello</EchoData>"));
+        mvc.perform(post("/ota/v1/BKG/soap").contentType(MediaType.TEXT_XML).content(soap11("BKG", KEY, "<OTA_PingRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><EchoData>soap</EchoData></OTA_PingRQ>")))
+            .andExpect(status().isOk()).andExpect(content().string(containsString("<EchoData>soap</EchoData>")));
+
+        send("/ota/v1/BKG/OTA_VehRes", vehRes(firstOffer(send("/ota/v1/BKG/OTA_VehAvailRate", avail("L1"))), "LIST-1"));
+        mvc.perform(get("/partner/v1/BKG/reservations").param("from", Y + "-05-01").param("to", Y + "-05-31").header("X-Api-Key", KEY))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.page.total").value(1))
+            .andExpect(jsonPath("$.page.reservations[0].broker_reference").value("LIST-1"));
+        mvc.perform(get("/partner/v1/BKG/reservations").param("from", Y + "-06-01").param("to", Y + "-06-30").header("X-Api-Key", KEY))
+            .andExpect(jsonPath("$.page.total").value(0));
+    }
+
+    @Test
+    void everyCallIsInTheTrafficLogWithSecretsMasked() throws Exception {
+        String rid = "TRACE-" + System.nanoTime();
+        send("/xml/v1/Locations", "<LocationsRequest><Header><RequestID>" + rid + "</RequestID><ChannelCode>BKG</ChannelCode></Header>"
+            + "<Credentials><ApiKey>" + KEY + "</ApiKey></Credentials></LocationsRequest>");
+        mvc.perform(post("/ota/v1/BKG/OTA_VehAvailRate").header("X-Api-Key", "wrong").contentType(MediaType.APPLICATION_XML).content(avail("E")));
+        String token = staffToken();
+        String list = mvc.perform(get("/api/channels/agg-1/traffic").param("q", rid).header("Authorization", token))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode rows = M.readTree(list);
+        assertEquals(1, rows.size(), list);
+        assertEquals("XML", rows.get(0).path("format").asText());
+        String detail = mvc.perform(get("/api/channels/agg-1/traffic/" + rows.get(0).path("id").asLong()).header("Authorization", token))
+            .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        JsonNode d = M.readTree(detail);
+        assertTrue(d.path("requestBody").asText().contains("<ApiKey>•••••</ApiKey>"), detail);
+        assertFalse(d.path("requestBody").asText().contains(KEY), "the key is never stored");
+        assertTrue(d.path("responseBody").asText().contains("<Code>AQJ</Code>"), detail);
+        mvc.perform(get("/api/channels/agg-1/traffic").param("result", "error").header("Authorization", token))
+            .andExpect(jsonPath("$[0].errorCode").value("AUTH_FAILED"));
+        mvc.perform(get("/api/channels/agg-1/traffic/stats").param("hours", "24").header("Authorization", token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.calls").value(greaterThanOrEqualTo(2)))
+            .andExpect(jsonPath("$.errors").value(greaterThanOrEqualTo(1))).andExpect(jsonPath("$.series.length()").value(24));
+        assertEquals("•••• •••• •••• 1111 and +962790000000", ChannelTrafficService.mask("4111 1111 1111 1111 and +962790000000"));
+        mvc.perform(get("/api/channels/agg-1/traffic")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void consoleSendsRealMessagesInTheSandbox() throws Exception {
+        String token = staffToken();
+        String offer = M.readTree(mvc.perform(post("/api/channels/agg-1/console").header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content(M.writeValueAsString(java.util.Map.of("format", "OTA", "body", avail("K1")))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.status").value(200))
+            .andReturn().getResponse().getContentAsString()).path("body").asText();
+        assertTrue(offer.contains("Target=\"Test\""), "console calls are sandbox: " + offer);
+        String booked = M.readTree(mvc.perform(post("/api/channels/agg-1/console").header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content(M.writeValueAsString(java.util.Map.of("format", "OTA", "body", vehRes(firstOffer(offer), "CONSOLE-1")))))
+            .andReturn().getResponse().getContentAsString()).path("body").asText();
+        assertTrue(booked.contains("<Sandbox>true</Sandbox>"), booked);
+        assertEquals(0, reservations().path(Y).path("May").size(), "nothing is booked for real");
+        mvc.perform(post("/api/channels/agg-1/console").header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content(M.writeValueAsString(java.util.Map.of("format", "REST", "method", "GET", "operation", "/locations"))))
+            .andExpect(jsonPath("$.status").value(200)).andExpect(jsonPath("$.body").value(containsString("\"environment\":\"SANDBOX\"")));
+        mvc.perform(post("/api/channels/agg-1/console").header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content(M.writeValueAsString(java.util.Map.of("format", "XML", "operation", "Ping",
+                    "body", "<PingRequest><Header><ChannelCode>BKG</ChannelCode></Header></PingRequest>"))))
+            .andExpect(jsonPath("$.status").value(200)).andExpect(jsonPath("$.body").value(containsString("<EchoData>pong</EchoData>")));
+        mvc.perform(post("/api/channels/agg-1/console").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
     }
 }

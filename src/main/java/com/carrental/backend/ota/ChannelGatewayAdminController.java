@@ -19,6 +19,9 @@ import java.util.*;
  *   GET  /api/channels/{id}/statement?month=YYYY-MM     commission statement (live bookings by pick-up month)
  *   GET  /api/channels/{id}/inventory?days=N            what inventory.updated would send now
  *   POST /api/channels/{id}/inventory/push              send inventory.updated now
+ *   GET  /api/channels/{id}/traffic?hours=&operation=&result=ok|error&q=&limit=   the traffic log (metadata)
+ *   GET  /api/channels/{id}/traffic/{messageId}         one call with the full request and response
+ *   GET  /api/channels/{id}/traffic/stats?hours=24      volume, errors, response times, look-to-book
  */
 @RestController
 @RequestMapping("/api/channels/{channelId}")
@@ -33,10 +36,12 @@ public class ChannelGatewayAdminController {
     private final ChannelCertificationService certification;
     private final ChannelBookingService core;
     private final ChannelJobs jobs;
+    private final ChannelTrafficService traffic;
 
     public ChannelGatewayAdminController(ChannelStateReader channels, ChannelBookingRepository bookings, ChannelWebhookService webhooks,
                                          ChannelWebhookRepository deliveries, ChannelCertificationService certification,
-                                         ChannelBookingService core, ChannelJobs jobs) {
+                                         ChannelBookingService core, ChannelJobs jobs, ChannelTrafficService traffic) {
+        this.traffic = traffic;
         this.core = core;
         this.jobs = jobs;
         this.channels = channels;
@@ -151,6 +156,44 @@ public class ChannelGatewayAdminController {
         if (c.rules().webhookUrl().isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Set the webhook URL first."));
         if (!c.rules().wantsEvent("inventory.updated")) return ResponseEntity.badRequest().body(Map.of("error", "Tick the inventory.updated event first."));
         return ResponseEntity.ok(Map.of("queued", jobs.pushInventory(c, true)));
+    }
+
+    @GetMapping("/traffic")
+    public ResponseEntity<?> traffic(@PathVariable String channelId, @RequestParam(defaultValue = "24") int hours,
+                                     @RequestParam(required = false) String operation, @RequestParam(required = false) String result,
+                                     @RequestParam(required = false) String q, @RequestParam(defaultValue = "100") int limit, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        return ResponseEntity.ok(traffic.search(channelId, hours, operation, result, q, limit).stream().map(m -> {
+            Map<String, Object> r = new LinkedHashMap<>();
+            r.put("id", m.getId());
+            r.put("createdAt", m.getCreatedAt());
+            r.put("requestId", m.getRequestId());
+            r.put("format", m.getFormat());
+            r.put("operation", m.getOperation());
+            r.put("httpStatus", m.getHttpStatus());
+            r.put("success", m.isSuccess());
+            r.put("errorCode", m.getErrorCode());
+            r.put("errorMessage", m.getErrorMessage());
+            r.put("durationMs", m.getDurationMs());
+            r.put("requestBytes", m.getRequestBytes());
+            r.put("responseBytes", m.getResponseBytes());
+            r.put("remoteIp", m.getRemoteIp());
+            r.put("sandbox", m.isSandbox());
+            r.put("reservationNumber", m.getReservationNumber());
+            return r;
+        }).toList());
+    }
+
+    @GetMapping("/traffic/stats")
+    public ResponseEntity<?> trafficStats(@PathVariable String channelId, @RequestParam(defaultValue = "24") int hours, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        return ResponseEntity.ok(traffic.stats(channelId, hours));
+    }
+
+    @GetMapping("/traffic/{messageId}")
+    public ResponseEntity<?> trafficMessage(@PathVariable String channelId, @PathVariable long messageId, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        return traffic.get(channelId, messageId).<ResponseEntity<?>>map(ResponseEntity::ok).orElseGet(this::notFound);
     }
 
     private static Map<String, Object> delivery(ChannelWebhookDelivery d) {

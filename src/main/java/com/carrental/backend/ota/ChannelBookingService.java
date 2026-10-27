@@ -143,6 +143,56 @@ public class ChannelBookingService {
         }
     }
 
+    /** Rate rules for an offer (or an itinerary + group): the full terms before booking. */
+    public RateRule rateRule(Ctx c, String offerId, Search search) {
+        Offer o;
+        Search s;
+        if (offerId != null && !offerId.isBlank()) {
+            ChannelOffer stored = offerFor(c, offerId);
+            s = searchOf(stored);
+            o = withId(single(c, s, stored.getSippCode(), stored.getId(), null), stored.getId(), stored.getExpiresAt(), stored.getStatus() == ChannelOffer.Status.HELD);
+        } else {
+            if (search == null || search.vehicleGroup() == null || search.vehicleGroup().isBlank()) {
+                throw ChannelError.INVALID_REQUEST.ex("Send an offer id, or the rental dates, locations and vehicle group");
+            }
+            s = search;
+            validate(c, s);
+            Offer fresh = single(c, s, s.vehicleGroup(), null, null);
+            o = "Available".equals(fresh.status()) ? persistOffer(c, s, fresh) : fresh;
+        }
+        BigDecimal fx = o.exchangeRate() == null ? BigDecimal.ONE : o.exchangeRate();
+        List<Extra> extras = extras(c).stream().map(e -> new Extra(e.code(), e.name(), cv(e.dailyPrice(), fx), cv(e.maxPerRental(), fx))).toList();
+        return new RateRule(s, o, extras, location(c, s.pickupLocation()), location(c, s.returnLocation()),
+            c.rules().minDriverAge(), c.rules().maxDriverAge(), c.rules().minLeadHours(), c.rules().maxRentalDays(),
+            cv(c.rules().modificationFee(), fx), c.channel().terms());
+    }
+
+    public Location location(Ctx c, String code) {
+        ChannelRules.Location l = c.rules().location(code);
+        if (l == null) throw ChannelError.INVALID_LOCATION.ex("Unknown location " + code);
+        return locations(c).stream().filter(x -> x.code().equalsIgnoreCase(l.code())).findFirst().orElseThrow();
+    }
+
+    /** This broker's bookings with pick-up in [from, to], newest pick-up last; for reconciliation. */
+    public ReservationPage list(Ctx c, LocalDate from, LocalDate to, String status, int page, int size) {
+        if (from == null || to == null) throw ChannelError.INVALID_REQUEST.ex("From and To dates are required");
+        if (to.isBefore(from)) throw ChannelError.INVALID_DATE.ex("To must not be before From");
+        if (ChronoUnit.DAYS.between(from, to) > 366) throw ChannelError.INVALID_DATE.ex("At most one year per request");
+        int sz = Math.max(1, Math.min(size, 200)), pg = Math.max(1, page);
+        Map<String, JsonNode> byId = new HashMap<>();
+        for (JsonNode r : allReservations(c.state())) byId.put(r.path("id").asText(), r);
+        List<Reservation> all = new ArrayList<>();
+        for (ChannelBooking b : bookings.findByChannelIdAndSandboxAndPickupAtBetweenOrderByPickupAtAsc(c.channel().id(), c.sandbox(),
+                from.atStartOfDay(), to.atTime(23, 59, 59))) {
+            JsonNode res = b.isSandbox() ? load(c, b) : byId.get(b.getStateReservationId());
+            if (res == null) res = load(c, b);
+            Reservation v = view(c, b, res);
+            if (status == null || status.isBlank() || status.equalsIgnoreCase(v.status())) all.add(v);
+        }
+        int fromIdx = Math.min(all.size(), (pg - 1) * sz);
+        return new ReservationPage(pg, sz, all.size(), all.subList(fromIdx, Math.min(all.size(), fromIdx + sz)));
+    }
+
     // =========================================================== reservations
 
     public Reservation create(Ctx c, BookingRequest req) {
@@ -204,6 +254,7 @@ public class ChannelBookingService {
             b.setReturnAt(s.returnAt());
             b.setTotal(fresh.totalAmount());
             b.setCurrency(fresh.currency());
+            b.setExchangeRate(fresh.exchangeRate());
             b.setCustomerName(req.customer().fullName());
             b.setPromoCode(fresh.promoCode());
             b.setStatus("PENDING");
@@ -260,7 +311,7 @@ public class ChannelBookingService {
                 pick(in == null ? null : in.vehicleGroup(), cur.vehicleGroup()),
                 in != null && in.extras() != null ? in.extras() : cur.extras(),
                 in != null && in.coverages() != null ? in.coverages() : cur.coverages(),
-                in != null && in.promoCode() != null ? emptyNull(in.promoCode()) : cur.promoCode());
+                in != null && in.promoCode() != null ? emptyNull(in.promoCode()) : cur.promoCode(), cur.currency());
             Customer customer = req.customer() != null ? req.customer() : customerOf(res);
             Driver driver = req.driver() != null ? req.driver() : driverOf(res);
             if (in == null || in.driverAge() == null) s = withDriverAge(s, req.driver());
@@ -271,7 +322,10 @@ public class ChannelBookingService {
             Offer fresh = single(c, s, s.vehicleGroup(), "", b.getStateReservationId());
             if (!"Available".equals(fresh.status())) throw ChannelError.NO_AVAILABILITY.ex(fresh.closedReason());
             BigDecimal fee = c.rules().modificationFee();
-            if (fee.signum() > 0) fresh = withFee(fresh, new PriceLine("FEE", "MODIFY", "Modification fee", fee, 1, fee));
+            if (fee.signum() > 0) {
+                BigDecimal f = fee.multiply(fresh.exchangeRate()).setScale(2, RoundingMode.HALF_UP);
+                fresh = withFee(fresh, new PriceLine("FEE", "MODIFY", "Modification fee", f, 1, f));
+            }
             if (req.expectedTotal() != null && fresh.totalAmount().compareTo(req.expectedTotal().setScale(2, RoundingMode.HALF_UP)) != 0) {
                 throw ChannelError.PRICE_CHANGED.ex("The new total is " + fresh.totalAmount() + " " + fresh.currency());
             }
@@ -309,8 +363,10 @@ public class ChannelBookingService {
             }
             BigDecimal total = b.getTotal() == null ? BigDecimal.ZERO : b.getTotal();
             long hoursBefore = Duration.between(LocalDateTime.now(), b.getPickupAt()).toHours();
-            BigDecimal fee = hoursBefore >= c.rules().freeCancellationHours() ? BigDecimal.ZERO
-                : total.multiply(c.rules().lateCancellationFeePercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            // The schedule agreed when the booking was made applies, even if the channel's rules changed since.
+            List<Penalty> agreed = readPenalties(res.path("channelPrice").get("penalties"));
+            BigDecimal pct = agreed != null ? percentAt(agreed, LocalDateTime.now()) : c.rules().cancellationPercent(hoursBefore);
+            BigDecimal fee = total.multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             BigDecimal refund = c.rules().prepaid() ? total.subtract(fee).max(BigDecimal.ZERO) : BigDecimal.ZERO;
             res.put("status", "CANCELLED");
             res.put("cancelledAt", Instant.now().toString());
@@ -358,7 +414,7 @@ public class ChannelBookingService {
                 BigDecimal fee = total.multiply(c.rules().noShowFeePercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
                 res.put("status", "NO_SHOW");
                 res.put("noShowAt", Instant.now().toString());
-                res.put("noShowFee", fee);
+                res.put("noShowFee", toBase(fee, b.getExchangeRate()));
                 res.put("cancellationFee", fee);
                 res.put("refundAmount", c.rules().prepaid() ? total.subtract(fee).max(BigDecimal.ZERO) : BigDecimal.ZERO);
                 res.put("refundStatus", c.rules().prepaid() && total.compareTo(fee) > 0 ? "PENDING" : "NOT_APPLICABLE");
@@ -416,14 +472,17 @@ public class ChannelBookingService {
                 month.atDay(1).atStartOfDay(), month.atEndOfMonth().atTime(23, 59, 59))) {
             String st = b.getStatus() == null ? "" : b.getStatus();
             boolean lost = "CANCELLED".equals(st) || "NO_SHOW".equals(st);
-            BigDecimal total = b.getTotal() == null ? BigDecimal.ZERO : b.getTotal();
-            BigDecimal fee = b.getFeeAmount() == null ? BigDecimal.ZERO : b.getFeeAmount();
+            // Settlement is in the channel currency; bookings sold in another currency are converted back at their booking rate.
+            BigDecimal soldTotal = b.getTotal() == null ? BigDecimal.ZERO : b.getTotal();
+            BigDecimal total = toBase(soldTotal, b.getExchangeRate());
+            BigDecimal fee = toBase(b.getFeeAmount() == null ? BigDecimal.ZERO : b.getFeeAmount(), b.getExchangeRate());
             BigDecimal base = lost ? fee : total;          // commission on what was actually earned
             BigDecimal com = base.multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             ObjectNode r = rows.addObject();
             r.put("reservationNumber", b.getReservationNumber()).put("brokerReference", b.getBrokerReference())
              .put("customerName", b.getCustomerName()).put("vehicleGroup", b.getSippCode())
              .put("pickupAt", b.getPickupAt().toString()).put("returnAt", b.getReturnAt().toString()).put("status", st)
+             .put("soldCurrency", b.getCurrency()).put("soldTotal", soldTotal)
              .put("total", total).put("fee", fee).put("commissionable", base).put("commission", com).put("net", base.subtract(com))
              .put("promoCode", b.getPromoCode());
             if ("CANCELLED".equals(st)) cancelled++;
@@ -447,6 +506,8 @@ public class ChannelBookingService {
     private List<Offer> price(Ctx c, Search s, String excludeOffer, String excludeReservation) {
         ChannelRules rules = c.rules();
         ChannelRules.Pricing pr = rules.pricing();
+        BigDecimal rate = rateFor(c, s.currency());
+        String sell = rate == null ? c.channel().currency() : s.currency().trim().toUpperCase(Locale.ROOT);
         List<String> codes = new ArrayList<>();
         for (ExtraRequest e : s.extras()) codes.add(e.code());
         List<OtaXml.QuoteLine> lines = OtaXml.quote(c.channel(), new OtaXml.QuoteRequest(s.pickupAt(), s.returnAt(), codes));
@@ -542,13 +603,81 @@ public class ChannelBookingService {
             }
             Mileage mileage = new Mileage(pr.unlimitedMileage(), pr.unlimitedMileage() ? 0 : pr.kmPerDay(),
                 pr.unlimitedMileage() ? 0 : pr.kmPerDay() * days, pr.unlimitedMileage() ? null : pr.extraKmPrice());
-            out.add(new Offer(null, l.sippCode(), groupName(l.sippCode(), car), l.model() + " or similar",
+            Offer o = new Offer(null, l.sippCode(), groupName(l.sippCode(), car), l.model() + " or similar",
                 car == null ? "" : car.path("category").asText(""), l.transmission(), l.airCon(), status, available, reason,
                 days, c.channel().currency(), base, extrasAmount, fees, tax, pr.taxIncluded() || pr.taxPercent().signum() == 0, total, breakdown,
                 deposit, excess, rules.cancellationPolicyCode(), rules.paymentModel(), null, false,
-                vehicleInfo(c, l.sippCode(), cars), mileage, covers, appliedPromo, pr.taxName(), pr.taxPercent()));
+                vehicleInfo(c, l.sippCode(), cars), mileage, covers, appliedPromo, pr.taxName(), pr.taxPercent(),
+                penalties(rules, s.pickupAt(), total), c.channel().currency(), BigDecimal.ONE);
+            out.add(rate == null ? o : convert(o, sell, rate));
         }
         return out;
+    }
+
+    /** The cancellation schedule for a booking of this total: one step per tier that costs something. */
+    static List<Penalty> penalties(ChannelRules rules, LocalDateTime pickup, BigDecimal total) {
+        List<Penalty> out = new ArrayList<>();
+        List<ChannelRules.CancelTier> tiers = new ArrayList<>(rules.cancellationTiers());
+        tiers.sort(Comparator.comparingInt(ChannelRules.CancelTier::hoursBefore).reversed());
+        BigDecimal last = BigDecimal.ZERO;
+        for (ChannelRules.CancelTier t : tiers) {
+            if (t.feePercent().compareTo(last) <= 0) continue;    // a later step never lowers the fee
+            out.add(new Penalty(pickup.minusHours(t.hoursBefore()), t.hoursBefore(), t.feePercent(),
+                total.multiply(t.feePercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)));
+            last = t.feePercent();
+        }
+        return out;
+    }
+
+    /** The fee percent that applies now under an agreed schedule. */
+    static BigDecimal percentAt(List<Penalty> schedule, LocalDateTime now) {
+        BigDecimal pct = BigDecimal.ZERO;
+        for (Penalty p : schedule) if (!now.isBefore(p.from()) && p.percent().compareTo(pct) > 0) pct = p.percent();
+        return pct;
+    }
+
+    /** The sell currency the broker asked for (null = the channel currency) and its rate. */
+    private static BigDecimal rateFor(Ctx c, String currency) {
+        if (currency == null || currency.isBlank() || currency.trim().equalsIgnoreCase(c.channel().currency())) return null;
+        BigDecimal r = c.rules().currencies().get(currency.trim().toUpperCase(Locale.ROOT));
+        if (r == null) {
+            throw ChannelError.INVALID_REQUEST.ex("Currency " + currency.trim().toUpperCase(Locale.ROOT) + " is not offered on this channel"
+                + (c.rules().currencies().isEmpty() ? "" : " (offered: " + c.channel().currency() + ", " + String.join(", ", c.rules().currencies().keySet()) + ")"));
+        }
+        return r;
+    }
+
+    private static BigDecimal cv(BigDecimal v, BigDecimal rate) {
+        return v == null ? null : v.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * The same offer in the broker's currency. Every line is converted and the total is the sum of the
+     * converted parts, so the breakdown always adds up exactly.
+     */
+    static Offer convert(Offer o, String cur, BigDecimal rate) {
+        List<PriceLine> lines = new ArrayList<>();
+        for (PriceLine l : o.breakdown()) lines.add(new PriceLine(l.type(), l.code(), l.description(), cv(l.unitAmount(), rate), l.quantity(), cv(l.amount(), rate)));
+        BigDecimal base = BigDecimal.ZERO.setScale(2), extras = base, fees = base, taxLine = base;
+        for (PriceLine l : lines) switch (l.type()) {
+            case "BASE", "DISCOUNT" -> base = base.add(l.amount());
+            case "EXTRA", "COVERAGE" -> extras = extras.add(l.amount());
+            case "TAX" -> taxLine = taxLine.add(l.amount());
+            default -> fees = fees.add(l.amount());
+        }
+        BigDecimal tax = o.taxIncluded() ? cv(o.taxAmount(), rate) : taxLine;
+        BigDecimal total = base.add(extras).add(fees).add(o.taxIncluded() ? BigDecimal.ZERO : taxLine);
+        List<CoverageOffer> covers = new ArrayList<>();
+        for (CoverageOffer c : o.coverages()) covers.add(new CoverageOffer(c.code(), c.name(), c.included(), c.selected(), cv(c.dailyPrice(), rate),
+            cv(c.amount(), rate), cv(c.excess(), rate), cv(c.deposit(), rate)));
+        Mileage m = o.mileage() == null ? null : new Mileage(o.mileage().unlimited(), o.mileage().kmPerDay(), o.mileage().kmIncluded(), cv(o.mileage().extraKmPrice(), rate));
+        List<Penalty> pen = new ArrayList<>();
+        for (Penalty p : o.penalties()) pen.add(new Penalty(p.from(), p.hoursBefore(), p.percent(),
+            total.multiply(p.percent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)));
+        return new Offer(o.offerId(), o.vehicleGroup(), o.groupName(), o.modelExample(), o.category(), o.transmission(), o.airCon(), o.status(),
+            o.available(), o.closedReason(), o.rentalDays(), cur, base, extras, fees, tax, o.taxIncluded(), total, lines,
+            cv(o.depositAmount(), rate), cv(o.excessAmount(), rate), o.cancellationPolicy(), o.paymentType(), o.expiresAt(), o.held(),
+            o.vehicle(), m, covers, o.promoCode(), o.taxName(), o.taxPercent(), pen, o.baseCurrency(), rate);
     }
 
     private static BigDecimal fee(List<PriceLine> lines, String code, String name, BigDecimal unit, int qty) {
@@ -775,13 +904,15 @@ public class ChannelBookingService {
         if (existing == null || !existing.path("voucherSubmitted").asBoolean(false)) r.put("carModel", o.modelExample().replace(" or similar", ""));
         r.put("locationName", pl == null ? s.pickupLocation() : pl.name());
         r.put("returnLocationName", rl == null ? s.returnLocation() : rl.name());
-        r.put("amount", o.totalAmount()).put("baseAmount", o.baseAmount().add(o.feesAmount()));
-        r.put("securityDeposit", o.depositAmount()).put("excess", o.excessAmount());
+        // The reservations list keeps the channel's own currency; the broker's currency stays in channelPrice.
+        BigDecimal fx = o.exchangeRate() == null || o.exchangeRate().signum() == 0 ? BigDecimal.ONE : o.exchangeRate();
+        r.put("amount", toBase(o.totalAmount(), fx)).put("baseAmount", toBase(o.baseAmount().add(o.feesAmount()), fx));
+        r.put("securityDeposit", toBase(o.depositAmount(), fx)).put("excess", toBase(o.excessAmount(), fx));
         ArrayNode extras = r.putArray("extras");
         for (PriceLine l : o.breakdown()) {
             if (!"EXTRA".equals(l.type()) && !"COVERAGE".equals(l.type())) continue;
             int days = Math.max(1, o.rentalDays());
-            BigDecimal perDay = l.amount().divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
+            BigDecimal perDay = toBase(l.amount(), fx).divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
             extras.addObject().put("name", l.description() + (l.quantity() > 1 ? " ×" + l.quantity() : "")).put("dailyPrice", perDay).put("isComplementary", false);
         }
         if (d != null) {
@@ -812,6 +943,9 @@ public class ChannelBookingService {
         price.set("coverages", JSON.valueToTree(o.coverages()));
         price.set("mileage", JSON.valueToTree(o.mileage()));
         price.set("vehicle", JSON.valueToTree(o.vehicle()));
+        price.set("penalties", JSON.valueToTree(o.penalties()));
+        price.put("baseCurrency", o.baseCurrency() == null ? c.channel().currency() : o.baseCurrency()).put("exchangeRate", fx)
+             .put("baseTotal", toBase(o.totalAmount(), fx));
         if (existing != null && existing.has("channelPrice")) {
             ArrayNode hist = r.withArray("channelPriceHistory");
             hist.add(existing.get("channelPrice"));
@@ -916,7 +1050,7 @@ public class ChannelBookingService {
         List<String> covers = new ArrayList<>();
         if (o.getCoverages() != null) for (String cv : o.getCoverages().split(",")) if (!cv.isBlank()) covers.add(cv);
         return new Search(o.getPickupLocation(), o.getReturnLocation(), o.getPickupAt(), o.getReturnAt(), o.getDriverAge(), null, o.getSippCode(),
-            extras, covers, o.getPromoCode());
+            extras, covers, o.getPromoCode(), o.getCurrency());
     }
 
     private static Search searchOf(JsonNode res, ChannelBooking b) {
@@ -927,7 +1061,21 @@ public class ChannelBookingService {
         for (JsonNode cv : p.path("coveragesRequested")) covers.add(cv.asText());
         String promo = p.path("promoCode").asText(p.path("promoCodeRequested").asText(""));
         return new Search(p.path("pickupLocation").asText(""), p.path("returnLocation").asText(""), b.getPickupAt(), b.getReturnAt(),
-            p.has("driverAge") ? p.path("driverAge").asInt() : null, null, b.getSippCode(), extras, covers, promo.isEmpty() ? null : promo);
+            p.has("driverAge") ? p.path("driverAge").asInt() : null, null, b.getSippCode(), extras, covers, promo.isEmpty() ? null : promo,
+            b.getCurrency());
+    }
+
+    static BigDecimal toBase(BigDecimal v, BigDecimal rate) {
+        if (v == null) return null;
+        if (rate == null || rate.signum() == 0 || rate.compareTo(BigDecimal.ONE) == 0) return v.setScale(2, RoundingMode.HALF_UP);
+        return v.divide(rate, 2, RoundingMode.HALF_UP);
+    }
+
+    private static List<Penalty> readPenalties(JsonNode n) {
+        if (n == null || !n.isArray()) return null;
+        List<Penalty> out = new ArrayList<>();
+        for (JsonNode x : n) { Penalty p = read(x, Penalty.class); if (p != null) out.add(p); }
+        return out;
     }
 
     // =========================================================== views
@@ -954,7 +1102,7 @@ public class ChannelBookingService {
             cancelled ? res.path("refundStatus").asText(null) : null, b.isSandbox(),
             p.has("tax") ? p.path("tax").decimalValue() : BigDecimal.ZERO.setScale(2), p.path("taxIncluded").asBoolean(true),
             read(p.get("mileage"), Mileage.class), readList(p.get("coverages")), read(p.get("vehicle"), VehicleInfo.class),
-            p.path("promoCode").asText(null));
+            p.path("promoCode").asText(null), readPenalties(p.get("penalties")));
     }
 
     private static <T> T read(JsonNode n, Class<T> type) {
@@ -998,7 +1146,7 @@ public class ChannelBookingService {
         return new Offer(id, o.vehicleGroup(), o.groupName(), o.modelExample(), o.category(), o.transmission(), o.airCon(), o.status(),
             o.available(), o.closedReason(), o.rentalDays(), o.currency(), o.baseAmount(), o.extrasAmount(), o.feesAmount(), o.taxAmount(),
             o.taxIncluded(), o.totalAmount(), o.breakdown(), o.depositAmount(), o.excessAmount(), o.cancellationPolicy(), o.paymentType(), expires, held,
-            o.vehicle(), o.mileage(), o.coverages(), o.promoCode(), o.taxName(), o.taxPercent());
+            o.vehicle(), o.mileage(), o.coverages(), o.promoCode(), o.taxName(), o.taxPercent(), o.penalties(), o.baseCurrency(), o.exchangeRate());
     }
 
     private static Offer withFee(Offer o, PriceLine fee) {
@@ -1007,7 +1155,10 @@ public class ChannelBookingService {
         return new Offer(o.offerId(), o.vehicleGroup(), o.groupName(), o.modelExample(), o.category(), o.transmission(), o.airCon(), o.status(),
             o.available(), o.closedReason(), o.rentalDays(), o.currency(), o.baseAmount(), o.extrasAmount(), o.feesAmount().add(fee.amount()),
             o.taxAmount(), o.taxIncluded(), o.totalAmount().add(fee.amount()), lines, o.depositAmount(), o.excessAmount(),
-            o.cancellationPolicy(), o.paymentType(), o.expiresAt(), o.held(), o.vehicle(), o.mileage(), o.coverages(), o.promoCode(), o.taxName(), o.taxPercent());
+            o.cancellationPolicy(), o.paymentType(), o.expiresAt(), o.held(), o.vehicle(), o.mileage(), o.coverages(), o.promoCode(), o.taxName(), o.taxPercent(),
+            o.penalties().stream().map(p -> new Penalty(p.from(), p.hoursBefore(), p.percent(),
+                o.totalAmount().add(fee.amount()).multiply(p.percent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))).toList(),
+            o.baseCurrency(), o.exchangeRate());
     }
 
     // =========================================================== helpers

@@ -370,3 +370,86 @@ export const OperationsSection: React.FC<{ aggregator: Aggregator; rules: Channe
       </div>
     );
   };
+
+// ===================================================================== cancellation schedule, currencies
+
+type Tier = { hoursBefore: number; feePercent: number };
+
+/** The policy code the server sends (ChannelRules.cancellationPolicyCode). */
+export const policyCode = (tiers: Tier[]) => {
+  const paid = tiers.filter(t => t.feePercent > 0);
+  if (!paid.length) return 'FREE';
+  return `${paid.length > 1 ? 'TIERED' : 'FLEX'}${Math.max(...paid.map(t => t.hoursBefore))}`;
+};
+
+const hoursText = (h: number) => (h === 0 ? 'at pick-up time' : h % 24 === 0 ? `${h / 24} day${h === 24 ? '' : 's'} before` : `${h} h before`);
+
+/** Penalty steps: "cancelled less than X hours before pick-up → Y% of the booking". */
+export const CancellationSchedule: React.FC<{ rules: ChannelBookingRules; set: Set }> = ({ rules, set }) => {
+  const tiers: Tier[] = rules.cancellationTiers?.length ? rules.cancellationTiers
+    : [{ hoursBefore: rules.freeCancellationHours ?? 48, feePercent: rules.lateCancellationFeePercent ?? 100 }];
+  const save = (t: Tier[]) => set('cancellationTiers', [...t].sort((a, b) => b.hoursBefore - a.hoursBefore));
+  const sorted = [...tiers].sort((a, b) => b.hoursBefore - a.hoursBefore);
+  const firstPaid = sorted.filter(t => t.feePercent > 0).map(t => t.hoursBefore);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className={`${labelCls} mb-0`}>Cancellation schedule</span>
+        <button type="button" onClick={() => save([...tiers, { hoursBefore: 24, feePercent: 100 }])} className="text-xs font-semibold text-indigo-600 hover:underline">Add step</button>
+      </div>
+      <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
+        <div className="px-3 py-2 text-[13px] text-slate-600 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />Free cancellation {firstPaid.length ? `until ${hoursText(Math.max(...firstPaid))} pick-up` : 'at any time'}
+        </div>
+        {sorted.map((t, i) => (
+          <div key={i} className="px-3 py-2 flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+            <span className={`w-2 h-2 rounded-full ${t.feePercent >= 100 ? 'bg-rose-500' : t.feePercent > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+            Less than <Small value={t.hoursBefore} onChange={n => save(sorted.map((x, j) => (j === i ? { ...x, hoursBefore: n ?? 0 } : x)))} label="Hours before pick-up" /> hours before:
+            <Small value={t.feePercent} onChange={n => save(sorted.map((x, j) => (j === i ? { ...x, feePercent: Math.min(100, n ?? 0) } : x)))} label="Fee percent" /> % of the booking
+            <span className="text-xs text-slate-400">({hoursText(t.hoursBefore)})</span>
+            {sorted.length > 1 && <button type="button" onClick={() => save(sorted.filter((_, j) => j !== i))} className="ml-auto text-xs font-semibold text-rose-600 hover:underline">Remove</button>}
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-slate-500">Policy code sent to the broker: <span className="font-mono font-semibold text-slate-700">{policyCode(sorted)}</span>.
+        Every offer and booking carries this schedule with exact deadlines; a booking keeps the schedule it was made under.</p>
+    </div>
+  );
+};
+
+const COMMON_CURRENCIES = ['EUR', 'GBP', 'JOD', 'SAR', 'AED', 'USD', 'CHF', 'SEK', 'NOK', 'DKK', 'KWD', 'QAR', 'EGP', 'TRY'];
+
+export const CurrenciesSection: React.FC<{ base: string; currencies: Record<string, number>; onChange: (c: Record<string, number>) => void }> = ({ base, currencies, onChange }) => {
+  const [code, setCode] = useState('');
+  const entries = Object.entries(currencies);
+  const add = () => {
+    const c = code.trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(c) || c === base || currencies[c] !== undefined) return;
+    onChange({ ...currencies, [c]: 1 });
+    setCode('');
+  };
+  return (
+    <Panel title="Sell currencies" subtitle={`Brokers may ask for prices in these currencies (OTA POS ISOCurrency, native <Currency>, JSON "currency"). Bookings, fees and statements stay in ${base}.`}
+      bodyClassName="p-4 space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <span className="h-8 px-3 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 text-xs font-semibold font-mono inline-flex items-center">{base} · channel currency</span>
+        {entries.map(([c, rate]) => (
+          <span key={c} className="h-8 pl-3 pr-1 rounded-lg border border-slate-200 bg-white text-xs inline-flex items-center gap-2">
+            <span className="font-mono font-semibold text-slate-800">{c}</span>
+            <span className="text-slate-400">1 {base} =</span>
+            <input type="number" min={0} step="0.0001" value={rate} onChange={e => onChange({ ...currencies, [c]: Number(e.target.value) })}
+              className="h-6 w-20 rounded border border-slate-200 px-1.5 tabular-nums text-xs" aria-label={`${c} rate`} />
+            <button type="button" onClick={() => { const n = { ...currencies }; delete n[c]; onChange(n); }} className="w-6 h-6 rounded text-slate-400 hover:text-rose-600" aria-label={`Remove ${c}`}>×</button>
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <input list="ccy" value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && add()} placeholder="EUR" maxLength={3}
+          className={`${fieldCls} w-24 font-mono uppercase`} aria-label="Currency code" />
+        <datalist id="ccy">{COMMON_CURRENCIES.filter(c => c !== base && currencies[c] === undefined).map(c => <option key={c} value={c} />)}</datalist>
+        <Button size="sm" onClick={add}>Add currency</Button>
+        <span className="text-xs text-slate-500">Update the rates when they move; each booking keeps the rate it was made at.</span>
+      </div>
+    </Panel>
+  );
+};

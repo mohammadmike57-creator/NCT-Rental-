@@ -116,6 +116,7 @@ final class ChannelSchemas {
               <xs:element name="Extras" type="ExtrasRequested" minOccurs="0"/>
               <xs:element name="Coverages" type="CoveragesRequested" minOccurs="0"/>
               <xs:element name="PromoCode" type="Code" minOccurs="0"/>
+              <xs:element name="Currency" type="Code" minOccurs="0"/>
               <xs:element name="OnlyAvailable" type="xs:boolean" minOccurs="0"/>
             </xs:all></xs:complexType>
           </xs:element>
@@ -136,11 +137,49 @@ final class ChannelSchemas {
               <xs:element name="Extras" type="ExtrasRequested" minOccurs="0"/>
               <xs:element name="Coverages" type="CoveragesRequested" minOccurs="0"/>
               <xs:element name="PromoCode" type="Code" minOccurs="0"/>
+              <xs:element name="Currency" type="Code" minOccurs="0"/>
               <xs:element name="Customer" type="Customer"/>
               <xs:element name="Driver" type="Driver" minOccurs="0"/>
               <xs:element name="ExpectedTotalAmount" type="Money" minOccurs="0"/>
               <xs:element name="Comments" type="xs:string" minOccurs="0"/>
               <xs:element name="FlightNumber" type="xs:string" minOccurs="0"/>
+            </xs:all></xs:complexType>
+          </xs:element>
+          <xs:element name="PingRequest">
+            <xs:complexType><xs:all>
+              <xs:element name="Header" type="RequestHeader"/>
+              <xs:element name="Credentials" type="Credentials" minOccurs="0"/>
+              <xs:element name="EchoData" type="xs:string" minOccurs="0"/>
+            </xs:all></xs:complexType>
+          </xs:element>
+          <xs:element name="LocationDetailRequest">
+            <xs:complexType><xs:all>
+              <xs:element name="Header" type="RequestHeader"/>
+              <xs:element name="Credentials" type="Credentials" minOccurs="0"/>
+              <xs:element name="LocationCode" type="Code"/>
+            </xs:all></xs:complexType>
+          </xs:element>
+          <xs:element name="RateRulesRequest">
+            <xs:complexType><xs:all>
+              <xs:element name="Header" type="RequestHeader"/>
+              <xs:element name="Credentials" type="Credentials" minOccurs="0"/>
+              <xs:element name="OfferID" type="Code" minOccurs="0"/>
+              <xs:element name="Itinerary" type="Itinerary" minOccurs="0"/>
+              <xs:element name="Extras" type="ExtrasRequested" minOccurs="0"/>
+              <xs:element name="Coverages" type="CoveragesRequested" minOccurs="0"/>
+              <xs:element name="PromoCode" type="Code" minOccurs="0"/>
+              <xs:element name="Currency" type="Code" minOccurs="0"/>
+            </xs:all></xs:complexType>
+          </xs:element>
+          <xs:element name="ReservationListRequest">
+            <xs:complexType><xs:all>
+              <xs:element name="Header" type="RequestHeader"/>
+              <xs:element name="Credentials" type="Credentials" minOccurs="0"/>
+              <xs:element name="From" type="xs:date"/>
+              <xs:element name="To" type="xs:date"/>
+              <xs:element name="Status" type="xs:string" minOccurs="0"/>
+              <xs:element name="Page" type="xs:int" minOccurs="0"/>
+              <xs:element name="PageSize" type="xs:int" minOccurs="0"/>
             </xs:all></xs:complexType>
           </xs:element>
           <xs:complexType name="ReservationReference">
@@ -254,7 +293,15 @@ final class ChannelSchemas {
                   <xs:element name="PaymentType" type="xs:string"/>
                   <xs:element name="DepositAmount" type="Money"/>
                   <xs:element name="ExcessAmount" type="Money"/>
+                  <xs:element name="CancellationPenalties" type="Penalties" minOccurs="0"/>
                 </xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="Conversion" minOccurs="0">
+                <xs:annotation><xs:documentation>Present when the prices are in the currency the broker asked for: units per 1 BaseCurrency.</xs:documentation></xs:annotation>
+                <xs:complexType>
+                  <xs:attribute name="BaseCurrency" type="Code" use="required"/>
+                  <xs:attribute name="Rate" type="xs:decimal" use="required"/>
+                </xs:complexType>
               </xs:element>
               <xs:element name="QuoteExpiresAt" type="xs:dateTime" minOccurs="0"/>
               <xs:element name="Held" type="xs:boolean" minOccurs="0"/>
@@ -292,6 +339,7 @@ final class ChannelSchemas {
               <xs:element name="VehicleDetails" type="VehicleDetails" minOccurs="0"/>
               <xs:element name="Mileage" type="Mileage" minOccurs="0"/>
               <xs:element name="Coverages" type="OfferCoverages" minOccurs="0"/>
+              <xs:element name="CancellationPenalties" type="Penalties" minOccurs="0"/>
               <xs:element name="Customer">
                 <xs:complexType><xs:sequence>
                   <xs:element name="FirstName" type="xs:string"/>
@@ -308,51 +356,66 @@ final class ChannelSchemas {
             </xs:sequence>
           </xs:complexType>
 
+          <xs:complexType name="Location">
+            <xs:sequence>
+              <xs:element name="Code" type="Code"/>
+              <xs:element name="Name" type="xs:string"/>
+              <xs:element name="Type">
+                <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="AIRPORT"/><xs:enumeration value="CITY"/>
+                  <xs:enumeration value="HOTEL"/><xs:enumeration value="RAILWAY"/><xs:enumeration value="PORT"/></xs:restriction></xs:simpleType>
+              </xs:element>
+              <xs:element name="Address" type="xs:string" minOccurs="0"/>
+              <xs:element name="Phone" type="xs:string" minOccurs="0"/>
+              <xs:element name="Latitude" type="xs:decimal" minOccurs="0"/>
+              <xs:element name="Longitude" type="xs:decimal" minOccurs="0"/>
+              <xs:element name="PickupAllowed" type="xs:boolean"/>
+              <xs:element name="ReturnAllowed" type="xs:boolean"/>
+              <xs:element name="OpeningHours">
+                <xs:annotation><xs:documentation>No Day elements: open around the clock. A day that is missing: closed that day.</xs:documentation></xs:annotation>
+                <xs:complexType><xs:sequence>
+                  <xs:element name="Day" minOccurs="0" maxOccurs="7">
+                    <xs:complexType>
+                      <xs:attribute name="Name" use="required">
+                        <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="MON"/><xs:enumeration value="TUE"/>
+                          <xs:enumeration value="WED"/><xs:enumeration value="THU"/><xs:enumeration value="FRI"/><xs:enumeration value="SAT"/>
+                          <xs:enumeration value="SUN"/></xs:restriction></xs:simpleType>
+                      </xs:attribute>
+                      <xs:attribute name="Open" type="xs:string" use="required"/>
+                      <xs:attribute name="Close" type="xs:string" use="required"/>
+                    </xs:complexType>
+                  </xs:element>
+                </xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="AfterHours">
+                <xs:complexType>
+                  <xs:attribute name="Pickup" type="xs:boolean" use="required"/>
+                  <xs:attribute name="Return" type="xs:boolean" use="required"/>
+                  <xs:attribute name="Fee" type="Money"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+          <xs:complexType name="Penalties">
+            <xs:annotation><xs:documentation>The cancellation schedule: from each time (HoursBefore pick-up) the fee is Percent of the booking.</xs:documentation></xs:annotation>
+            <xs:sequence>
+              <xs:element name="Penalty" minOccurs="0" maxOccurs="20">
+                <xs:complexType>
+                  <xs:attribute name="From" type="LocalDateTime" use="required"/>
+                  <xs:attribute name="HoursBefore" type="xs:int" use="required"/>
+                  <xs:attribute name="Percent" type="xs:decimal" use="required"/>
+                  <xs:attribute name="Amount" type="Money" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+
           <!-- ============================================================ responses -->
           <xs:element name="LocationsResponse">
             <xs:complexType><xs:sequence>
               <xs:element name="Header" type="ResponseHeader"/>
               <xs:element name="Locations" minOccurs="0">
                 <xs:complexType><xs:sequence>
-                  <xs:element name="Location" minOccurs="0" maxOccurs="unbounded">
-                    <xs:complexType><xs:sequence>
-                      <xs:element name="Code" type="Code"/>
-                      <xs:element name="Name" type="xs:string"/>
-                      <xs:element name="Type">
-                        <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="AIRPORT"/><xs:enumeration value="CITY"/>
-                          <xs:enumeration value="HOTEL"/><xs:enumeration value="RAILWAY"/><xs:enumeration value="PORT"/></xs:restriction></xs:simpleType>
-                      </xs:element>
-                      <xs:element name="Address" type="xs:string" minOccurs="0"/>
-                      <xs:element name="Phone" type="xs:string" minOccurs="0"/>
-                      <xs:element name="Latitude" type="xs:decimal" minOccurs="0"/>
-                      <xs:element name="Longitude" type="xs:decimal" minOccurs="0"/>
-                      <xs:element name="PickupAllowed" type="xs:boolean"/>
-                      <xs:element name="ReturnAllowed" type="xs:boolean"/>
-                      <xs:element name="OpeningHours">
-                        <xs:annotation><xs:documentation>No Day elements: open around the clock. A day that is missing: closed that day.</xs:documentation></xs:annotation>
-                        <xs:complexType><xs:sequence>
-                          <xs:element name="Day" minOccurs="0" maxOccurs="7">
-                            <xs:complexType>
-                              <xs:attribute name="Name" use="required">
-                                <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="MON"/><xs:enumeration value="TUE"/>
-                                  <xs:enumeration value="WED"/><xs:enumeration value="THU"/><xs:enumeration value="FRI"/><xs:enumeration value="SAT"/>
-                                  <xs:enumeration value="SUN"/></xs:restriction></xs:simpleType>
-                              </xs:attribute>
-                              <xs:attribute name="Open" type="xs:string" use="required"/>
-                              <xs:attribute name="Close" type="xs:string" use="required"/>
-                            </xs:complexType>
-                          </xs:element>
-                        </xs:sequence></xs:complexType>
-                      </xs:element>
-                      <xs:element name="AfterHours">
-                        <xs:complexType>
-                          <xs:attribute name="Pickup" type="xs:boolean" use="required"/>
-                          <xs:attribute name="Return" type="xs:boolean" use="required"/>
-                          <xs:attribute name="Fee" type="Money"/>
-                        </xs:complexType>
-                      </xs:element>
-                    </xs:sequence></xs:complexType>
-                  </xs:element>
+                  <xs:element name="Location" type="Location" minOccurs="0" maxOccurs="unbounded"/>
                 </xs:sequence></xs:complexType>
               </xs:element>
             </xs:sequence></xs:complexType>
@@ -468,6 +531,63 @@ final class ChannelSchemas {
           <xs:element name="ReservationStatusResponse" type="ReservationResponse"/>
           <xs:element name="ReservationModifyResponse" type="ReservationResponse"/>
           <xs:element name="ReservationCancelResponse" type="ReservationResponse"/>
+          <xs:element name="PingResponse">
+            <xs:complexType><xs:sequence>
+              <xs:element name="Header" type="ResponseHeader"/>
+              <xs:element name="EchoData" type="xs:string" minOccurs="0"/>
+            </xs:sequence></xs:complexType>
+          </xs:element>
+          <xs:element name="LocationDetailResponse">
+            <xs:complexType><xs:sequence>
+              <xs:element name="Header" type="ResponseHeader"/>
+              <xs:element name="Location" type="Location" minOccurs="0"/>
+            </xs:sequence></xs:complexType>
+          </xs:element>
+          <xs:element name="RateRulesResponse">
+            <xs:complexType><xs:sequence>
+              <xs:element name="Header" type="ResponseHeader"/>
+              <xs:sequence minOccurs="0">
+                <xs:element name="Offer" type="Offer"/>
+                <xs:element name="Extras">
+                  <xs:complexType><xs:sequence>
+                    <xs:element name="Extra" minOccurs="0" maxOccurs="unbounded">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="Code" type="Code"/>
+                        <xs:element name="Name" type="xs:string"/>
+                        <xs:element name="DailyPrice" type="Money"/>
+                        <xs:element name="MaxPerRental" type="Money" minOccurs="0"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                  </xs:sequence></xs:complexType>
+                </xs:element>
+                <xs:element name="Rules">
+                  <xs:complexType><xs:sequence>
+                    <xs:element name="MinimumDriverAge" type="xs:int"/>
+                    <xs:element name="MaximumDriverAge" type="xs:int" minOccurs="0"/>
+                    <xs:element name="BookingCutOffHours" type="xs:int"/>
+                    <xs:element name="MaximumRentalDays" type="xs:int"/>
+                    <xs:element name="ModificationFee" type="Money" minOccurs="0"/>
+                  </xs:sequence></xs:complexType>
+                </xs:element>
+                <xs:element name="PickupLocation" type="Location"/>
+                <xs:element name="ReturnLocation" type="Location"/>
+                <xs:element name="Terms" type="xs:string" minOccurs="0"/>
+              </xs:sequence>
+            </xs:sequence></xs:complexType>
+          </xs:element>
+          <xs:element name="ReservationListResponse">
+            <xs:complexType><xs:sequence>
+              <xs:element name="Header" type="ResponseHeader"/>
+              <xs:element name="Reservations" minOccurs="0">
+                <xs:complexType>
+                  <xs:sequence><xs:element name="Reservation" type="Reservation" minOccurs="0" maxOccurs="unbounded"/></xs:sequence>
+                  <xs:attribute name="Page" type="xs:int" use="required"/>
+                  <xs:attribute name="PageSize" type="xs:int" use="required"/>
+                  <xs:attribute name="Total" type="xs:int" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence></xs:complexType>
+          </xs:element>
         </xs:schema>
         """;
 
@@ -480,6 +600,9 @@ final class ChannelSchemas {
         {"OTA_VehRetRes", "Retrieve a booking by our number or the broker reference"},
         {"OTA_VehModify", "Amend dates, car group, extras, covers or driver"},
         {"OTA_VehCancel", "Cancel, with the fee and refund that apply"},
+        {"OTA_VehRateRule", "Full terms of an offer before booking: covers, extras, payment and cancellation rules, age limits, stations"},
+        {"OTA_VehLocDetail", "One station in full"},
+        {"OTA_Ping", "Credentials and service check"},
     };
 
     /** WSDL 1.1, document/literal over SOAP 1.1 and 1.2, one operation per OTA message pair. */

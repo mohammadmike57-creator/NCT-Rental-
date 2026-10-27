@@ -92,6 +92,28 @@ public class ChannelCertificationService {
             if (any) throw new AssertionError("A sold-out group was still offered");
             return "All groups Closed when no car is free";
         });
+        step(out, "rate-rule", "Rate rules return the full terms of an offer", () -> {
+            if (offer[0] == null) throw new AssertionError("No offer to check");
+            RateRule rr = core.rateRule(c, offer[0].offerId(), null);
+            return rr.extras().size() + " extra(s), " + rr.offer().coverages().size() + " cover(s), policy " + rr.offer().cancellationPolicy()
+                + ", age " + rr.minDriverAge() + (rr.maxDriverAge() > 0 ? "–" + rr.maxDriverAge() : "+") + (rr.terms() == null || rr.terms().isBlank() ? ", no terms text" : ", terms included");
+        });
+        step(out, "location-detail", "Location detail for one station", () -> {
+            Location l = core.location(c, loc);
+            return l.code() + " " + l.name() + " (" + l.type() + ")";
+        });
+        String foreign = r.currencies().keySet().stream().findFirst().orElse(null);
+        if (foreign != null && offer[0] != null) step(out, "currency", "Prices in the broker's currency", () -> {
+            Offer o = core.search(c, new Search(loc, loc, from, from.plusDays(3), 30, null, offer[0].vehicleGroup(), List.of(), null, null, foreign)).get(0);
+            if (!foreign.equals(o.currency())) throw new AssertionError("Answered in " + o.currency());
+            BigDecimal sum = o.breakdown().stream().map(PriceLine::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (o.taxIncluded() && sum.compareTo(o.totalAmount()) != 0) throw new AssertionError("Breakdown " + sum + " ≠ total " + o.totalAmount());
+            return offer[0].totalAmount() + " " + offer[0].currency() + " = " + o.totalAmount() + " " + foreign + " (rate " + o.exchangeRate().stripTrailingZeros().toPlainString() + ")";
+        });
+        step(out, "invalid-currency", "An unsupported currency is refused", () -> {
+            expect(ChannelError.INVALID_REQUEST, () -> core.search(c, new Search(loc, loc, from, from.plusDays(3), 30, null, null, List.of(), null, null, "XXX")));
+            return "INVALID_REQUEST returned";
+        });
         step(out, "pricing", "Offers show tax, mileage and insurance covers", () -> {
             Offer o = offer[0];
             if (o == null) throw new AssertionError("No offer to check");
@@ -162,6 +184,17 @@ public class ChannelCertificationService {
                 new Customer("Ms", "Jane", "Other", "jane@example.com", "+962700000000", "JO"), null, null, null, null)));
             return "DUPLICATE_REFERENCE returned";
         });
+        step(out, "penalties", "The booking carries its cancellation schedule with deadlines", () -> {
+            Reservation g = core.get(c, res[0].reservationId());
+            if (g.penalties() == null) throw new AssertionError("No schedule stored");
+            return g.penalties().isEmpty() ? "Free cancellation at any time" : String.join("; ", g.penalties().stream()
+                .map(p -> "from " + p.from() + ": " + p.percent().stripTrailingZeros().toPlainString() + "% = " + p.amount() + " " + g.currency()).toList());
+        });
+        step(out, "list", "Reconciliation list returns the booking", () -> {
+            ReservationPage pg = core.list(c, from.toLocalDate(), from.toLocalDate(), null, 1, 50);
+            if (pg.reservations().stream().noneMatch(x -> x.reservationId().equals(res[0].reservationId()))) throw new AssertionError("Booking missing from the list");
+            return pg.total() + " booking(s) with pick-up on " + from.toLocalDate();
+        });
         step(out, "retrieve", "Retrieve by reservation number and by broker reference", () -> {
             Reservation a = core.get(c, res[0].reservationId());
             Reservation b = core.get(c, ref);
@@ -176,9 +209,8 @@ public class ChannelCertificationService {
         step(out, "cancel", "Cancellation applies the policy and releases the car", () -> {
             Reservation x = core.cancel(c, res[0].reservationId(), "Certification test");
             if (!"CANCELLED".equals(x.status())) throw new AssertionError("Status " + x.status());
-            long hours = java.time.Duration.between(LocalDateTime.now(), from).toHours();
-            BigDecimal expectedFee = hours >= r.freeCancellationHours() ? BigDecimal.ZERO
-                : x.totalAmount().multiply(r.lateCancellationFeePercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            BigDecimal pct = ChannelBookingService.percentAt(ChannelBookingService.penalties(r, from, x.totalAmount()), LocalDateTime.now());
+            BigDecimal expectedFee = x.totalAmount().multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             if (x.cancellationFee().compareTo(expectedFee) != 0) throw new AssertionError("Fee " + x.cancellationFee() + ", expected " + expectedFee);
             Reservation twice = core.cancel(c, res[0].reservationId(), null);
             if (!"CANCELLED".equals(twice.status())) throw new AssertionError("Second cancel changed the status");

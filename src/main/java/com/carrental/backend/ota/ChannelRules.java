@@ -38,8 +38,13 @@ public record ChannelRules(
     List<Allotment> allotments,
     int noShowAfterHours,         // 0 = no automatic no-shows
     BigDecimal noShowFeePercent,
-    int inventoryPushDays         // days ahead sent in inventory.updated
+    int inventoryPushDays,        // days ahead sent in inventory.updated
+    List<CancelTier> cancellationTiers,  // sorted by hoursBefore, largest first
+    Map<String, BigDecimal> currencies   // sell currency -> units per 1 channel currency
 ) {
+    /** Cancelling less than hoursBefore hours before pick-up costs feePercent of the booking. */
+    public record CancelTier(int hoursBefore, BigDecimal feePercent) {}
+
     /** A station: code the broker uses, our branch, contact, position, hours and after-hours rules. */
     public record Location(String code, String name, String address, boolean pickup, boolean dropOff,
                            String type, String phone, Double latitude, Double longitude,
@@ -172,7 +177,45 @@ public record ChannelRules(
             events, pricing, details, allots,
             clamp(r.path("noShowAfterHours").asInt(0), 0, 24 * 7),
             money(r.path("noShowFeePercent"), BigDecimal.valueOf(100)).min(BigDecimal.valueOf(100)),
-            clamp(r.path("inventoryPushDays").asInt(60), 7, 365));
+            clamp(r.path("inventoryPushDays").asInt(60), 7, 365),
+            tiers(r), currencies(r, ch.currency()));
+    }
+
+    /**
+     * The penalty schedule. Without a "cancellationTiers" list, the single rule
+     * (free until freeCancellationHours, then lateCancellationFeePercent) is the only tier.
+     */
+    private static List<CancelTier> tiers(JsonNode r) {
+        List<CancelTier> out = new ArrayList<>();
+        for (JsonNode t : r.path("cancellationTiers")) {
+            if (!t.path("hoursBefore").isNumber()) continue;
+            out.add(new CancelTier(clamp(t.path("hoursBefore").asInt(), 0, 24 * 365),
+                money(t.path("feePercent"), BigDecimal.ZERO).min(BigDecimal.valueOf(100))));
+        }
+        if (out.isEmpty()) {
+            out.add(new CancelTier(clamp(r.path("freeCancellationHours").asInt(48), 0, 24 * 60),
+                money(r.path("lateCancellationFeePercent"), BigDecimal.valueOf(100)).min(BigDecimal.valueOf(100))));
+        }
+        out.sort(Comparator.comparingInt(CancelTier::hoursBefore).reversed());
+        return List.copyOf(out);
+    }
+
+    private static Map<String, BigDecimal> currencies(JsonNode r, String base) {
+        Map<String, BigDecimal> out = new LinkedHashMap<>();
+        r.path("currencies").fields().forEachRemaining(e -> {
+            String code = e.getKey().trim().toUpperCase(Locale.ROOT);
+            if (!code.matches("[A-Z]{3}") || code.equalsIgnoreCase(base) || !e.getValue().isNumber()) return;
+            BigDecimal rate = e.getValue().decimalValue();
+            if (rate.signum() > 0 && rate.compareTo(BigDecimal.valueOf(100_000)) < 0) out.put(code, rate.setScale(6, RoundingMode.HALF_UP));
+        });
+        return Map.copyOf(out);
+    }
+
+    /** Fee percent for cancelling `hoursBefore` hours before pick-up (the highest tier that applies). */
+    public BigDecimal cancellationPercent(long hoursBefore) {
+        BigDecimal pct = BigDecimal.ZERO;
+        for (CancelTier t : cancellationTiers) if (hoursBefore < t.hoursBefore() && t.feePercent().compareTo(pct) > 0) pct = t.feePercent();
+        return pct;
     }
 
     private static Location location(JsonNode l, String code, String name, String address) {
@@ -213,8 +256,10 @@ public record ChannelRules(
 
     /** FLEX48 / FREE style code partners can show to customers. */
     public String cancellationPolicyCode() {
-        if (lateCancellationFeePercent.signum() == 0) return "FREE";
-        return "FLEX" + freeCancellationHours;
+        int free = -1;
+        for (CancelTier t : cancellationTiers) if (t.feePercent().signum() > 0) free = Math.max(free, t.hoursBefore());
+        if (free < 0) return "FREE";
+        return (cancellationTiers.stream().filter(t -> t.feePercent().signum() > 0).count() > 1 ? "TIERED" : "FLEX") + free;
     }
 
     public Coverage coverage(String code) {
@@ -240,7 +285,7 @@ public record ChannelRules(
     public ChannelRules forCertification(int buffer) {
         return new ChannelRules(true, paymentModel, freeCancellationHours, lateCancellationFeePercent, modificationFee, minLeadHours, maxRentalDays,
             maxHorizonDays, minDriverAge, maxDriverAge, offerValidityMinutes, holdMinutes, buffer, oneWayFee, allowedGroups, locations, "",
-            webhookEvents, pricing, groupDetails, allotments, 0, noShowFeePercent, inventoryPushDays);
+            webhookEvents, pricing, groupDetails, allotments, 0, noShowFeePercent, inventoryPushDays, cancellationTiers, currencies);
     }
 
     private static String addressOf(JsonNode rentalLocations, String name, String fallback) {
