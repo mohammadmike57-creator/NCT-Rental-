@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
 import { mergeAgreementInto } from './services/agreementLink';
+import { duplicateKeys, findBooking, describeBooking } from './services/duplicates';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
@@ -837,6 +838,31 @@ export const App: React.FC = () => {
           importLockedMonth: month,
       } as Reservation;
 
+      // The same booking number is already saved (e.g. its agreement was opened at the counter and closed):
+      // that record is updated, so one rental never counts as two bookings.
+      const existing = findBooking(reservations, reservationToSave.bookingId);
+      if (existing) {
+        const what = describeBooking(existing);
+        if (!window.confirm(`Booking ${existing.bookingId} is already in the system as a ${what} for ${existing.personName || 'a customer'}.\n\nOK: update that booking with these details (no second booking is added).\nCancel: go back and check the booking number.`)) return;
+        const filled = Object.fromEntries(Object.entries(reservationToSave).filter(([k, v]) => v !== '' && v !== undefined && v !== null && !((k === 'amount' || k === 'baseAmount') && v === 0))) as Partial<Reservation>;
+        const target: Reservation = { ...existing, ...filled, id: existing.id, createdAt: existing.createdAt || timestamp, createdBy: existing.createdBy || reservationToSave.createdBy, uploadBatchId: existing.uploadBatchId, lastEditedBy: currentUser?.fullName };
+        const merged = mergeAgreementInto(target, existing, currentUser?.fullName);
+        if (!existing.awaitingConfirmation) { merged.confirmedBy = existing.confirmedBy; merged.confirmedAt = existing.confirmedAt; merged.linkedAgreementRef = existing.linkedAgreementRef; }
+        setSaveStatus('saving');
+        try {
+          setReservations(await reservationService.updateReservation(merged));
+          setSaveStatus('saved');
+          setNewReservations(prev => prev.filter(r => r.id !== transientId));
+          showConfirmation(`Booking ${merged.bookingId} updated — it was already saved as a ${what}, so no second booking was added.`);
+          recordActivity('RESERVATION_UPDATED', 'reservation', `Updated existing ${what} ${merged.bookingId} for ${merged.personName} instead of adding a duplicate booking`, merged.bookingId);
+        } catch (err) {
+          setSaveStatus('error');
+          console.error('Failed to update the existing booking:', err);
+          addNotification('Failed to save reservation. Check connection.', 'error');
+        }
+        return;
+      }
+
       setSaveStatus('saving');
       try {
         const updatedData = await reservationService.updateReservation(reservationToSave);
@@ -855,6 +881,19 @@ export const App: React.FC = () => {
   // Opens a rental agreement for a booking that is not in the list (walk-in, late partner booking…).
   // The booking is stored as PENDING + awaitingConfirmation until a supervisor confirms it.
   const handleCreateUnlistedAgreement = async (draft: import('./components/UnlistedAgreementModal').UnlistedBookingDraft) => {
+    // The booking is in the system after all: open its own agreement rather than a second record.
+    const existing = findBooking(reservations, draft.bookingId);
+    if (existing) {
+      const cancelled = existing.status === ReservationStatus.CANCELLED || existing.status === ReservationStatus.NO_SHOW;
+      if (!cancelled) {
+        if (!window.confirm(`Booking ${existing.bookingId} is already in the system as a ${describeBooking(existing)} for ${existing.personName || 'a customer'}.\n\nOK: open its agreement.\nCancel: go back and check the booking number.`)) return;
+        const at = pickupMonthOf(existing);
+        setShowUnlistedAgreement(false);
+        setModals(m => ({ ...m, viewRentalVoucher: { reservation: existing, year: existing.storageYear || at?.y || selectedYear, month: existing.storageMonth || at?.m || selectedMonth } }));
+        return;
+      }
+      if (!window.confirm(`Booking ${existing.bookingId} is already in the system as a ${describeBooking(existing)} for ${existing.personName || 'a customer'}.\n\nOpen a new agreement with the same booking number anyway? It will show as a duplicate until one of them is deleted.`)) return;
+    }
     const start = new Date(draft.startDate);
     const year = start.getFullYear();
     const month = MONTHS[start.getMonth()];
@@ -1433,22 +1472,8 @@ ${currentUser?.fullName}
 
   const carModels = useMemo(() => [...new Set(fleet.map(v => v.modelName))].sort(), [fleet]);
   
-  const duplicateBookingIds = useMemo(() => {
-    const ids = new Set<string>();
-    const duplicates = new Set<string>();
-    
-    [...allReservationsFlat, ...newReservations].forEach(res => {
-        if (res.bookingId && res.bookingId.trim()) {
-            const trimmedId = res.bookingId.trim();
-            if (ids.has(trimmedId)) {
-                duplicates.add(trimmedId);
-            } else {
-                ids.add(trimmedId);
-            }
-        }
-    });
-    return duplicates;
-  }, [allReservationsFlat, newReservations]);
+  // Booking numbers saved on more than one record (see services/duplicates); drafts being typed are not counted.
+  const duplicateBookingIds = useMemo(() => duplicateKeys(allReservationsFlat), [allReservationsFlat]);
   
   const handleNavigation = (view: string, newFilters?: Partial<ReservationFilters>) => {
     const isReservationView = view === 'Reservations' || view === 'Agreement';

@@ -4,6 +4,7 @@ import { ReservationRepository } from './ReservationRepository';
 import { ExcelImportService } from './ExcelImportService';
 import { ReservationSummaryService } from './ReservationSummaryService';
 import { ReservationSyncService } from './ReservationSyncService';
+import { bookingKey } from './duplicates';
 
 export { pickupMonthOf };
 
@@ -57,15 +58,17 @@ export class ReservationService {
       const y = parseInt(yKey);
       Object.keys(updatedData[y]).forEach(m => {
         updatedData[y][m].forEach(res => {
-          const key = res.invoice || res.bookingId;
-          if (key) globalInvoiceMap.set(key, { y, m, id: res.id });
+          const key = bookingKey(res);
+          if (key && !globalInvoiceMap.has(key)) globalInvoiceMap.set(key, { y, m, id: res.id });
         });
       });
     });
 
     reservations.forEach(res => {
-      const key = res.invoice;
-      if (globalInvoiceMap.has(key)) {
+      // Matched on the booking number however it is written, so a booking already worked on
+      // (agreement opened or closed) is updated rather than imported a second time.
+      const key = bookingKey({ bookingId: res.invoice || res.bookingId });
+      if (key && globalInvoiceMap.has(key)) {
         report.duplicates++;
         report.imported = Math.max(0, report.imported - 1);
         const { y, m, id } = globalInvoiceMap.get(key)!;
@@ -121,7 +124,7 @@ export class ReservationService {
         if (!updatedData[y]) updatedData[y] = {};
         if (!updatedData[y][m]) updatedData[y][m] = [];
         updatedData[y][m].push({ ...res, storageYear: y, storageMonth: m });
-        globalInvoiceMap.set(key, { y, m, id: res.id });
+        if (key) globalInvoiceMap.set(key, { y, m, id: res.id });
       }
     });
 

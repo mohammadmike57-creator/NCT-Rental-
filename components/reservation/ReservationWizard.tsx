@@ -6,6 +6,7 @@ import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservati
 import { Badge, Button, Field, inputCls, selectCls, textareaCls, SectionLabel, EmptyState } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
 import { extraDailyPrice } from '../../services/extras';
+import { bookingKey } from '../../services/duplicates';
 import PaymentChoice from '../PaymentChoice';
 import { bookingPayment, PAYMENT_LABEL, sourceOf, sourceTakesBoth } from '../../services/paymentType';
 import { rentalDaysOf } from '../../services/rentalDays';
@@ -93,15 +94,15 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
 
   // ---- Booking-number checks ---------------------------------------------
   const bookingIdTaken = useMemo(() => {
-    const id = (formData.bookingId || '').trim().toLowerCase();
+    const id = bookingKey(formData);
     if (!id) return false;
     let hit = false;
-    const check = (r: Reservation) => { if (!hit && r.id !== formData.id && (r.bookingId || '').trim().toLowerCase() === id) hit = true; };
+    const check = (r: Reservation) => { if (!hit && r.id !== formData.id && bookingKey(r) === id) hit = true; };
     Object.values(allData || {}).forEach((months: any) => Object.values(months || {}).forEach((items: any) => (items as Reservation[]).forEach(check)));
     newReservations.forEach(check);
     return hit;
   }, [formData.bookingId, formData.id, allData, newReservations]);
-  const bookingIdDuplicate = bookingIdTaken || duplicateBookingIds.has((formData.bookingId || '').trim());
+  const bookingIdDuplicate = bookingIdTaken || duplicateBookingIds.has(bookingKey(formData));
 
   // ---- Fleet availability for the chosen dates ---------------------------
   const allReservations = useMemo(() => {
@@ -409,7 +410,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                       <Err f="bookingId" />
                       {bookingIdDuplicate && (formData.bookingId || '').trim() && (
                         <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-xs text-amber-800">
-                          <span className="font-semibold">Duplicate:</span> another reservation already uses this booking ID.
+                          <span><span className="font-semibold">Already in the system:</span> {mode === 'edit' ? 'another record uses this booking ID.' : 'saving updates that booking instead of adding a second one.'}</span>
                         </p>
                       )}
                     </div>
@@ -608,7 +609,7 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
                   </div>
                 )}
                 {bookingIdDuplicate && (formData.bookingId || '').trim() && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Booking ID {formData.bookingId} is already used by another reservation.</div>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Booking ID {formData.bookingId} is already in the system. {mode === 'edit' ? 'Change it, or delete the other record, so the booking is not counted twice.' : 'Saving updates that booking — no second booking is added.'}</div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <ReviewPanel title="Dates & branch" stepIdx={0} rows={[

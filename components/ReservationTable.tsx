@@ -10,6 +10,7 @@ import ReservationWizard from './reservation/ReservationWizard';
 import { clearDraft, loadDraft, saveDraft } from '../services/drafts';
 import ReservationRecord from './reservation/ReservationRecord';
 import { recordActivity } from '../firebase/api';
+import { bookingKey } from '../services/duplicates';
 import SendDocumentsDialog from './SendDocumentsDialog';
 import ChangeStatusDialog, { statusLabel } from './ChangeStatusDialog';
 import { bookingPayment, paymentUnset } from '../services/paymentType';
@@ -149,7 +150,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const [localBookingIdSearch, setLocalBookingIdSearch] = useState<string>(filters?.bookingIdSearch || '');
   // Keep the box in step when a search arrives from elsewhere (the top-bar booking search).
   useEffect(() => { setLocalBookingIdSearch(filters?.bookingIdSearch || ''); }, [filters?.bookingIdSearch]);
-  const [stageTab, setStageTab] = useState<'all' | 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled'>('all');
+  const [stageTab, setStageTab] = useState<'all' | 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled' | 'noshow' | 'duplicates'>('all');
   const [sortKey, setSortKey] = useState<'pickup' | 'return' | 'name' | 'amount' | 'booking'>('pickup');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [quick, setQuick] = useState<null | 'pickupToday' | 'returnToday' | 'overdue'>(null);
@@ -499,20 +500,43 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const initials = (name?: string) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('');
   const money = (n?: number) => `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  // Filter tabs: the lifecycle stages, with cancelled and no-show apart, and records sharing a booking number.
+  type Tab = 'all' | Stage | 'noshow' | 'duplicates';
+  const isNoShow = (r: Reservation) => r.status === ReservationStatus.NO_SHOW;
+  const isDup = (r: Reservation) => duplicateBookingIds.has(bookingKey(r));
+  const inTab = (r: Reservation, t: Tab) => t === 'all' ? true
+    : t === 'duplicates' ? isDup(r)
+    : t === 'noshow' ? isNoShow(r)
+    : t === 'cancelled' ? stageOf(r) === 'cancelled' && !isNoShow(r)
+    : stageOf(r) === t;
   const stageCounts = useMemo(() => {
-    const c: Record<string, number> = { all: filteredReservations.length, ready: 0, onrent: 0, closed: 0, pending: 0, cancelled: 0 };
-    filteredReservations.forEach(r => { c[stageOf(r)]++; });
+    const c: Record<string, number> = { all: filteredReservations.length, ready: 0, onrent: 0, closed: 0, pending: 0, cancelled: 0, noshow: 0, duplicates: 0 };
+    filteredReservations.forEach(r => {
+      const st = stageOf(r);
+      c[st === 'cancelled' && isNoShow(r) ? 'noshow' : st]++;
+      if (isDup(r)) c.duplicates++;
+    });
     return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredReservations, duplicateBookingIds]);
+  // A rental is one booking whatever its stage; copies under the same booking number count once.
+  const uniqueBookings = useMemo(() => {
+    const keys = new Set<string>();
+    let unnumbered = 0;
+    filteredReservations.forEach(r => { const k = bookingKey(r); if (k) keys.add(k); else unnumbered++; });
+    return keys.size + unnumbered;
   }, [filteredReservations]);
 
   const visibleReservations = useMemo(() => {
-    let list = stageTab === 'all' ? filteredReservations : filteredReservations.filter(r => stageOf(r) === stageTab);
+    let list = stageTab === 'all' ? filteredReservations : filteredReservations.filter(r => inTab(r, stageTab));
     if (sourceFilterLocal) list = list.filter(r => r.source === sourceFilterLocal);
     if (branchFilterLocal) list = list.filter(r => (r.locationName || '') === branchFilterLocal);
     if (quick === 'pickupToday') list = list.filter(r => stageOf(r) === 'ready' && (r.startDate || '').slice(0, 10) === todayKey);
     if (quick === 'returnToday') list = list.filter(r => stageOf(r) === 'onrent' && (r.endDate || '').slice(0, 10) === todayKey);
     if (quick === 'overdue') list = list.filter(r => /overdue/i.test(alertOf(r)?.label || ''));
     const dir = sortDir === 'asc' ? 1 : -1;
+    // Copies of the same booking sit next to each other so the extra one is easy to spot.
+    if (stageTab === 'duplicates') return [...list].sort((a, b) => bookingKey(a).localeCompare(bookingKey(b), undefined, { numeric: true }) || (a.createdAt || '').localeCompare(b.createdAt || ''));
     return [...list].sort((a, b) => {
       switch (sortKey) {
         case 'return': return dir * (a.endDate || '').localeCompare(b.endDate || '');
@@ -523,13 +547,18 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredReservations, stageTab, sortKey, sortDir, sourceFilterLocal, branchFilterLocal, quick]);
+  }, [filteredReservations, stageTab, sortKey, sortDir, sourceFilterLocal, branchFilterLocal, quick, duplicateBookingIds]);
 
   const actionToday = filteredReservations.filter(r => alertOf(r) !== null).length;
 
-  const TABS: { key: 'all' | Stage; label: string }[] = isAgreementView
-    ? [{ key: 'all', label: 'All' }, { key: 'ready', label: 'To check out' }, { key: 'onrent', label: 'Open' }, { key: 'closed', label: 'Closed' }]
-    : [{ key: 'all', label: 'All' }, { key: 'ready', label: 'Awaiting pickup' }, { key: 'onrent', label: 'On rent' }, { key: 'closed', label: 'Closed' }, { key: 'pending', label: 'Pending' }, { key: 'cancelled', label: 'Cancelled' }];
+  const TABS: { key: Tab; label: string }[] = [
+    ...(isAgreementView
+      ? [{ key: 'all', label: 'All' }, { key: 'ready', label: 'To check out' }, { key: 'onrent', label: 'On rent' }, { key: 'closed', label: 'Closed' }]
+      : [{ key: 'all', label: 'All' }, { key: 'ready', label: 'Awaiting pickup' }, { key: 'onrent', label: 'On rent' }, { key: 'closed', label: 'Closed' }, { key: 'pending', label: 'Pending' }]) as { key: Tab; label: string }[],
+    { key: 'cancelled', label: 'Cancelled' },
+    { key: 'noshow', label: 'No-show' },
+    ...(stageCounts.duplicates > 0 || stageTab === 'duplicates' ? [{ key: 'duplicates' as Tab, label: 'Duplicates' }] : []),
+  ];
 
   const PrimaryAction: React.FC<{ res: Reservation; full?: boolean }> = ({ res, full }) => {
     if (!canViewVoucherActions) return null;
@@ -555,6 +584,21 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     }));
     return list.sort((a, b) => (b.unlistedCreatedAt || b.createdAt || '').localeCompare(a.unlistedCreatedAt || a.createdAt || ''));
   }, [allData]);
+  // Every booking number saved more than once, with the months its copies are filed under.
+  const duplicateGroups = useMemo(() => {
+    const map = new Map<string, { bookingId: string; count: number; months: Set<string> }>();
+    Object.entries(allData || {}).forEach(([y, months]: [string, any]) => Object.entries(months || {}).forEach(([m, items]: [string, any]) => {
+      (items as Reservation[]).forEach(r => {
+        const k = bookingKey(r);
+        if (!k || !duplicateBookingIds.has(k)) return;
+        const g = map.get(k) || { bookingId: r.bookingId || k, count: 0, months: new Set<string>() };
+        g.count++;
+        g.months.add(`${m.slice(0, 3)} ${y}`);
+        map.set(k, g);
+      });
+    }));
+    return Array.from(map.values()).sort((a, b) => a.bookingId.localeCompare(b.bookingId, undefined, { numeric: true }));
+  }, [allData, duplicateBookingIds]);
   const canConfirm = hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT);
   const confirmUnlisted = (res: Reservation) => {
     onEditReservation({ ...res, awaitingConfirmation: false, status: ReservationStatus.CONFIRMED, confirmedBy: currentUser?.fullName, confirmedAt: new Date().toISOString() });
@@ -748,7 +792,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     { key: 'rt', label: 'Returns today', value: ops.returnToday, sub: 'due back', tone: 'text-emerald-700', active: quick === 'returnToday', onClick: () => { setStageTab('all'); setQuick(q => (q === 'returnToday' ? null : 'returnToday')); } },
     { key: 'od', label: 'Overdue', value: ops.overdue, sub: 'pickups or returns', tone: ops.overdue > 0 ? 'text-rose-600' : 'text-slate-900', active: quick === 'overdue', onClick: () => { setStageTab('all'); setQuick(q => (q === 'overdue' ? null : 'overdue')); } },
     { key: 'or', label: 'On rent', value: stageCounts.onrent, sub: 'vehicles out', tone: 'text-slate-900', active: stageTab === 'onrent' && !quick, onClick: () => { setQuick(null); setStageTab(t => (t === 'onrent' ? 'all' : 'onrent')); } },
-    { key: 'bk', label: 'Bookings', value: filteredReservations.length, sub: `${stageCounts.cancelled} cancelled`, tone: 'text-slate-900', active: false },
+    { key: 'bk', label: 'Bookings', value: uniqueBookings, sub: [`${stageCounts.cancelled} cancelled`, `${stageCounts.noshow} no-show`].join(' · '), tone: 'text-slate-900', active: false },
     { key: 'cl', label: 'Returned', value: stageCounts.closed, sub: 'agreements closed', tone: 'text-slate-900', active: stageTab === 'closed' && !quick, onClick: () => { setQuick(null); setStageTab(t => (t === 'closed' ? 'all' : 'closed')); } },
   ];
   const selectCls = 'h-9 pl-3 pr-8 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none';
@@ -786,7 +830,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           <div className="min-w-0">
             <p className="text-xs font-medium text-slate-500">Operations <span className="text-slate-300 mx-1">/</span> {isAgreementView ? 'Rental agreements' : 'Reservations'}</p>
             <h2 className="mt-0.5 text-2xl font-semibold text-slate-900 tracking-tight">{isAgreementView ? 'Rental agreements' : 'Reservations'}</h2>
-            <p className="text-sm text-slate-500">{selectedMonth} {selectedYear} · {filteredReservations.length} booking{filteredReservations.length === 1 ? '' : 's'}</p>
+            <p className="text-sm text-slate-500">{selectedMonth} {selectedYear} · {uniqueBookings} booking{uniqueBookings === 1 ? '' : 's'}</p>
           </div>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-2">
             <div className="col-span-2 order-last sm:order-none flex items-center rounded-lg border border-slate-200 bg-white divide-x divide-slate-200 overflow-hidden shadow-sm [&>button]:flex-1 sm:[&>button]:flex-none [&>button]:justify-center">
@@ -852,14 +896,38 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
           </div>
         )}
 
+        {duplicateGroups.length > 0 && (
+          <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 flex flex-col sm:flex-row sm:items-start gap-3">
+            <span className="w-8 h-8 shrink-0 rounded-lg bg-rose-600 text-white flex items-center justify-center text-sm font-bold">!</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] text-slate-800">
+                <b className="text-rose-800">{duplicateGroups.length} booking number{duplicateGroups.length === 1 ? ' is' : 's are'} saved more than once</b>, so {duplicateGroups.length === 1 ? 'it is' : 'they are'} counted twice. Open each copy, keep the one with the agreement and delete the other (More actions → Delete).
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {duplicateGroups.slice(0, 8).map(g => (
+                  <button key={g.bookingId} onClick={() => { setQuick(null); setStageTab('all'); setLocalBookingIdSearch(g.bookingId); setFilters((prev: any) => ({ ...prev, bookingIdSearch: g.bookingId })); }}
+                    title="Show this booking number" className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md bg-white border border-rose-200 text-xs text-rose-800 hover:bg-rose-100">
+                    <span className="font-mono font-semibold">{g.bookingId}</span><span className="text-rose-500">×{g.count}</span><span className="text-slate-500">{Array.from(g.months).join(', ')}</span>
+                  </button>
+                ))}
+                {duplicateGroups.length > 8 && <span className="h-7 inline-flex items-center text-xs text-rose-700">+{duplicateGroups.length - 8} more</span>}
+              </div>
+            </div>
+            {stageCounts.duplicates > 0 && (
+              <button onClick={() => { setQuick(null); setStageTab('duplicates'); }}
+                className="h-8 px-3 rounded-lg bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 whitespace-nowrap self-start">Show {stageCounts.duplicates} in this month</button>
+            )}
+          </div>
+        )}
+
         {/* Data grid */}
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-clip">
           <div className="px-2 sm:px-3 border-b border-slate-200 flex gap-0.5 overflow-x-auto no-scrollbar">
             {TABS.map(t => (
               <button key={t.key} onClick={() => { setQuick(null); setStageTab(t.key); }}
-                className={`px-3 py-3 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${stageTab === t.key ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                className={`px-3 py-3 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${t.key === 'duplicates' ? (stageTab === t.key ? 'border-rose-600 text-rose-700' : 'border-transparent text-rose-600 hover:text-rose-800') : stageTab === t.key ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
                 {t.label}
-                <span className={`ml-1.5 px-1.5 py-px rounded text-[11px] tabular-nums ${stageTab === t.key ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{stageCounts[t.key] ?? 0}</span>
+                <span className={`ml-1.5 px-1.5 py-px rounded text-[11px] tabular-nums ${t.key === 'duplicates' ? 'bg-rose-600 text-white' : stageTab === t.key ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{stageCounts[t.key] ?? 0}</span>
               </button>
             ))}
           </div>
@@ -871,6 +939,9 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 className="w-full h-9 pl-9 pr-3 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
             </div>
             <div className="grid grid-cols-2 md:flex gap-2">
+              <select value={stageTab} onChange={e => { setQuick(null); setStageTab(e.target.value as Tab); }} aria-label="Status" className={`${selectCls} min-w-0 col-span-2 md:col-span-1`}>
+                {TABS.map(t => <option key={t.key} value={t.key}>{t.key === 'all' ? 'All statuses' : t.label} ({stageCounts[t.key] ?? 0})</option>)}
+              </select>
               <select value={sourceFilterLocal} onChange={e => setSourceFilterLocal(e.target.value)} aria-label="Source" className={`${selectCls} min-w-0`}>
                 <option value="">All sources</option>
                 {sourceOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -917,15 +988,16 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                 <tbody className="divide-y divide-slate-100">
                   {pageRows.map(res => {
                     const kind = vehicleKind(res.carModel, fleet);
-                    const isDuplicate = duplicateBookingIds.has(res.bookingId?.trim());
+                    const isDuplicate = isDup(res);
                     const days = rentalDaysOf(res);
                     const selected = drawerRes?.id === res.id;
                     return (
                       <tr key={res.id} onClick={() => setDetailsModalReservation(res)}
-                        className={`cursor-pointer align-middle transition-colors ${selected ? 'bg-indigo-50/60' : isDuplicate ? 'bg-rose-50/40 hover:bg-rose-50' : 'hover:bg-slate-50'}`}>
+                        title={isDuplicate ? `Booking ${res.bookingId} is saved more than once — keep one record and delete the other` : undefined}
+                        className={`cursor-pointer align-middle transition-colors ${isDuplicate ? `shadow-[inset_4px_0_0_#e11d48] ${selected ? 'bg-rose-100' : 'bg-rose-50 hover:bg-rose-100/70'}` : selected ? 'bg-indigo-50/60' : 'hover:bg-slate-50'}`}>
                         <td className="pl-4 pr-3 py-2.5 whitespace-nowrap">
-                          <span className={`font-mono font-semibold ${selected ? 'text-indigo-700' : 'text-slate-900'}`}>{res.bookingId || 'NO-ID'}</span>
-                          {isDuplicate && <span className="ml-1.5 px-1 rounded bg-rose-100 text-rose-700 text-[10px] font-semibold uppercase">dup</span>}
+                          <span className={`font-mono font-semibold ${isDuplicate ? 'text-rose-700' : selected ? 'text-indigo-700' : 'text-slate-900'}`}>{res.bookingId || 'NO-ID'}</span>
+                          {isDuplicate && <span className="ml-1.5 px-1.5 py-px rounded bg-rose-600 text-white text-[10px] font-semibold uppercase tracking-wide">Duplicate</span>}
                           <span className="block 2xl:hidden text-[11px] text-slate-400 truncate max-w-[7rem]">{res.source ? getSourceName(res.source) : ''}</span>
                           <span className="block mt-0.5">{payTag(res)}</span>
                         </td>
@@ -976,17 +1048,17 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
                   const alert = alertOf(res);
                   const overdue = isOverdue(res);
                   const kind = vehicleKind(res.carModel || '');
-                  const isDuplicate = duplicateBookingIds.has(res.bookingId?.trim());
-                  const edge = { ready: 'before:bg-sky-500', onrent: 'before:bg-emerald-500', closed: 'before:bg-slate-300', pending: 'before:bg-amber-500', cancelled: 'before:bg-rose-400' }[stage];
+                  const isDuplicate = isDup(res);
+                  const edge = isDuplicate ? 'before:bg-rose-600' : { ready: 'before:bg-sky-500', onrent: 'before:bg-emerald-500', closed: 'before:bg-slate-300', pending: 'before:bg-amber-500', cancelled: 'before:bg-rose-400' }[stage];
                   const tel = (res.contactNumber || '').replace(/[^\d+]/g, '');
                   return (
-                    <li key={res.id} className={`relative overflow-hidden rounded-xl bg-white border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.05)] before:absolute before:inset-y-0 before:left-0 before:w-1 ${edge} ${stage === 'cancelled' ? 'opacity-80' : ''}`}>
+                    <li key={res.id} className={`relative overflow-hidden rounded-xl border shadow-[0_1px_2px_rgba(15,23,42,0.05)] before:absolute before:inset-y-0 before:left-0 before:w-1 ${edge} ${isDuplicate ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'} ${stage === 'cancelled' && !isDuplicate ? 'opacity-80' : ''}`}>
                       <button onClick={() => setDetailsModalReservation(res)} className="w-full text-left pl-4 pr-3.5 pt-3 pb-3 active:bg-slate-50">
                         {/* Booking no. · source · status */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="font-mono text-[12.5px] font-semibold text-slate-900 tracking-tight">{res.bookingId || 'NO-ID'}</span>
-                            {isDuplicate && <span className="px-1 rounded bg-rose-100 text-rose-700 text-[10px] font-semibold uppercase">dup</span>}
+                            {isDuplicate && <span className="px-1.5 py-px rounded bg-rose-600 text-white text-[10px] font-semibold uppercase tracking-wide">Duplicate</span>}
                             {res.source && <span className="px-1.5 py-px rounded bg-slate-100 text-[10.5px] font-medium text-slate-600 truncate max-w-[8.5rem]">{getSourceName(res.source)}</span>}
                             {payTag(res)}
                           </div>
