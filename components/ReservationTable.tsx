@@ -626,7 +626,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       list.push({ key: 'status', label: 'Change status…', icon: <EditIcon className="w-4 h-4" />, onClick: () => setStatusFor({ res }), section: 'booking' });
     }
     if (!res.voucherSubmitted && !res.dropOffCompleted && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE)) list.push({ key: 'delete', label: 'Delete reservation', icon: <TrashIcon className="w-4 h-4" />, onClick: () => onDelete(res.id, res.isNew, y, m), danger: true, section: 'danger' });
-    if (stage === 'closed' && onDeleteAgreement && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE)) list.push({ key: 'delete-agreement', label: 'Delete agreement', icon: <TrashIcon className="w-4 h-4" />, onClick: () => onDeleteAgreement(res), danger: true, section: 'danger' });
+    if ((stage === 'closed' || stage === 'onrent' || (stage === 'cancelled' && res.voucherSubmitted)) && onDeleteAgreement && hasPermission(UserPermission.ACTION_RESERVATIONS_DELETE)) list.push({ key: 'delete-agreement', label: 'Delete agreement', icon: <TrashIcon className="w-4 h-4" />, onClick: () => onDeleteAgreement(res), danger: true, section: 'danger' });
     return list;
   };
 

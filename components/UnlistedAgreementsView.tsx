@@ -21,6 +21,8 @@ interface Props {
   /** Moves the agreement onto a reservation that is already in the system and removes the temporary record. */
   onLink: (target: Reservation, agreement: Reservation) => Promise<void>;
   onReject: (res: Reservation) => void;
+  /** Deletes the record (reservation or agreement) after a typed confirmation. */
+  onDelete?: (res: Reservation) => void;
   onNewWalkIn?: () => void;
   /** Marks agreements as reviewed by the signed-in user, which takes them out of the "New" section. */
   onMarkSeen?: (items: Reservation[]) => Promise<void>;
@@ -60,7 +62,7 @@ export function missingDetails(r: Reservation, sources: RentalSource[]): { key: 
 const agreementState = (r: Reservation) =>
   r.dropOffCompleted ? { label: 'Returned', tone: 'muted' as const } : r.voucherSubmitted ? { label: 'On rent', tone: 'success' as const } : { label: 'Not checked out', tone: 'info' as const };
 
-const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocations, fleet, currentUser, canEdit, onOpenAgreement, onList, onSaveDraft, onLink, onReject, onNewWalkIn, onMarkSeen }) => {
+const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocations, fleet, currentUser, canEdit, onOpenAgreement, onList, onSaveDraft, onLink, onReject, onDelete, onNewWalkIn, onMarkSeen }) => {
   const [tab, setTab] = useState<'waiting' | 'listed' | 'rejected'>('waiting');
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Located | null>(null);
@@ -112,6 +114,7 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
           <button onClick={() => onReject(item.res)} className="h-8 px-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50">Reject</button>
         </>
       )}
+      {onDelete && <button onClick={() => onDelete(item.res)} title="Delete permanently" className="h-8 px-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete</button>}
     </div>
   );
 
@@ -168,6 +171,7 @@ const UnlistedAgreementsView: React.FC<Props> = ({ allData, sources, rentalLocat
                     {canEdit && <Button size="sm" variant="primary" icon={<PlusIcon className="w-3.5 h-3.5" />} onClick={() => { setEditing(item); markSeen([item]); }}>Add reservation</Button>}
                     <Button size="sm" icon={<DocumentReportIcon className="w-3.5 h-3.5" />} onClick={() => onOpenAgreement(item.res, item.year, item.month)}>Agreement</Button>
                     {onMarkSeen && <button type="button" onClick={() => markSeen([item])} disabled={marking} className="ml-auto h-8 px-2.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100">Mark as reviewed</button>}
+                    {onDelete && <button type="button" onClick={() => onDelete(item.res)} className={`${onMarkSeen ? '' : 'ml-auto '}h-8 px-2.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50`}>Delete</button>}
                   </div>
                 </li>
               );

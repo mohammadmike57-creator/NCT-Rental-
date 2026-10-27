@@ -25,6 +25,21 @@ const splitDate = (value?: string) => ({
   time: value?.split('T')[1]?.substring(0, 5) || '',
 });
 
+/** The next step for the booking, as in Reservations: check out, then check in, then the closed agreement. */
+const ActionButton: React.FC<{ res: Reservation; onClick: () => void; className?: string }> = ({ res, onClick, className = '' }) => {
+    const step = res.dropOffCompleted ? 'agreement' : res.voucherSubmitted ? 'checkin' : 'checkout';
+    const label = step === 'checkout' ? 'Check out' : step === 'checkin' ? 'Check in' : 'Agreement';
+    const tone = step === 'checkout' ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+        : step === 'checkin' ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50';
+    return (
+        <button type="button" onClick={onClick} aria-label={`${label} ${res.bookingId || ''}`}
+            className={`inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${tone} ${className}`}>
+            {step === 'agreement' && <DocumentTextIcon className="w-3.5 h-3.5" />}{label}
+        </button>
+    );
+};
+
 const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rentalSources, onShowVoucher, fleet }) => {
     
     const today = new Date();
@@ -170,7 +185,7 @@ const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rental
                                                 {ret.time && <p className="text-[11px] text-slate-500">{ret.time}</p>}
                                             </td>
                                             <td className={`${table.td} text-right`}>
-                                                <Button size="sm" icon={<DocumentTextIcon className="w-3.5 h-3.5" />} onClick={() => onShowVoucher(res, year, month)} title="View Agreement" aria-label="View agreement">Agreement</Button>
+                                                <ActionButton res={res} onClick={() => onShowVoucher(res, year, month)} />
                                             </td>
                                         </tr>
                                     );
@@ -198,7 +213,7 @@ const TodaysReservations: React.FC<TodaysReservationsProps> = ({ allData, rental
                                         </div>
                                         <div className="mt-2 flex items-center gap-2">
                                             <span className="text-xs text-slate-800 tabular-nums">{pickup.date} {pickup.time}<span className="text-slate-300 mx-1.5">&rarr;</span>{ret.date} {ret.time}</span>
-                                            <Button size="sm" className="ml-auto" icon={<DocumentTextIcon className="w-3.5 h-3.5" />} onClick={() => onShowVoucher(res, year, month)} aria-label="View agreement">Agreement</Button>
+                                            <ActionButton res={res} className="ml-auto" onClick={() => onShowVoucher(res, year, month)} />
                                         </div>
                                     </li>
                                 );

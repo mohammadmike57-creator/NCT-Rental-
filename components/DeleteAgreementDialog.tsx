@@ -3,8 +3,8 @@ import { Reservation } from '../types';
 import { Button, inputCls } from './ui/Crm';
 
 /**
- * Deleting a booking whose rental agreement is complete (checked out and checked in).
- * The person types the booking number to confirm, so it cannot happen by a stray click.
+ * Deleting a booking at any stage: a reservation not picked up yet, an open agreement (car out) or a
+ * completed one. The person gives a reason and types the booking number, so it cannot happen by a stray click.
  */
 const DeleteAgreementDialog: React.FC<{ reservation: Reservation; busy?: boolean; onCancel: () => void; onConfirm: (reason: string) => void }> = ({ reservation: r, busy, onCancel, onConfirm }) => {
   const [typed, setTyped] = useState('');
@@ -16,6 +16,11 @@ const DeleteAgreementDialog: React.FC<{ reservation: Reservation; busy?: boolean
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onCancel]);
+  const stage = r.dropOffCompleted ? 'closed' : r.voucherSubmitted ? 'open' : 'reservation';
+  const title = stage === 'closed' ? 'Delete completed agreement' : stage === 'open' ? 'Delete open agreement' : 'Delete reservation';
+  const intro = stage === 'closed' ? 'This rental is finished. Deleting it removes the booking and its signed agreement permanently.'
+    : stage === 'open' ? 'The car is still out with the customer. Deleting removes the booking and its check-out record permanently, and the car shows as available again.'
+    : 'Deleting removes this booking permanently.';
   const fmt = (s?: string) => { if (!s) return '—'; const d = new Date(s); return isNaN(d.getTime()) ? s : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
 
   return (
@@ -27,8 +32,8 @@ const DeleteAgreementDialog: React.FC<{ reservation: Reservation; busy?: boolean
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
           </div>
           <div className="min-w-0">
-            <h2 id="del-agr-title" className="text-base font-semibold text-slate-900">Delete completed agreement</h2>
-            <p className="mt-1 text-[13px] text-slate-600">This rental is finished. Deleting it removes the booking and its signed agreement permanently.</p>
+            <h2 id="del-agr-title" className="text-base font-semibold text-slate-900">{title}{r.awaitingConfirmation ? <span className="ml-2 align-middle text-[11px] font-semibold text-amber-700 bg-amber-50 rounded px-1.5 py-0.5">Unlisted</span> : null}</h2>
+            <p className="mt-1 text-[13px] text-slate-600">{intro}</p>
           </div>
         </div>
 
@@ -36,12 +41,12 @@ const DeleteAgreementDialog: React.FC<{ reservation: Reservation; busy?: boolean
           <span className="text-slate-500">Booking</span><span className="font-mono font-semibold text-slate-900">{ref || '—'}</span>
           <span className="text-slate-500">Customer</span><span className="font-medium text-slate-900">{r.personName || r.customer || '—'}</span>
           <span className="text-slate-500">Car</span><span className="text-slate-900">{r.carModel || '—'}{r.licensePlate ? ` · ${r.licensePlate}` : ''}</span>
-          <span className="text-slate-500">Checked out</span><span className="text-slate-900 tabular-nums">{r.pickupDateTime || fmt(r.startDate)}</span>
-          <span className="text-slate-500">Checked in</span><span className="text-slate-900 tabular-nums">{r.dropOffDateTime || fmt(r.endDate)}</span>
+          <span className="text-slate-500">{stage === 'reservation' ? 'Pick-up' : 'Checked out'}</span><span className="text-slate-900 tabular-nums">{stage === 'reservation' ? fmt(r.startDate) : r.pickupDateTime || fmt(r.startDate)}</span>
+          <span className="text-slate-500">{stage === 'closed' ? 'Checked in' : 'Return'}</span><span className="text-slate-900 tabular-nums">{stage === 'closed' ? r.dropOffDateTime || fmt(r.endDate) : fmt(r.endDate)}{stage === 'open' && <span className="ml-1.5 text-[11px] font-semibold text-amber-700">car not returned</span>}</span>
         </div>
 
         <ul className="mx-6 mt-3 text-xs text-slate-600 space-y-1 list-disc ps-4">
-          <li>Removed: the booking, the check-out and check-in records, signatures and inspection photos.</li>
+          <li>Removed: the booking{stage !== 'reservation' && <>, the check-out{stage === 'closed' ? ' and check-in' : ''} records, signatures and inspection photos</>}.</li>
           <li>Kept: damages and traffic tickets already recorded in their registers, and the Activity Log entry.</li>
           <li>An administrator can still recover it from a data backup (Company Details → Danger zone).</li>
         </ul>
@@ -59,7 +64,7 @@ const DeleteAgreementDialog: React.FC<{ reservation: Reservation; busy?: boolean
 
         <footer className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
           <Button onClick={onCancel} disabled={busy}>Cancel</Button>
-          <Button variant="danger" className="!bg-rose-600 !text-white !border-rose-600 hover:!bg-rose-700 disabled:opacity-40" onClick={() => onConfirm(reason.trim())} disabled={!ok || busy}>{busy ? 'Deleting…' : 'Delete agreement'}</Button>
+          <Button variant="danger" className="!bg-rose-600 !text-white !border-rose-600 hover:!bg-rose-700 disabled:opacity-40" onClick={() => onConfirm(reason.trim())} disabled={!ok || busy}>{busy ? 'Deleting…' : stage === 'reservation' ? 'Delete reservation' : 'Delete agreement'}</Button>
         </footer>
       </div>
     </div>

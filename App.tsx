@@ -988,8 +988,9 @@ export const App: React.FC = () => {
       setTableKey(prev => prev + 1);
       setSaveStatus('saved');
       setAgreementToDelete(null);
-      showConfirmation(`Agreement ${res.bookingId} deleted.`);
-      recordActivity('AGREEMENT_DELETED', 'agreement', `Deleted the completed agreement for ${res.personName} (${res.carModel || 'vehicle'}${res.licensePlate ? ` ${res.licensePlate}` : ''})`, res.bookingId,
+      showConfirmation(`${res.voucherSubmitted ? 'Agreement' : 'Reservation'} ${res.bookingId} deleted.`);
+      const what = res.dropOffCompleted ? 'completed agreement' : res.voucherSubmitted ? 'open agreement (car was still out)' : res.awaitingConfirmation ? 'unlisted reservation' : 'reservation';
+      recordActivity(res.voucherSubmitted ? 'AGREEMENT_DELETED' : 'RESERVATION_DELETED', 'agreement', `Deleted the ${what} for ${res.personName} (${res.carModel || 'vehicle'}${res.licensePlate ? ` ${res.licensePlate}` : ''})`, res.bookingId,
         `Reason: ${reason}\nRental: ${res.startDate?.slice(0, 16)} → ${res.endDate?.slice(0, 16)}\nAmount: ${res.amount ?? ''}\nSource: ${res.source || ''}`);
     } catch (err) {
       setSaveStatus('error');
@@ -1685,7 +1686,7 @@ ${currentUser?.fullName}
         fleet={fleet}
         allData={reservations}
         rentalSources={sources}
-        onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewVoucher: { reservation, year, month }}))}
+        onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month }}))}
       />
     ), permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
     'Internal Messages': { component: (
@@ -1726,6 +1727,7 @@ ${currentUser?.fullName}
             onSaveDraft={handleSaveUnlistedDraft}
             onLink={handleLinkUnlisted}
             onReject={handleRejectUnlisted}
+            onDelete={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_DELETE) ? setAgreementToDelete : undefined}
             onMarkSeen={handleMarkUnlistedSeen}
             onNewWalkIn={hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION) ? () => setShowUnlistedAgreement(true) : undefined}
         />
