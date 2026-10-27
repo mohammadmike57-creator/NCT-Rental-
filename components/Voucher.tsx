@@ -598,8 +598,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   };
 
   const handleSubmit = () => {
-    if (localReservation.customerEmail?.trim() && !/^\S+@\S+\.\S+$/.test(localReservation.customerEmail.trim())) {
-      alert("The customer email address is not valid. Correct it, or leave it empty if the customer has none.");
+    if (!localReservation.customerEmail?.trim()) {
+      alert("The customer email address is required: the signed agreement is emailed to the customer.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(localReservation.customerEmail.trim())) {
+      alert("The customer email address is not valid. Please correct it.");
       return;
     }
 
@@ -875,7 +879,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           value={value || ''}
           onChange={e => onChange(e.target.value)}
           className={inputCls}
-          placeholder={isEmail ? 'Required for the receipt' : 'Enter name'}
+          placeholder={isEmail ? 'name@example.com (required)' : 'Enter name'}
           required={isEmail}
         />
       ) : (
@@ -1147,8 +1151,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const isWizard = viewMode === 'pickup' || dropoffFlow === 'return';
 
   // Completion states, derived from data already in state. They mirror the checks in handleSubmit.
-  // The email is optional (documents are emailed only when there is one), but must be valid when entered.
-  const emailValid = !localReservation.customerEmail?.trim() || /^\S+@\S+\.\S+$/.test(localReservation.customerEmail.trim());
+  // The email is required (the signed documents are emailed to the customer) and must be valid.
+  const emailMissing = !localReservation.customerEmail?.trim();
+  const emailValid = !emailMissing && /^\S+@\S+\.\S+$/.test(localReservation.customerEmail!.trim());
+  const emailHint = emailMissing ? 'Email address required' : 'Email address not valid';
   const countChecked = (c?: { [item: string]: boolean }) => checklistItems.filter(i => c?.[i]).length;
   const kmOutValid = localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.pickupKmOut >= 0;
   const kmInValid = localReservation.dropOffKmIn !== undefined && localReservation.dropOffKmIn !== null && localReservation.dropOffKmIn >= 0
@@ -1163,7 +1169,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const pickupClosed = !!localReservation.voucherSubmitted;
   const dropoffClosed = !!localReservation.dropOffCompleted;
   const pickupSteps: FlowStep[] = [
-    { key: 'customer', label: 'Customer & documents', done: pickupClosed || emailValid, hint: emailValid ? undefined : 'Email address not valid' },
+    { key: 'customer', label: 'Customer & documents', done: pickupClosed || emailValid, hint: emailValid ? undefined : emailHint },
     { key: 'vehicle', label: 'Vehicle', done: pickupClosed || !!localReservation.licensePlate?.trim(), hint: 'License plate required' },
     { key: 'inspection', label: 'Inspection checklist', done: pickupClosed || countChecked(localReservation.pickupChecklist) === checklistItems.length, hint: `${countChecked(localReservation.pickupChecklist)} of ${checklistItems.length} confirmed` },
     { key: 'damage', label: 'Damage', done: pickupClosed || !!visited['pickup:damage'], hint: `${(localReservation.pickupDamageMarkers || []).length} marked` },
@@ -1172,7 +1178,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     { key: 'signatures', label: 'Signatures', done: pickupClosed || signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature) === 2, hint: `${signedCount(localReservation.pickupRenterSignature, localReservation.pickupAgentSignature)} of 2 signed` },
   ];
   const dropoffSteps: FlowStep[] = [
-    { key: 'return', label: 'Return details', done: dropoffClosed || (emailValid && !!visited['dropoff:return']), hint: emailValid ? undefined : 'Customer email not valid' },
+    { key: 'return', label: 'Return details', done: dropoffClosed || (emailValid && !!visited['dropoff:return']), hint: emailValid ? undefined : `Customer ${emailHint.toLowerCase()}` },
     { key: 'inspection', label: 'Inspection', done: dropoffClosed || countChecked(localReservation.dropOffChecklist) === checklistItems.length, hint: `${countChecked(localReservation.dropOffChecklist)} of ${checklistItems.length} confirmed` },
     { key: 'damage', label: 'Damage', done: dropoffClosed || !!visited['dropoff:damage'], hint: `${(localReservation.dropOffDamageMarkers || []).length} new marked` },
     { key: 'fuel', label: 'Fuel & mileage', done: dropoffClosed || (kmInValid && localReservation.dropOffFuelLevel !== undefined), hint: kmInValid ? 'Fuel level not set' : 'Odometer in required' },
@@ -1255,7 +1261,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-900 truncate">{reservation.personName}</p>
             <p className="text-xs text-slate-500 tabular-nums">{reservation.contactNumber || 'No phone'}</p>
-            <div className="mt-2">{renderTextField('Email (optional)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}</div>
+            <div className="mt-2">{renderTextField('Email *', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}</div>
           </div>
         </div>
         <div className="space-y-2.5 min-w-0">
@@ -1502,7 +1508,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <SectionLabel><Bi en="Renter" /></SectionLabel>
           <InfoPair label="Name" value={reservation.personName} />
           <InfoPair label="Phone" value={reservation.contactNumber} />
-          {renderTextField('Email (optional)', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}
+          {renderTextField('Email *', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable, true)}
           <SectionLabel className="pt-2"><Bi en="Vehicle" /></SectionLabel>
           <InfoPair label="Model" value={localReservation.carModel} />
           <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />

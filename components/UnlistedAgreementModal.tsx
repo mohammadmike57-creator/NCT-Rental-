@@ -70,7 +70,8 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
   const errors: Partial<Record<keyof UnlistedBookingDraft, string>> = {};
   if (!d.personName.trim()) errors.personName = 'Customer name is required';
   if (!d.contactNumber.trim()) errors.contactNumber = 'Phone number is required';
-  if (d.customerEmail.trim() && !/^\S+@\S+\.\S+$/.test(d.customerEmail.trim())) errors.customerEmail = 'Enter a valid email address';
+  if (!d.customerEmail.trim()) errors.customerEmail = 'Email is required: the signed agreement is emailed here';
+  else if (!/^\S+@\S+\.\S+$/.test(d.customerEmail.trim())) errors.customerEmail = 'Enter a valid email address';
   if (!d.bookingId.trim()) errors.bookingId = 'A booking reference is required';
   else if (existingBookingIds.has(d.bookingId.trim())) errors.bookingId = 'This reference already exists — open it from the reservation list instead';
   if (!d.carModel.trim()) errors.carModel = 'Choose a vehicle or type the model';
@@ -130,7 +131,7 @@ const UnlistedAgreementModal: React.FC<Props> = ({ fleet, sources, rentalLocatio
               <Field label="Phone" required error={err('contactNumber')}>
                 <input className={inputCls(!!err('contactNumber'))} value={d.contactNumber} onChange={e => set('contactNumber', e.target.value)} placeholder="+962 7…" inputMode="tel" />
               </Field>
-              <Field label="Email" error={err('customerEmail')} hint="The signed agreement is emailed here">
+              <Field label="Email" required error={err('customerEmail')} hint="The signed agreement is emailed here">
                 <input className={inputCls(!!err('customerEmail'))} value={d.customerEmail} onChange={e => set('customerEmail', e.target.value)} placeholder="name@example.com" inputMode="email" />
               </Field>
             </div>
