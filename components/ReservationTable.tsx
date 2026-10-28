@@ -652,7 +652,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     const live = stage !== 'closed' && stage !== 'cancelled';
     const list: RowAction[] = [];
     if (canViewVoucherActions) list.push({ key: 'receipt', label: 'Receipt', icon: <CurrencyDollarIcon className="w-4 h-4" />, onClick: () => onShowReceipt(res), section: 'documents' });
-    if (canViewVoucherActions && (stage === 'onrent' || stage === 'closed')) list.push({ key: 'print', label: 'Print rental agreement', icon: <PrinterGlyph />, onClick: () => printDoc(res, 'agreement'), section: 'documents' });
+    if (canViewVoucherActions && (stage === 'ready' || stage === 'onrent' || stage === 'closed')) list.push({ key: 'print', label: 'Print rental agreement', icon: <PrinterGlyph />, onClick: () => printDoc(res, 'agreement'), section: 'documents' });
     if (canViewVoucherActions && stage === 'closed') list.push({ key: 'term', label: 'Print termination statement', icon: <PdfIcon className="w-4 h-4" />, onClick: () => printDoc(res, 'termination'), section: 'documents' });
     if (canViewVoucherActions && (stage === 'onrent' || stage === 'closed')) list.push({ key: 'docmail', label: stage === 'closed' ? 'Email termination & receipt…' : 'Email agreement & receipt…', icon: <MailIcon className="w-4 h-4" />, onClick: () => setSendDocs(res), section: 'documents' });
     if (hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT)) list.push({ key: 'share', label: 'Share booking', icon: <ShareIcon className="w-4 h-4" />, onClick: () => onShare(res), section: 'documents' });

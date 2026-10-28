@@ -11,6 +11,11 @@ interface Props {
   rentalEnd?: string;
   onChange: (driver: DriverDetails) => void;
   onChangeAdditional: (drivers: AdditionalDriver[]) => void;
+  /**
+   * After check-out: the details as saved. Only the ones still empty there can be filled in;
+   * what was recorded stays as it is.
+   */
+  fillMissing?: { driver: DriverDetails; additionalDrivers: AdditionalDriver[] };
 }
 
 const ID_TYPES: { value: NonNullable<DriverDetails['idType']>; label: string }[] = [
@@ -29,14 +34,16 @@ const ageOn = (dob?: string, on = new Date()) => {
 };
 
 /** Main driver's licence / ID details and additional drivers, printed on the rental agreement. */
-const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editable, rentalEnd, onChange, onChangeAdditional }) => {
+const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editable, rentalEnd, onChange, onChangeAdditional, fillMissing }) => {
+  const canEdit = (key: keyof DriverDetails) => editable || (!!fillMissing && !fillMissing.driver[key]);
+  const canEditExtra = (i: number, key: keyof AdditionalDriver) => editable || (!!fillMissing && !!fillMissing.additionalDrivers[i] && !fillMissing.additionalDrivers[i][key]);
   const set = (patch: Partial<DriverDetails>) => onChange({ ...driver, ...patch });
   const licenceExpiresDuringRental = !!(driver.licenseExpiry && rentalEnd && driver.licenseExpiry < rentalEnd.slice(0, 10));
   const age = ageOn(driver.dateOfBirth);
   const field = (label: string, key: keyof DriverDetails, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label className="block min-w-0">
       <span className={labelCls}><Bi en={label} /></span>
-      {editable
+      {canEdit(key)
         ? <input className={inputCls} value={(driver[key] as string) || ''} onChange={e => set({ [key]: e.target.value } as Partial<DriverDetails>)} {...props} />
         : <span className="block h-9 leading-9 text-[13px] text-slate-800 truncate">{(driver[key] as string) || '—'}</span>}
     </label>
@@ -63,7 +70,7 @@ const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editabl
         {field('Nationality', 'nationality', { placeholder: 'e.g. Jordanian' })}
         <label className="block min-w-0">
           <span className={labelCls}><Bi en="ID type" /></span>
-          {editable ? (
+          {canEdit('idNumber') ? (
             <select className={`${selectCls} w-full`} value={driver.idType || 'passport'} onChange={e => set({ idType: e.target.value as DriverDetails['idType'] })}>
               {ID_TYPES.map(t => <option key={t.value} value={t.value}>{t.label} · {({ passport: 'جواز السفر', national_id: 'الهوية الوطنية', residence: 'الإقامة' } as Record<string, string>)[t.value]}</option>)}
             </select>
@@ -89,7 +96,7 @@ const DriverDetailsForm: React.FC<Props> = ({ driver, additionalDrivers, editabl
                 {(['name', 'licenseNumber', 'dateOfBirth'] as const).map(k => (
                   <label key={k} className="block min-w-0">
                     <span className={labelCls}><Bi en={k === 'name' ? 'Full name' : k === 'licenseNumber' ? 'Licence no.' : 'Date of birth'} /></span>
-                    {editable
+                    {canEditExtra(i, k)
                       ? <input className={inputCls} type={k === 'dateOfBirth' ? 'date' : 'text'} value={d[k] || ''}
                           onChange={e => onChangeAdditional(additionalDrivers.map((x, j) => (j === i ? { ...x, [k]: e.target.value } : x)))} />
                       : <span className="block h-9 leading-9 text-[13px] text-slate-800 truncate">{d[k] || '—'}</span>}
