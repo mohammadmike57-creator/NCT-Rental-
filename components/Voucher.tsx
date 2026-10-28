@@ -9,6 +9,7 @@ import { ShieldExclamationIcon, PdfIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { recordActivity, sendCustomerEmail } from '../firebase/api';
 import { receiptEmailPayload } from '../services/receiptEmail';
+import { thankYouEmailPayload } from '../services/thankYouEmail';
 import { emailAgreementDocuments } from '../services/agreementEmail';
 import PaymentChoice from './PaymentChoice';
 import { bookingPayment, isPrepaid as bookingIsPrepaid, paymentUnset, sourceOf, PAYMENT_LABEL } from '../services/paymentType';
@@ -911,7 +912,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const queueEmail = (r: Reservation, kind: 'checkout' | 'checkin') => {
     if (!r.customerEmail?.trim()) return;
     setEmailState({ status: 'sending', to: r.customerEmail.trim() });
-    window.setTimeout(() => { void emailAgreement(r, kind); }, 1500);
+    window.setTimeout(() => {
+      void emailAgreement(r, kind).then(sent => {
+        // After the car is returned: once the documents have gone out, a thank-you letter follows.
+        if (kind !== 'checkin' || !sent) return;
+        const thanks = thankYouEmailPayload(r, companyDetails, sources);
+        if (!thanks) return;
+        void sendCustomerEmail(thanks).then(o => {
+          if (o.ok) recordActivity('THANK_YOU_EMAILED', 'email', `Sent the thank-you email to ${r.personName} (${thanks.to})`, r.bookingId);
+        });
+      });
+    }, 1500);
   };
 
   const handleSendEmail = () => emailAgreement(localReservation, localReservation.dropOffCompleted ? 'checkin' : 'checkout');
