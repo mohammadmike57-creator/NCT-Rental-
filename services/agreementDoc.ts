@@ -126,7 +126,10 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   const clausesAr = parseTermsAr(i.company.agreementTermsAr);
   const paymentLine = i.prepaid
     ? `Rental prepaid via ${esc(r.source || 'partner')}${r.authNumber ? ` · counter payment auth ${esc(r.authNumber)}` : ''}`
-    : r.authNumber ? `Paid${r.finalAmountCharged ? ' ' + usd(r.finalAmountCharged) : ''} · auth ${esc(r.authNumber)}` : 'Payable at the counter';
+    : r.authNumber ? `Paid${r.finalAmountCharged ? ' ' + usd(r.finalAmountCharged) : ''} · auth ${esc(r.authNumber)}`
+    // Paid at check-out without an auth code or card digits recorded: still shown as paid.
+    : r.paymentMethod && r.paymentMethod !== 'prepaid' && (r.voucherSubmitted || r.finalAmountCharged) ? `Paid${r.finalAmountCharged ? ' ' + usd(r.finalAmountCharged) : ''}`
+    : 'Payable at the counter';
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Rental Agreement ${esc(r.bookingId)}</title>
 <style>
