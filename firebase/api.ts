@@ -420,6 +420,9 @@ export interface CustomerEmailPayload {
   ctaUrl?: string;
   /** Signer under "With warm regards". */
   signature?: string;
+  /** Letter layout: review panel ("Don't forget to rate us on …"); its button is ctaLabel / ctaUrl. */
+  rateTitle?: string;
+  rateText?: string;
 }
 
 export interface EmailOutcome { ok: boolean; reason?: 'unconfigured' | 'invalid' | 'failed'; message?: string }

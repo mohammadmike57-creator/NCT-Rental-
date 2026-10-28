@@ -35,8 +35,24 @@ const TypeOptions = () => (
   </>
 );
 
+/** Review page for the thank-you email; saved when the field is left, kept as typed (https:// added if missing). */
+const ReviewLinkInput: React.FC<{ source: RentalSource; onUpdate: (s: RentalSource) => void; className: string }> = ({ source, onUpdate, className }) => {
+  const [value, setValue] = useState(source.reviewUrl || '');
+  const save = () => {
+    const v = value.trim();
+    const url = v && !/^https?:\/\//i.test(v) ? `https://${v}` : v;
+    if (url !== (source.reviewUrl || '')) onUpdate({ ...source, reviewUrl: url || undefined });
+    setValue(url);
+  };
+  return (
+    <input type="url" value={value} onChange={e => setValue(e.target.value)} onBlur={save} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      placeholder="https://… review page (optional)" aria-label={`Review link for ${source.name}`} className={className} />
+  );
+};
+
 const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, onDelete, onUpdate }) => {
   const [newSourceName, setNewSourceName] = useState('');
+  const [newReviewUrl, setNewReviewUrl] = useState('');
   const [newSourceType, setNewSourceType] = useState<PaymentType>(PaymentType.PAY_ON_ARRIVAL);
 
   const handleAddClick = () => {
@@ -45,9 +61,11 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
         id: `src-${Date.now()}`,
         name: newSourceName.trim(),
         paymentType: newSourceType,
+        ...(newReviewUrl.trim() ? { reviewUrl: /^https?:\/\//i.test(newReviewUrl.trim()) ? newReviewUrl.trim() : `https://${newReviewUrl.trim()}` } : {}),
       };
       onAdd(newSource);
       setNewSourceName('');
+      setNewReviewUrl('');
       setNewSourceType(PaymentType.PAY_ON_ARRIVAL);
     }
   };
@@ -118,11 +136,14 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
                 <TypeOptions />
               </select>
             </Field>
+            <Field label="Review link" hint="Optional. The thank-you email asks customers who booked through this source to rate you here." className="sm:col-span-2">
+              <input type="url" value={newReviewUrl} onChange={e => setNewReviewUrl(e.target.value)} placeholder="e.g. https://www.booking.com/… or your Google review link" className={inputCls} />
+            </Field>
           </div>
         </Panel>
       </SettingsSection>
 
-      <SettingsSection title="Configured sources" description="Change a channel's payment type or remove channels you no longer use.">
+      <SettingsSection title="Configured sources" description="Change a channel's payment type and review link, or remove channels you no longer use. With a review link, the thank-you email sent after the car is returned invites the customer to rate you there.">
         <Panel title="Sources" subtitle={`${sources.length} configured`}>
           {sources.length === 0 ? (
             <EmptyState icon={<GlobeAltIcon />} title="No sources yet" hint="Add your first booking channel using the form above." />
@@ -134,6 +155,7 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
                     <th className={table.th}>Source</th>
                     <th className={table.th}>Status</th>
                     <th className={table.th}>Payment type</th>
+                    <th className={table.th}>Review link</th>
                     <th className={`${table.th} text-right`}><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -142,7 +164,8 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
                     <tr key={source.id} className={table.row}>
                       <td className={`${table.td} font-medium text-slate-900 break-words`}>{source.name}</td>
                       <td className={table.td}><PaymentPill type={source.paymentType} /></td>
-                      <td className={table.td}>{typeSelect(source, `${selectCls} h-8 w-56`)}</td>
+                      <td className={table.td}>{typeSelect(source, `${selectCls} h-8 w-40`)}</td>
+                      <td className={table.td}><ReviewLinkInput source={source} onUpdate={onUpdate} className={`${inputCls} !h-8 min-w-[11rem]`} /></td>
                       <td className={`${table.td} text-right`}>
                         <button
                           onClick={() => onDelete(source.id)}
@@ -174,6 +197,7 @@ const ManageSourcesView: React.FC<ManageSourcesViewProps> = ({ sources, onAdd, o
                       </button>
                     </div>
                     {typeSelect(source, `${selectCls} w-full`)}
+                    <ReviewLinkInput source={source} onUpdate={onUpdate} className={inputCls} />
                   </li>
                 ))}
               </ul>
