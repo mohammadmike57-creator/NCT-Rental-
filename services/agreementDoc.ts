@@ -33,6 +33,10 @@ const parse = (s?: string) => { if (!s) return null; const d = new Date(s.replac
 const when = (s?: string) => { const d = parse(s); return d ? d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : esc(s || '—'); };
 const km = (n?: number) => (n == null ? '—' : `${n.toLocaleString('en-US')} km`);
 const day = (s?: string) => { if (!s) return '—'; const d = new Date(s.length === 10 ? s + 'T12:00:00' : s); return Number.isNaN(d.getTime()) ? esc(s) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); };
+/** An empty line printed where a detail was not recorded, to be written in by hand. */
+const WRITE_IN = '<span class="wi"></span>';
+const orBlank = (v?: string) => (v && String(v).trim() ? esc(v) : WRITE_IN);
+const dayOrBlank = (s?: string) => (s ? day(s) : WRITE_IN);
 const ID_TYPE: Record<string, string> = { passport: 'Passport', national_id: 'National ID', residence: 'Residence permit' };
 const ID_TYPE_AR: Record<string, string> = { passport: 'جواز السفر', national_id: 'الهوية الوطنية', residence: 'الإقامة' };
 export const VIEW_AR: Record<CarView, string> = { front: 'الأمام', back: 'الخلف', left: 'جهة السائق', right: 'جهة الراكب' };
@@ -122,6 +126,10 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   const licenceExpired = !!(drv.licenseExpiry && r.endDate && drv.licenseExpiry < r.endDate.slice(0, 10));
   const protection = (r.extras || []).filter(e => isProtection(e.name));
   const cardRef = r.cardNumber ? `•••• ${esc(String(r.cardNumber).replace(/\D/g, '').slice(-4))}` : '';
+  // Paid (or to be paid) by card at the counter without the card digits or auth code: lines to fill in by hand.
+  const counterPay = !i.prepaid && r.paymentMethod !== 'cash' && r.paymentMethod !== 'bank_transfer' && r.paymentMethod !== 'prepaid';
+  const cardWriteIn = counterPay && !cardRef;
+  const authWriteIn = counterPay && !r.authNumber;
   const clauses = parseTerms(i.company.agreementTerms);
   const clausesAr = parseTermsAr(i.company.agreementTermsAr);
   const paymentLine = i.prepaid
@@ -248,6 +256,8 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   .drv:last-child { border-bottom: 0; }
   .drv b { font-weight: 600; } .drv span { color: #64748b; }
   .missing { color: #b45309 !important; font-weight: 600; }
+  .wi { display: inline-block; min-width: 30mm; height: 9pt; border-bottom: 1px solid #64748b; vertical-align: bottom; }
+  .settle .wi { min-width: 20mm; }
   .terms-page { font-size: 7pt; line-height: 1.42; color: #1e293b; }
   .terms-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 9px; }
   .terms-head h1 { font-size: 13pt; font-weight: 700; }
@@ -466,21 +476,21 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
       <div class="name">${esc(r.personName)}</div>
       <div class="cols2">
         <div>
-          <div class="drv"><span>${L('Phone', 'الهاتف')}</span><b>${esc(r.contactNumber || '—')}</b></div>
-          <div class="drv"><span>${L('Email', 'البريد')}</span><b>${esc(r.customerEmail || '—')}</b></div>
-          <div class="drv"><span>${L('Address', 'العنوان')}</span><b>${esc(drv.address || '—')}</b></div>
-          <div class="drv"><span>${L('Date of birth', 'تاريخ الميلاد')}</span><b>${day(drv.dateOfBirth)}</b></div>
+          <div class="drv"><span>${L('Phone', 'الهاتف')}</span><b>${orBlank(r.contactNumber)}</b></div>
+          <div class="drv"><span>${L('Email', 'البريد')}</span><b>${orBlank(r.customerEmail)}</b></div>
+          <div class="drv"><span>${L('Address', 'العنوان')}</span><b>${orBlank(drv.address)}</b></div>
+          <div class="drv"><span>${L('Date of birth', 'تاريخ الميلاد')}</span><b>${dayOrBlank(drv.dateOfBirth)}</b></div>
         </div>
         <div>
-          <div class="drv"><span>${L('Nationality', 'الجنسية')}</span><b>${esc(drv.nationality || '—')}</b></div>
-          <div class="drv"><span>${L('Licence', 'الرخصة')}</span><b class="${drv.licenseNumber ? '' : 'missing'}">${drv.licenseNumber ? `${esc(drv.licenseNumber)}${drv.licenseCountry ? ' · ' + esc(drv.licenseCountry) : ''}` : 'Not recorded · غير مسجّلة'}</b></div>
-          <div class="drv"><span>${L('Expiry', 'الانتهاء')}</span><b class="${licenceExpired ? 'missing' : ''}">${day(drv.licenseExpiry)}${licenceExpired ? ' (before return)' : ''}</b></div>
-          <div class="drv"><span>${L(esc(ID_TYPE[drv.idType || ''] || 'ID / passport'), ID_TYPE_AR[drv.idType || ''] || 'الهوية / الجواز')}</span><b>${esc(drv.idNumber || '—')}</b></div>
+          <div class="drv"><span>${L('Nationality', 'الجنسية')}</span><b>${orBlank(drv.nationality)}</b></div>
+          <div class="drv"><span>${L('Licence', 'الرخصة')}</span><b>${drv.licenseNumber ? `${esc(drv.licenseNumber)}${drv.licenseCountry ? ' · ' + esc(drv.licenseCountry) : ''}` : WRITE_IN}</b></div>
+          <div class="drv"><span>${L('Expiry', 'الانتهاء')}</span><b class="${licenceExpired ? 'missing' : ''}">${dayOrBlank(drv.licenseExpiry)}${licenceExpired ? ' (before return)' : ''}</b></div>
+          <div class="drv"><span>${L(esc(ID_TYPE[drv.idType || ''] || 'ID / passport'), ID_TYPE_AR[drv.idType || ''] || 'الهوية / الجواز')}</span><b>${orBlank(drv.idNumber)}</b></div>
         </div>
       </div>
     </div>
     <div class="card">${H('2', 'Additional drivers', 'السائقون الإضافيون')}
-      ${extraDrivers.length ? extraDrivers.map(d => `<div class="drv"><span>${esc(d.name)}</span><b>${esc(d.licenseNumber || 'licence —')}${d.dateOfBirth ? ' · ' + day(d.dateOfBirth) : ''}</b></div>`).join('') : '<p class="dim" style="color:#64748b">None. Only the main driver may drive the vehicle.<br><span class="ardecl" style="display:block;margin:0">لا يوجد. تقتصر قيادة المركبة على السائق الرئيسي فقط.</span></p>'}
+      ${extraDrivers.length ? extraDrivers.map(d => `<div class="drv"><span>${esc(d.name)}</span><b>${d.licenseNumber ? esc(d.licenseNumber) : WRITE_IN}${d.dateOfBirth ? ' · ' + day(d.dateOfBirth) : ''}</b></div>`).join('') : '<p class="dim" style="color:#64748b">None. Only the main driver may drive the vehicle.<br><span class="ardecl" style="display:block;margin:0">لا يوجد. تقتصر قيادة المركبة على السائق الرئيسي فقط.</span></p>'}
       <div class="drv" style="margin-top:4px"><span>${L('Booked via', 'جهة الحجز')}</span><b>${esc(r.source || '—')}</b></div>
     </div>
   </div>
@@ -543,10 +553,10 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
         ${i.prepaid ? `<tr class="sub"><td colspan="3">${L(`Rental prepaid via ${esc(r.source || 'partner')}`, 'مدفوع مسبقاً')}</td><td class="num">− ${usd(pay.rental)}</td></tr>
         <tr class="sub"><td colspan="3"><b>${L('Collected at the counter', 'المبلغ المحصّل عند الاستلام')}</b></td><td class="num"><b>${usd(rentalTotal - pay.rental)}</b></td></tr>` : ''}
         <tr class="sub"><td colspan="3">${L('Protection', 'الحماية')}</td><td class="num">${protection.length ? esc(protection.map(e => e.name).join(', ')) : 'Standard cover · تغطية أساسية'}</td></tr>
-        <tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${(r.securityDeposit || 0) > 0 ? `${usd(r.securityDeposit || 0)}${r.depositHoldMethod ? ` · held by ${esc(DEPOSIT_HOLD_LABEL[r.depositHoldMethod].toLowerCase())}${r.depositAuthNumber ? ` (auth ${esc(r.depositAuthNumber)})` : ''}` : ''}` : 'None · لا يوجد'}</td></tr>
+        <tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${(r.securityDeposit || 0) > 0 ? `${usd(r.securityDeposit || 0)}${r.depositHoldMethod ? ` · held by ${esc(DEPOSIT_HOLD_LABEL[r.depositHoldMethod].toLowerCase())}${r.depositAuthNumber ? ` (auth ${esc(r.depositAuthNumber)})` : r.depositHoldMethod === 'card' ? ` (auth ${WRITE_IN})` : ''}` : ''}` : 'None · لا يوجد'}</td></tr>
         ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Damage excess (your maximum liability)', 'مبلغ التحمّل (الحد الأقصى لمسؤوليتك)')}</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
       </table>
-      <div class="settle info">${paymentLine}${r.paymentMethod && r.paymentMethod !== 'prepaid' ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && r.paymentMethod !== 'prepaid' ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
+      <div class="settle info">${paymentLine}${r.paymentMethod && r.paymentMethod !== 'prepaid' ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && r.paymentMethod !== 'prepaid' ? ` ${cardRef}` : cardWriteIn ? (r.paymentMethod === 'card' ? ` •••• ${WRITE_IN}` : ` · Card •••• ${WRITE_IN}`) : ''}${authWriteIn ? ` · Auth no. ${WRITE_IN}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
     ${sideNotes ? `<div class="card">${closed ? H('10', 'Notes', 'ملاحظات') : H('10', 'Check-out notes', 'ملاحظات التسليم')}${closed
       ? `<div class="nl"><span>${L('At check-out', 'عند التسليم')}</span><div class="notes">${esc(clip(r.pickupNotes || '—'))}</div></div><div class="nl"><span>${L('At check-in', 'عند الإرجاع')}</span><div class="notes">${esc(clip(r.dropOffNotes || '—'))}</div></div>`
