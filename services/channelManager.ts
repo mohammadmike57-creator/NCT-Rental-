@@ -283,7 +283,12 @@ export const extraCharge = (extra: AggregatorExtra, days: number) => {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** The stop sales that apply to one channel: those for every channel plus those naming it. */
+export const stopSalesFor = (stopSales: StopSale[] | undefined, channelId: string): StopSale[] =>
+  (stopSales || []).filter(s => !s.channelIds?.length || s.channelIds.includes(channelId));
+
 export const buildQuote = (agg: Aggregator, fleet: Fleet, stopSales: StopSale[], req: QuoteRequest): QuoteLine[] => {
+  stopSales = stopSalesFor(stopSales, agg.id);
   const days = rentalDays(req.pickUp, req.dropOff);
   const pickUpDate = req.pickUp.slice(0, 10);
   const returnDate = req.dropOff.slice(0, 10);
@@ -356,6 +361,7 @@ export interface XmlOptions {
 
 /** Full rate sheet for partners that ingest a rate file (seasons × SIPP × length of rental). */
 export const generateRateSheetXml = (agg: Aggregator, stopSales: StopSale[], fleet: Fleet, opts: XmlOptions = {}): string => {
+  stopSales = stopSalesFor(stopSales, agg.id);
   const currency = channelCurrency(agg);
   const ts = opts.timestamp || new Date().toISOString();
   const plans = [...(agg.currentRatePlans || [])].sort((a, b) => a.startDate.localeCompare(b.startDate));

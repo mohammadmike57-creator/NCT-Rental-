@@ -16,8 +16,9 @@ import XMLPreviewView from './XMLPreviewView';
 import RateHistoryView from './RateHistoryView';
 import ChannelOverviewView from './ChannelOverviewView';
 import ChannelDeliveryLogView from './ChannelDeliveryLogView';
-import { saveAllData, deliverChannelRates } from '../firebase/api';
-import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso } from '../services/channelManager';
+import MultiChannelEditor, { BulkResult } from './channel/MultiChannelEditor';
+import { saveAllData, deliverChannelRates, recordActivity } from '../firebase/api';
+import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
 
 interface AggregatorSetupViewProps {
   aggregators: Aggregator[];
@@ -63,7 +64,9 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const [newAggregatorName, setNewAggregatorName] = useState('');
   const [newChannelCode, setNewChannelCode] = useState('');
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
-  const [showStopSale, setShowStopSale] = useState(false);
+  // Which workspace is open: one channel, the global stop sales, or the multi-channel editor.
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi'>('channels');
+  const showStopSale = mode === 'stopsale';
   const [sending, setSending] = useState(false);
   const [deliveryRefresh, setDeliveryRefresh] = useState(0);
 
@@ -156,9 +159,42 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     }
   };
 
+  /** Multi-channel editor: saves every changed channel (and new stop sales) at once, then delivers the published ones. */
+  const applyBulk = async (updated: Aggregator[], newStopSales: StopSale[], deliverIds: string[], summary: string): Promise<BulkResult[]> => {
+    const byId = new Map(updated.map(a => [a.id, a]));
+    const list = aggregators.map(a => byId.get(a.id) || a);
+    const stops = newStopSales.length ? [...stopSales, ...newStopSales] : stopSales;
+    onUpdateAggregators(list);
+    if (newStopSales.length) onUpdateStopSales(stops);
+    recordActivity('CHANNELS_BULK_UPDATED', 'settings', summary);
+    try {
+      await saveAllData({ aggregators: list, ...(newStopSales.length ? { stopSales: stops } : {}) });
+    } catch {
+      return updated.map(a => ({ id: a.id, name: a.name, ok: false, message: 'Saved in this browser; the server could not be reached yet (it syncs automatically). Nothing was sent.' }));
+    }
+    const out: BulkResult[] = [];
+    for (const a of updated) {
+      const published = (a.ratePlanHistory || [])[0];
+      const isNew = published && !aggregators.find(x => x.id === a.id)?.ratePlanHistory?.some(h => h.id === published.id);
+      if (!deliverIds.includes(a.id)) {
+        out.push({ id: a.id, name: a.name, ok: true, message: isNew ? `Saved · rate version ${published.version} published` : 'Saved' });
+        continue;
+      }
+      try {
+        const r = await deliverChannelRates(a.id);
+        out.push({ id: a.id, name: a.name, ok: r.success, message: r.success ? `Saved · v${r.version} delivered (HTTP ${r.httpStatus})` : `Saved · delivery failed: ${r.error || 'unknown error'}` });
+      } catch {
+        out.push({ id: a.id, name: a.name, ok: false, message: 'Saved · the server could not be reached to deliver the rates' });
+      }
+    }
+    setDeliveryRefresh(n => n + 1);
+    showConfirmation(`Multi-channel update applied to ${updated.length} channel${updated.length === 1 ? '' : 's'}.`);
+    return out;
+  };
+
   const selectChannel = (id: string) => {
     setSelectedAggregatorId(id);
-    setShowStopSale(false);
+    setMode('channels');
     setActiveTab('Overview');
   };
 
@@ -176,10 +212,18 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         actions={
           <>
             <Button
+              variant={mode === 'multi' ? 'primary' : 'secondary'}
+              icon={<GlobeAltIcon className="w-4 h-4" />}
+              onClick={() => setMode(m => (m === 'multi' ? 'channels' : 'multi'))}
+              aria-pressed={mode === 'multi'}
+            >
+              Multi-channel editor
+            </Button>
+            <Button
               variant={showStopSale ? 'danger' : 'secondary'}
               className={showStopSale ? '!bg-rose-50' : ''}
               icon={<StopIcon className="w-4 h-4" />}
-              onClick={() => setShowStopSale(s => !s)}
+              onClick={() => setMode(m => (m === 'stopsale' ? 'channels' : 'stopsale'))}
               aria-pressed={showStopSale}
             >
               Global Stop Sale
@@ -197,8 +241,11 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         { label: 'Last publish', value: relativeTime(lastPublish), sub: `${activeStopSales} stop sale${activeStopSales === 1 ? '' : 's'} active today` },
       ]} />
 
-      {showStopSale ? (
-        <ManageStopSaleView stopSales={stopSales} onUpdate={onUpdateStopSales} fleet={fleet} />
+      {mode === 'multi' ? (
+        <MultiChannelEditor aggregators={aggregators} fleet={fleet} availableExtras={availableExtras} stopSales={stopSales}
+          currentUserName={currentUserName} onApply={applyBulk} />
+      ) : showStopSale ? (
+        <ManageStopSaleView stopSales={stopSales} onUpdate={onUpdateStopSales} fleet={fleet} channels={aggregators.map(a => ({ id: a.id, name: a.name }))} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[272px_minmax(0,1fr)] gap-4 items-start">
           {/* Channel list */}
@@ -274,7 +321,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                   <ChannelOverviewView
                     aggregator={selectedAggregator}
                     fleet={fleet}
-                    stopSales={stopSales}
+                    stopSales={stopSalesFor(stopSales, selectedAggregator.id)}
                     validation={health[selectedAggregator.id]}
                     onNavigate={setActiveTab}
                   />
@@ -329,7 +376,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                     currentUserName={currentUserName} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
                 {activeTab === 'XML Feed' && (
-                  <XMLPreviewView aggregator={selectedAggregator} fleet={fleet} stopSales={stopSales} />
+                  <XMLPreviewView aggregator={selectedAggregator} fleet={fleet} stopSales={stopSalesFor(stopSales, selectedAggregator.id)} />
                 )}
               </div>
             </Panel>

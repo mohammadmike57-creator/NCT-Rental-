@@ -30,11 +30,11 @@ interface Props {
   showConfirmation?: (m: string) => void;
 }
 
-const Section: React.FC<{ title: string; subtitle: string; actions?: React.ReactNode; children: React.ReactNode }> = ({ title, subtitle, actions, children }) => (
+export const Section: React.FC<{ title: string; subtitle: string; actions?: React.ReactNode; children: React.ReactNode }> = ({ title, subtitle, actions, children }) => (
   <Panel title={title} subtitle={subtitle} actions={actions} bodyClassName="p-4 space-y-4">{children}</Panel>
 );
 
-const NumberField: React.FC<{ label: string; hint?: string; value: number; onChange: (n: number) => void; min?: number; max?: number; step?: number; suffix?: string }> =
+export const NumberField: React.FC<{ label: string; hint?: string; value: number; onChange: (n: number) => void; min?: number; max?: number; step?: number; suffix?: string }> =
   ({ label, hint, value, onChange, min = 0, max, step = 1, suffix }) => (
     <label className="block">
       <span className={labelCls}>{label}{hint && <span className="ml-1 font-normal text-slate-400">{hint}</span>}</span>

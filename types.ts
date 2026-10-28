@@ -782,6 +782,8 @@ export interface StopSale {
     startDate: string;
     endDate: string;
     reason: string;
+    /** Channel (aggregator) ids this block applies to; empty or missing = every channel. */
+    channelIds?: string[];
 }
 
 export interface AllData {
