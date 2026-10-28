@@ -11,8 +11,6 @@ export interface RentalSource {
   id: string;
   name: string;
   paymentType: PaymentType;
-  /** Page where customers who booked through this source can leave a review (thank-you email). */
-  reviewUrl?: string;
 }
 
 export interface RentalLocation {

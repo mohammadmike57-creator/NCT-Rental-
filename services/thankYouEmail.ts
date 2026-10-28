@@ -9,15 +9,6 @@ import { chargesTotal, formatMoney } from './returnChargesDoc';
  * the documents email (termination statement, final agreement, any invoice or claim), so it carries
  * no attachments: it thanks the customer, confirms the rental is complete and invites them back.
  */
-/** The name shown in "Rate us on …": the review site when the link is a known one, else the booking source. */
-export function reviewSiteName(source: RentalSource): string {
-  const host = (() => { try { return new URL(/^https?:\/\//i.test(source.reviewUrl || '') ? source.reviewUrl! : `https://${source.reviewUrl}`).hostname.toLowerCase(); } catch { return ''; } })();
-  if (/(^|\.)google\.|g\.page$|goo\.gl$/.test(host)) return 'Google';
-  if (/tripadvisor\./.test(host)) return 'Tripadvisor';
-  if (/trustpilot\./.test(host)) return 'Trustpilot';
-  return source.name;
-}
-
 export function thankYouEmailPayload(r: Reservation, company: CompanyDetails, sources: RentalSource[] = []): CustomerEmailPayload | null {
   const to = r.customerEmail?.trim();
   if (!to) return null;
@@ -28,9 +19,10 @@ export function thankYouEmailPayload(r: Reservation, company: CompanyDetails, so
   const time = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
   const when = (iso?: string) => (iso ? `${date(iso)}, ${time(iso)}` : '—');
   const returnedAt = r.dropOffDateTime && !Number.isNaN(new Date(r.dropOffDateTime).getTime()) ? r.dropOffDateTime : r.endDate;
-  // "Rate us on …": the source the customer booked through, when it has a review link.
-  const source = sources.find(s => s.id === r.source || s.name === r.source);
-  const review = source?.reviewUrl?.trim() ? { name: reviewSiteName(source), url: source.reviewUrl.trim() } : null;
+  // "Rate us on …" names the site the customer booked through (not shown for walk-ins, calls and other direct bookings).
+  const sourceName = (sources.find(s => s.id === r.source || s.name === r.source)?.name || r.source || '').trim();
+  const rateOn = !sourceName || /walk|direct|call|phone|counter|office|unlisted/i.test(sourceName) ? ''
+    : /^(our )?(web ?site|online)$/i.test(sourceName) ? 'our website' : sourceName;
 
   // How the rental ended, money-wise. The figures themselves were sent with the documents.
   const rc = r.returnCharges && r.returnCharges.items.length ? r.returnCharges : undefined;
@@ -71,12 +63,7 @@ export function thankYouEmailPayload(r: Reservation, company: CompanyDetails, so
     badge: 'Rental completed',
     tone: owed ? 'info' : 'success',
     arabic: `عزيزنا العميل،\nنشكركم على اختياركم ${brand}، ويسعدنا أنكم كنتم ضيوفنا. نؤكد إتمام عقد الإيجار بنجاح، ونتطلع إلى خدمتكم مجدداً.`,
-    ...(review ? {
-      rateTitle: `Don't forget to rate us on ${review.name}`,
-      rateText: `Your review takes less than a minute and helps other travellers choose with confidence.`,
-      ctaLabel: `Rate us on ${review.name}`,
-      ctaUrl: review.url,
-    } : {}),
+    ...(rateOn ? { rateTitle: `Don't forget to rate us on ${rateOn}` } : {}),
     signature: 'Customer Experience Team',
   };
 }
