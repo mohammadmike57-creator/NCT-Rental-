@@ -1,5 +1,6 @@
 import { PriceChange, Reservation, ReservationExtra, ReservationStatus, TrafficTicket, VehicleDamage } from '../types';
 import { bookingKey } from './duplicates';
+import { lateFeeOf } from './lateReturn';
 
 /**
  * Reservation add-ons: everything that changed what a booking costs after it was made.
@@ -133,7 +134,7 @@ export function addOnsOf(res: Reservation, tickets: TrafficTicket[] = [], damage
   });
 
   // ---- Charges on top ---------------------------------------------------
-  const lf = res.lateReturnFee;
+  const lf = lateFeeOf(res);
   if (lf && (lf.amount || 0) > 0) charge({
     id: 'late', kind: 'late', at: lf.resolvedDate || lf.feeAppliedDate, by: lf.resolvedBy,
     title: `Returned ${lf.hoursLate} h late`, detail: lf.notes,

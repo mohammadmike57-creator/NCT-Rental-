@@ -3,6 +3,7 @@ import { CHARGE_KIND_AR, CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, 
 import { arabicFontCss, VIEW_AR } from './agreementDoc';
 import { INSPECTION_LABEL } from '../components/VehicleGraphics';
 import { damageSeverityLabel, damageTypeLabel, DAMAGE_SEVERITY_AR, DAMAGE_TYPE_AR } from './damageMarks';
+import { lateFeeOf } from './lateReturn';
 
 export interface TerminationDocInput {
   reservation: Reservation;
@@ -47,7 +48,7 @@ export function buildTerminationHtml(i: TerminationDocInput): string {
 
   const extras = (r.extras || []).map(e => ({ label: e.name, amount: e.isComplementary ? 0 : e.dailyPrice * i.rentalDays, free: e.isComplementary }));
   const extensions = r.extensionHistory || [];
-  const late = r.lateReturnFee && !r.lateReturnFee.isWaived && r.lateReturnFee.status !== 'WAIVED' ? r.lateReturnFee : undefined;
+  const late = lateFeeOf(r) && !lateFeeOf(r)!.isWaived && lateFeeOf(r)!.status !== 'WAIVED' ? lateFeeOf(r) : undefined;
   const rentalTotal = i.baseRentalFee + extras.reduce((s, e) => s + e.amount, 0) + (late && late.status === 'APPLIED' ? late.amount : 0);
   const rentalDue = (r.unpaidExtensionAmount || 0) + (late && late.status === 'PENDING' ? late.amount : 0);
   const rc = r.returnCharges && r.returnCharges.items.length ? r.returnCharges : undefined;

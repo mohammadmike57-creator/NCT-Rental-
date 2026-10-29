@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import CarPicture from './CarPicture';
 import CarShowcase from './CarShowcase';
 import { carPhotoFor } from '../services/carPhoto';
-import { AppData, AvailableExtra, ReservationExtra, Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, LateReturnFee, DamageMarker, Fleet, ReturnCharges } from '../types';
+import { AppData, AvailableExtra, ReservationExtra, Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, DamageMarker, Fleet, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon } from './icons';
@@ -505,28 +505,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     if (viewMode === 'dropoff' && processType === 'return' && localReservation.voucherSubmitted && !localReservation.dropOffCompleted && !localReservation.dropOffDateTime) {
       setLocalReservation(prev => ({ ...prev, dropOffDateTime: formattedDateTime }));
     }
-    if (viewMode === 'dropoff' && processType === 'return' && !localReservation.dropOffCompleted && !localReservation.lateReturnFee) {
-      const dropOffTime = new Date();
-      const scheduledReturnTime = new Date(localReservation.endDate);
-      if (!isNaN(scheduledReturnTime.getTime())) {
-        const diffInMs = dropOffTime.getTime() - scheduledReturnTime.getTime();
-        const diffInHours = diffInMs / (1000 * 60 * 60);
-        if (diffInHours > 2) {
-          const newLateFee: LateReturnFee = {
-            feeAppliedDate: new Date().toISOString().split('T')[0],
-            hoursLate: parseFloat(diffInHours.toFixed(1)),
-            amount: parseFloat(dailyRate.toFixed(2)),
-            isWaived: false,
-            status: 'PENDING',
-            notes: `Vehicle returned ${parseFloat(diffInHours.toFixed(1))} hours late.`
-          };
-          const updatedReservation = { ...localReservation, lateReturnFee: newLateFee };
-          setLocalReservation(updatedReservation);
-          onUpdate(updatedReservation);
-        }
-      }
-    }
-  }, [viewMode, processType, localReservation.voucherSubmitted, localReservation.dropOffCompleted, localReservation.pickupDateTime, localReservation.dropOffDateTime, localReservation.endDate, localReservation.lateReturnFee, dailyRate, onUpdate, localReservation]);
+  }, [viewMode, processType, localReservation.voucherSubmitted, localReservation.dropOffCompleted, localReservation.pickupDateTime, localReservation.dropOffDateTime, localReservation.endDate, dailyRate, onUpdate, localReservation]);
 
   const isPickupEditable = !localReservation.voucherSubmitted;
   // After check-out the agreement can still be completed: the email changed, missing customer details and
@@ -544,15 +523,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     setLocalReservation(prev => ({ ...prev, securityDeposit: fleetTerms.securityDeposit, excess: fleetTerms.excess }));
   }, [isPickupEditable, fleetTerms?.securityDeposit, fleetTerms?.excess, fleetTerms?.car.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const depositSource = fleetTerms ? `${fleetTerms.car.modelName}${fleetTerms.car.licensePlate ? ` · ${fleetTerms.car.licensePlate}` : ''}` : '';
-  // A late-return fee never blocks the check-in: it stays on the booking to apply or waive now or later (Late Returns).
-  const resolveLateFee = (status: 'APPLIED' | 'WAIVED') => {
-    const fee = localReservation.lateReturnFee;
-    if (!fee) return;
-    setLocalReservation(prev => ({ ...prev, lateReturnFee: { ...fee, status, isWaived: status === 'WAIVED',
-      resolvedBy: prev.dropOffAgentName || undefined, resolvedDate: new Date().toISOString().split('T')[0] } }));
-    recordActivity(status === 'WAIVED' ? 'LATE_FEE_WAIVED' : 'LATE_FEE_APPLIED', 'agreement',
-      `${status === 'WAIVED' ? 'Waived' : 'Applied'} the late-return fee of ${formatCurrency(fee.amount)} for ${localReservation.personName}`, localReservation.bookingId, `${fee.hoursLate} h late`);
-  };
   const ticketsBlockFlow = hasOutstandingTickets && processType === 'exchange';
   const isDropoffEditable = !!localReservation.voucherSubmitted && !localReservation.dropOffCompleted && !ticketsBlockFlow && !hasDueExtension;
 
@@ -1678,9 +1648,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <InfoPair label="Checked out" value={localReservation.pickupDateTime || fmtDateTime(localReservation.startDate)} />
           <InfoPair label="Scheduled return" value={fmtDateTime(localReservation.endDate)} />
           <InfoPair label="Returned" value={localReservation.dropOffDateTime} />
-          {localReservation.lateReturnFee && (
-            <InfoPair label="Late return" value={<span className="inline-flex items-center gap-2">{localReservation.lateReturnFee.hoursLate} h · {formatCurrency(localReservation.lateReturnFee.amount)}<Badge tone={localReservation.lateReturnFee.status === 'PENDING' ? 'warning' : 'muted'}>{localReservation.lateReturnFee.isWaived ? 'Waived' : localReservation.lateReturnFee.status}</Badge></span>} />
-          )}
           <SectionLabel className="pt-2"><Bi en="At check-out" /></SectionLabel>
           <InfoPair label="Odometer out" value={localReservation.pickupKmOut !== undefined ? `${localReservation.pickupKmOut.toLocaleString()} km` : undefined} />
           <InfoPair label="Fuel out" value={localReservation.pickupFuelLevel !== undefined ? `${localReservation.pickupFuelLevel}/8` : undefined} />
@@ -1886,27 +1853,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                     <div className="flex items-start gap-2.5 p-3 rounded-lg text-[13px] bg-rose-50 border border-rose-200 text-rose-900" role="alert">
                       <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
                       <div><p className="font-semibold">Outstanding traffic tickets: {totalTicketAmountDue.toFixed(2)} JOD</p><p className="text-xs">{processType === 'exchange' ? 'Settle them in Traffic Tickets before exchanging the car.' : 'They have been added to the return charges — collect them now or send them to the customer as a claim.'}</p></div>
-                    </div>
-                  )}
-                  {localReservation.lateReturnFee && !localReservation.dropOffCompleted && (
-                    <div className={`flex flex-wrap items-start gap-2.5 p-3 rounded-lg text-[13px] border ${localReservation.lateReturnFee.status === 'PENDING' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-700'}`} role="status">
-                      <ShieldExclamationIcon className="w-5 h-5 shrink-0" />
-                      <div className="flex-1 min-w-[220px]">
-                        <p className="font-semibold">Late return: {localReservation.lateReturnFee.hoursLate} h · fee {formatCurrency(localReservation.lateReturnFee.amount)}
-                          {localReservation.lateReturnFee.status !== 'PENDING' && <span className="font-normal"> — {localReservation.lateReturnFee.status === 'WAIVED' ? 'waived' : 'applied'}</span>}</p>
-                        <p className="text-xs">{localReservation.lateReturnFee.status === 'PENDING'
-                          ? 'Optional: you can check the car in now. Apply or waive the fee here, or leave it pending and decide later in Late Returns.'
-                          : 'Recorded on the booking. You can change it later in Late Returns.'}</p>
-                      </div>
-                      {localReservation.lateReturnFee.status === 'PENDING' ? (
-                        <div className="flex gap-2 shrink-0">
-                          <Button size="sm" onClick={() => resolveLateFee('WAIVED')}>Waive</Button>
-                          <Button size="sm" variant="primary" onClick={() => resolveLateFee('APPLIED')}>Apply fee</Button>
-                        </div>
-                      ) : (
-                        <button type="button" onClick={() => setLocalReservation(prev => ({ ...prev, lateReturnFee: prev.lateReturnFee && { ...prev.lateReturnFee, status: 'PENDING', isWaived: false, resolvedBy: undefined, resolvedDate: undefined } }))}
-                          className="text-xs font-semibold text-indigo-600 hover:underline shrink-0">Undo</button>
-                      )}
                     </div>
                   )}
 

@@ -5,6 +5,7 @@ import { CHARGE_KIND_LABEL, PAYMENT_METHOD_LABEL, chargesTotal, damageCostByMark
 import { parseTerms, parseTermsAr } from './agreementTerms';
 import { code39Svg } from './barcode';
 import { counterPayment, DEPOSIT_HOLD_LABEL } from './counterPayment';
+import { lateFeeOf } from './lateReturn';
 
 export const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
 export const PICKUP_TERMS_AR = 'بتوقيعه، يقرّ المستأجر باستلام المركبة بالحالة الموثقة أعلاه ويوافق على شروط وأحكام التأجير، ويتحمّل المسؤولية المالية عن جميع الرسوم والمخالفات المرورية والأضرار والخسائر خلال فترة الإيجار. ويؤكد ممثل الشركة صحة حالة المركبة وبيانات الإيجار عند التسليم.';
@@ -76,7 +77,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   const okIn = i.checklistItems.filter(x => back[x]).length;
   const missingAtReturn = closed ? i.checklistItems.filter(x => out[x] && !back[x]) : [];
   const extrasTotal = (r.extras || []).reduce((s, e) => (e.isComplementary ? s : s + e.dailyPrice * i.rentalDays), 0);
-  const late = closed && r.lateReturnFee && !r.lateReturnFee.isWaived && r.lateReturnFee.status !== 'WAIVED' ? r.lateReturnFee : undefined;
+  const late = closed && lateFeeOf(r) && !lateFeeOf(r)!.isWaived && lateFeeOf(r)!.status !== 'WAIVED' ? lateFeeOf(r) : undefined;
   const pay = counterPayment(r, !!i.prepaid, i.baseRentalFee, extrasTotal);
   const rentalTotal = pay.total + (late ? late.amount : 0);
   const rc = r.returnCharges && r.returnCharges.items.length ? r.returnCharges : undefined;

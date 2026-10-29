@@ -49,7 +49,6 @@ const TodaysReservations = React.lazy(() => import('./components/TodaysReservati
 const HomePage = React.lazy(() => import('./components/HomePage'));
 const ManageLocationsView = React.lazy(() => import('./components/ManageLocationsView'));
 const DeferredPayments = React.lazy(() => import('./components/DeferredPayments'));
-const LateReturns = React.lazy(() => import('./components/LateReturns'));
 const PaymentApprovals = React.lazy(() => import('./components/PaymentApprovals'));
 const ManageExtrasView = React.lazy(() => import('./components/ManageExtrasView'));
 const ProfileView = React.lazy(() => import('./components/ProfileView'));
@@ -692,7 +691,7 @@ export const App: React.FC = () => {
     }, []);
 
     // Automatic pickup / overdue pop-ups and browser notifications were removed on request:
-    // the dashboard, Late Returns and the planning board show the same information without interrupting staff.
+    // the dashboard, Reservations and the planning board show the same information without interrupting staff.
   
   const handleEnableNotifications = async () => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -1792,7 +1791,6 @@ ${currentUser?.fullName}
     'Accounting': { component: <AccountingDashboard allData={reservations} trafficTickets={trafficTickets} vehicleDamages={vehicleDamages} expenses={expenses} users={users} onUpdateExpenses={setExpenses} />, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },
     'Payment Approvals': { component: <PaymentApprovals allData={reservations} onUpdateReservation={handleUpdateSingleReservation} currentUser={currentUser} showConfirmation={showConfirmation} companyDetails={companyDetails} />, permission: UserPermission.VIEW_FINANCIALS_PAYMENT_APPROVALS },
     'Deferred Payments': { component: <DeferredPayments allData={reservations} onCollectPayment={handleCollectDeferredPayment} currentUser={currentUser} />, permission: UserPermission.VIEW_FINANCIALS_DEFERRED_PAYMENTS },
-    'Late Returns': { component: <LateReturns allData={reservations} onUpdateReservation={handleUpdateSingleReservation} currentUser={currentUser} />, permission: UserPermission.VIEW_FINANCIALS_LATE_RETURNS },
     'Traffic Tickets': { component: (
         <TrafficTickets
             tickets={trafficTickets} allData={reservations}
@@ -2068,7 +2066,6 @@ ${currentUser?.fullName}
         { name: 'Accounting', icon: AccountingIcon, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },
         { name: 'Payment Approvals', icon: CurrencyDollarIcon, permission: UserPermission.VIEW_FINANCIALS_PAYMENT_APPROVALS, badge: pendingApprovalsCount },
         { name: 'Deferred Payments', icon: CurrencyDollarIcon, permission: UserPermission.VIEW_FINANCIALS_DEFERRED_PAYMENTS },
-        { name: 'Late Returns', icon: ClockIcon, permission: UserPermission.VIEW_FINANCIALS_LATE_RETURNS },
         { name: 'Traffic Tickets', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_TRAFFIC_TICKETS },
         { name: 'Vehicle Damages', icon: WrenchScrewdriverIcon, permission: UserPermission.VIEW_VEHICLE_DAMAGES },
     ],

@@ -6,6 +6,7 @@ import { terminationFileName, terminationNumber } from './terminationDoc';
 import { buildReturnChargesHtml, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from './returnChargesDoc';
 import { rentalDaysOf } from './rentalDays';
 import { brandFields, supportLine } from './emailBrand';
+import { lateFeeOf } from './lateReturn';
 
 type Attachment = { fileName: string; contentType: 'application/pdf' | 'text/html'; base64: string };
 
@@ -46,7 +47,7 @@ export async function emailAgreementDocuments({ reservation: r, kind, company, a
   const usd = (n: number) => formatMoney(n, 'USD');
   const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
   const trm = terminationNumber(r.bookingId);
-  const late = r.lateReturnFee && !r.lateReturnFee.isWaived && r.lateReturnFee.status !== 'WAIVED' ? r.lateReturnFee : undefined;
+  const late = lateFeeOf(r) && !lateFeeOf(r)!.isWaived && lateFeeOf(r)!.status !== 'WAIVED' ? lateFeeOf(r) : undefined;
   const newDamage = (r.dropOffDamageMarkers || []).length;
   const rentalDue = (r.unpaidExtensionAmount || 0) + (late && late.status === 'PENDING' ? late.amount : 0);
 

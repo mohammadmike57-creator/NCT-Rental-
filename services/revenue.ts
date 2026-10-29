@@ -1,5 +1,6 @@
 import { Reservation, TrafficTicket, VehicleDamage } from '../types';
 import { USD_TO_JOD_RATE } from '../constants';
+import { lateFeeOf } from './lateReturn';
 
 export interface BookingRevenue {
   /** Booking amount: rental, extras, upgrades and extensions (plus an applied late fee). */
@@ -31,7 +32,7 @@ export function indexRegisters({ trafficTickets = [], vehicleDamages = [] }: Cha
  * is counted twice.
  */
 export function bookingRevenue(r: Reservation, idx: ReturnType<typeof indexRegisters>): BookingRevenue {
-  const late = r.lateReturnFee && r.lateReturnFee.status === 'APPLIED' && !r.lateReturnFee.isWaived ? r.lateReturnFee.amount : 0;
+  const late = lateFeeOf(r)?.status === 'APPLIED' && !lateFeeOf(r)!.isWaived ? lateFeeOf(r)!.amount : 0;
   const rental = (r.amount || 0) + late;
 
   const regDamages = idx.damages.get(r.bookingId) || [];

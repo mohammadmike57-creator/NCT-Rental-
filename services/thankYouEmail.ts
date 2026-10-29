@@ -3,6 +3,7 @@ import { CustomerEmailPayload } from '../firebase/api';
 import { brandFields } from './emailBrand';
 import { rentalDaysOf } from './rentalDays';
 import { chargesTotal, formatMoney } from './returnChargesDoc';
+import { lateFeeOf } from './lateReturn';
 
 /**
  * The thank-you letter sent automatically once a car is returned and the agreement closed. It follows
@@ -26,7 +27,7 @@ export function thankYouEmailPayload(r: Reservation, company: CompanyDetails, so
 
   // How the rental ended, money-wise. The figures themselves were sent with the documents.
   const rc = r.returnCharges && r.returnCharges.items.length ? r.returnCharges : undefined;
-  const late = r.lateReturnFee && r.lateReturnFee.status === 'PENDING' ? r.lateReturnFee.amount : 0;
+  const late = lateFeeOf(r)?.status === 'PENDING' ? lateFeeOf(r)!.amount : 0;
   const balance = (r.unpaidExtensionAmount || 0) + late;
   const claim = rc && rc.settlement === 'claim';
   const owed = claim || balance > 0;

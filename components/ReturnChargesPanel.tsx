@@ -105,7 +105,7 @@ const ReturnChargesPanel: React.FC<Props> = ({ charges, onChange, editable, mark
   // Any change to the amounts after signing invalidates the customer's signature.
   const changeAmount = (id: string, amount: number) => onChange({ ...charges, items: items.map(i => (i.id === id ? { ...i, amount } : i)), customerSignature: undefined, signedAt: undefined });
 
-  const kindsToAdd: ReturnChargeKind[] = ['damage', 'ticket', 'fuel', 'cleaning', 'late', 'other'];
+  const kindsToAdd: ReturnChargeKind[] = ['damage', 'ticket', 'fuel', 'cleaning', 'other'];
 
   return (
     <div className="space-y-4">

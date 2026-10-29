@@ -44,7 +44,8 @@ describe('reservation add-ons', () => {
     expect(s.priceChange).toBe(166);
     expect(s.original).toMatchObject({ carModel: 'Kia Pegas', days: 3, extras: [] });
     expect(s.now).toMatchObject({ carModel: 'Jeep Wrangler', days: 5, extras: ['Child Seat'] });
-    expect(s.entries.map(e => e.kind).sort()).toEqual(['damage', 'extension', 'extras', 'late', 'ticket', 'ticket', 'upgrade']);
+    // Late-return fees are switched off, so the stored (waived) fee is not listed.
+    expect(s.entries.map(e => e.kind).sort()).toEqual(['damage', 'extension', 'extras', 'ticket', 'ticket', 'upgrade']);
     expect(s.charges).toEqual({ USD: 0, JOD: 150 });          // waived late fee excluded; ticket t1 counted once
     expect(s.outstanding).toEqual({ USD: 100, JOD: 130 });   // unpaid extension, claim lines
   });

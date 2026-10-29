@@ -4,6 +4,7 @@ import CarShowcase from '../CarShowcase';
 import { Fleet, Reservation } from '../../types';
 import { Badge, Tabs, SectionLabel } from '../ui/Crm';
 import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
+import { lateFeeOf } from '../../services/lateReturn';
 
 /*
  * Full booking record (RentWay "reservation card"): header with lifecycle
@@ -97,7 +98,7 @@ const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statu
   const rcItems = rc?.items || [];
   const rcTotal = rcItems.reduce((s, it) => s + (Number(it.amount) || 0), 0);
   const rcOutstanding = rcItems.length > 0 && rc?.settlement !== 'paid' ? rcTotal : 0;
-  const lateFee = res.lateReturnFee;
+  const lateFee = lateFeeOf(res);
   const lateOutstanding = lateFee && !lateFee.isWaived && lateFee.status === 'PENDING' ? lateFee.amount || 0 : 0;
   const outstandingUsd = (res.unpaidExtensionAmount || 0) + lateOutstanding;
   const exchanges = res.carExchanges || [];

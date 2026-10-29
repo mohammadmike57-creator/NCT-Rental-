@@ -85,9 +85,6 @@ export const PERMISSION_AREAS: PermissionArea[] = [
       sec('deferred', 'Deferred Payments', 'Payments due later', P.VIEW_FINANCIALS_DEFERRED_PAYMENTS, [
         p(P.ACTION_FINANCIALS_MANAGE_DEFERRED_PAYMENTS, 'Collect', 'Settle deferred payments'),
       ]),
-      sec('late', 'Late Returns', 'Late-return fees', P.VIEW_FINANCIALS_LATE_RETURNS, [
-        p(P.ACTION_FINANCIALS_MANAGE_LATE_RETURNS, 'Charge / waive', 'Charge or waive late-return fees'),
-      ]),
       sec('tickets', 'Traffic Tickets', 'Fines linked to rentals', P.VIEW_TRAFFIC_TICKETS, [
         p(P.ACTION_TRAFFIC_TICKETS_MANAGE, 'Manage', 'Add, settle and assign tickets'),
       ]),

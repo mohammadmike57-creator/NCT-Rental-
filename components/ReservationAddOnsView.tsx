@@ -162,7 +162,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
   return (
     <Page>
       <PageHeader section="Core Operations" title="Reservation Add-ons"
-        subtitle={<>Bookings whose cost changed after they were made: extras, upgrades, extensions, late returns, damages, traffic tickets and fees, compared with the original reservation.</>}
+        subtitle={<>Bookings whose cost changed after they were made: extras, upgrades, extensions, damages, traffic tickets and fees, compared with the original reservation.</>}
         actions={<Button icon={<DownloadIcon className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length}>Export CSV</Button>} />
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
@@ -174,7 +174,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
       <StatGrid items={[
         { label: 'Bookings with add-ons', value: withAddOns.length, sub: `of ${inScope.length} booking${inScope.length === 1 ? '' : 's'} (${inScope.length ? Math.round((withAddOns.length / inScope.length) * 100) : 0}%)` },
         { label: 'Added to rental price', value: usd(kpi.priceNet, true), sub: kpi.priceUp.USD !== kpi.priceNet ? `${usd(kpi.priceUp.USD)} added, less reductions` : 'extras, upgrades, extensions', tone: kpi.priceNet > 0 ? 'success' : 'default' },
-        { label: 'Charges raised', value: <Stack m={kpi.charges} />, sub: 'late returns, damages, tickets, fees' },
+        { label: 'Charges raised', value: <Stack m={kpi.charges} />, sub: 'damages, tickets, fees' },
         { label: 'Outstanding', value: <Stack m={kpi.outstanding} />, sub: 'claims, tickets, extensions', tone: kpi.outstanding.USD || kpi.outstanding.JOD ? 'danger' : 'default', active: status === 'open', onClick: () => setStatus(s => (s === 'open' ? 'all' : 'open')) },
         { label: 'Waived', value: <Stack m={kpi.waived} />, sub: 'fees not charged', tone: 'muted' },
       ]} />
