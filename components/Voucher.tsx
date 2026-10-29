@@ -5,7 +5,7 @@ import { carPhotoFor } from '../services/carPhoto';
 import { AppData, AvailableExtra, ReservationExtra, Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, DamageMarker, Fleet, ReturnCharges } from '../types';
 import SignaturePad from './SignaturePad';
 import { InspectionDiagram, INSPECTION_LABEL, INSPECTION_SVG, VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
-import { ShieldExclamationIcon, PdfIcon } from './icons';
+import { ShieldExclamationIcon, PdfIcon, MailIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { recordActivity, sendCustomerEmail } from '../firebase/api';
 import { receiptEmailPayload } from '../services/receiptEmail';
@@ -434,6 +434,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   // The agreement as last saved: drafts and the "fill in what is missing" checks compare against it.
   const [savedBase, setSavedBase] = useState<Reservation>(() => getInitialReservationState(reservation));
   useEffect(() => { setSavedBase(getInitialReservationState(reservation)); }, [reservation]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Saves the agreement and keeps it as the last saved copy, so later changes build on it (nothing is lost). */
+  const saveRes = (r: Reservation) => { onUpdate(r); setSavedBase(r); };
   const draftSuspended = useRef(false);
   useEffect(() => {
     if (draftSuspended.current) return;
@@ -638,7 +640,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         ...(bookingPayment(localReservation, sources) === PaymentType.PREPAID && !localReservation.paymentMethod ? { paymentMethod: 'prepaid' as const } : {}),
       };
       finishDraft();
-      onUpdate(submittedVoucher);
+      saveRes(submittedVoucher);
       setLocalReservation(submittedVoucher);
       setShowSuccessOverlay(true);
       recordActivity('CHECK_OUT', 'agreement', `Checked out ${submittedVoucher.carModel || 'vehicle'}${submittedVoucher.licensePlate ? ` (${submittedVoucher.licensePlate})` : ''} to ${submittedVoucher.personName}`,
@@ -672,7 +674,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         const submittedVoucher: Reservation = { ...localReservation, dropOffCompleted: true, returnCharges: finalCharges, ...(paperReturn ? { dropOffSignOnPaper: true } : {}) };
         if (finalCharges && onRecordReturnCharges) onRecordReturnCharges(submittedVoucher, finalCharges);
         finishDraft();
-        onUpdate(submittedVoucher);
+        saveRes(submittedVoucher);
         setLocalReservation(submittedVoucher);
         setShowSuccessOverlay(true);
         recordActivity('CHECK_IN', 'agreement', `Checked in ${submittedVoucher.carModel || 'vehicle'}${submittedVoucher.licensePlate ? ` (${submittedVoucher.licensePlate})` : ''} from ${submittedVoucher.personName} and closed the agreement`,
@@ -719,7 +721,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           carExchanges: [...(localReservation.carExchanges || []), completeExchange],
         };
         finishDraft();
-        onUpdate(updatedReservation);
+        saveRes(updatedReservation);
         recordActivity('VEHICLE_EXCHANGED', 'agreement', `Exchanged ${completeExchange.oldCarLicensePlate} for ${completeExchange.newCarLicensePlate} for ${localReservation.personName}`, localReservation.bookingId, `Reason: ${completeExchange.reason}`);
         onClose();
       }
@@ -836,7 +838,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       };
       // Only the email log is taken over, so check-in entries made meanwhile stay on screen.
       setLocalReservation(prev => ({ ...prev, agreementEmails: withLog.agreementEmails, ...(rc ? { returnCharges: withLog.returnCharges } : {}) }));
-      onUpdate(withLog);
+      saveRes(withLog);
       return true;
     } else {
       setEmailState({ status: outcome.reason === 'unconfigured' ? 'unconfigured' : 'failed', to, message: outcome.message });
@@ -858,25 +860,41 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     const labels = Array.from(new Set(amendedKeys.map(k => AMEND_LABEL[k]).filter(Boolean)));
     const oldEmail = (savedBase.customerEmail || '').trim();
     const emailChanged = email.toLowerCase() !== oldEmail.toLowerCase();
-    onUpdate(next);
+    saveRes(next);
     setSavedBase(next);
     setLocalReservation(prev => ({ ...prev, ...picked, customerEmail: email }));
     recordActivity('AGREEMENT_UPDATED', 'agreement', `Updated the rental agreement for ${next.personName}: ${labels.join(', ') || 'details'}`, next.bookingId,
       emailChanged ? `Email ${oldEmail || '(none)'} → ${email}` : undefined);
+    const docs = next.dropOffCompleted ? 'the closed agreement, the termination statement' : 'the updated agreement';
     const ask = emailChanged
-      ? `Saved. The email address is now ${email}.\n\nSend the updated agreement and the receipt to ${email} now?`
-      : `Saved.\n\nSend the updated agreement and the receipt to ${email}?`;
+      ? `Saved. The email address is now ${email}.\n\nSend ${docs} and the receipt to ${email} now?`
+      : `Saved.\n\nSend ${docs} and the receipt to ${email}?`;
     if (!window.confirm(ask)) return;
+    await emailDocuments(next, email, 'The changes are saved.');
+  };
+
+  /** Emails the documents for the agreement's stage: closed → closed agreement + termination (+ invoice / claim); on rent → agreement. The receipt goes too. */
+  const emailDocuments = async (r: Reservation, email: string, savedNote = '') => {
     setAmendBusy(true);
-    const kind = next.dropOffCompleted ? 'checkin' : 'checkout';
+    const kind = r.dropOffCompleted ? 'checkin' : 'checkout';
     const [agreementSent, receipt] = await Promise.all([
-      emailAgreement(next, kind),
-      sendCustomerEmail(receiptEmailPayload(next, companyDetails, sources, email)).catch(() => ({ ok: false } as { ok: boolean; reason?: string; message?: string })),
+      emailAgreement(r, kind),
+      sendCustomerEmail(receiptEmailPayload(r, companyDetails, sources, email)).catch(() => ({ ok: false } as { ok: boolean; reason?: string; message?: string })),
     ]);
     setAmendBusy(false);
-    if (agreementSent && receipt.ok) alert(`The updated agreement and the receipt were emailed to ${email}.`);
-    else if ((receipt as { reason?: string }).reason === 'unconfigured') alert('Email is not set up yet (Email Settings), so nothing was sent. The changes are saved.');
-    else alert(`${agreementSent ? 'The agreement was sent' : 'The agreement could not be sent'}; ${receipt.ok ? 'the receipt was sent' : 'the receipt could not be sent'} to ${email}. The changes are saved.`);
+    const docs = r.dropOffCompleted ? 'closed agreement, the termination statement' : 'agreement';
+    if (agreementSent && receipt.ok) alert(`The ${docs} and the receipt were emailed to ${email}.`);
+    else if ((receipt as { reason?: string }).reason === 'unconfigured') alert(`Email is not set up yet (Email Settings), so nothing was sent.${savedNote ? ' ' + savedNote : ''}`);
+    else alert(`${agreementSent ? `The ${docs} ${r.dropOffCompleted ? 'were' : 'was'} sent` : `The ${docs} could not be sent`}; ${receipt.ok ? 'the receipt was sent' : 'the receipt could not be sent'} to ${email}.${savedNote ? ' ' + savedNote : ''}`);
+  };
+  /** "Email documents": send them again to the address on the agreement, without changing anything. */
+  const resendDocuments = () => {
+    const email = (savedBase.customerEmail || '').trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) { alert('This agreement has no valid email address. Enter one, then click Save changes.'); return; }
+    const what = savedBase.dropOffCompleted ? 'the closed agreement, the termination statement' : 'the agreement';
+    if (!window.confirm(`Send ${what} and the receipt to ${email}?`)) return;
+    recordActivity('DOCUMENTS_EMAILED', 'email', `Emailed ${what} and the receipt to ${email}`, savedBase.bookingId);
+    void emailDocuments(savedBase, email);
   };
 
   // Building the PDFs keeps the browser busy, so it starts only once the success screen is on show.
@@ -1744,6 +1762,11 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       {amendDirty && (
         <Button variant="primary" onClick={saveAmendments} disabled={amendBusy} icon={CHECK_ICON}>
           {amendBusy ? 'Sending…' : 'Save changes'}
+        </Button>
+      )}
+      {canAmend && !amendDirty && (
+        <Button variant="secondary" onClick={resendDocuments} disabled={amendBusy} icon={<MailIcon className="w-4 h-4" />}>
+          {amendBusy ? 'Sending…' : 'Email documents'}
         </Button>
       )}
       {localReservation.dropOffCompleted && (
