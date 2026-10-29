@@ -385,11 +385,12 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
 /** What can still be changed on the agreement after check-out (with "Save changes"). */
 const AMEND_FIELDS: (keyof Reservation)[] = ['customerEmail', 'driver', 'additionalDrivers', 'paymentMethod', 'cardNumber', 'authNumber', 'finalAmountCharged', 'depositHoldMethod', 'depositAuthNumber'];
 /** Saved together with the fields above: extras added while the car is out move the booking total. */
-const AMEND_SAVED: (keyof Reservation)[] = [...AMEND_FIELDS, 'extras', 'baseAmount', 'amount', 'pickupPaymentCollected'];
+const AMEND_SAVED: (keyof Reservation)[] = [...AMEND_FIELDS, 'extras', 'baseAmount', 'amount', 'pickupPaymentCollected', 'startDate', 'pickupDate', 'endDate', 'dropoffDate'];
 const AMEND_LABEL: Partial<Record<keyof Reservation, string>> = {
   customerEmail: 'email', driver: 'driver documents', additionalDrivers: 'additional drivers', authNumber: 'payment auth code',
   depositAuthNumber: 'deposit pre-auth code', cardNumber: 'card digits', extras: 'extras',
   paymentMethod: 'payment method', finalAmountCharged: 'amount charged', depositHoldMethod: 'deposit hold',
+  startDate: 'pick-up time', pickupDate: 'pick-up time', endDate: 'return time', dropoffDate: 'return time',
 };
 
 const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade, canUpgrade, availableExtras = [] }) => {
@@ -577,8 +578,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const checklistItems = ["Spare Tire", "Jack & Tools", "Windows & Windshield", "Headlights", "Turn Signals", "AC / Heater", "Audio System", "Mirrors", "Interior Cleanliness"];
 
   // ---- Counter edits before the car is handed over: times, car and extras ----
-  const setPickupTime = (t: string) => isPickupEditable && setLocalReservation(prev => ({ ...prev, startDate: withTime(prev.startDate, t), pickupDate: withTime(prev.pickupDate || prev.startDate, t) }));
-  const setReturnTime = (t: string) => isPickupEditable && setLocalReservation(prev => ({ ...prev, endDate: withTime(prev.endDate, t), dropoffDate: withTime(prev.dropoffDate || prev.endDate, t) }));
+  const setPickupTime = (t: string) => (isPickupEditable || canAmend) && setLocalReservation(prev => ({ ...prev, startDate: withTime(prev.startDate, t), pickupDate: withTime(prev.pickupDate || prev.startDate, t) }));
+  const setReturnTime = (t: string) => (isPickupEditable || canAmend) && setLocalReservation(prev => ({ ...prev, endDate: withTime(prev.endDate, t), dropoffDate: withTime(prev.dropoffDate || prev.endDate, t) }));
   const timesInvalid = !!localReservation.startDate && !!localReservation.endDate && new Date(localReservation.endDate).getTime() <= new Date(localReservation.startDate).getTime();
   const pickCar = (car: import('../types').Vehicle) => isPickupEditable && setLocalReservation(prev => ({
     ...prev, carModel: car.modelName, licensePlate: car.licensePlate, ...(car.transmission ? { transmission: car.transmission } : {}), ...(car.sippCode ? { sippCode: car.sippCode } : {}),
@@ -881,6 +882,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     const email = (localReservation.customerEmail || '').trim();
     if (!email) { alert('The customer email address is required: the agreement is emailed to the customer.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email)) { alert('The customer email address is not valid. Please correct it.'); return; }
+    if (timesInvalid) { alert('The return time must be after the pickup time.'); return; }
     const picked = Object.fromEntries(AMEND_SAVED.map(k => [k, localReservation[k]])) as Partial<Reservation>;
     const next: Reservation = { ...savedBase, ...picked, customerEmail: email };
     const labels = Array.from(new Set(amendedKeys.map(k => AMEND_LABEL[k]).filter(Boolean)));
@@ -1367,10 +1369,11 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         <div className="space-y-2.5 min-w-0">
           <InfoPair label="Booking" value={<span className="font-mono">#{reservation.bookingId || 'N/A'}</span>} />
           <InfoPair label="Source" value={reservation.source} />
-          {isPickupEditable ? (
+          {isPickupEditable || canAmend ? (
             <>
-              <TimeEditRow label="Pickup" value={localReservation.startDate} original={reservation.startDate} onChange={t => setPickupTime(t)} />
-              <TimeEditRow label="Return" value={localReservation.endDate} original={reservation.endDate} onChange={t => setReturnTime(t)}
+              {/* After check-out the times can still be corrected; saved with "Save changes". */}
+              <TimeEditRow label="Pickup" value={localReservation.startDate} original={canAmend ? savedBase.startDate : reservation.startDate} onChange={t => setPickupTime(t)} />
+              <TimeEditRow label="Return" value={localReservation.endDate} original={canAmend ? savedBase.endDate : reservation.endDate} onChange={t => setReturnTime(t)}
                 error={timesInvalid ? 'Return must be after the pickup' : undefined} />
             </>
           ) : (
