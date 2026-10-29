@@ -66,6 +66,11 @@ export function buildIntegrationGuide(agg: Aggregator, company: CompanyDetails, 
   pre { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 10px 12px; font: 8.5pt/1.5 "JetBrains Mono", Consolas, monospace; white-space: pre-wrap; word-break: break-word; page-break-inside: avoid; margin: 1.5mm 0 4mm; }
   .note { border-left: 3px solid #4f46e5; background: #eef2ff; padding: 8px 12px; border-radius: 0 8px 8px 0; margin: 3mm 0; }
   ul { margin: 0 0 3mm; padding-left: 18px; }
+  .start { border: 1px solid #c7d2fe; background: #f8faff; border-radius: 10px; padding: 6mm 7mm; margin-bottom: 4mm; page-break-inside: avoid; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .cols h3 { margin-top: 2mm; }
+  .steps { margin: 2mm 0 0; padding-top: 3mm; border-top: 1px solid #e2e8f0; font-size: 9.5pt; }
+  .steps b { display: inline-flex; width: 18px; height: 18px; border-radius: 50%; background: #4f46e5; color: #fff; font-size: 8pt; align-items: center; justify-content: center; }
   .foot { margin-top: 10mm; padding-top: 4mm; border-top: 1px solid #e2e8f0; font-size: 8.5pt; color: #64748b; }
   @media screen { body { max-width: 900px; margin: 0 auto; padding: 0 24px 40px; } .toolbar { position: sticky; top: 0; background: #fff; padding: 10px 0; border-bottom: 1px solid #e2e8f0; display: flex; gap: 8px; justify-content: flex-end; }
     .toolbar button { font: 600 13px Inter, Arial; padding: 8px 14px; border-radius: 8px; border: 1px solid #c7d2fe; background: #4f46e5; color: #fff; cursor: pointer; } }
@@ -80,6 +85,39 @@ export function buildIntegrationGuide(agg: Aggregator, company: CompanyDetails, 
     <div><b>Channel code</b>${esc(ch)}</div><div><b>Supplier code</b>${esc(agg.vendorCode || 'NCT')}</div>
     <div><b>Currency</b>${esc(cur)}</div><div><b>Issued</b>${esc(today)}</div>
   </div>
+</div>
+
+<div class="start">
+  <h2 style="margin-top:0">Getting connected</h2>
+  <p><b>The API we use:</b> the <b>OpenTravel Alliance (OTA) 2003/05</b> car-rental XML standard (<code>OTA_VehAvailRate</code>, <code>OTA_VehRes</code>, <code>OTA_VehRetRes</code>, <code>OTA_VehModify</code>, <code>OTA_VehCancel</code> …) over HTTPS, the format used by car-rental brokers and GDS. The same service is also offered as OTA over SOAP (with WSDL), native XML (with XSD) and REST / JSON, so you can connect with whichever your system already supports.</p>
+  <div class="cols">
+    <div>
+      <h3>What you receive from us</h3>
+      <ul>
+        <li>The addresses: OTA <code>${esc(otaBase)}/{message}</code> (all formats in section 1)</li>
+        <li>Your channel code <code>${esc(ch)}</code> and our supplier code <code>${esc(agg.vendorCode || 'NCT')}</code></li>
+        <li>Your API key, sent <b>separately</b> through a secure channel (never in this document or by plain email)</li>
+        <li>Location codes ${locs.map(l => `<code>${esc(l.code)}</code>`).join(', ')} and the vehicle groups (SIPP) we sell (section 12, also live through <code>OTA_VehLocSearch</code>)</li>
+        <li>Rates in ${esc(cur)}, payment and cancellation terms (section 11)</li>
+        <li>A webhook signing secret, if you take status updates (section 10)</li>
+        <li>Sandbox access for testing and certification</li>
+      </ul>
+    </div>
+    <div>
+      <h3>What we need from you</h3>
+      <ul>
+        <li>Company legal name and the brand(s) you sell under</li>
+        <li>A technical contact and an operations / escalation contact (name, email, phone)</li>
+        <li>The format you will use: OTA XML, SOAP, native XML or REST / JSON</li>
+        <li>Your outgoing server IP addresses, so we can restrict access to them</li>
+        <li>Your HTTPS webhook URL, if you want booking status updates</li>
+        <li>The format of your booking reference (must be unique per booking)</li>
+        <li>Commission / payment terms and an invoicing contact</li>
+        <li>Confirmation that the certification cases pass in the sandbox (section 17)</li>
+      </ul>
+    </div>
+  </div>
+  <p class="steps"><b>1</b> Exchange the details above &nbsp;→&nbsp; <b>2</b> Build and test in the sandbox &nbsp;→&nbsp; <b>3</b> Certification &nbsp;→&nbsp; <b>4</b> Go-live: we switch your channel to production, and bookings arrive directly in our reservation system.</p>
 </div>
 
 ${section(1, 'Overview', `
