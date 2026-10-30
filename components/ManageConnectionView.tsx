@@ -4,6 +4,7 @@ import { SaveIcon, LockClosedIcon, EyeIcon, CheckCircleIcon, AlertIcon } from '.
 import { SUPPORTED_CURRENCIES, validateChannel, generateFeedKey, sha256Hex, partnerEndpoints } from '../services/channelManager';
 import { API_URL } from '../firebase/api';
 import { Panel, Button, inputCls, selectCls, labelCls } from './ui/Crm';
+import { keyMessage } from './channel/ApiKeysView';
 
 interface ManageConnectionViewProps {
   aggregator: Aggregator;
@@ -115,20 +116,20 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
   };
 
   const handleGenerateKey = async () => {
-    if (aggregator.feedKeyHash && !window.confirm(`Replace the feed key for ${aggregator.name}? The partner's current key stops working immediately.`)) return;
+    if (aggregator.feedKeyHash && !window.confirm(`Replace the API key of ${aggregator.name}? The key they use now stops working immediately.`)) return;
     try {
       const key = generateFeedKey();
       const hash = await sha256Hex(key);
       onUpdate({ ...aggregator, feedKeyHash: hash, feedKeyHint: key.slice(-4), feedKeyCreatedAt: new Date().toISOString() });
       setNewKey(key);
-      showConfirmation?.(`New feed key created for ${aggregator.name}. Copy it now — it will not be shown again.`);
+      showConfirmation?.(`New API key created for ${aggregator.name}. Copy it now: it will not be shown again.`);
     } catch {
       setCheckResult(['Could not create a key: this browser requires a secure (HTTPS) connection for key generation.']);
     }
   };
 
   const handleRevokeKey = () => {
-    if (!window.confirm(`Revoke the feed key for ${aggregator.name}? The partner will no longer be able to pull rates.`)) return;
+    if (!window.confirm(`Revoke the API key of ${aggregator.name}? All their requests are refused until you create a new key.`)) return;
     onUpdate({ ...aggregator, feedKeyHash: undefined, feedKeyHint: undefined, feedKeyCreatedAt: undefined });
     setNewKey(null);
   };
@@ -216,7 +217,7 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
         </div>
       </Section>
 
-      <Section title="Partner access (inbound XML)" subtitle="The partner calls these addresses with its feed key to get your published rates.">
+      <Section title="API key (broker access)" subtitle="The broker sends this key with every request: search, book, change and cancel. All brokers' keys are also under API keys at the top of the page.">
         <div className="space-y-2">
           {([
             ['Availability & rates (OTA_VehAvailRateRQ → RS)', 'POST', endpoints.availRate],
@@ -235,11 +236,11 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
         </div>
         <div className="rounded-lg border border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-semibold text-slate-900">Feed key</p>
+            <p className="text-[13px] font-semibold text-slate-900">API key</p>
             <p className="text-xs text-slate-500">
               {aggregator.feedKeyHash
                 ? <>Active key ending in <span className="font-mono font-semibold">…{aggregator.feedKeyHint}</span>{aggregator.feedKeyCreatedAt && <> · created {new Date(aggregator.feedKeyCreatedAt).toLocaleDateString()}</>}. Sent as <span className="font-mono">Authorization: Bearer &lt;key&gt;</span> or <span className="font-mono">X-Api-Key</span>.</>
-                : 'No key yet — partner requests are refused until you create one.'}
+                : 'No key yet. The broker\'s requests are refused until you create one.'}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -257,6 +258,7 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
             <div className="mt-2 flex items-center gap-2">
               <code className="flex-1 min-w-0 break-all text-xs font-mono bg-white border border-amber-200 rounded-md px-2 py-1.5 text-slate-800">{newKey}</code>
               <Button size="sm" onClick={() => copy('key', newKey)} className="shrink-0">{copied === 'key' ? 'Copied' : 'Copy'}</Button>
+              <Button size="sm" onClick={() => copy('msg', keyMessage(aggregator, newKey, API_URL || window.location.origin))} className="shrink-0">{copied === 'msg' ? 'Copied' : 'Copy message for the broker'}</Button>
             </div>
           </div>
         )}

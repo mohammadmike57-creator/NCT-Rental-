@@ -4,6 +4,7 @@ import { RatePlan, Fleet, Aggregator, RatePlanSubmission, StopSale } from '../ty
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, AlertIcon, CheckCircleIcon, ChevronRightIcon } from './icons';
 import { Panel, Badge, Button, Field, EmptyState, Dialog, textareaCls } from './ui/Crm';
 import ManagePeriodModal from './ManagePeriodModal';
+import { AdjustRatesDialog, RateBuilderDialog, RateGrid } from './channel/RateTools';
 import {
   channelCurrency, diffPlans, fingerprint, formatMoney, generateRateSheetXml, hasUnpublishedChanges,
   nextVersion, tierLabel, todayIso, validateChannel,
@@ -33,6 +34,8 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
   const [publishOpen, setPublishOpen] = useState(false);
   const [note, setNote] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [tool, setTool] = useState<'build' | 'adjust' | null>(null);
+  const [view, setView] = useState<'periods' | 'grid'>('periods');
 
   const currency = channelCurrency(aggregator);
   const today = todayIso();
@@ -119,7 +122,9 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
           <h3 className="text-sm font-semibold text-slate-900">Rate periods</h3>
           <p className="text-xs text-slate-500">Seasonal pricing by SIPP group and length of rental for {aggregator.name}, in {currency}.</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto shrink-0 [&>*]:max-sm:flex-1">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto shrink-0 [&>*]:max-sm:flex-1">
+          <Button onClick={() => setTool('build')}>Build rates</Button>
+          <Button onClick={() => setTool('adjust')} disabled={ratePlans.length === 0}>Change prices</Button>
           <Button onClick={handleAddPeriod} icon={<PlusIcon className="w-4 h-4" />}>Add period</Button>
           <Button variant={pending ? 'success' : 'primary'} onClick={() => setPublishOpen(true)} disabled={ratePlans.length === 0} icon={<SaveIcon className="w-4 h-4" />}>
             {pending ? 'Review & publish' : 'Re-publish'}
@@ -136,12 +141,25 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
       </div>
 
       <Panel>
+        {ratePlans.length > 0 && (
+          <div className="flex items-center gap-1 px-4 pt-3" role="group" aria-label="Rates view">
+            {([['periods', 'Periods'], ['grid', 'Price grid']] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setView(k)} aria-pressed={view === k}
+                className={`px-3 h-7 rounded-md text-xs font-semibold ${view === k ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>{l}</button>
+            ))}
+          </div>
+        )}
         {ratePlans.length === 0 ? (
           <EmptyState
             title="No rate periods defined yet."
-            hint="Add a season to start pricing vehicle groups for this channel."
-            action={<Button variant="primary" onClick={handleAddPeriod} icon={<PlusIcon className="w-4 h-4" />}>Create your first season</Button>}
+            hint="Build a full rate card from base prices, seasons and rental-length discounts, or add one season by hand."
+            action={<div className="flex gap-2">
+              <Button variant="primary" onClick={() => setTool('build')}>Build rates</Button>
+              <Button onClick={handleAddPeriod} icon={<PlusIcon className="w-4 h-4" />}>Add one season</Button>
+            </div>}
           />
+        ) : view === 'grid' ? (
+          <RateGrid plans={ratePlans} currency={currency} today={today} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {ratePlans.map(plan => {
@@ -216,6 +234,23 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
           </ul>
         )}
       </Panel>
+
+      {tool === 'build' && (
+        <RateBuilderDialog fleet={fleet} currency={currency} existing={aggregator.currentRatePlans || []} onClose={() => setTool(null)}
+          onApply={(plans, built) => {
+            handleUpdate(plans);
+            setTool(null);
+            showConfirmation(`${built} rate period${built === 1 ? '' : 's'} built for ${aggregator.name}. Review them, then publish.`);
+          }} />
+      )}
+      {tool === 'adjust' && (
+        <AdjustRatesDialog plans={ratePlans} currency={currency} onClose={() => setTool(null)}
+          onApply={(plans, summary) => {
+            handleUpdate(plans);
+            setTool(null);
+            showConfirmation(`Prices changed: ${summary}. Review them, then publish.`);
+          }} />
+      )}
 
       {editingPlan && (
         <ManagePeriodModal plan={editingPlan} onSave={handleSavePlan} onClose={() => setEditingPlan(null)} fleet={fleet} currency={currency} />

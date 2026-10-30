@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
-import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon } from './icons';
+import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon } from './icons';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
@@ -18,6 +18,7 @@ import ChannelOverviewView from './ChannelOverviewView';
 import ChannelDeliveryLogView from './ChannelDeliveryLogView';
 import MultiChannelEditor, { BulkResult } from './channel/MultiChannelEditor';
 import XmlReservationsView from './channel/XmlReservationsView';
+import ApiKeysView from './channel/ApiKeysView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity } from '../firebase/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -67,7 +68,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const [newChannelCode, setNewChannelCode] = useState('');
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
-  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations'>('channels');
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys'>('channels');
   const showStopSale = mode === 'stopsale';
   const [sending, setSending] = useState(false);
   const [deliveryRefresh, setDeliveryRefresh] = useState(0);
@@ -222,6 +223,14 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
               XML reservations
             </Button>
             <Button
+              variant={mode === 'keys' ? 'primary' : 'secondary'}
+              icon={<KeyIcon className="w-4 h-4" />}
+              onClick={() => setMode(m => (m === 'keys' ? 'channels' : 'keys'))}
+              aria-pressed={mode === 'keys'}
+            >
+              API keys
+            </Button>
+            <Button
               variant={mode === 'multi' ? 'primary' : 'secondary'}
               icon={<GlobeAltIcon className="w-4 h-4" />}
               onClick={() => setMode(m => (m === 'multi' ? 'channels' : 'multi'))}
@@ -253,6 +262,9 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
 
       {mode === 'reservations' ? (
         <XmlReservationsView aggregators={aggregators} />
+      ) : mode === 'keys' ? (
+        <ApiKeysView aggregators={aggregators} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation}
+          onOpenChannel={id => { setSelectedAggregatorId(id); setActiveTab('Connection'); setMode('channels'); }} />
       ) : mode === 'multi' ? (
         <MultiChannelEditor aggregators={aggregators} fleet={fleet} availableExtras={availableExtras} stopSales={stopSales}
           currentUserName={currentUserName} onApply={applyBulk} />

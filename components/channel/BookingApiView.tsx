@@ -126,7 +126,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
         </div>
       )}
 
-      <Section title="Booking API" subtitle="The broker searches, books, changes and cancels through these addresses with its feed key (Connection tab)."
+      <Section title="Booking API" subtitle="The broker searches, books, changes and cancels through these addresses with its API key (API keys, or the Connection tab)."
         actions={<label className="inline-flex items-center gap-2 text-[13px] font-medium text-slate-700 cursor-pointer">
           <input type="checkbox" checked={r.bookingsEnabled} onChange={e => set('bookingsEnabled', e.target.checked)} /> Accept bookings
         </label>}>

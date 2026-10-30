@@ -102,6 +102,22 @@ export interface ValidationResult {
 const sortedTiers = (rate: SippRate) =>
   [...(rate.tiers || [])].sort((a, b) => (a.fromDay ?? 0) - (b.fromDay ?? 0));
 
+/**
+ * Where the first day of a band makes the whole rental cheaper than the last day of the band before,
+ * e.g. 6 days at 45 = 270 but 7 days at 35 = 245: customers would book the extra day.
+ */
+export const tierInversions = (rate: SippRate): string[] => {
+  const out: string[] = [];
+  const tiers = sortedTiers(rate);
+  for (let i = 1; i < tiers.length; i++) {
+    const prev = tiers[i - 1], cur = tiers[i];
+    if (isOpenEnded(prev.toDay) || !(Number(prev.dailyPrice) > 0) || !(Number(cur.dailyPrice) > 0) || cur.fromDay == null) continue;
+    const before = (prev.toDay as number) * Number(prev.dailyPrice), after = cur.fromDay * Number(cur.dailyPrice);
+    if (after < before - 0.005) out.push(`${cur.fromDay} days cost ${after.toFixed(2)}, less than ${prev.toDay} days (${before.toFixed(2)}).`);
+  }
+  return out;
+};
+
 const validateTiers = (planName: string, rate: SippRate, push: (l: IssueLevel, a: IssueArea, m: string) => void) => {
   const where = `${planName} / ${rate.sippCode}`;
   const tiers = sortedTiers(rate);
@@ -134,6 +150,7 @@ const validateTiers = (planName: string, rate: SippRate, push: (l: IssueLevel, a
     if (curStart <= prevEnd) push('error', 'Rates', `${where}: tiers ${tierLabel(prev)} and ${tierLabel(cur)} overlap.`);
     else if (curStart > prevEnd + 1) push('warning', 'Rates', `${where}: no price for ${prevEnd + 1}–${curStart - 1} day rentals.`);
   }
+  tierInversions(rate).forEach(m => push('warning', 'Rates', `${where}: ${m}`));
   const last = tiers[tiers.length - 1];
   if (!isOpenEnded(last.toDay)) {
     push('warning', 'Rates', `${where}: rentals longer than ${last.toDay} days cannot be priced (last tier is not open-ended).`);
@@ -161,7 +178,7 @@ export const validateChannel = (agg: Aggregator, fleet: Fleet, today: string = t
   if (!agg.locationCode) push('info', 'Connection', 'Location code not set — "AMM" will be used in XML.');
   if (!agg.feedKeyHash) {
     // Without a push endpoint the partner has no way to get rates at all.
-    push(conn.apiUrl ? 'info' : 'warning', 'Connection', 'No partner feed key — the partner cannot pull rates over XML.');
+    push(conn.apiUrl ? 'info' : 'warning', 'Connection', 'No API key yet: the broker cannot connect (API keys).');
   }
 
   // Rate periods
@@ -203,6 +220,15 @@ export const validateChannel = (agg: Aggregator, fleet: Fleet, today: string = t
       push('warning', 'Rates', 'No rate period covers today.');
     }
   }
+
+  // A group sold in some periods but not in others disappears from the broker's site for those dates
+  const current = plans.filter(p => p.endDate >= today);
+  const soldIn = new Set(current.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').toUpperCase())));
+  soldIn.forEach(code => current.forEach(p => {
+    if ((p.sippRates || []).length && !(p.sippRates || []).some(r => (r.sippCode || '').toUpperCase() === code)) {
+      push('warning', 'Rates', `${p.name}: ${code} is not priced, so it cannot be booked from ${p.startDate} to ${p.endDate}.`);
+    }
+  }));
 
   // Fleet coverage
   const priced = new Set(plans.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').toUpperCase())));
