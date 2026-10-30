@@ -18,6 +18,7 @@ import ChannelOverviewView from './ChannelOverviewView';
 import ChannelDeliveryLogView from './ChannelDeliveryLogView';
 import MultiChannelEditor, { BulkResult } from './channel/MultiChannelEditor';
 import XmlReservationsView from './channel/XmlReservationsView';
+import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity } from '../firebase/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
 
@@ -284,6 +285,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                         <span className="tabular-nums">{latest ? `v${submissionVersion(agg, 0)} · ${relativeTime(latest.submittedAt)}` : 'never published'}</span>
+                        {(() => { const cs = connectionStateOf(agg); return <Badge tone={cs.tone} dot={false} className="!px-1.5 !py-0 !text-[10px]">{cs.label}</Badge>; })()}
                         {pending && <Badge tone="warning" dot={false} className="!px-1.5 !py-0 !text-[10px]">changes</Badge>}
                         {h && h.errors > 0 && <Badge tone="danger" dot={false} className="!px-1.5 !py-0 !text-[10px]">{h.errors} error{h.errors > 1 ? 's' : ''}</Badge>}
                       </div>
@@ -338,7 +340,11 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                   />
                 )}
                 {activeTab === 'Connection' && (
-                  <ManageConnectionView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                  <>
+                    <ConnectionProfileView aggregator={selectedAggregator} fleet={fleet} currentUserName={currentUserName}
+                      onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                    <ManageConnectionView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                  </>
                 )}
                 {activeTab === 'Rates' && (
                   <ManageRatePlansView

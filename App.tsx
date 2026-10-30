@@ -1000,7 +1000,16 @@ export const App: React.FC = () => {
     });
   };
 
+  /** Broker (XML) bookings are cancelled, never deleted: the broker is told and the record stays for commission and disputes. */
+  const refuseBrokerDelete = (r?: Reservation) => {
+    if (!r?.channelReservationNumber) return false;
+    alert(`${r.bookingId} was booked by ${r.source || 'a broker'} through the XML connection (${r.channelReservationNumber}).\n\n`
+      + 'Broker bookings cannot be deleted. Set its status to Cancelled instead: the broker is told, and the booking stays on record for commission and disputes.');
+    return true;
+  };
+
   const handleDeleteReservation = async (id: string, isNew?: boolean, year?: number, month?: string) => {
+    if (refuseBrokerDelete(allReservationsFlat.find(r => r.id === id))) return;
     if (!window.confirm("Are you sure you want to delete this reservation?")) return;
 
     if (isNew) {
@@ -1025,6 +1034,7 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteAgreement = async (res: Reservation, reason: string) => {
+    if (refuseBrokerDelete(res)) { setAgreementToDelete(null); return; }
     setDeletingAgreement(true);
     setSaveStatus('saving');
     try {

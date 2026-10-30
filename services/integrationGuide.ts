@@ -38,6 +38,10 @@ export function buildIntegrationGuide(agg: Aggregator, company: CompanyDetails, 
   const policy = r.lateCancellationFeePercent === 0 ? 'FREE' : `FLEX${r.freeCancellationHours}`;
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   const otaBase = ep.availRate.replace(/\/OTA_VehAvailRate$/, '');
+  const ops = agg.bookingRules?.operations || {};
+  const opOn = (k: 'retrieve' | 'modify' | 'cancel') => ops[k] !== false;
+  const cp = agg.connectionProfile || {};
+  const tz = r.timeZone || 'Asia/Amman';
 
   const section = (n: number, title: string, body: string) => `<section><h2><span>${n}</span>${esc(title)}</h2>${body}</section>`;
   const table = (head: string[], rows: (string | number)[][]) =>
@@ -123,7 +127,7 @@ export function buildIntegrationGuide(agg: Aggregator, company: CompanyDetails, 
 ${section(1, 'Overview', `
   <p>You sell <b>vehicle groups</b> (SIPP / ACRISS codes such as <code>ECMR</code>), not individual cars. The actual car is assigned when the customer picks it up, so models are always shown as <i>“or similar”</i>.</p>
   <p>Every price is calculated by ${esc(company.name)} at the moment of the request. Prices, availability and policies you send are never trusted: a booking is always re-priced and re-checked, and refused with <code>PRICE_CHANGED</code> or <code>NO_AVAILABILITY</code> if anything changed.</p>
-  <p>The same service is offered in three formats. Use the one that suits you; they behave identically.</p>
+  <p>The same service is offered in several formats. All of them apply the same business rules (prices, availability, policies); the operations each format offers are listed in section 18. The exact messages, required fields, versions and time rules are in section 18.</p>
   ${table(['Format', 'Address', 'Use when'], [
     ['OpenTravel XML (OTA 2003/05)', `<code>${esc(otaBase)}/{message}</code>`, 'You already speak OTA (OTA_VehAvailRate, OTA_VehRes …)'],
     ['Native XML', `<code>${esc(ep.nativeXml)}/{Operation}</code>`, 'You prefer simple XML with a Header and Credentials block'],
@@ -432,6 +436,47 @@ ${section(16, 'Support and monitoring', `
 ${section(17, 'Certification', `
   <p>Before go-live we run, and you should run in the sandbox, these cases: authentication success and failure; location and vehicle-group lists; availability search; no-availability; quote and hold; expired offer; changed price; booking; duplicate prevention (same key twice); retrieval by both references; modification; cancellation and its fee; invalid location, date and vehicle group; vehicle and station details; tax, mileage and covers; optional cover pricing; promotion codes (valid and unknown); closed-station pick-up; webhook delivery and retry; rate-limit handling.</p>`)}
 
+
+${section(18, 'Technical contract: messages, versions and time', `
+  <h3>Standard and version</h3>
+  <p>OpenTravel Alliance (OTA) messages in the namespace <code>http://www.opentravel.org/OTA/2003/05</code>, UTF-8, over HTTPS. Every response carries <code>Version="2.000"</code>${cp.messageVersion && cp.messageVersion !== '2.000' ? ` (agreed with you: <code>${esc(cp.messageVersion)}</code>)` : ''}; the <code>Version</code> you send is accepted and echoed in the logs. Elements are read by name, so standard elements we do not use are ignored, not rejected.</p>
+  <h3>Supported message pairs</h3>
+  ${table(['Request → response', 'Purpose', 'Required', 'Optional'], [
+    ['<code>OTA_VehLocSearchRQ</code> → <code>OTA_VehLocSearchRS</code>', 'Our stations', '—', '—'],
+    ['<code>OTA_VehLocDetailRQ</code> → <code>OTA_VehLocDetailRS</code>', 'One station in full', 'Location code', '—'],
+    ['<code>OTA_VehAvailRateRQ</code> → <code>OTA_VehAvailRateRS</code>', 'Availability and prices', '<code>VehRentalCore@PickUpDateTime</code>, <code>@ReturnDateTime</code>, <code>PickUpLocation@LocationCode</code>', '<code>ReturnLocation</code> (default: same), <code>DriverType@Age</code>, <code>VehPrefs</code>, <code>SpecialEquipPrefs</code>, <code>POS/Source@ISOCurrency</code>, promotion code'],
+    ['<code>OTA_VehRateRuleRQ</code> → <code>OTA_VehRateRuleRS</code>', 'Full terms before booking', 'Offer <code>Reference Type="16"</code>, or itinerary + <code>VehPref@Code</code>', '—'],
+    ['<code>OTA_VehResRQ</code> → <code>OTA_VehResRS</code>', 'Book', '<code>Customer/Primary/PersonName/Surname</code>; offer <code>Reference Type="16"</code> or <code>VehRentalCore</code> + <code>VehPref@Code</code>; <code>Idempotency-Key</code> header or <code>TPA_Extensions/BrokerReference</code>', 'GivenName, Telephone, Email, Document, <code>ArrivalDetails@Number</code>, equipment, <code>ExpectedTotal</code>'],
+    ['<code>OTA_VehRetResRQ</code> → <code>OTA_VehRetResRS</code>', opOn('retrieve') ? 'Retrieve' : 'Retrieve — <b>not part of this connection</b>', '<code>UniqueID@ID</code> (Type 14 = ours, 16 = yours)', 'Surname (checked when sent)'],
+    ['<code>OTA_VehModifyRQ</code> → <code>OTA_VehModifyRS</code>', opOn('modify') ? 'Modify (re-priced)' : 'Modify — <b>not part of this connection</b>: cancel and book again', '<code>UniqueID@ID</code> and the changed elements', '<code>ExpectedTotal</code>'],
+    ['<code>OTA_VehCancelRQ</code> → <code>OTA_VehCancelRS</code>', opOn('cancel') ? 'Cancel' : 'Cancel — <b>not part of this connection</b>', '<code>UniqueID@ID</code>', 'Surname, <code>TPA_Extensions/Reason</code>'],
+    ['<code>OTA_PingRQ</code> → <code>OTA_PingRS</code>', 'Health and credentials check', '—', '<code>EchoData</code>'],
+  ])}
+  <p>Not offered: <code>OTA_VehResStatusNotifRQ</code> — status changes are sent as signed JSON webhooks (section 10). If your platform requires OTA status notifications, tell us: it is agreed and tested per partner before go-live.</p>
+  <h3>Operations by format</h3>
+  ${table(['Operation', 'OTA XML / SOAP', 'Native XML', 'REST / JSON'], [
+    ['Locations, details, availability, rate rules, book, retrieve, modify, cancel, ping', '✓', '✓', '✓'],
+    ['Quote with a temporary car hold', '—', '<code>Quote</code>', '<code>POST /quotes</code>'],
+    ['Reservation list (reconciliation)', '—', '<code>ReservationList</code>', '<code>GET /reservations</code>'],
+  ])}
+  <h3>Time</h3>
+  <p>Every date-time you send and receive is the <b>local time of the station</b> (time zone <code>${esc(tz)}</code>), written without an offset (<code>${y}-05-01T10:00:00</code>). Booking cut-off, cancellation deadlines and no-show marking are counted in that time zone. Response <code>TimeStamp</code> attributes are UTC.</p>
+  <h3>Price validity and inventory</h3>
+  <ul>
+    <li>An offer fixes the <b>price</b> for ${r.offerValidityMinutes} minutes. It does <b>not</b> reserve a car: availability is guaranteed only when we confirm the booking.</li>
+    <li>A quote (native XML / REST) holds one car for ${r.holdMinutes} minutes.</li>
+    <li>At booking, price and availability are checked again in one step against our whole fleet. Our fleet is shared by all channels and our own counter, so two simultaneous requests can never both get the last car: the second receives <code>NO_AVAILABILITY</code>.</li>
+    <li>A car counts as unavailable while it is booked (by anyone), during ${r.turnaroundMinutes ? `${r.turnaroundMinutes} minutes of preparation before and after each rental` : 'its rental'}, while it is out and overdue, under a stop sale or maintenance, and beyond any allotment agreed with you.</li>
+  </ul>
+  <h3>Booking versions and missed updates</h3>
+  <ul>
+    <li>Each booking has a version number, starting at 1 and increased by every change (modification, cancellation, pick-up, return, no-show). Webhooks carry it as <code>reservation_version</code>; ignore an event whose version is lower than the one you hold — events can arrive out of order.</li>
+    <li>Duplicates carry the same <code>event_id</code>. Failed deliveries are retried for 24 hours, then kept in a failed queue that our staff can resend.</li>
+    <li>To repair anything missed, compare your bookings with ours by pick-up date (reservation list, or retrieve) — we recommend daily.</li>
+    <li>A booking is never deleted on our side: a booking our staff withdraw becomes <code>CANCELLED</code> and you are notified.</li>
+  </ul>
+  <h3>Changes to this interface</h3>
+  <p>New optional elements, attributes, fields and error codes may be added at any time: ignore what you do not recognise. Changes that could break an existing connection are announced at least 90 days in advance and published under a new address version (<code>/v2</code>); the current version stays available for at least 12 months after that.</p>`)}
 <div class="foot">${esc(company.name)}${company.address ? ` · ${esc(company.address)}` : ''}${company.supportEmail || company.email ? ` · ${esc(company.supportEmail || company.email)}` : ''}${company.supportPhone || company.phone ? ` · ${esc(company.supportPhone || company.phone)}` : ''} — Booking API integration guide for ${esc(agg.name)}, ${esc(today)}.</div>
 </body></html>`;
 }

@@ -276,6 +276,9 @@ export interface Reservation {
   dropOffCompleted?: boolean;
   customerEmail?: string;
   transmission?: TransmissionType;
+  /** Set on bookings a broker made through the XML / API connection. */
+  channelId?: string;
+  channelReservationNumber?: string;
 
   // Pickup fields
   pickupDateTime?: string;
@@ -657,6 +660,8 @@ export interface Aggregator {
     bookingRules?: ChannelBookingRules;
     /** Go-live checklist, last certification run and approval. */
     goLive?: ChannelGoLive;
+    /** The real connection with this broker (Connection tab); a new channel is Not connected. */
+    connectionProfile?: ChannelConnectionProfile;
 }
 
 export type ChannelPaymentModel = 'PAY_AT_COUNTER' | 'BROKER_PREPAID';
@@ -763,6 +768,41 @@ export interface ChannelBookingRules {
     cancellationTiers?: { hoursBefore: number; feePercent: number }[];
     /** Currencies brokers may book in: units per 1 channel currency, e.g. { EUR: 0.92 }. */
     currencies?: Record<string, number>;
+    /** Time zone of the branches (IANA, e.g. Asia/Amman): lead time, deadlines and no-shows are counted in it. */
+    timeZone?: string;
+    /** Cleaning / preparation time kept free before and after every rental. */
+    turnaroundMinutes?: number;
+    /** A car not checked in by its return time is treated as coming back this many hours from now. */
+    overdueHoldHours?: number;
+    /** Operations agreed with the broker; the server refuses the others. Search and book are always on while bookings are enabled. */
+    operations?: { retrieve?: boolean; modify?: boolean; cancel?: boolean };
+}
+
+export type ConnectionState = 'not_connected' | 'in_development' | 'broker_testing' | 'broker_certified' | 'live' | 'suspended';
+
+/** How this broker is actually connected: agreed technical contract, commercial terms and the broker's certification. */
+export interface ChannelConnectionProfile {
+    state?: ConnectionState;
+    direction?: 'broker_calls_us' | 'we_call_broker' | 'both';
+    format?: 'OTA_XML' | 'OTA_SOAP' | 'NATIVE_XML' | 'REST_JSON' | 'BROKER_OWN';
+    /** Agreed OpenTravel message version (Version attribute), e.g. 2.000. */
+    messageVersion?: string;
+    /** The broker's own specification, if it sent one: name and version / date. */
+    brokerSpec?: string;
+    auth?: 'API_KEY_HEADER' | 'OTA_POS' | 'WS_SECURITY' | 'BROKER_CREDENTIALS';
+    statusUpdates?: 'WEBHOOKS' | 'BROKER_POLLS' | 'NONE';
+    settlement?: 'COUNTER' | 'BROKER_VOUCHER' | 'VIRTUAL_CARD' | 'INVOICE';
+    settlementPeriod?: 'WEEKLY' | 'MONTHLY' | 'PER_BOOKING';
+    commissionBasis?: 'GROSS' | 'NET';
+    technicalContact?: string;
+    operationsContact?: string;
+    invoicingContact?: string;
+    limitations?: string;
+    /** The broker's own approval of the connection. */
+    certifiedAt?: string;
+    certifiedBy?: string;
+    certificationReference?: string;
+    history?: { at: string; by: string; state: ConnectionState; note?: string }[];
 }
 
 export interface ChannelCertificationResult { id: string; name: string; passed: boolean; detail: string; ms: number }

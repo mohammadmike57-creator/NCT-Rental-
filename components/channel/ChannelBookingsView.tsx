@@ -101,6 +101,115 @@ const StatementPanel: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) =>
   );
 };
 
+type Diff = { kind: 'missing_broker' | 'missing_ours' | 'status' | 'amount'; ref: string; ours?: string; theirs?: string };
+const DIFF_LABEL: Record<Diff['kind'], string> = {
+  missing_broker: 'Not in the broker\'s list', missing_ours: 'Not in our system', status: 'Status differs', amount: 'Amount differs',
+};
+
+/** Splits one CSV line (comma or semicolon, quoted fields). */
+const cells = (line: string, sep: string) => {
+  const out: string[] = []; let cur = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+    else if (ch === '"') q = true; else if (ch === sep) { out.push(cur.trim()); cur = ''; } else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+};
+const normStatus = (s: string) => {
+  const t = s.trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (/CANCEL/.test(t)) return 'CANCELLED';
+  if (/NO_?SHOW/.test(t)) return 'NO_SHOW';
+  if (/COMPLET|CLOSED|RETURN|FINISH/.test(t)) return 'COMPLETED';
+  if (/PICK|ON_?RENT|IN_PROGRESS|STARTED/.test(t)) return 'IN_PROGRESS';
+  if (/CONFIRM|BOOKED|RESERVED|ACTIVE|OK/.test(t)) return 'CONFIRMED';
+  return t;
+};
+
+/**
+ * Finds differences between the broker's own booking list (CSV export from its extranet) and ours:
+ * bookings one side does not have, a different status, or a different amount. Nothing is changed
+ * automatically; each line says what to check.
+ */
+const ReconcilePanel: React.FC<{ aggregator: Aggregator; rows: ChannelBookingRow[] }> = ({ aggregator, rows }) => {
+  const [diffs, setDiffs] = useState<Diff[] | null>(null);
+  const [summary, setSummary] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async (file: File) => {
+    setError(null); setDiffs(null);
+    const text = (await file.text()).replace(/^\ufeff/, '');
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { setError('The file has no bookings.'); return; }
+    const sep = (lines[0].match(/;/g) || []).length > (lines[0].match(/,/g) || []).length ? ';' : ',';
+    const head = cells(lines[0], sep).map(h => h.toLowerCase());
+    const col = (re: RegExp) => head.findIndex(h => re.test(h));
+    const refCol = col(/broker|their|partner|voucher|booking.?(ref|id|no|number)|reference/);
+    const ourCol = col(/supplier|rsv|our|confirmation|reservation.?(no|number|id)/);
+    const statusCol = col(/status|state/);
+    const amountCol = col(/total|amount|price|value/);
+    if (refCol < 0 && ourCol < 0) { setError('No reference column found. Use a header such as "Broker reference" or "Reservation number".'); return; }
+    const live = rows.filter(r => !r.sandbox);
+    const byRef = new Map(live.filter(r => r.brokerReference).map(r => [r.brokerReference!.toUpperCase(), r]));
+    const byNum = new Map(live.map(r => [r.reservationNumber.toUpperCase(), r]));
+    const seen = new Set<string>();
+    const out: Diff[] = [];
+    lines.slice(1).forEach(l => {
+      const c = cells(l, sep);
+      const ref = (refCol >= 0 ? c[refCol] : '') || '';
+      const num = (ourCol >= 0 ? c[ourCol] : '') || '';
+      const ours = byNum.get(num.toUpperCase()) || byRef.get(ref.toUpperCase());
+      const label = ref || num;
+      if (!label) return;
+      if (!ours) { out.push({ kind: 'missing_ours', ref: label, theirs: statusCol >= 0 ? c[statusCol] : undefined }); return; }
+      seen.add(ours.reservationNumber);
+      if (statusCol >= 0 && c[statusCol] && normStatus(c[statusCol]) !== ours.status) {
+        out.push({ kind: 'status', ref: `${ours.reservationNumber} / ${ours.brokerReference || '—'}`, ours: LABEL[ours.status] || ours.status, theirs: c[statusCol] });
+      }
+      const amt = amountCol >= 0 ? parseFloat((c[amountCol] || '').replace(/[^\d.,-]/g, '').replace(',', '.')) : NaN;
+      if (Number.isFinite(amt) && Math.abs(amt - (ours.total || 0)) > 0.01) {
+        out.push({ kind: 'amount', ref: `${ours.reservationNumber} / ${ours.brokerReference || '—'}`, ours: `${money(ours.total || 0)} ${ours.currency}`, theirs: money(amt) });
+      }
+    });
+    live.filter(r => !seen.has(r.reservationNumber)).forEach(r => out.push({ kind: 'missing_broker', ref: `${r.reservationNumber} / ${r.brokerReference || '—'}`, ours: LABEL[r.status] || r.status }));
+    setSummary(`${lines.length - 1} line(s) in ${file.name} compared with ${live.length} live booking(s).`);
+    setDiffs(out);
+  };
+
+  return (
+    <Panel title="Reconciliation" subtitle={`Compare ${aggregator.name}'s own booking list (CSV from its extranet) with ours, to find bookings or updates one side missed.`}
+      actions={<label className="inline-flex items-center h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 cursor-pointer hover:bg-slate-50">
+        Upload broker CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void load(f); e.target.value = ''; }} />
+      </label>}>
+      {error && <p className="px-4 py-3 text-xs text-rose-600">{error}</p>}
+      {!diffs && !error && <p className="px-4 py-4 text-[13px] text-slate-500">The file needs a reference column (broker reference or our reservation number); status and total columns are compared when present.</p>}
+      {diffs && (
+        <>
+          <p className="px-4 pt-3 text-xs text-slate-500">{summary}</p>
+          {diffs.length === 0 ? <p className="px-4 py-4 text-[13px] text-emerald-700 font-medium">Both lists match.</p> : (
+            <div className="overflow-x-auto">
+              <table className={`${table.wrap} min-w-[640px]`}>
+                <thead className={table.head}><tr>{['Difference', 'Booking', 'Ours', 'Broker'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+                <tbody className={table.body}>
+                  {diffs.map((d, i) => (
+                    <tr key={i} className={table.row}>
+                      <td className={table.td}><Badge tone={d.kind === 'status' || d.kind === 'amount' ? 'warning' : 'danger'}>{DIFF_LABEL[d.kind]}</Badge></td>
+                      <td className={`${table.td} font-mono text-xs`}>{d.ref}</td>
+                      <td className={`${table.td} text-xs`}>{d.ours || '—'}</td>
+                      <td className={`${table.td} text-xs`}>{d.theirs || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
+  );
+};
+
 /** Every booking this broker made through the API, with both references. */
 const ChannelBookingsView: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) => {
   const [rows, setRows] = useState<ChannelBookingRow[] | null>(null);
@@ -164,6 +273,7 @@ const ChannelBookingsView: React.FC<{ aggregator: Aggregator }> = ({ aggregator 
           </div>
         )}
       </Panel>
+      <ReconcilePanel aggregator={aggregator} rows={rows || []} />
       <StatementPanel aggregator={aggregator} />
     </div>
   );

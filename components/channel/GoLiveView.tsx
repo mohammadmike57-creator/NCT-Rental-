@@ -43,6 +43,7 @@ const TECHNICAL: Tech[] = [
   { id: 'guide', label: 'Integration guide and sample messages sent to the broker' },
   { id: 'ip', label: 'IP allow-list configured, if required by the broker' },
   { id: 'certified', label: 'Certification tests passed', auto: a => !!a.goLive?.certification && a.goLive.certification.passed === a.goLive.certification.total },
+  { id: 'brokerApproved', label: 'Broker approved the connection (Connection profile: date, who, evidence)', auto: a => !!a.connectionProfile?.certifiedAt && !!a.connectionProfile?.certifiedBy },
   { id: 'load', label: 'Load test agreed and passed' },
   { id: 'security', label: 'Security review passed' },
 ];
@@ -81,8 +82,11 @@ const GoLiveView: React.FC<Props> = ({ aggregator: a, fleet, company, currentUse
   };
   const approve = () => {
     if (!window.confirm(`Approve ${a.name} for production? The channel will be set Live: bookings become real reservations.`)) return;
+    const at = new Date().toISOString(), by = currentUserName || 'Staff';
+    const cp = a.connectionProfile || {};
     onUpdate({ ...a, status: 'active', connectionDetails: { ...a.connectionDetails, environment: 'production' },
-      goLive: { ...a.goLive, approvedBy: currentUserName || 'Staff', approvedAt: new Date().toISOString() } });
+      goLive: { ...a.goLive, approvedBy: by, approvedAt: at },
+      connectionProfile: { ...cp, state: 'live', history: [{ at, by, state: 'live' as const, note: 'Go-live approved' }, ...(cp.history || [])].slice(0, 50) } });
     showConfirmation?.(`${a.name} is live.`);
   };
 

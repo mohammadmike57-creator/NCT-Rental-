@@ -7,11 +7,14 @@ import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSecti
 
 /** Defaults the server uses when a rule is not set (see ChannelRules.java). */
 export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'allowedGroups' | 'ipAllowlist' | 'webhookUrl' | 'webhookEvents'
-  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies'>> = {
+  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies' | 'operations'>> = {
   bookingsEnabled: true, paymentModel: 'PAY_AT_COUNTER', freeCancellationHours: 48, lateCancellationFeePercent: 100, modificationFee: 0,
   minLeadHours: 2, maxRentalDays: 60, maxHorizonDays: 365, minDriverAge: 21, maxDriverAge: 0, offerValidityMinutes: 30, holdMinutes: 15,
-  operationalBuffer: 0, oneWayFee: 0, rateLimitPerMinute: 120,
+  operationalBuffer: 0, oneWayFee: 0, rateLimitPerMinute: 120, timeZone: 'Asia/Amman', turnaroundMinutes: 0, overdueHoldHours: 24,
 };
+
+/** Time zones offered for the branches (the server accepts any IANA zone). */
+const TIME_ZONES = ['Asia/Amman', 'Asia/Dubai', 'Asia/Riyadh', 'Africa/Cairo', 'Europe/Istanbul', 'Europe/London', 'UTC'];
 
 export const WEBHOOK_EVENTS: [string, string][] = [
   ['reservation.created', 'Booking created'], ['reservation.confirmed', 'Booking confirmed'], ['reservation.modified', 'Booking changed'],
@@ -183,9 +186,19 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
             <NumberField label="Cars kept back" hint="per group" value={r.operationalBuffer} onChange={v => set('operationalBuffer', v)} suffix="cars" />
             <NumberField label="Minimum driver age" value={r.minDriverAge} onChange={v => set('minDriverAge', v)} min={16} suffix="years" />
             <NumberField label="Maximum driver age" hint="0 = none" value={r.maxDriverAge} onChange={v => set('maxDriverAge', v)} suffix="years" />
-            <NumberField label="Offer valid for" value={r.offerValidityMinutes} onChange={v => set('offerValidityMinutes', v)} min={5} suffix="minutes" />
+            <NumberField label="Offer valid for" hint="price only" value={r.offerValidityMinutes} onChange={v => set('offerValidityMinutes', v)} min={5} suffix="minutes" />
             <NumberField label="Hold a car for" hint="after a quote" value={r.holdMinutes} onChange={v => set('holdMinutes', v)} min={5} max={60} suffix="minutes" />
+            <NumberField label="Turnaround time" hint="cleaning between rentals" value={r.turnaroundMinutes} onChange={v => set('turnaroundMinutes', v)} max={1440} step={15} suffix="minutes" />
+            <NumberField label="Car not back yet" hint="treat as returning in" value={r.overdueHoldHours} onChange={v => set('overdueHoldHours', v)} min={1} max={336} suffix="hours" />
           </div>
+          <label className="block">
+            <span className={labelCls}>Branch time zone <span className="ml-1 font-normal text-slate-400">cut-off, cancellation deadlines and no-shows are counted in it</span></span>
+            <select value={r.timeZone} onChange={e => set('timeZone', e.target.value)} className={`${selectCls} w-full`}>
+              {Array.from(new Set([r.timeZone, ...TIME_ZONES])).map(z => <option key={z} value={z}>{z}</option>)}
+            </select>
+          </label>
+          <p className="text-xs text-slate-500">An offer fixes the <b>price</b> for its validity; it does not reserve a car. A car is reserved only when the booking is confirmed,
+            or for the hold time after a quote (native XML <span className="font-mono">Quote</span>, REST <span className="font-mono">/quotes</span>). Every booking is checked again against the live fleet when it is made.</p>
         </Section>
       </div>
 

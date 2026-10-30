@@ -97,6 +97,9 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
       setCheckResult(problems.map(p => p.message));
       return;
     }
+    const cs = aggregator.connectionProfile?.state;
+    if (updated.status === 'active' && aggregator.status !== 'active' && cs !== 'broker_certified' && cs !== 'live'
+      && !window.confirm(`${aggregator.name} has not approved the connection yet (Connection profile).\n\nSet the channel Live anyway? Bookings it makes become real reservations.`)) return;
     onUpdate(updated);
     showConfirmation?.(`Connection settings for ${aggregator.name} saved.`);
   };
