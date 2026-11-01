@@ -383,7 +383,8 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
 };
 
 /** What can still be changed on the agreement after check-out (with "Save changes"). */
-const AMEND_FIELDS: (keyof Reservation)[] = ['customerEmail', 'driver', 'additionalDrivers', 'paymentMethod', 'cardNumber', 'authNumber', 'finalAmountCharged', 'depositHoldMethod', 'depositAuthNumber'];
+const AMEND_FIELDS: (keyof Reservation)[] = ['customerEmail', 'driver', 'additionalDrivers', 'paymentMethod', 'cardNumber', 'authNumber', 'finalAmountCharged', 'depositHoldMethod', 'depositAuthNumber',
+  'carModel', 'licensePlate', 'sippCode', 'transmission'];
 /** Saved together with the fields above: extras added while the car is out move the booking total. */
 const AMEND_SAVED: (keyof Reservation)[] = [...AMEND_FIELDS, 'extras', 'baseAmount', 'amount', 'pickupPaymentCollected', 'startDate', 'pickupDate', 'endDate', 'dropoffDate'];
 const AMEND_LABEL: Partial<Record<keyof Reservation, string>> = {
@@ -391,6 +392,7 @@ const AMEND_LABEL: Partial<Record<keyof Reservation, string>> = {
   depositAuthNumber: 'deposit pre-auth code', cardNumber: 'card digits', extras: 'extras',
   paymentMethod: 'payment method', finalAmountCharged: 'amount charged', depositHoldMethod: 'deposit hold',
   startDate: 'pick-up time', pickupDate: 'pick-up time', endDate: 'return time', dropoffDate: 'return time',
+  carModel: 'car type', licensePlate: 'license plate', sippCode: 'car type', transmission: 'car type',
 };
 
 const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations, onClose, companyDetails, onUpdate, trafficTickets, onRecordReturnCharges, fleet, allData, onUpgrade, canUpgrade, availableExtras = [] }) => {
@@ -554,6 +556,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const setReturnTime = (t: string) => (isPickupEditable || canAmend) && setLocalReservation(prev => ({ ...prev, endDate: withTime(prev.endDate, t), dropoffDate: withTime(prev.dropoffDate || prev.endDate, t) }));
   const timesInvalid = !!localReservation.startDate && !!localReservation.endDate && new Date(localReservation.endDate).getTime() <= new Date(localReservation.startDate).getTime();
   const pickCar = (car: import('../types').Vehicle) => isPickupEditable && setLocalReservation(prev => ({
+    ...prev, carModel: car.modelName, licensePlate: car.licensePlate, ...(car.transmission ? { transmission: car.transmission } : {}), ...(car.sippCode ? { sippCode: car.sippCode } : {}),
+  }));
+  /** After check-out: correct the car on the agreement (wrong model or plate typed). Prices and deposit stay as they are. */
+  const correctCar = (car: import('../types').Vehicle) => canAmend && setLocalReservation(prev => ({
     ...prev, carModel: car.modelName, licensePlate: car.licensePlate, ...(car.transmission ? { transmission: car.transmission } : {}), ...(car.sippCode ? { sippCode: car.sippCode } : {}),
   }));
   /** New extras keep the rental price as it is: the booking total moves by the extras' difference only. */
@@ -855,16 +861,20 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     if (!email) { alert('The customer email address is required: the agreement is emailed to the customer.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email)) { alert('The customer email address is not valid. Please correct it.'); return; }
     if (timesInvalid) { alert('The return time must be after the pickup time.'); return; }
+    if (!(localReservation.licensePlate || '').trim()) { alert('The license plate cannot be empty.'); return; }
     const picked = Object.fromEntries(AMEND_SAVED.map(k => [k, localReservation[k]])) as Partial<Reservation>;
     const next: Reservation = { ...savedBase, ...picked, customerEmail: email };
     const labels = Array.from(new Set(amendedKeys.map(k => AMEND_LABEL[k]).filter(Boolean)));
     const oldEmail = (savedBase.customerEmail || '').trim();
     const emailChanged = email.toLowerCase() !== oldEmail.toLowerCase();
+    const carChanged = (next.carModel || '') !== (savedBase.carModel || '') || (next.licensePlate || '') !== (savedBase.licensePlate || '');
     saveRes(next);
     setSavedBase(next);
     setLocalReservation(prev => ({ ...prev, ...picked, customerEmail: email }));
     recordActivity('AGREEMENT_UPDATED', 'agreement', `Updated the rental agreement for ${next.personName}: ${labels.join(', ') || 'details'}`, next.bookingId,
-      emailChanged ? `Email ${oldEmail || '(none)'} → ${email}` : undefined);
+      [emailChanged ? `Email ${oldEmail || '(none)'} → ${email}` : '',
+        carChanged ? `Car ${savedBase.carModel || '—'} ${savedBase.licensePlate || ''} → ${next.carModel || '—'} ${next.licensePlate || ''}`.replace(/\s+/g, ' ') : '']
+        .filter(Boolean).join(' · ') || undefined);
     const docs = next.dropOffCompleted ? 'the closed agreement, the termination statement' : 'the updated agreement';
     const ask = emailChanged
       ? `Saved. The email address is now ${email}.\n\nSend ${docs} and the receipt to ${email} now?`
@@ -1430,7 +1440,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                 </div>
               )}
             </>
-          ) : (
+          ) : canAmend ? renderCarCorrection() : (
             <>
               <InfoPair label="Model" value={localReservation.carModel} />
               <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
@@ -1440,6 +1450,42 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       </div>
     </StepSection>
   );
+
+  /** The car on a checked-out or closed agreement, editable to correct a wrong model or plate. */
+  const renderCarCorrection = () => {
+    const changed = (localReservation.carModel || '') !== (savedBase.carModel || '') || (localReservation.licensePlate || '') !== (savedBase.licensePlate || '');
+    const cars = (fleet || []).filter(c => c.licensePlate || c.modelName);
+    const current = cars.find(c => c.licensePlate && c.licensePlate === localReservation.licensePlate);
+    return (
+      <div className="space-y-2.5">
+        {cars.length > 0 && (
+          <div>
+            <label className={labelCls}><Bi en="Car from the fleet" /></label>
+            <select className={inputCls} value={current?.id || ''} aria-label="Car from the fleet"
+              onChange={e => { const car = cars.find(c => c.id === e.target.value); if (car) correctCar(car); }}>
+              <option value="">{current ? '' : 'Choose a car…'}</option>
+              {cars.map(c => <option key={c.id} value={c.id}>{c.modelName || 'Car'}{c.licensePlate ? ` · ${c.licensePlate}` : ''}{c.sippCode ? ` (${c.sippCode})` : ''}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label className={labelCls}><Bi en="Model" /></label>
+            <input type="text" value={localReservation.carModel || ''} onChange={e => handleFieldChange('carModel', e.target.value)} className={inputCls} placeholder="Vehicle model" />
+          </div>
+          <div>
+            <label className={labelCls}><Bi en="License plate" /></label>
+            <input type="text" value={localReservation.licensePlate || ''} onChange={e => handleFieldChange('licensePlate', e.target.value.toUpperCase())} className={`${inputCls} font-mono uppercase`} placeholder="Plate number" />
+          </div>
+        </div>
+        <p className={`text-[11px] ${changed ? 'text-sky-700' : 'text-slate-500'}`}>
+          {changed
+            ? <>Changed from {savedBase.carModel || '—'}{savedBase.licensePlate ? ` · ${savedBase.licensePlate}` : ''}. Click <b>Save changes</b> to update the agreement; prices and the deposit stay as they are.</>
+            : <>To correct a wrong car type or plate on this agreement. {!localReservation.dropOffCompleted ? 'For a real car swap during the rental use Check-in / exchange.' : ''}</>}
+        </p>
+      </div>
+    );
+  };
 
   const renderChargesBreakdown = () => (
     <>
@@ -1658,8 +1704,12 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <InfoPair label="Phone" value={reservation.contactNumber} />
           {renderTextField('Email *', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable || canAmend, true)}
           <SectionLabel className="pt-2"><Bi en="Vehicle" /></SectionLabel>
-          <InfoPair label="Model" value={localReservation.carModel} />
-          <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
+          {canAmend ? renderCarCorrection() : (
+            <>
+              <InfoPair label="Model" value={localReservation.carModel} />
+              <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
+            </>
+          )}
         </div>
         <div className="space-y-2.5 min-w-0">
           <SectionLabel><Bi en="Timing" /></SectionLabel>
