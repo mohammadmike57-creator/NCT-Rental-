@@ -70,14 +70,22 @@ const ApiKeysView: React.FC<{
     navigator.clipboard?.writeText(text).then(() => { setCopied(k); setTimeout(() => setCopied(''), 1500); }).catch(() => undefined);
   };
 
-  const create = async (a: Aggregator, kind: KeyKind) => {
+  const [replacing, setReplacing] = useState<Aggregator | null>(null);
+
+  const create = async (a: Aggregator, kind: KeyKind, graceHours?: number) => {
     const f = FIELDS[kind];
-    if (a[f.hash] && !window.confirm(`Replace the ${f.label} of ${a.name}?\n\nThe key they use now stops working at once. Agree a time with the broker first.`)) return;
+    // Replacing a live key: choose how long the old one keeps working, so the broker can switch without downtime.
+    if (kind === 'live' && a.feedKeyHash && graceHours === undefined) { setReplacing(a); return; }
+    if (kind === 'test' && a[f.hash] && !window.confirm(`Replace the test key of ${a.name}?\n\nThe test key they use now stops working at once.`)) return;
     setError('');
+    setReplacing(null);
     try {
       const key = kind === 'test' ? generateFeedKey().replace(/^nct_/, f.prefix) : generateFeedKey();
       const hash = await sha256Hex(key);
-      const next = { ...a, [f.hash]: hash, [f.hint]: key.slice(-4), [f.at]: new Date().toISOString() };
+      const grace = kind === 'live' && graceHours && a.feedKeyHash
+        ? { previousKeyHash: a.feedKeyHash, previousKeyExpiresAt: new Date(Date.now() + graceHours * 3600000).toISOString() }
+        : kind === 'live' ? { previousKeyHash: undefined, previousKeyExpiresAt: undefined } : {};
+      const next = { ...a, ...grace, [f.hash]: hash, [f.hint]: key.slice(-4), [f.at]: new Date().toISOString() };
       onUpdate(next);
       setIssued({ a: next, key, kind });
       showConfirmation(`New ${f.label} created for ${a.name}. Copy it now: it is shown only once.`);
@@ -91,7 +99,7 @@ const ApiKeysView: React.FC<{
     if (!window.confirm(kind === 'test'
       ? `Revoke the test key of ${a.name}?\n\nTheir test system can no longer connect. The live key keeps working.`
       : `Revoke the API key of ${a.name}?\n\nAll their requests (search, book, change, cancel) are refused until you create a new key.`)) return;
-    onUpdate({ ...a, [f.hash]: undefined, [f.hint]: undefined, [f.at]: undefined });
+    onUpdate({ ...a, [f.hash]: undefined, [f.hint]: undefined, [f.at]: undefined, ...(kind === 'live' ? { previousKeyHash: undefined, previousKeyExpiresAt: undefined } : {}) });
     showConfirmation(`${kind === 'test' ? 'Test key' : 'API key'} of ${a.name} revoked.`);
   };
 
@@ -103,6 +111,9 @@ const ApiKeysView: React.FC<{
           ? <p className="font-mono text-xs text-slate-800">{f.prefix}••••{a[f.hint]}</p>
           : <Badge tone={kind === 'live' ? 'danger' : 'muted'}>{kind === 'live' ? 'No key' : 'None'}</Badge>}
         <p className="text-[11px] text-slate-400">{a[f.hash] ? `Created ${day(a[f.at])}` : kind === 'test' ? 'Optional' : 'Required to connect'}</p>
+        {kind === 'live' && a.previousKeyExpiresAt && new Date(a.previousKeyExpiresAt).getTime() > Date.now() && (
+          <p className="text-[11px] text-amber-700">Old key works until {new Date(a.previousKeyExpiresAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+        )}
         <div className="flex gap-1">
           <Button size="sm" variant={a[f.hash] || kind === 'test' ? 'secondary' : 'primary'} onClick={() => void create(a, kind)}>{a[f.hash] ? 'Replace' : 'Create'}</Button>
           {a[f.hash] && <Button size="sm" variant="ghost" onClick={() => revoke(a, kind)}>Revoke</Button>}
@@ -151,6 +162,23 @@ const ApiKeysView: React.FC<{
           <p><b className="text-slate-700">Test key (optional):</b> for the broker's test system. It is always answered in the sandbox, also after go-live, so the broker can keep testing without creating real bookings.</p>
         </div>
       </Panel>
+
+      {replacing && (
+        <Dialog open onClose={() => setReplacing(null)} size="md" title={`Replace the API key of ${replacing.name}`}
+          subtitle="A new key is created now. How long should the key they use today keep working?"
+          footer={<Button variant="ghost" onClick={() => setReplacing(null)}>Cancel</Button>}>
+          <div className="grid gap-2">
+            {([[72, 'Keep the old key 3 days', 'Recommended: time for the broker to switch'], [24, 'Keep the old key 24 hours', ''], [168, 'Keep the old key 7 days', ''],
+              [0, 'Stop the old key now', 'Use this if the key was exposed or stolen']] as [number, string, string][]).map(([h, label, hint]) => (
+              <button key={h} type="button" onClick={() => void create(replacing, 'live', h)}
+                className={`text-left rounded-lg border px-3 py-2.5 hover:bg-slate-50 ${h === 0 ? 'border-rose-200' : 'border-slate-200'}`}>
+                <p className={`text-[13px] font-semibold ${h === 0 ? 'text-rose-700' : 'text-slate-900'}`}>{label}</p>
+                {hint && <p className="text-xs text-slate-500">{hint}</p>}
+              </button>
+            ))}
+          </div>
+        </Dialog>
+      )}
 
       {issued && (
         <Dialog open onClose={() => setIssued(null)} size="lg" title={`${issued.kind === 'test' ? 'Test key' : 'API key'} for ${issued.a.name}`}

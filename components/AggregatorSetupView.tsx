@@ -21,6 +21,7 @@ import XmlReservationsView from './channel/XmlReservationsView';
 import ApiKeysView from './channel/ApiKeysView';
 import ChannelReadiness from './channel/ChannelReadiness';
 import ChannelDashboardView from './channel/ChannelDashboardView';
+import ChannelSecurityView from './channel/ChannelSecurityView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks } from '../firebase/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -38,8 +39,8 @@ interface AggregatorSetupViewProps {
   companyDetails?: CompanyDetails;
 }
 
-export type ChannelTab = 'Overview' | 'Connection' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
-const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Booking API', 'Bookings', 'Traffic', 'Test console', 'Go-live', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
+export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
+const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Booking API', 'Security', 'Bookings', 'Traffic', 'Test console', 'Go-live', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
 
 /** What a new channel takes over from an existing one: the supplier's own setup, nothing that belongs to the other broker. */
 const copiedSetup = (src: Aggregator): Partial<Aggregator> => {
@@ -460,6 +461,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 {activeTab === 'Booking API' && (
                   <BookingApiView aggregator={selectedAggregator} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
+                {activeTab === 'Security' && <ChannelSecurityView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />}
                 {activeTab === 'Bookings' && <ChannelBookingsView aggregator={selectedAggregator} />}
                 {activeTab === 'Traffic' && <TrafficView aggregator={selectedAggregator} />}
                 {activeTab === 'Test console' && <ConsoleView aggregator={selectedAggregator} fleet={fleet} />}

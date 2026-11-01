@@ -661,6 +661,9 @@ export interface Aggregator {
     testKeyHash?: string;
     testKeyHint?: string;
     testKeyCreatedAt?: string;
+    /** The replaced live key, still accepted until previousKeyExpiresAt (switch-over period). */
+    previousKeyHash?: string;
+    previousKeyExpiresAt?: string;
     /** Rules for the booking API (search, book, modify, cancel); see ChannelRules on the server. */
     bookingRules?: ChannelBookingRules;
     /** Go-live checklist, last certification run and approval. */
@@ -772,6 +775,8 @@ export interface ChannelBookingRules {
     rateLimitPerMinute?: number;
     ipAllowlist?: string[];
     webhookUrl?: string;
+    /** Every request must carry X-NCT-Timestamp and an HMAC X-NCT-Signature made with the signing secret. */
+    requireSignature?: boolean;
     webhookEvents?: string[];
     pricing?: ChannelPricingRules;
     groupDetails?: Record<string, ChannelGroupDetail>;

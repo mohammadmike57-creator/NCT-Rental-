@@ -315,6 +315,19 @@ export const fetchChannelTraffic = async (channelId: string, f: { hours?: number
   (await axios.get(channelPath(channelId, '/traffic'), { params: f, headers: authHeaders() })).data;
 export const fetchChannelTrafficMessage = async (channelId: string, id: number): Promise<ChannelTrafficMessage> =>
   (await axios.get(channelPath(channelId, `/traffic/${id}`), { headers: authHeaders() })).data;
+export interface ChannelSecurityInfo {
+  authFailures24h: number; authFailures7d: number;
+  addresses: { ip: string; requests: number; authFailures: number; lastSeen: string }[];
+  locked: { ip: string; until: string }[];
+  signingSecretCreatedAt?: string | null;
+  lockoutPolicy: { maxFailures: number; windowMinutes: number; lockMinutes: number };
+}
+export const fetchChannelSecurity = async (channelId: string): Promise<ChannelSecurityInfo> =>
+  (await axios.get(channelPath(channelId, '/security'), { headers: authHeaders() })).data;
+export const unlockChannelAddress = async (channelId: string, ip: string): Promise<{ unlocked: boolean }> => {
+  try { return (await axios.post(channelPath(channelId, '/security/unlock'), { ip }, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not unlock the address.'); }
+};
 export const fetchChannelTrafficStats = async (channelId: string, hours: number): Promise<ChannelTrafficStats> =>
   (await axios.get(channelPath(channelId, '/traffic/stats'), { params: { hours }, headers: authHeaders() })).data;
 export const sendChannelConsole = async (channelId: string, req: { format: string; operation?: string; method?: string; body?: string }): Promise<ChannelConsoleResult> => {
