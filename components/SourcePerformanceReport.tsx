@@ -90,7 +90,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
     return {
       total,
       items: [
-        { key: 'confirmed', label: 'Counted', value: grandTotal.confirmed, pct: pct(grandTotal.confirmed), bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
+        { key: 'confirmed', label: 'Bookings', value: grandTotal.confirmed, pct: pct(grandTotal.confirmed), bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
         { key: 'cancelled', label: 'Cancelled', value: grandTotal.cancelled, pct: pct(grandTotal.cancelled), bar: 'bg-rose-500', dot: 'bg-rose-500' },
         { key: 'noShow', label: 'No show', value: grandTotal.noShow, pct: pct(grandTotal.noShow), bar: 'bg-amber-500', dot: 'bg-amber-500' },
       ],
@@ -121,7 +121,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
         return;
     }
 
-    const tableHead = [['Source', 'Counted', 'Cancelled', 'No Show', 'Total Amount']];
+    const tableHead = [['Source', 'Bookings', 'Cancelled', 'No Show', 'Total Amount']];
     const tableBody = reportData.map(row => [
       row.source,
       row.confirmed,
@@ -172,7 +172,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
       <PageHeader
         section="Reports"
         title="Source performance"
-        subtitle="Bookings, cancellations and confirmed revenue by rental source."
+        subtitle="Bookings, cancellations and revenue by rental source."
         actions={
           <Button variant="primary" icon={<PdfIcon className="w-4 h-4" />} onClick={handleExportPDF} disabled={reportData.length === 0}>Export PDF</Button>
         }
@@ -180,9 +180,9 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
 
       <StatGrid items={[
         { label: 'Revenue', value: formatCurrency(grandTotal.totalAmount), sub: `${reportData.length} source${reportData.length === 1 ? '' : 's'}` },
-        { label: 'Counted', value: grandTotal.confirmed, sub: `${conversion.toFixed(1)}% of ${totalBookings} bookings`, tone: 'success' },
-        { label: 'Cancelled', value: grandTotal.cancelled, sub: `${pctOf(grandTotal.cancelled)}% of bookings`, tone: 'danger' },
-        { label: 'No show', value: grandTotal.noShow, sub: `${pctOf(grandTotal.noShow)}% of bookings`, tone: 'warning' },
+        { label: 'Bookings', value: grandTotal.confirmed, sub: `${conversion.toFixed(1)}% of ${totalBookings} reservations (cancelled / no-show not counted)`, tone: 'success' },
+        { label: 'Cancelled', value: grandTotal.cancelled, sub: `${pctOf(grandTotal.cancelled)}% of reservations`, tone: 'danger' },
+        { label: 'No show', value: grandTotal.noShow, sub: `${pctOf(grandTotal.noShow)}% of reservations`, tone: 'warning' },
       ]} />
 
       <Panel
@@ -210,7 +210,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
               <thead className={table.head}>
                 <tr>
                   <th scope="col" className={table.th}>Rental source</th>
-                  <th scope="col" className={`${table.th} text-right`}>Counted</th>
+                  <th scope="col" className={`${table.th} text-right`}>Bookings</th>
                   <th scope="col" className={`${table.th} text-right`}>Cancelled</th>
                   <th scope="col" className={`${table.th} text-right`}>No show</th>
                   <th scope="col" className={`${table.th} text-right hidden lg:table-cell`}>Confirm rate</th>
@@ -289,7 +289,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
 
       {reportData.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Panel className="lg:col-span-2" title="Revenue by source" subtitle="Confirmed bookings" padded>
+          <Panel className="lg:col-span-2" title="Revenue by source" subtitle="All bookings except cancelled and no-show" padded>
             <ul className="space-y-3">
               {reportData.map(row => (
                 <li key={row.source} className="min-w-0">

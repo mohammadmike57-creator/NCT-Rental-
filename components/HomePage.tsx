@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { countsInSummary } from '../services/revenue';
 import CarPicture from './CarPicture';
 import { ChevronRightIcon, PlusIcon, DocumentTextIcon, ClockIcon, ShieldExclamationIcon, CurrencyDollarIcon, CalendarIcon, CarIcon } from './icons';
 import { VehicleArt, vehicleKind, vehicleKindLabel, VehicleKind } from './VehicleGraphics';
@@ -65,7 +66,7 @@ const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, o
   const openTickets = tickets.filter(t => t.status === 'NOT_COLLECTED');
   const openDamages = damages.filter(d => d.status === 'NOT_COLLECTED');
 
-  const monthBookings = all.filter(({ res }) => (res.startDate || '').slice(0, 7) === thisMonth && res.status !== 'CANCELLED');
+  const monthBookings = all.filter(({ res }) => (res.startDate || '').slice(0, 7) === thisMonth && countsInSummary(res));
   const closedThisMonth = all.filter(({ res }) => res.dropOffCompleted && (res.endDate || '').slice(0, 7) === thisMonth).length;
 
   const bySource = useMemo(() => {
