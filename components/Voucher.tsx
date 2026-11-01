@@ -1704,12 +1704,8 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
           <InfoPair label="Phone" value={reservation.contactNumber} />
           {renderTextField('Email *', localReservation.customerEmail || '', val => handleFieldChange('customerEmail', val), isPickupEditable || canAmend, true)}
           <SectionLabel className="pt-2"><Bi en="Vehicle" /></SectionLabel>
-          {canAmend ? renderCarCorrection() : (
-            <>
-              <InfoPair label="Model" value={localReservation.carModel} />
-              <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
-            </>
-          )}
+          <InfoPair label="Model" value={localReservation.carModel} />
+          <InfoPair label="License plate" value={<span className="font-mono">{localReservation.licensePlate || '—'}</span>} />
         </div>
         <div className="space-y-2.5 min-w-0">
           <SectionLabel><Bi en="Timing" /></SectionLabel>
