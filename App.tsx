@@ -10,7 +10,8 @@ import { withPriceChange } from './services/addOns';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
-import { CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, ReceiptIcon } from './components/icons';
+import { findIssues } from './services/reservationIssues';
+import { AlertIcon, CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, ReceiptIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Notifications from './components/Notifications';
@@ -46,6 +47,7 @@ const UserManagement = React.lazy(() => import('./components/UserManagement'));
 const AccountingDashboard = React.lazy(() => import('./components/AccountingDashboard'));
 const InternalMessages = React.lazy(() => import('./components/InternalMessages'));
 const TodaysReservations = React.lazy(() => import('./components/TodaysReservations'));
+const NeedsAttentionView = React.lazy(() => import('./components/NeedsAttentionView'));
 const HomePage = React.lazy(() => import('./components/HomePage'));
 const ManageLocationsView = React.lazy(() => import('./components/ManageLocationsView'));
 const DeferredPayments = React.lazy(() => import('./components/DeferredPayments'));
@@ -1519,6 +1521,8 @@ ${currentUser?.fullName}
   };
   
   const pendingApprovalsCount = useMemo(() => allReservationsFlat.filter(r => r.paymentConfirmationPending).length, [allReservationsFlat]);
+  // Bookings not counted right in the summary, needing an action, or missing details (Needs Attention).
+  const attentionCount = useMemo(() => findIssues(reservations, sources).length, [reservations, sources]);
   const unlistedWaitingCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED).length, [allReservationsFlat]);
   const myEmail = (currentUser?.email || '').toLowerCase();
   const unlistedNewCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED
@@ -1730,6 +1734,14 @@ ${currentUser?.fullName}
         onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month }}))}
       />
     ), permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
+    'Needs Attention': { component: (
+      <NeedsAttentionView
+        allData={reservations}
+        sources={sources}
+        onOpenBooking={(r, year, month) => { setSelectedYear(year); setSelectedMonth(month); handleNavigation('Reservations', { bookingIdSearch: r.bookingId || '' }); }}
+        onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
+      />
+    ), permission: UserPermission.VIEW_RESERVATIONS },
     'Internal Messages': { component: (
       <InternalMessages 
           currentUser={currentUser!}
@@ -2064,6 +2076,7 @@ ${currentUser?.fullName}
         { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount, badgeText: unlistedNewCount ? `${unlistedNewCount} new` : undefined },
         { name: 'Reservation Add-ons', icon: ReceiptIcon, permission: UserPermission.VIEW_RESERVATION_ADDONS },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
+        { name: 'Needs Attention', icon: AlertIcon, permission: UserPermission.VIEW_RESERVATIONS, badge: attentionCount },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
     ],
