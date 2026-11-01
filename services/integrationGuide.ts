@@ -306,6 +306,7 @@ ${section(9, 'Idempotency and retries', `
     <li>Retrying with the same key and the same details returns the original booking — never a second one. The same key with different details returns <code>DUPLICATE_REFERENCE</code>.</li>
     <li>A broker reference can be booked only once; to change a booking, modify it.</li>
     <li>Cancelling a booking that is already cancelled succeeds and returns the cancelled booking.</li>
+    <li>Test (sandbox) and live bookings never share keys or references: a key or reference used while testing can be used again for a real booking after go-live.</li>
     <li>Safe to retry: <code>SYSTEM_ERROR</code>, <code>RATE_LIMIT_EXCEEDED</code> and network timeouts, with the same key.</li>
   </ul>`)}
 
@@ -468,7 +469,7 @@ ${section(18, 'Technical contract: messages, versions and time', `
     ['Reservation list (reconciliation)', '—', '<code>ReservationList</code>', '<code>GET /reservations</code>'],
   ])}
   <h3>Time</h3>
-  <p>Every date-time you send and receive is the <b>local time of the station</b> (time zone <code>${esc(tz)}</code>), written without an offset (<code>${y}-05-01T10:00:00</code>). Booking cut-off, cancellation deadlines and no-show marking are counted in that time zone. Response <code>TimeStamp</code> attributes are UTC.</p>
+  <p>Every date-time you send and receive is the <b>local time of the station</b> (time zone <code>${esc(tz)}</code>), written without an offset (<code>${y}-05-01T10:00:00</code>). A time sent with an offset or <code>Z</code> is converted to the station's time first (<code>${y}-05-01T07:00:00Z</code> is 10:00 in Amman). Booking cut-off, cancellation deadlines and no-show marking are counted in that time zone. Response <code>TimeStamp</code> attributes are UTC.</p>
   <h3>Price validity and inventory</h3>
   <ul>
     <li>An offer fixes the <b>price</b> for ${r.offerValidityMinutes} minutes. It does <b>not</b> reserve a car: availability is guaranteed only when we confirm the booking.</li>
