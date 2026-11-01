@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
-import { bookingRevenue, indexRegisters } from '../services/revenue';
+import { bookingRevenue, indexRegisters, countsInSummary } from '../services/revenue';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
@@ -256,7 +256,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   const registers = useMemo(() => indexRegisters({ trafficTickets, vehicleDamages }), [trafficTickets, vehicleDamages]);
   const months = useMemo(() => MONTHS.map((month, idx) => {
     const list = (yearData && yearData[month]) || [];
-    const confirmed = list.filter(r => r.status === ReservationStatus.CONFIRMED && typeof r.amount === 'number' && r.amount >= 0);
+    // Everything except cancelled and no-show bookings (pending ones included).
+    const confirmed = list.filter(countsInSummary);
     const cancelled = list.filter(r => r.status === ReservationStatus.CANCELLED || (r.status as string) === 'NO_SHOW').length;
     const revenueUSD = confirmed.reduce((s, r) => s + bookingRevenue(r, registers).total, 0);
     const commissionUSD = revenueUSD * COMMISSION_RATE;
@@ -358,7 +359,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     pdfHeader(doc, `Yearly summary ${year} (${currency})`);
     (doc as any).autoTable({
       startY: 39,
-      head: [['Month', 'Bookings', 'Confirmed', 'Cancelled', `Revenue`, 'Avg booking', `Commission ${(COMMISSION_RATE * 100).toFixed(1)}%`]],
+      head: [['Month', 'Bookings', 'Counted', 'Cancelled / no-show', `Revenue`, 'Avg booking', `Commission ${(COMMISSION_RATE * 100).toFixed(1)}%`]],
       body: months.map(m => [m.month, m.total, m.confirmed, m.cancelled, money(m.revenueUSD * rate), m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—', money(m.commissionUSD * rate)]),
       foot: [['Total', totals.bookings, totals.confirmed, totals.cancelled, money(totals.revenueUSD * rate), money(avgBooking * rate), money(totals.commissionUSD * rate)]],
       theme: 'striped',
@@ -375,7 +376,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     pdfHeader(doc, `Franchise fee statement ${year}`);
     doc.setFontSize(9);
     doc.setTextColor(51, 65, 85);
-    doc.text(`Fee = ${(COMMISSION_RATE * 100).toFixed(1)}% of confirmed revenue + ${usd(FIXED_ADDON)} per month, due on the ${DEADLINE_DAY}th of the following month. Amounts in USD.`, 14, 40);
+    doc.text(`Fee = ${(COMMISSION_RATE * 100).toFixed(1)}% of revenue (all bookings except cancelled and no-show) + ${usd(FIXED_ADDON)} per month, due on the ${DEADLINE_DAY}th of the following month. Amounts in USD.`, 14, 40);
     (doc as any).autoTable({
       startY: 45,
       head: [['Month', 'Revenue', 'Commission', 'Fixed fee', 'Fee due', 'Deadline', 'Status', 'Paid', 'Date', 'Method', 'Reference']],
@@ -399,7 +400,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   // ---- UI --------------------------------------------------------------
   const stickyCell = 'sticky left-0 z-10';
   const feeNote = (
-    <>Monthly fee = {(COMMISSION_RATE * 100).toFixed(1)}% of confirmed revenue + {usd(FIXED_ADDON)} fixed, due by the {DEADLINE_DAY}th of the following month.{(WAIVED_MONTHS[year] || []).length > 0 && ` Fees for ${WAIVED_MONTHS[year][0]}–${WAIVED_MONTHS[year][WAIVED_MONTHS[year].length - 1]} ${year} are waived.`}</>
+    <>Monthly fee = {(COMMISSION_RATE * 100).toFixed(1)}% of revenue (all bookings except cancelled and no-show) + {usd(FIXED_ADDON)} fixed, due by the {DEADLINE_DAY}th of the following month.{(WAIVED_MONTHS[year] || []).length > 0 && ` Fees for ${WAIVED_MONTHS[year][0]}–${WAIVED_MONTHS[year][WAIVED_MONTHS[year].length - 1]} ${year} are waived.`}</>
   );
   const noPermissionNote = <>You can view fees. Recording payments requires the “Franchise payments” permission.</>;
 
@@ -408,7 +409,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       <PageHeader
         section="Reports"
         title="Yearly Summary"
-        subtitle={`${year} · confirmed revenue, ${(COMMISSION_RATE * 100).toFixed(1)}% commission and franchise fees by month.`}
+        subtitle={`${year} · revenue of all bookings except cancelled and no-show, ${(COMMISSION_RATE * 100).toFixed(1)}% commission and franchise fees by month.`}
         actions={
           <>
             {activeTab === 'overview' && (
@@ -434,16 +435,16 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       {activeTab === 'overview' ? (
         <>
           <StatGrid items={[
-            { label: 'Confirmed revenue', value: money(totals.revenueUSD * rate), sub: `${totals.confirmed} confirmed bookings` },
+            { label: 'Revenue', value: money(totals.revenueUSD * rate), sub: `${totals.confirmed} bookings, all except cancelled / no-show` },
             { label: 'Commission', value: money(totals.commissionUSD * rate), sub: `${(COMMISSION_RATE * 100).toFixed(1)}% of revenue` },
-            { label: 'Average booking', value: money(avgBooking * rate), sub: 'per confirmed booking' },
+            { label: 'Average booking', value: money(avgBooking * rate), sub: 'per counted booking' },
             { label: 'Cancellation rate', value: `${cancelRate.toFixed(1)}%`, sub: `${totals.cancelled} of ${totals.bookings} bookings`, tone: cancelRate > 15 ? 'warning' : 'default' },
             { label: 'Best month', value: best ? best.month : '—', sub: best ? money(best.revenueUSD * rate) : 'no bookings yet' },
           ]} />
 
           {/* Chart */}
           <Panel
-            title="Monthly confirmed revenue"
+            title="Monthly revenue"
             actions={
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />Revenue</span>
@@ -494,7 +495,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                     <div className="min-w-0"><p className="text-slate-400">Bookings</p><p className="font-medium tabular-nums text-slate-700">{m.total}</p></div>
-                    <div className="min-w-0"><p className="text-slate-400">Confirmed</p><p className="font-medium tabular-nums text-slate-700">{m.confirmed}</p></div>
+                    <div className="min-w-0"><p className="text-slate-400">Counted</p><p className="font-medium tabular-nums text-slate-700">{m.confirmed}</p></div>
                     <div className="min-w-0"><p className="text-slate-400">Cancelled</p><p className="font-medium tabular-nums text-slate-700">{m.cancelled}</p></div>
                     <div className="min-w-0"><p className="text-slate-400">Avg booking</p><p className="font-medium tabular-nums text-slate-700 truncate">{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</p></div>
                     <div className="min-w-0"><p className="text-slate-400">Commission</p><p className="font-medium tabular-nums text-slate-700 truncate">{money(m.commissionUSD * rate)}</p></div>
@@ -520,7 +521,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                   <tr>
                     <th className={`${table.th} ${stickyCell} bg-slate-50`}>Month</th>
                     <th className={`${table.th} text-right`}>Bookings</th>
-                    <th className={`${table.th} text-right`}>Confirmed</th>
+                    <th className={`${table.th} text-right`} title="All bookings except cancelled and no-show">Counted</th>
                     <th className={`${table.th} text-right`}>Cancelled</th>
                     <th className={`${table.th} text-right`}>Revenue</th>
                     <th className={`${table.th} text-right`}>Avg booking</th>

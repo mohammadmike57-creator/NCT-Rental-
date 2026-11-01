@@ -10,7 +10,7 @@ import { withPriceChange } from './services/addOns';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
 import Tabs from './components/Tabs';
-import { findIssues } from './services/reservationIssues';
+import { attentionCount as countAttention, findIssues } from './services/reservationIssues';
 import { AlertIcon, CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, ReceiptIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -1521,8 +1521,8 @@ ${currentUser?.fullName}
   };
   
   const pendingApprovalsCount = useMemo(() => allReservationsFlat.filter(r => r.paymentConfirmationPending).length, [allReservationsFlat]);
-  // Bookings not counted right in the summary, needing an action, or missing details (Needs Attention).
-  const attentionCount = useMemo(() => findIssues(reservations, sources).length, [reservations, sources]);
+  // Incomplete and pending bookings (Needs Attention); cancelled ones are listed there but not counted here.
+  const attentionCount = useMemo(() => countAttention(findIssues(reservations, sources)), [reservations, sources]);
   const unlistedWaitingCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED).length, [allReservationsFlat]);
   const myEmail = (currentUser?.email || '').toLowerCase();
   const unlistedNewCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED

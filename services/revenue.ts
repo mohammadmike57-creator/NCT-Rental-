@@ -1,4 +1,4 @@
-import { Reservation, TrafficTicket, VehicleDamage } from '../types';
+import { Reservation, ReservationStatus, TrafficTicket, VehicleDamage } from '../types';
 import { USD_TO_JOD_RATE } from '../constants';
 import { lateFeeOf } from './lateReturn';
 
@@ -13,6 +13,16 @@ export interface BookingRevenue {
 }
 
 export interface ChargeRegisters { trafficTickets?: TrafficTicket[]; vehicleDamages?: VehicleDamage[] }
+
+/** Every booking counts in the summaries except cancelled and no-show ones (pending included). */
+export const countsInSummary = (r: Pick<Reservation, 'status'> | null | undefined): boolean =>
+  !!r && r.status !== ReservationStatus.CANCELLED && r.status !== ReservationStatus.NO_SHOW;
+
+/** The booking amount as a number (an empty or text amount counts as 0, never as text). */
+export const amountOf = (r: Pick<Reservation, 'amount'> | null | undefined): number => {
+  const n = Number(r?.amount);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
 
 const toUSD = (amount: number, currency: 'JOD' | 'USD') => (currency === 'JOD' ? amount / USD_TO_JOD_RATE : amount) || 0;
 const round = (n: number) => Math.round(n * 100) / 100;
@@ -33,7 +43,7 @@ export function indexRegisters({ trafficTickets = [], vehicleDamages = [] }: Cha
  */
 export function bookingRevenue(r: Reservation, idx: ReturnType<typeof indexRegisters>): BookingRevenue {
   const late = lateFeeOf(r)?.status === 'APPLIED' && !lateFeeOf(r)!.isWaived ? lateFeeOf(r)!.amount : 0;
-  const rental = (r.amount || 0) + late;
+  const rental = amountOf(r) + late;
 
   const regDamages = idx.damages.get(r.bookingId) || [];
   const regTickets = idx.tickets.get(r.bookingId) || [];

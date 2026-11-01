@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Reservation, ReservationStatus } from '../types';
 import { MONTHS } from '../constants';
+import { amountOf } from '../services/revenue';
 import { PdfIcon, CalendarIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Button, EmptyState, inputCls, table } from './ui/Crm';
 
@@ -50,11 +51,8 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
 
       const stats = sourceStats.get(r.source) || { confirmed: 0, cancelled: 0, noShow: 0, totalAmount: 0 };
 
+      // Everything except cancelled and no-show bookings counts (pending ones included).
       switch (r.status) {
-        case ReservationStatus.CONFIRMED:
-          stats.confirmed += 1;
-          stats.totalAmount += (r.amount || 0);
-          break;
         case ReservationStatus.CANCELLED:
           stats.cancelled += 1;
           break;
@@ -62,6 +60,8 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
           stats.noShow += 1;
           break;
         default:
+          stats.confirmed += 1;
+          stats.totalAmount += amountOf(r);
           break;
       }
       sourceStats.set(r.source, stats);
@@ -90,7 +90,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
     return {
       total,
       items: [
-        { key: 'confirmed', label: 'Confirmed', value: grandTotal.confirmed, pct: pct(grandTotal.confirmed), bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
+        { key: 'confirmed', label: 'Counted', value: grandTotal.confirmed, pct: pct(grandTotal.confirmed), bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
         { key: 'cancelled', label: 'Cancelled', value: grandTotal.cancelled, pct: pct(grandTotal.cancelled), bar: 'bg-rose-500', dot: 'bg-rose-500' },
         { key: 'noShow', label: 'No show', value: grandTotal.noShow, pct: pct(grandTotal.noShow), bar: 'bg-amber-500', dot: 'bg-amber-500' },
       ],
@@ -121,7 +121,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
         return;
     }
 
-    const tableHead = [['Source', 'Confirmed', 'Cancelled', 'No Show', 'Total Amount']];
+    const tableHead = [['Source', 'Counted', 'Cancelled', 'No Show', 'Total Amount']];
     const tableBody = reportData.map(row => [
       row.source,
       row.confirmed,
@@ -179,8 +179,8 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
       />
 
       <StatGrid items={[
-        { label: 'Confirmed revenue', value: formatCurrency(grandTotal.totalAmount), sub: `${reportData.length} source${reportData.length === 1 ? '' : 's'}` },
-        { label: 'Confirmed', value: grandTotal.confirmed, sub: `${conversion.toFixed(1)}% of ${totalBookings} bookings`, tone: 'success' },
+        { label: 'Revenue', value: formatCurrency(grandTotal.totalAmount), sub: `${reportData.length} source${reportData.length === 1 ? '' : 's'}` },
+        { label: 'Counted', value: grandTotal.confirmed, sub: `${conversion.toFixed(1)}% of ${totalBookings} bookings`, tone: 'success' },
         { label: 'Cancelled', value: grandTotal.cancelled, sub: `${pctOf(grandTotal.cancelled)}% of bookings`, tone: 'danger' },
         { label: 'No show', value: grandTotal.noShow, sub: `${pctOf(grandTotal.noShow)}% of bookings`, tone: 'warning' },
       ]} />
@@ -210,7 +210,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
               <thead className={table.head}>
                 <tr>
                   <th scope="col" className={table.th}>Rental source</th>
-                  <th scope="col" className={`${table.th} text-right`}>Confirmed</th>
+                  <th scope="col" className={`${table.th} text-right`}>Counted</th>
                   <th scope="col" className={`${table.th} text-right`}>Cancelled</th>
                   <th scope="col" className={`${table.th} text-right`}>No show</th>
                   <th scope="col" className={`${table.th} text-right hidden lg:table-cell`}>Confirm rate</th>

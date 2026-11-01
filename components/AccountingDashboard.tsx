@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AppData, TrafficTicket, VehicleDamage, User, Expense, ExpenseCategory, ReservationStatus, TrafficTicketStatus, VehicleDamageStatus, UserStatus, Reservation, YearData } from '../types';
 import { MONTHS, USD_TO_JOD_RATE } from '../constants';
+import { countsInSummary } from '../services/revenue';
 import BarChart from './BarChart';
 import ManageExpensesModal from './ManageExpensesModal';
 import { PlusIcon, EditIcon, TrashIcon, AccountingIcon } from './icons';
@@ -100,7 +101,7 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
 
         // Calculate Revenue
         allReservations.forEach((res: Reservation) => {
-            if (res && res.status === ReservationStatus.CONFIRMED && res.startDate) {
+            if (countsInSummary(res) && res.startDate) {
                 const resDate = new Date(res.startDate);
                 if (resDate >= startDate && resDate <= endDate) {
                     const revenueJOD = num(res.amount) * USD_TO_JOD_RATE;
@@ -161,7 +162,7 @@ const AccountingDashboard: React.FC<AccountingDashboardProps> = ({ allData, traf
                 const monthIndex = MONTHS.indexOf(month);
                 if (monthIndex > -1 && Array.isArray(reservations)) {
                     const monthlyRevenue = reservations
-                        .filter(r => r && r.status === ReservationStatus.CONFIRMED && r.startDate && new Date(r.startDate).getFullYear() === year)
+                        .filter(r => countsInSummary(r) && r.startDate && new Date(r.startDate).getFullYear() === year)
                         .reduce((sum, r) => sum + (num(r.amount) * USD_TO_JOD_RATE), 0);
                     revenueData[monthIndex] += monthlyRevenue;
                 }

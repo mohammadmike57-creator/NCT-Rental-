@@ -2,15 +2,16 @@ import React, { useMemo, useState } from 'react';
 import { AppData, RentalSource, Reservation } from '../types';
 import { Page, PageHeader, StatGrid, Panel, Badge, Button, EmptyState, table, inputCls, selectCls } from './ui/Crm';
 import { BookingIssues, GROUP_LABEL, ISSUES, IssueCode, IssueGroup, findIssues } from '../services/reservationIssues';
+import { amountOf } from '../services/revenue';
 
 const fmt = (s?: string) => {
   const d = s ? new Date(s) : null;
   return d && Number.isFinite(d.getTime()) ? d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 };
 const money = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—');
-const TONE: Record<IssueGroup, 'danger' | 'warning' | 'info'> = { summary: 'danger', operation: 'warning', details: 'info' };
+const TONE: Record<IssueGroup, 'danger' | 'warning' | 'muted'> = { incomplete: 'danger', pending: 'warning', cancelled: 'muted' };
 
-/** Every booking that is not counted right in the summary, needs an action, or is missing details. */
+/** Incomplete, pending and cancelled / no-show bookings. */
 const NeedsAttentionView: React.FC<{
   allData: AppData;
   sources: RentalSource[];
@@ -19,7 +20,7 @@ const NeedsAttentionView: React.FC<{
   onOpenAgreement: (r: Reservation, year: number, month: string) => void;
 }> = ({ allData, sources, onOpenBooking, onOpenAgreement }) => {
   const all = useMemo(() => findIssues(allData, sources), [allData, sources]);
-  const [group, setGroup] = useState<IssueGroup | ''>('');
+  const [group, setGroup] = useState<IssueGroup>('incomplete');
   const [code, setCode] = useState<IssueCode | ''>('');
   const [year, setYear] = useState('');
   const [q, setQ] = useState('');
@@ -28,37 +29,35 @@ const NeedsAttentionView: React.FC<{
   const inYear = all.filter(x => !year || String(x.year) === year);
   const term = q.trim().toLowerCase();
   const shown = inYear.filter(x =>
-    (!group || x.issues.some(c => ISSUES[c].group === group))
+    x.issues.some(c => ISSUES[c].group === group)
     && (!code || x.issues.includes(code))
     && (!term || [x.r.bookingId, x.r.personName, x.r.source, x.r.carModel, x.r.licensePlate].some(v => String(v || '').toLowerCase().includes(term))));
 
   const countGroup = (g: IssueGroup) => inYear.filter(x => x.issues.some(c => ISSUES[c].group === g)).length;
-  const countCode = (c: IssueCode) => inYear.filter(x => x.issues.includes(c) && (!group || ISSUES[c].group === group)).length;
-  const missingFromSummary = inYear.filter(x => x.issues.some(c => c === 'PENDING' || c === 'NO_STATUS' || c === 'AWAITING_CONFIRMATION' || c === 'NO_AMOUNT' || c === 'NEGATIVE_AMOUNT'));
-  const missingValue = missingFromSummary.reduce((s, x) => s + (typeof x.r.amount === 'number' && x.r.amount > 0 ? x.r.amount : 0), 0);
+  const countCode = (c: IssueCode) => inYear.filter(x => x.issues.includes(c)).length;
+  const valueOf = (g: IssueGroup) => inYear.filter(x => x.issues.some(c => ISSUES[c].group === g)).reduce((t, x) => t + amountOf(x.r), 0);
 
-  const pickGroup = (g: IssueGroup) => { setGroup(prev => (prev === g ? '' : g)); setCode(''); };
-  const codes = (Object.keys(ISSUES) as IssueCode[]).filter(c => countCode(c) > 0);
+  const pickGroup = (g: IssueGroup) => { setGroup(g); setCode(''); };
+  const codes = (Object.keys(ISSUES) as IssueCode[]).filter(c => ISSUES[c].group === group && countCode(c) > 0);
 
   return (
     <Page>
       <PageHeader section="Core Operations" title="Needs Attention"
-        subtitle="Bookings that are not counted right in the Yearly Summary, need an action, or are missing details. Cancelled and no-show bookings are not listed." />
+        subtitle="Incomplete, pending and cancelled bookings. The summary counts every booking except cancelled and no-show ones." />
       <StatGrid items={[
-        { label: 'Bookings to check', value: inYear.length, sub: year ? `in ${year}` : 'all years', tone: inYear.length ? 'warning' : 'success', active: !group, onClick: () => { setGroup(''); setCode(''); } },
-        { label: GROUP_LABEL.summary, value: countGroup('summary'), sub: missingFromSummary.length ? `${missingFromSummary.length} not counted · ${money(missingValue)}` : 'all counted', tone: countGroup('summary') ? 'danger' : 'default', active: group === 'summary', onClick: () => pickGroup('summary') },
-        { label: GROUP_LABEL.operation, value: countGroup('operation'), sub: 'check-out, check-in, payment type', tone: countGroup('operation') ? 'warning' : 'default', active: group === 'operation', onClick: () => pickGroup('operation') },
-        { label: GROUP_LABEL.details, value: countGroup('details'), sub: 'name, dates, source, plate', active: group === 'details', onClick: () => pickGroup('details') },
+        { label: GROUP_LABEL.incomplete, value: countGroup('incomplete'), sub: 'details or price missing', tone: countGroup('incomplete') ? 'danger' : 'success', active: group === 'incomplete', onClick: () => pickGroup('incomplete') },
+        { label: GROUP_LABEL.pending, value: countGroup('pending'), sub: `${money(valueOf('pending'))} · counted in the summary`, tone: countGroup('pending') ? 'warning' : 'default', active: group === 'pending', onClick: () => pickGroup('pending') },
+        { label: GROUP_LABEL.cancelled, value: countGroup('cancelled'), sub: `${money(valueOf('cancelled'))} · not counted`, active: group === 'cancelled', onClick: () => pickGroup('cancelled') },
       ]} />
 
-      <Panel title="Bookings" subtitle={`${shown.length} shown`}>
+      <Panel title={GROUP_LABEL[group]} subtitle={`${shown.length} booking${shown.length === 1 ? '' : 's'}`}>
         <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-slate-100">
           <input className={`${inputCls} !w-72 max-w-full`} placeholder="Search booking, customer, source, car…" value={q} onChange={e => setQ(e.target.value)} aria-label="Search" />
           <select className={selectCls} value={year} onChange={e => setYear(e.target.value)} aria-label="Year">
             <option value="">All years</option>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          {(group || code || q || year) && <Button size="sm" variant="ghost" onClick={() => { setGroup(''); setCode(''); setQ(''); setYear(''); }}>Clear</Button>}
+          {(code || q || year) && <Button size="sm" variant="ghost" onClick={() => { setCode(''); setQ(''); setYear(''); }}>Clear</Button>}
         </div>
         {codes.length > 0 && (
           <div className="flex flex-wrap gap-1.5 px-4 py-2.5 border-b border-slate-100" role="group" aria-label="Problem">
@@ -71,12 +70,12 @@ const NeedsAttentionView: React.FC<{
           </div>
         )}
         {shown.length === 0 ? (
-          <EmptyState title={all.length === 0 ? 'Everything is in order' : 'No bookings match'}
-            hint={all.length === 0 ? 'Every booking is confirmed, priced, filed in its pick-up month and up to date.' : 'Change the search or filters.'} />
+          <EmptyState title={countGroup(group) === 0 ? `No ${GROUP_LABEL[group].toLowerCase()} bookings` : 'No bookings match'}
+            hint={countGroup(group) === 0 ? (group === 'incomplete' ? 'Every booking has its details and price.' : 'Nothing to show here.') : 'Change the search or filters.'} />
         ) : (
           <div className="overflow-x-auto">
             <table className={`${table.wrap} min-w-[960px]`}>
-              <thead className={table.head}><tr>{['Booking', 'Customer', 'Rental', 'Amount', 'Status', 'What to fix', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+              <thead className={table.head}><tr>{['Booking', 'Customer', 'Rental', 'Amount', 'Status', group === 'cancelled' ? 'Reason' : 'What to fix', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
               <tbody className={table.body}>
                 {shown.slice(0, 500).map((x: BookingIssues) => (
                   <tr key={`${x.year}-${x.month}-${x.r.id}`} className={`${table.row} align-top`}>
@@ -95,14 +94,15 @@ const NeedsAttentionView: React.FC<{
                     <td className={`${table.td} text-right tabular-nums whitespace-nowrap`}>{money(x.r.amount)}</td>
                     <td className={table.td}>
                       <Badge tone={x.r.dropOffCompleted ? 'muted' : x.r.voucherSubmitted ? 'success' : String(x.r.status) === 'CONFIRMED' ? 'info' : 'warning'}>
-                        {x.r.dropOffCompleted ? 'Closed' : x.r.voucherSubmitted ? 'On rent' : String(x.r.status || 'No status').toLowerCase().replace(/^./, c => c.toUpperCase())}
+                        {x.r.dropOffCompleted ? 'Closed' : x.r.voucherSubmitted ? 'On rent' : String(x.r.status || 'No status').toLowerCase().replace('_', '-').replace(/^./, c => c.toUpperCase())}
                       </Badge>
                     </td>
                     <td className={`${table.td} min-w-[300px]`}>
                       <ul className="space-y-1">
                         {x.issues.map(c => (
                           <li key={c} className="text-xs text-slate-600">
-                            <Badge tone={TONE[ISSUES[c].group]} className="mr-1.5">{ISSUES[c].label}</Badge>{ISSUES[c].fix}
+                            <Badge tone={TONE[ISSUES[c].group]} className="mr-1.5">{ISSUES[c].label}</Badge>
+                            {ISSUES[c].group === 'cancelled' && x.r.statusReason ? `${x.r.statusReason}${x.r.statusChangedBy ? ` (${x.r.statusChangedBy})` : ''}. ` : ''}{ISSUES[c].fix}
                           </li>
                         ))}
                       </ul>
