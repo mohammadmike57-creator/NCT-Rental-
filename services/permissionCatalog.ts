@@ -60,6 +60,7 @@ export const PERMISSION_AREAS: PermissionArea[] = [
       ]),
       sec('addons', 'Reservation Add-ons', 'Price changes and charges on bookings (extras, upgrades, extensions, damages, tickets, fees) against the original reservation', P.VIEW_RESERVATION_ADDONS),
       sec('today', "Today's Reservations", "Today's schedule", P.VIEW_TODAYS_RESERVATIONS),
+      sec('attention', 'Needs Attention', 'Incomplete, pending and cancelled / no-show bookings', P.VIEW_NEEDS_ATTENTION),
       sec('messages', 'Internal Messages', 'Send and read staff messages', P.VIEW_INTERNAL_MESSAGES),
       sec('fleet-availability', 'Fleet Availability', 'Which cars are free and the planning board', P.VIEW_FLEET_AVAILABILITY),
     ],
@@ -162,7 +163,7 @@ export interface RoleTemplate {
   permissions: P[];
 }
 
-const OPS: P[] = [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_AGREEMENTS, P.VIEW_UNLISTED_AGREEMENTS, P.VIEW_TODAYS_RESERVATIONS, P.VIEW_FLEET_AVAILABILITY, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE];
+const OPS: P[] = [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_AGREEMENTS, P.VIEW_UNLISTED_AGREEMENTS, P.VIEW_TODAYS_RESERVATIONS, P.VIEW_NEEDS_ATTENTION, P.VIEW_FLEET_AVAILABILITY, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE];
 
 export const ROLE_TEMPLATES: RoleTemplate[] = [
   {

@@ -1741,7 +1741,7 @@ ${currentUser?.fullName}
         onOpenBooking={(r, year, month) => { setSelectedYear(year); setSelectedMonth(month); handleNavigation('Reservations', { bookingIdSearch: r.bookingId || '' }); }}
         onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
       />
-    ), permission: UserPermission.VIEW_RESERVATIONS },
+    ), permission: UserPermission.VIEW_NEEDS_ATTENTION },
     'Internal Messages': { component: (
       <InternalMessages 
           currentUser={currentUser!}
@@ -2076,7 +2076,7 @@ ${currentUser?.fullName}
         { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount, badgeText: unlistedNewCount ? `${unlistedNewCount} new` : undefined },
         { name: 'Reservation Add-ons', icon: ReceiptIcon, permission: UserPermission.VIEW_RESERVATION_ADDONS },
         { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
-        { name: 'Needs Attention', icon: AlertIcon, permission: UserPermission.VIEW_RESERVATIONS, badge: attentionCount },
+        { name: 'Needs Attention', icon: AlertIcon, permission: UserPermission.VIEW_NEEDS_ATTENTION, badge: attentionCount },
         { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
         { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
     ],
