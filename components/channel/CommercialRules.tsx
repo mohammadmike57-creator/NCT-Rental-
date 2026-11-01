@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Aggregator, ChannelAllotment, ChannelBookingLocation, ChannelBookingRules, ChannelCoverage, ChannelGroupDetail,
-  ChannelLocationType, ChannelPricingRules, ChannelPromotion, ChannelWeekday, Fleet,
+  ChannelLocationType, ChannelPricingRules, ChannelPromotion, ChannelSpecialDay, ChannelWeekday, Fleet,
 } from '../../types';
 import { fetchChannelInventory, pushChannelInventory, ChannelInventory } from '../../firebase/api';
 import { Panel, Button, Badge, inputCls, selectCls, labelCls } from '../ui/Crm';
@@ -101,12 +101,60 @@ export const LocationDetails: React.FC<{ loc: ChannelBookingLocation; currency: 
           </div>
         )}
       </div>
+      <SpecialDaysEditor days={loc.specialDays || []} onChange={specialDays => onChange({ specialDays })} />
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         <Toggle on={!!loc.afterHoursPickup} onChange={b => onChange({ afterHoursPickup: b })} label="After-hours pick-up" />
         <Toggle on={!!loc.afterHoursReturn} onChange={b => onChange({ afterHoursReturn: b })} label="After-hours return (key box)" />
         <span className="inline-flex items-center gap-2 text-xs text-slate-600">Fee each time
           <Small value={loc.afterHoursFee} onChange={n => onChange({ afterHoursFee: n })} step={0.5} w="w-20" label="After-hours fee" /> {currency}</span>
       </div>
+    </div>
+  );
+};
+
+/** Jordan's fixed-date public holidays. Islamic holidays move every year, so staff add those dates themselves. */
+const fixedHolidays = (y: number): ChannelSpecialDay[] => [
+  { date: `${y}-01-01`, closed: true, note: "New Year's Day" },
+  { date: `${y}-05-01`, closed: true, note: 'Labour Day' },
+  { date: `${y}-05-25`, closed: true, note: 'Independence Day' },
+  { date: `${y}-12-25`, closed: true, note: 'Christmas Day' },
+];
+
+/** Holidays and special days for one station: closed all day, or open at other hours. */
+const SpecialDaysEditor: React.FC<{ days: ChannelSpecialDay[]; onChange: (d: ChannelSpecialDay[]) => void }> = ({ days, onChange }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const set = (i: number, p: Partial<ChannelSpecialDay>) => onChange(sorted.map((d, j) => (j === i ? { ...d, ...p } : d)));
+  const add = (list: ChannelSpecialDay[]) => onChange([...days, ...list.filter(n => !days.some(d => d.date === n.date))]);
+  const year = new Date().getFullYear();
+  const dupes = new Set(sorted.map(d => d.date).filter((d, i, a) => a.indexOf(d) !== i));
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+        <span className={`${labelCls} mb-0`}>Holidays & special days</span>
+        <span className="text-xs text-slate-400">A closed day takes no pick-ups or returns, not even after hours. Brokers receive these dates.</span>
+        <span className="ml-auto flex gap-2">
+          <button type="button" onClick={() => add([{ date: today, closed: true, note: '' }])} className="text-xs font-semibold text-indigo-600 hover:underline">+ Add day</button>
+          <button type="button" onClick={() => add(fixedHolidays(year + 1).concat(fixedHolidays(year).filter(d => d.date >= today)))} className="text-xs font-semibold text-indigo-600 hover:underline">Jordan fixed holidays</button>
+        </span>
+      </div>
+      {sorted.length === 0 ? <p className="text-xs text-slate-400">None. The weekly hours apply every day.</p> : (
+        <div className="grid gap-1.5">
+          {sorted.map((d, i) => (
+            <div key={i} className={`flex flex-wrap items-center gap-2 text-xs ${d.date < today ? 'opacity-50' : ''}`}>
+              <input type="date" value={d.date} onChange={e => set(i, { date: e.target.value })} className={`${fieldCls} h-8 w-[9.5rem] px-2 tabular-nums ${dupes.has(d.date) ? 'border-rose-400' : ''}`} aria-label="Date" />
+              <label className="inline-flex items-center gap-1 text-slate-600"><input type="checkbox" checked={!!d.closed} onChange={e => set(i, { closed: e.target.checked, ...(e.target.checked ? {} : { open: d.open || '10:00', close: d.close || '16:00' }) })} />Closed</label>
+              <input type="time" value={d.closed ? '' : d.open || ''} disabled={!!d.closed} onChange={e => set(i, { open: e.target.value })} className={`${fieldCls} h-8 w-[7.5rem] px-2 tabular-nums`} aria-label="Opens" />
+              <span className="text-slate-400">–</span>
+              <input type="time" value={d.closed ? '' : d.close || ''} disabled={!!d.closed} onChange={e => set(i, { close: e.target.value })} className={`${fieldCls} h-8 w-[7.5rem] px-2 tabular-nums`} aria-label="Closes" />
+              <input value={d.note || ''} onChange={e => set(i, { note: e.target.value })} placeholder="e.g. Eid al-Fitr" className={`${fieldCls} h-8 w-44 px-2`} aria-label="Holiday name" />
+              <button type="button" onClick={() => onChange(sorted.filter((_, j) => j !== i))} className="text-slate-400 hover:text-rose-600">Remove</button>
+              {dupes.has(d.date) && <span className="text-rose-600">Date entered twice</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-1 text-[11px] text-slate-400">Eid al-Fitr, Eid al-Adha, the Islamic New Year and the Prophet's Birthday move every year: add their dates when they are announced.</p>
     </div>
   );
 };

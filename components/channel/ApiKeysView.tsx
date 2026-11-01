@@ -13,15 +13,15 @@ const ago = (s?: string) => {
 };
 
 /** The text staff send the broker, separately from the integration guide, through a secure channel. */
-export const keyMessage = (a: Aggregator, key: string, apiBase: string) => {
+export const keyMessage = (a: Aggregator, key: string, apiBase: string, kind: KeyKind = 'live') => {
   const ep = partnerEndpoints(apiBase, a);
   return [
-    `API credentials for ${a.name}`,
+    `${kind === 'test' ? 'TEST' : 'API'} credentials for ${a.name}`,
     '',
     `Channel code:   ${partnerUrlCode(a)}`,
     `Supplier code:  ${(a.vendorCode || 'NCT').toUpperCase()}`,
-    `API key:        ${key}`,
-    `Environment:    ${a.status === 'active' ? 'Production' : 'Sandbox (test bookings only, until go-live)'}`,
+    `${kind === 'test' ? 'Test key:' : 'API key: '}       ${key}`,
+    `Environment:    ${kind === 'test' ? 'Sandbox only: this key never creates a real booking, also after go-live' : a.status === 'active' ? 'Production' : 'Sandbox (test bookings only, until go-live)'}`,
     '',
     'Send the key with every request in one of these ways:',
     '  HTTP header   X-Api-Key: <key>   or   Authorization: Bearer <key>',
@@ -37,6 +37,12 @@ export const keyMessage = (a: Aggregator, key: string, apiBase: string) => {
   ].join('\n');
 };
 
+export type KeyKind = 'live' | 'test';
+const FIELDS = {
+  live: { hash: 'feedKeyHash', hint: 'feedKeyHint', at: 'feedKeyCreatedAt', label: 'API key', prefix: 'nct_' },
+  test: { hash: 'testKeyHash', hint: 'testKeyHint', at: 'testKeyCreatedAt', label: 'test key', prefix: 'nct_test_' },
+} as const;
+
 /** Every broker's API key in one place: who has one, when it was made, whether the broker is using it. */
 const ApiKeysView: React.FC<{
   aggregators: Aggregator[];
@@ -45,7 +51,7 @@ const ApiKeysView: React.FC<{
   onOpenChannel: (id: string) => void;
 }> = ({ aggregators, onUpdate, showConfirmation, onOpenChannel }) => {
   const [lastCall, setLastCall] = useState<Record<string, string | undefined | null>>({});
-  const [issued, setIssued] = useState<{ a: Aggregator; key: string } | null>(null);
+  const [issued, setIssued] = useState<{ a: Aggregator; key: string; kind: KeyKind } | null>(null);
   const [copied, setCopied] = useState('');
   const [error, setError] = useState('');
 
@@ -64,25 +70,45 @@ const ApiKeysView: React.FC<{
     navigator.clipboard?.writeText(text).then(() => { setCopied(k); setTimeout(() => setCopied(''), 1500); }).catch(() => undefined);
   };
 
-  const create = async (a: Aggregator) => {
-    if (a.feedKeyHash && !window.confirm(`Replace the API key of ${a.name}?\n\nThe key they use now stops working at once. Agree a time with the broker first.`)) return;
+  const create = async (a: Aggregator, kind: KeyKind) => {
+    const f = FIELDS[kind];
+    if (a[f.hash] && !window.confirm(`Replace the ${f.label} of ${a.name}?\n\nThe key they use now stops working at once. Agree a time with the broker first.`)) return;
     setError('');
     try {
-      const key = generateFeedKey();
+      const key = kind === 'test' ? generateFeedKey().replace(/^nct_/, f.prefix) : generateFeedKey();
       const hash = await sha256Hex(key);
-      const next = { ...a, feedKeyHash: hash, feedKeyHint: key.slice(-4), feedKeyCreatedAt: new Date().toISOString() };
+      const next = { ...a, [f.hash]: hash, [f.hint]: key.slice(-4), [f.at]: new Date().toISOString() };
       onUpdate(next);
-      setIssued({ a: next, key });
-      showConfirmation(`New API key created for ${a.name}. Copy it now: it is shown only once.`);
+      setIssued({ a: next, key, kind });
+      showConfirmation(`New ${f.label} created for ${a.name}. Copy it now: it is shown only once.`);
     } catch {
       setError('This browser can only create keys over a secure (HTTPS) connection.');
     }
   };
 
-  const revoke = (a: Aggregator) => {
-    if (!window.confirm(`Revoke the API key of ${a.name}?\n\nAll their requests (search, book, change, cancel) are refused until you create a new key.`)) return;
-    onUpdate({ ...a, feedKeyHash: undefined, feedKeyHint: undefined, feedKeyCreatedAt: undefined });
-    showConfirmation(`API key of ${a.name} revoked.`);
+  const revoke = (a: Aggregator, kind: KeyKind) => {
+    const f = FIELDS[kind];
+    if (!window.confirm(kind === 'test'
+      ? `Revoke the test key of ${a.name}?\n\nTheir test system can no longer connect. The live key keeps working.`
+      : `Revoke the API key of ${a.name}?\n\nAll their requests (search, book, change, cancel) are refused until you create a new key.`)) return;
+    onUpdate({ ...a, [f.hash]: undefined, [f.hint]: undefined, [f.at]: undefined });
+    showConfirmation(`${kind === 'test' ? 'Test key' : 'API key'} of ${a.name} revoked.`);
+  };
+
+  const keyCell = (a: Aggregator, kind: KeyKind) => {
+    const f = FIELDS[kind];
+    return (
+      <div className="space-y-1">
+        {a[f.hash]
+          ? <p className="font-mono text-xs text-slate-800">{f.prefix}••••{a[f.hint]}</p>
+          : <Badge tone={kind === 'live' ? 'danger' : 'muted'}>{kind === 'live' ? 'No key' : 'None'}</Badge>}
+        <p className="text-[11px] text-slate-400">{a[f.hash] ? `Created ${day(a[f.at])}` : kind === 'test' ? 'Optional' : 'Required to connect'}</p>
+        <div className="flex gap-1">
+          <Button size="sm" variant={a[f.hash] || kind === 'test' ? 'secondary' : 'primary'} onClick={() => void create(a, kind)}>{a[f.hash] ? 'Replace' : 'Create'}</Button>
+          {a[f.hash] && <Button size="sm" variant="ghost" onClick={() => revoke(a, kind)}>Revoke</Button>}
+        </div>
+      </div>
+    );
   };
 
   const withKey = aggregators.filter(a => a.feedKeyHash).length;
@@ -94,7 +120,7 @@ const ApiKeysView: React.FC<{
         {aggregators.length === 0 ? <EmptyState title="No brokers yet" hint="Add a channel for the broker first (Add Channel); then create its key here." /> : (
           <div className="overflow-x-auto">
             <table className={`${table.wrap} min-w-[820px]`}>
-              <thead className={table.head}><tr>{['Broker', 'Channel', 'Connection', 'API key', 'Created', 'Last request', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+              <thead className={table.head}><tr>{['Broker', 'Channel', 'Connection', 'Live key', 'Test key (sandbox only)', 'Last request'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
               <tbody className={table.body}>
                 {aggregators.map(a => {
                   const cs = connectionStateOf(a);
@@ -107,18 +133,10 @@ const ApiKeysView: React.FC<{
                       </td>
                       <td className={table.td}><Plate value={partnerUrlCode(a)} /></td>
                       <td className={table.td}><Badge tone={cs.tone}>{cs.label}</Badge></td>
-                      <td className={table.td}>
-                        {a.feedKeyHash
-                          ? <span className="font-mono text-xs text-slate-800">nct_••••••••{a.feedKeyHint}</span>
-                          : <Badge tone="danger">No key</Badge>}
-                      </td>
-                      <td className={`${table.td} text-xs text-slate-600 whitespace-nowrap`}>{day(a.feedKeyCreatedAt)}</td>
+                      <td className={`${table.td} align-top`}>{keyCell(a, 'live')}</td>
+                      <td className={`${table.td} align-top`}>{keyCell(a, 'test')}</td>
                       <td className={`${table.td} text-xs whitespace-nowrap ${lc ? 'text-slate-700' : 'text-slate-400'}`}>
                         {!a.feedKeyHash ? '—' : lc === undefined && !(a.id in lastCall) ? '…' : lc === null ? 'Unknown' : ago(lc)}
-                      </td>
-                      <td className={`${table.td} text-right whitespace-nowrap`}>
-                        {a.feedKeyHash && <Button size="sm" variant="ghost" onClick={() => revoke(a)}>Revoke</Button>}
-                        <Button size="sm" variant={a.feedKeyHash ? 'secondary' : 'primary'} onClick={() => void create(a)}>{a.feedKeyHash ? 'Replace key' : 'Create key'}</Button>
                       </td>
                     </tr>
                   );
@@ -129,15 +147,16 @@ const ApiKeysView: React.FC<{
         )}
         <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-500 space-y-1">
           <p><b className="text-slate-700">How to send it:</b> never in the same email as the integration guide. Use a password-protected file, the broker's partner portal, or read it out on a call.</p>
-          <p><b className="text-slate-700">Testing and live use the same key.</b> While the channel is in Testing its bookings are sandbox bookings; after go-live they are real reservations.</p>
+          <p><b className="text-slate-700">Live key:</b> while the channel is in Testing its bookings are sandbox bookings; after go-live they are real reservations.</p>
+          <p><b className="text-slate-700">Test key (optional):</b> for the broker's test system. It is always answered in the sandbox, also after go-live, so the broker can keep testing without creating real bookings.</p>
         </div>
       </Panel>
 
       {issued && (
-        <Dialog open onClose={() => setIssued(null)} size="lg" title={`API key for ${issued.a.name}`}
+        <Dialog open onClose={() => setIssued(null)} size="lg" title={`${issued.kind === 'test' ? 'Test key' : 'API key'} for ${issued.a.name}`}
           subtitle="Copy it now. It is not stored and will not be shown again."
           footer={<>
-            <Button onClick={() => copy('msg', keyMessage(issued.a, issued.key, API_URL || window.location.origin))}>{copied === 'msg' ? 'Copied' : 'Copy message for the broker'}</Button>
+            <Button onClick={() => copy('msg', keyMessage(issued.a, issued.key, API_URL || window.location.origin, issued.kind))}>{copied === 'msg' ? 'Copied' : 'Copy message for the broker'}</Button>
             <Button variant="primary" onClick={() => setIssued(null)}>I have copied it</Button>
           </>}>
           <div className="space-y-3">
@@ -146,7 +165,7 @@ const ApiKeysView: React.FC<{
               <Button size="sm" onClick={() => copy('key', issued.key)}>{copied === 'key' ? 'Copied' : 'Copy key'}</Button>
             </div>
             <p className="text-xs text-slate-500">Message with the key, channel code and addresses, ready to send securely:</p>
-            <textarea readOnly rows={18} className={`${textareaCls} font-mono text-[11px]`} value={keyMessage(issued.a, issued.key, API_URL || window.location.origin)} />
+            <textarea readOnly rows={18} className={`${textareaCls} font-mono text-[11px]`} value={keyMessage(issued.a, issued.key, API_URL || window.location.origin, issued.kind)} />
           </div>
         </Dialog>
       )}

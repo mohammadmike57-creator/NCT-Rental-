@@ -657,6 +657,10 @@ export interface Aggregator {
     feedKeyHash?: string;
     feedKeyHint?: string;      // last 4 characters, for identification
     feedKeyCreatedAt?: string;
+    /** Second key for the broker's test system: always answered in the sandbox, even after go-live. */
+    testKeyHash?: string;
+    testKeyHint?: string;
+    testKeyCreatedAt?: string;
     /** Rules for the booking API (search, book, modify, cancel); see ChannelRules on the server. */
     bookingRules?: ChannelBookingRules;
     /** Go-live checklist, last certification run and approval. */
@@ -684,6 +688,16 @@ export interface ChannelBookingLocation {
     afterHoursPickup?: boolean;
     afterHoursReturn?: boolean;
     afterHoursFee?: number;
+    /** Holidays and special days: closed (no pick-ups or returns), or open at other hours than usual. */
+    specialDays?: ChannelSpecialDay[];
+}
+
+export interface ChannelSpecialDay {
+    date: string;        // YYYY-MM-DD
+    closed?: boolean;
+    open?: string;       // HH:mm, when not closed
+    close?: string;
+    note?: string;       // e.g. "Eid al-Fitr"
 }
 
 /** What brokers show for a car group; anything left empty is read from the SIPP code and the fleet photo. */

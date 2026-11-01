@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
-import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon } from './icons';
+import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon } from './icons';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
@@ -19,8 +19,10 @@ import ChannelDeliveryLogView from './ChannelDeliveryLogView';
 import MultiChannelEditor, { BulkResult } from './channel/MultiChannelEditor';
 import XmlReservationsView from './channel/XmlReservationsView';
 import ApiKeysView from './channel/ApiKeysView';
+import ChannelReadiness from './channel/ChannelReadiness';
+import ChannelDashboardView from './channel/ChannelDashboardView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
-import { saveAllData, deliverChannelRates, recordActivity } from '../firebase/api';
+import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks } from '../firebase/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
 
 interface AggregatorSetupViewProps {
@@ -38,6 +40,21 @@ interface AggregatorSetupViewProps {
 
 export type ChannelTab = 'Overview' | 'Connection' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
 const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Booking API', 'Bookings', 'Traffic', 'Test console', 'Go-live', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
+
+/** What a new channel takes over from an existing one: the supplier's own setup, nothing that belongs to the other broker. */
+const copiedSetup = (src: Aggregator): Partial<Aggregator> => {
+  const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v ?? null));
+  const rules = clone(src.bookingRules) || undefined;
+  if (rules) { delete rules.webhookUrl; delete rules.webhookEvents; delete rules.ipAllowlist; delete rules.allotments; }
+  const latest = (src.ratePlanHistory || [])[0]?.ratePlans;
+  return {
+    vendorCode: src.vendorCode, locationCode: src.locationCode, currency: src.currency,
+    bookingRules: rules,
+    currentRatePlans: clone(latest?.length ? latest : src.currentRatePlans || []),
+    extras: clone(src.extras || []),
+    termsAndConditions: src.termsAndConditions,
+  };
+};
 
 const STATUS_STYLE: Record<string, { dot: string; label: string; pill: string }> = {
   active: { dot: 'bg-emerald-500', label: 'Live', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -66,9 +83,23 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const [isAddingPartner, setIsAddingPartner] = useState(false);
   const [newAggregatorName, setNewAggregatorName] = useState('');
   const [newChannelCode, setNewChannelCode] = useState('');
+  const [copyFrom, setCopyFrom] = useState('');
+  // Status updates that could not be delivered to a broker, checked when the page opens.
+  const [failedUpdates, setFailedUpdates] = useState<{ id: string; name: string; count: number }[]>([]);
+  const hookChannels = aggregators.filter(a => a.bookingRules?.webhookUrl).map(a => `${a.id}|${a.name}`).join(',');
+  useEffect(() => {
+    let live = true;
+    const list = hookChannels ? hookChannels.split(',').map(s => { const [id, ...n] = s.split('|'); return { id, name: n.join('|') }; }) : [];
+    Promise.all(list.map(c => fetchChannelWebhooks(c.id)
+      .then(r => ({ ...c, count: (r?.deliveries || []).filter(d => d.status === 'FAILED').length }))
+      .catch(() => ({ ...c, count: 0 }))))
+      .then(r => live && setFailedUpdates(r.filter(x => x.count > 0)));
+    return () => { live = false; };
+  }, [hookChannels]);
+  const openChannel = (id: string, tab: ChannelTab) => { setSelectedAggregatorId(id); setActiveTab(tab); setMode('channels'); };
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
-  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys'>('channels');
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard'>('channels');
   const showStopSale = mode === 'stopsale';
   const [sending, setSending] = useState(false);
   const [deliveryRefresh, setDeliveryRefresh] = useState(0);
@@ -96,6 +127,11 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     const name = newAggregatorName.trim();
     if (!name) return;
     const code = (newChannelCode.trim() || name.replace(/[^A-Za-z]/g, '').slice(0, 3)).toUpperCase();
+    if (aggregators.some(a => (a.channelCode || '').toUpperCase() === code)) {
+      window.alert(`The channel code ${code} is already used by ${aggregators.find(a => (a.channelCode || '').toUpperCase() === code)!.name}. Choose another code.`);
+      return;
+    }
+    const source = aggregators.find(a => a.id === copyFrom);
     const newAggregator: Aggregator = {
       id: `agg-${Date.now()}`,
       name,
@@ -109,14 +145,18 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       ratePlanHistory: [],
       extras: [],
       termsAndConditions: `Default terms for ${name}.`,
+      ...(source ? copiedSetup(source) : {}),
     };
     onUpdateAggregators([...aggregators, newAggregator]);
     setNewAggregatorName('');
     setNewChannelCode('');
+    setCopyFrom('');
     setIsAddingPartner(false);
     setSelectedAggregatorId(newAggregator.id);
-    setActiveTab('Connection');
-    showConfirmation(`Channel ${name} created in testing mode. Configure the connection to go live.`);
+    setActiveTab(source ? 'Overview' : 'Connection');
+    showConfirmation(source
+      ? `Channel ${name} created from ${source.name}: branches, rules, covers, extras, terms and draft rates copied. Review and publish the rates, then create its API key.`
+      : `Channel ${name} created in testing mode. Configure the connection to go live.`);
   };
 
   const handleDeleteAggregator = (agg: Aggregator) => {
@@ -215,6 +255,14 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         actions={
           <>
             <Button
+              variant={mode === 'dashboard' ? 'primary' : 'secondary'}
+              icon={<ChartBarIcon className="w-4 h-4" />}
+              onClick={() => setMode(m => (m === 'dashboard' ? 'channels' : 'dashboard'))}
+              aria-pressed={mode === 'dashboard'}
+            >
+              Dashboard
+            </Button>
+            <Button
               variant={mode === 'reservations' ? 'primary' : 'secondary'}
               icon={<InboxIcon className="w-4 h-4" />}
               onClick={() => setMode(m => (m === 'reservations' ? 'channels' : 'reservations'))}
@@ -260,11 +308,22 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         { label: 'Last publish', value: relativeTime(lastPublish), sub: `${activeStopSales} stop sale${activeStopSales === 1 ? '' : 's'} active today` },
       ]} />
 
-      {mode === 'reservations' ? (
+      {failedUpdates.length > 0 && mode !== 'dashboard' && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2" role="alert">
+          <p className="text-[13px] text-rose-800 flex-1 min-w-0">
+            <b>Status updates are failing</b> for {failedUpdates.map(f => `${f.name} (${f.count})`).join(', ')}. The broker does not know about those changes until they are delivered.
+          </p>
+          {failedUpdates.map(f => <Button key={f.id} size="sm" onClick={() => openChannel(f.id, 'Booking API')}>Open {f.name}</Button>)}
+        </div>
+      )}
+
+      {mode === 'dashboard' ? (
+        <ChannelDashboardView aggregators={aggregators} onOpenChannel={openChannel} />
+      ) : mode === 'reservations' ? (
         <XmlReservationsView aggregators={aggregators} />
       ) : mode === 'keys' ? (
         <ApiKeysView aggregators={aggregators} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation}
-          onOpenChannel={id => { setSelectedAggregatorId(id); setActiveTab('Connection'); setMode('channels'); }} />
+          onOpenChannel={id => openChannel(id, 'Connection')} />
       ) : mode === 'multi' ? (
         <MultiChannelEditor aggregators={aggregators} fleet={fleet} availableExtras={availableExtras} stopSales={stopSales}
           currentUserName={currentUserName} onApply={applyBulk} />
@@ -342,6 +401,10 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 onChange={k => setActiveTab(k as ChannelTab)}
               />
               <div className="p-4 bg-slate-50/60 space-y-4">
+                {activeTab === 'Overview' && (
+                  <ChannelReadiness aggregator={selectedAggregator} fleet={fleet} validation={health[selectedAggregator.id]}
+                    onNavigate={t => (t === 'API keys' ? setMode('keys') : setActiveTab(t))} />
+                )}
                 {activeTab === 'Overview' && (
                   <ChannelOverviewView
                     aggregator={selectedAggregator}
@@ -447,6 +510,14 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
               autoFocus
             />
           </Field>
+          {aggregators.length > 0 && (
+            <Field label="Copy setup from" hint="Copies branches, booking rules, covers, car details, extras, terms and the rates (as a draft to publish). Never copies keys, webhooks, the broker's contacts or bookings.">
+              <select value={copyFrom} onChange={e => setCopyFrom(e.target.value)} className={inputCls} aria-label="Copy setup from">
+                <option value="">Start empty</option>
+                {aggregators.map(a => <option key={a.id} value={a.id}>{a.name} ({a.channelCode || a.id})</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Channel code" hint="Optional. Defaults to the first letters of the name.">
             <input
               type="text"
