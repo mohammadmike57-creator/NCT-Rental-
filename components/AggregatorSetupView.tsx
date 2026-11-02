@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
-import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon } from './icons';
+import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon } from './icons';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
@@ -40,7 +40,16 @@ interface AggregatorSetupViewProps {
 }
 
 export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
-const CHANNEL_TABS: ChannelTab[] = ['Overview', 'Rates', 'Connection', 'Booking API', 'Security', 'Bookings', 'Traffic', 'Test console', 'Go-live', 'Extras', 'Terms & Conditions', 'Publish History', 'XML Feed'];
+/** A channel's screens, grouped by job and in the order they are set up. */
+const TAB_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
+  { label: 'Overview', tabs: ['Overview', 'Go-live'] },
+  { label: 'Pricing', tabs: ['Rates', 'Extras', 'Terms & Conditions'] },
+  { label: 'Connection', tabs: ['Connection', 'Booking API', 'Security'] },
+  { label: 'Operations', tabs: ['Bookings', 'Traffic', 'Test console'] },
+  { label: 'Publishing', tabs: ['Publish History', 'XML Feed'] },
+];
+const TAB_LABEL: Partial<Record<ChannelTab, string>> = { 'Terms & Conditions': 'Terms', 'Publish History': 'Publish history', 'XML Feed': 'XML feed' };
+const groupOf = (t: ChannelTab) => TAB_GROUPS.find(g => g.tabs.includes(t)) || TAB_GROUPS[0];
 
 /** What a new channel takes over from an existing one: the supplier's own setup, nothing that belongs to the other broker. */
 const copiedSetup = (src: Aggregator): Partial<Aggregator> => {
@@ -253,54 +262,25 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         section="OTA XML"
         title="Channel Manager"
         subtitle="OTA XML distribution — rates, availability, extras and stop sales for every partner."
-        actions={
-          <>
-            <Button
-              variant={mode === 'dashboard' ? 'primary' : 'secondary'}
-              icon={<ChartBarIcon className="w-4 h-4" />}
-              onClick={() => setMode(m => (m === 'dashboard' ? 'channels' : 'dashboard'))}
-              aria-pressed={mode === 'dashboard'}
-            >
-              Dashboard
-            </Button>
-            <Button
-              variant={mode === 'reservations' ? 'primary' : 'secondary'}
-              icon={<InboxIcon className="w-4 h-4" />}
-              onClick={() => setMode(m => (m === 'reservations' ? 'channels' : 'reservations'))}
-              aria-pressed={mode === 'reservations'}
-            >
-              XML reservations
-            </Button>
-            <Button
-              variant={mode === 'keys' ? 'primary' : 'secondary'}
-              icon={<KeyIcon className="w-4 h-4" />}
-              onClick={() => setMode(m => (m === 'keys' ? 'channels' : 'keys'))}
-              aria-pressed={mode === 'keys'}
-            >
-              API keys
-            </Button>
-            <Button
-              variant={mode === 'multi' ? 'primary' : 'secondary'}
-              icon={<GlobeAltIcon className="w-4 h-4" />}
-              onClick={() => setMode(m => (m === 'multi' ? 'channels' : 'multi'))}
-              aria-pressed={mode === 'multi'}
-            >
-              Multi-channel editor
-            </Button>
-            <Button
-              variant={showStopSale ? 'danger' : 'secondary'}
-              className={showStopSale ? '!bg-rose-50' : ''}
-              icon={<StopIcon className="w-4 h-4" />}
-              onClick={() => setMode(m => (m === 'stopsale' ? 'channels' : 'stopsale'))}
-              aria-pressed={showStopSale}
-            >
-              Global Stop Sale
-              {activeStopSales > 0 && <span className="ml-1 px-1.5 py-px rounded bg-rose-100 text-rose-700 text-[11px] tabular-nums">{activeStopSales}</span>}
-            </Button>
-            <Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add Channel</Button>
-          </>
-        }
+        actions={<Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add channel</Button>}
       />
+
+      <nav className="flex gap-1 overflow-x-auto no-scrollbar rounded-xl border border-slate-200 bg-white p-1" aria-label="OTA XML sections">
+        {([
+          ['channels', 'Channels', ServerIcon, aggregators.length],
+          ['dashboard', 'Dashboard', ChartBarIcon, undefined],
+          ['reservations', 'XML reservations', InboxIcon, undefined],
+          ['keys', 'API keys', KeyIcon, undefined],
+          ['multi', 'Bulk editor', PencilIcon, undefined],
+          ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
+        ] as const).map(([key, label, Icon, count]) => (
+          <button key={key} type="button" onClick={() => setMode(key)} aria-current={mode === key ? 'page' : undefined}
+            className={`h-9 px-3 rounded-lg inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap transition-colors ${mode === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+            <Icon className="w-4 h-4" />{label}
+            {count !== undefined && <span className={`px-1.5 py-px rounded text-[11px] tabular-nums ${mode === key ? 'bg-white/15' : key === 'stopsale' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
+          </button>
+        ))}
+      </nav>
 
       <StatGrid items={[
         { label: 'Live channels', value: `${liveChannels} / ${aggregators.length}`, sub: 'connected partners', tone: liveChannels ? 'success' : 'default' },
@@ -375,7 +355,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
               </ul>
             )}
             <div className="p-3 border-t border-slate-100">
-              <Button className="w-full" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add Channel</Button>
+              <Button className="w-full" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add channel</Button>
             </div>
           </Panel>
 
@@ -393,11 +373,20 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 <Button size="sm" className="!text-amber-700 !border-amber-200 !bg-amber-50 hover:!bg-amber-100" onClick={() => setActiveTab('Rates')}>Unpublished changes</Button>
               ) : undefined}
             >
-              <Tabs
-                tabs={CHANNEL_TABS.map(tab => {
-                  const count = tab === 'Overview' ? health[selectedAggregator.id]?.errors : undefined;
-                  return { key: tab, label: tab, count: count ? count : undefined };
+              <div className="px-3 pt-3 flex gap-1 overflow-x-auto no-scrollbar" role="tablist" aria-label="Channel sections">
+                {TAB_GROUPS.map(g => {
+                  const on = groupOf(activeTab).label === g.label;
+                  const errors = g.label === 'Overview' ? health[selectedAggregator.id]?.errors : undefined;
+                  return (
+                    <button key={g.label} type="button" role="tab" aria-selected={on} onClick={() => !on && setActiveTab(g.tabs[0])}
+                      className={`h-8 px-3 rounded-lg text-[12px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors ${on ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
+                      {g.label}{errors ? <span className="ml-1.5 px-1.5 py-px rounded bg-rose-100 text-rose-700 text-[10px] tabular-nums">{errors}</span> : null}
+                    </button>
+                  );
                 })}
+              </div>
+              <Tabs
+                tabs={groupOf(activeTab).tabs.map(tab => ({ key: tab, label: TAB_LABEL[tab] || tab }))}
                 value={activeTab}
                 onChange={k => setActiveTab(k as ChannelTab)}
               />
@@ -480,7 +469,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 icon={<GlobeAltIcon />}
                 title="No channels yet"
                 hint="Add your first distribution partner to start publishing rates over XML."
-                action={<Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add Channel</Button>}
+                action={<Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add channel</Button>}
               />
             </Panel>
           )}
