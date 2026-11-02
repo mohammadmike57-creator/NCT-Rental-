@@ -5,6 +5,7 @@ import { PlusIcon, TrashIcon, EditIcon, SaveIcon, AlertIcon, CheckCircleIcon, Ch
 import { Panel, Badge, Button, Field, EmptyState, Dialog, textareaCls } from './ui/Crm';
 import RatePeriodEditor, { RateMatrixView } from './channel/RatePeriodEditor';
 import { AdjustRatesDialog, RateBuilderDialog, RateGrid } from './channel/RateTools';
+import RateExcelDialog from './channel/RateExcel';
 import {
   channelCurrency, diffPlans, fingerprint, formatMoney, generateRateSheetXml, hasUnpublishedChanges,
   nextVersion, todayIso, validateChannel,
@@ -34,7 +35,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
   const [publishOpen, setPublishOpen] = useState(false);
   const [note, setNote] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [tool, setTool] = useState<'build' | 'adjust' | null>(null);
+  const [tool, setTool] = useState<'build' | 'adjust' | 'excel' | null>(null);
   const [view, setView] = useState<'periods' | 'grid'>('periods');
 
   const currency = channelCurrency(aggregator);
@@ -125,6 +126,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
         <div className="flex flex-wrap gap-2 w-full sm:w-auto shrink-0 [&>*]:max-sm:flex-1">
           <Button onClick={() => setTool('build')}>Build rates</Button>
           <Button onClick={() => setTool('adjust')} disabled={ratePlans.length === 0}>Change prices</Button>
+          <Button onClick={() => setTool('excel')} title="Download the rates as Excel, or upload an edited file">Excel</Button>
           <Button onClick={handleAddPeriod} icon={<PlusIcon className="w-4 h-4" />}>Add period</Button>
           <Button variant={pending ? 'success' : 'primary'} onClick={() => setPublishOpen(true)} disabled={ratePlans.length === 0} icon={<SaveIcon className="w-4 h-4" />}>
             {pending ? 'Review & publish' : 'Re-publish'}
@@ -229,6 +231,15 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
             handleUpdate(plans);
             setTool(null);
             showConfirmation(`Prices changed: ${summary}. Review them, then publish.`);
+          }} />
+      )}
+
+      {tool === 'excel' && (
+        <RateExcelDialog plans={ratePlans} fleet={fleet} currency={currency} channelName={aggregator.name} onClose={() => setTool(null)}
+          onApply={(plans, summary) => {
+            handleUpdate(plans);
+            setTool(null);
+            showConfirmation(`Rates loaded from Excel: ${summary}. Review them, then publish.`);
           }} />
       )}
 
