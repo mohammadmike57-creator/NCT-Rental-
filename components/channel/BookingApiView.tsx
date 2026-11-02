@@ -203,6 +203,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
+        <datalist id="booking-api-branches">{rentalLocations.map(x => <option key={x.id} value={x.name} />)}</datalist>
         <Section title="Locations" subtitle="The codes this broker sends, mapped to your branches."
           actions={<Button size="sm" onClick={() => set('locations', [...locations, { code: '', name: rentalLocations[0]?.name || '', pickup: true, dropOff: true }])}>Add location</Button>}>
           <div className="space-y-2">
@@ -210,10 +211,8 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
               <div key={i} className="rounded-lg border border-slate-200 p-2.5 space-y-2">
                 <div className="grid grid-cols-[6.5rem_1fr] gap-2">
                   <input value={l.code} onChange={e => setLocation(i, { code: e.target.value.toUpperCase() })} placeholder="AMM" className={`${inputCls} font-mono uppercase`} aria-label="Broker location code" />
-                  <select value={l.name} onChange={e => setLocation(i, { name: e.target.value })} className={`${selectCls} w-full`} aria-label="Branch">
-                    {!rentalLocations.some(x => x.name === l.name) && <option value={l.name}>{l.name || 'Choose a branch'}</option>}
-                    {rentalLocations.map(x => <option key={x.id} value={x.name}>{x.name}</option>)}
-                  </select>
+                  <input value={l.name} onChange={e => setLocation(i, { name: e.target.value })} list="booking-api-branches" placeholder="Choose or type a branch"
+                    className={`${inputCls} w-full`} aria-label="Branch" title="Pick one of your branches, or type a name" />
                 </div>
                 <div className="flex items-center gap-4 text-xs text-slate-600 px-0.5">
                   <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={l.pickup} onChange={e => setLocation(i, { pickup: e.target.checked })} />Pick-ups</label>
