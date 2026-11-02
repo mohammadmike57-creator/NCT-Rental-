@@ -48,10 +48,13 @@ const TECHNICAL: Tech[] = [
   { id: 'security', label: 'Security review passed' },
 ];
 
-const Check: React.FC<{ on: boolean; auto?: boolean; label: string; onToggle?: () => void }> = ({ on, auto, label, onToggle }) => (
+/** What a broker cannot work without; everything else is recommended and listed when approving. */
+const REQUIRED = new Set(['code', 'key', 'rates', 'locations', 'groups', 'rules']);
+
+const Check: React.FC<{ on: boolean; auto?: boolean; required?: boolean; label: string; onToggle?: () => void }> = ({ on, auto, required, label, onToggle }) => (
   <button type="button" onClick={onToggle} disabled={auto} className={`w-full text-left flex items-start gap-3 px-3 py-2 rounded-lg ${auto ? 'cursor-default' : 'hover:bg-slate-50'}`}>
     <span className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 text-[11px] font-bold ${on ? 'bg-emerald-500 text-white' : 'border-2 border-slate-300 bg-white'}`}>{on ? '✓' : ''}</span>
-    <span className={`text-[13px] ${on ? 'text-slate-900' : 'text-slate-600'}`}>{label}</span>
+    <span className={`text-[13px] ${on ? 'text-slate-900' : required ? 'text-rose-700 font-medium' : 'text-slate-600'}`}>{label}{required && <span className={`ml-2 text-[10px] font-semibold uppercase tracking-wider ${on ? 'text-slate-400' : 'text-rose-600'}`}>Required</span>}</span>
     {auto && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 pt-1">Checked by system</span>}
   </button>
 );
@@ -69,7 +72,9 @@ const GoLiveView: React.FC<Props> = ({ aggregator: a, fleet, company, currentUse
   const techDone = techState.filter(t => t.on).length;
   const total = COMMERCIAL.length + TECHNICAL.length;
   const done = commercialDone + techDone;
-  const ready = done === total;
+  const missingRequired = techState.filter(t => REQUIRED.has(t.id) && !t.on);
+  const openRecommended = [...COMMERCIAL.filter(([id]) => !ticks[id]).map(([, l]) => l), ...techState.filter(t => !REQUIRED.has(t.id) && !t.on).map(t => t.label)];
+  const ready = missingRequired.length === 0;
   const cert = a.goLive?.certification;
 
   const certify = async () => {
@@ -81,7 +86,10 @@ const GoLiveView: React.FC<Props> = ({ aggregator: a, fleet, company, currentUse
     } catch (e: any) { setError(e.message); } finally { setRunning(false); }
   };
   const approve = () => {
-    if (!window.confirm(`Approve ${a.name} for production? The channel will be set Live: bookings become real reservations.`)) return;
+    const open = openRecommended.length
+      ? `\n\nStill open (recommended, not required):\n${openRecommended.slice(0, 12).map(l => `• ${l}`).join('\n')}${openRecommended.length > 12 ? `\n…and ${openRecommended.length - 12} more` : ''}`
+      : '';
+    if (!window.confirm(`Approve ${a.name} for production? The channel will be set Live: bookings become real reservations.${open}`)) return;
     const at = new Date().toISOString(), by = currentUserName || 'Staff';
     const cp = a.connectionProfile || {};
     onUpdate({ ...a, status: 'active', connectionDetails: { ...a.connectionDetails, environment: 'production' },
@@ -103,11 +111,13 @@ const GoLiveView: React.FC<Props> = ({ aggregator: a, fleet, company, currentUse
             <p className="text-[15px] font-semibold text-slate-900">{a.goLive?.approvedAt ? 'Live in production' : ready ? 'Ready for go-live' : 'Go-live checklist'}</p>
             <p className="text-[13px] text-slate-500">
               {a.goLive?.approvedAt ? `Approved by ${a.goLive.approvedBy} on ${new Date(a.goLive.approvedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}.`
-                : `${done} of ${total} items complete. Every item must be done before the broker sells live.`}
+                : ready
+                  ? `${done} of ${total} items complete. Everything required is done${openRecommended.length ? `; ${openRecommended.length} recommended item${openRecommended.length === 1 ? '' : 's'} still open` : ''}.`
+                  : `Required before go-live: ${missingRequired.map(t => t.label.replace(/ \(.*\)$/, '')).join(', ')}.`}
             </p>
           </div>
           <Button onClick={() => openIntegrationGuide(a, company, API_URL || window.location.origin) || alert('Allow pop-ups to open the guide.')}>Integration guide (PDF)</Button>
-          <Button variant="primary" onClick={approve} disabled={!ready || !!a.goLive?.approvedAt}>{a.goLive?.approvedAt ? 'Approved' : 'Approve go-live'}</Button>
+          <Button variant="primary" onClick={approve} disabled={!ready || !!a.goLive?.approvedAt} title={ready ? undefined : 'Finish the items marked Required first'}>{a.goLive?.approvedAt ? 'Approved' : 'Approve go-live'}</Button>
         </div>
       </Panel>
 
@@ -116,7 +126,7 @@ const GoLiveView: React.FC<Props> = ({ aggregator: a, fleet, company, currentUse
           {COMMERCIAL.map(([id, label]) => <Check key={id} on={!!ticks[id]} label={label} onToggle={() => toggle(id)} />)}
         </Panel>
         <Panel title="Technical" subtitle={`${techDone} of ${TECHNICAL.length} complete`} bodyClassName="p-2">
-          {techState.map(t => <Check key={t.id} on={t.on} auto={!!t.auto} label={t.label} onToggle={t.auto ? undefined : () => toggle(t.id)} />)}
+          {techState.map(t => <Check key={t.id} on={t.on} auto={!!t.auto} required={REQUIRED.has(t.id)} label={t.label} onToggle={t.auto ? undefined : () => toggle(t.id)} />)}
         </Panel>
       </div>
 
