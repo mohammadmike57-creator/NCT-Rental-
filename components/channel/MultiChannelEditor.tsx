@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Aggregator, AvailableExtra, ChannelBookingRules, Fleet, RatePlan, RatePlanSubmission, StopSale } from '../../types';
 import { Badge, Button, Dialog, EmptyState, Panel, Plate, Segmented, inputCls, labelCls, selectCls, table, textareaCls } from '../ui/Crm';
 import { CheckCircleIcon, GlobeAltIcon, PlusIcon, TrashIcon } from '../icons';
-import ManagePeriodModal from '../ManagePeriodModal';
+import RatePeriodEditor from './RatePeriodEditor';
 import ManageAggregatorExtrasView from '../ManageAggregatorExtrasView';
 import ManageTermsView from '../ManageTermsView';
 import ManageStopSaleView from '../ManageStopSaleView';
@@ -451,7 +451,7 @@ const MultiChannelEditor: React.FC<Props> = ({ aggregators, fleet, availableExtr
       </div>
 
       {editing && (
-        <ManagePeriodModal plan={editing} fleet={fleet} currency="¤" onClose={() => setEditing(null)}
+        <RatePeriodEditor plan={editing} otherPlans={draft.ratePlans} fleet={fleet} currency="¤" onClose={() => setEditing(null)}
           onSave={p => { edit('rates', 'ratePlans', draft.ratePlans.map(x => (x.id === p.id ? p : x))); setEditing(null); }} />
       )}
 

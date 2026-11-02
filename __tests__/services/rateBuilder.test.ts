@@ -1,6 +1,7 @@
 import { RatePlan } from '../../types';
 import {
   DEFAULT_BANDS, adjustRatePlans, basePricesFrom, buildRatePlans, checkInput, jordanSeasons, priceInversions, rentalTotal, roundPrice,
+  bandsOf, matrixOf, withMatrix, checkBands, bandLabel,
 } from '../../services/rateBuilder';
 import { validateChannel } from '../../services/channelManager';
 
@@ -74,5 +75,36 @@ describe('rate builder', () => {
     const msgs = v.issues.map(i => i.message);
     expect(msgs.some(m => /Low season 2027 \/ ECAR: 7 days cost/.test(m))).toBe(true);
     expect(msgs).toContain('Summer 2027: SDAR is not priced, so it cannot be booked from 2027-06-01 to 2027-08-31.');
+  });
+
+  it('shows a period as one grid of car groups by rental bands and saves it back', () => {
+    const plan = buildRatePlans(input(), 1)[0];
+    const bands = bandsOf(plan);
+    expect(bands.map(bandLabel)).toEqual(['1–2 days', '3–6 days', '7–13 days', '14–29 days', '30+ days']);
+    const m = matrixOf(plan, bands);
+    expect(m.ECAR[0]).toBe(27);
+    const next = withMatrix(plan, bands, ['ECAR', 'SDAR', 'FDAR'], { ...m, FDAR: [60, 55, null, null, 45] }, 5);
+    expect(next.sippRates.map(r => r.sippCode)).toEqual(['ECAR', 'SDAR', 'FDAR']);
+    expect(next.sippRates[0].id).toBe(plan.sippRates[0].id);
+    expect(next.sippRates[2].tiers.map(t => [t.fromDay, t.toDay, t.dailyPrice])).toEqual([[1, 2, 60], [3, 6, 55], [30, null, 45]]);
+    expect(rentalTotal(next, 'FDAR', 4)?.total).toBe(220);
+    expect(matrixOf(next, bands)).toEqual({ ...m, FDAR: [60, 55, null, null, 45] });
+  });
+
+  it('lines up groups that were priced with different bands', () => {
+    const plan: RatePlan = { id: 'p', name: 'P', startDate: '2027-01-01', endDate: '2027-01-31', sippRates: [
+      { id: 'a', sippCode: 'ECAR', tiers: [{ id: '1', fromDay: 1, toDay: 6, dailyPrice: 30 }, { id: '2', fromDay: 7, toDay: null, dailyPrice: 25 }] },
+      { id: 'b', sippCode: 'SDAR', tiers: [{ id: '3', fromDay: 1, toDay: 3, dailyPrice: 40 }, { id: '4', fromDay: 4, toDay: null, dailyPrice: 35 }] },
+    ] };
+    const bands = bandsOf(plan);
+    expect(bands).toEqual([{ fromDay: 1, toDay: 3 }, { fromDay: 4, toDay: 6 }, { fromDay: 7, toDay: null }]);
+    expect(matrixOf(plan, bands)).toEqual({ ECAR: [30, 30, 25], SDAR: [40, 35, 35] });
+    expect(checkBands(bands)).toEqual([]);
+  });
+
+  it('flags band layouts that leave rental lengths unpriced', () => {
+    expect(checkBands([{ fromDay: 2, toDay: 5 }, { fromDay: 6, toDay: null }])).toContain('The first band must start at day 1.');
+    expect(checkBands([{ fromDay: 1, toDay: 3 }, { fromDay: 5, toDay: null }])).toContain('Day 4 is in no band.');
+    expect(checkBands([{ fromDay: 1, toDay: 3 }, { fromDay: 4, toDay: 9 }])[0]).toMatch(/longer than 9 days/);
   });
 });

@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom';
 import { RatePlan, Fleet, Aggregator, RatePlanSubmission, StopSale } from '../types';
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, AlertIcon, CheckCircleIcon, ChevronRightIcon } from './icons';
 import { Panel, Badge, Button, Field, EmptyState, Dialog, textareaCls } from './ui/Crm';
-import ManagePeriodModal from './ManagePeriodModal';
+import RatePeriodEditor, { RateMatrixView } from './channel/RatePeriodEditor';
 import { AdjustRatesDialog, RateBuilderDialog, RateGrid } from './channel/RateTools';
 import {
   channelCurrency, diffPlans, fingerprint, formatMoney, generateRateSheetXml, hasUnpublishedChanges,
-  nextVersion, tierLabel, todayIso, validateChannel,
+  nextVersion, todayIso, validateChannel,
 } from '../services/channelManager';
 
 interface ManageRatePlansViewProps {
@@ -204,27 +204,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                       {(plan.sippRates || []).length === 0 ? (
                         <p className="text-[13px] text-slate-500">No vehicle groups priced yet.</p>
                       ) : (
-                        <div className="overflow-x-auto bg-white border border-slate-200 rounded-lg">
-                          <table className="w-full text-[13px]">
-                            <tbody className="divide-y divide-slate-100">
-                              {plan.sippRates.map(rate => (
-                                <tr key={rate.id}>
-                                  <td className="px-3 py-2 font-mono font-semibold text-slate-800 w-20 align-top">{rate.sippCode}</td>
-                                  <td className="px-3 py-2">
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {[...(rate.tiers || [])].sort((a, b) => (a.fromDay ?? 0) - (b.fromDay ?? 0)).map(t => (
-                                        <span key={t.id} className="inline-flex text-xs border border-slate-200 rounded-md overflow-hidden">
-                                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500">{tierLabel(t)}</span>
-                                          <span className="px-1.5 py-0.5 font-semibold text-slate-800 tabular-nums">{t.dailyPrice != null ? formatMoney(t.dailyPrice, currency) : '—'}</span>
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                        <RateMatrixView plan={plan} currency={currency} />
                       )}
                     </div>
                   )}
@@ -253,7 +233,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
       )}
 
       {editingPlan && (
-        <ManagePeriodModal plan={editingPlan} onSave={handleSavePlan} onClose={() => setEditingPlan(null)} fleet={fleet} currency={currency} />
+        <RatePeriodEditor plan={editingPlan} otherPlans={ratePlans} onSave={handleSavePlan} onClose={() => setEditingPlan(null)} fleet={fleet} currency={currency} />
       )}
 
       {publishOpen && createPortal(

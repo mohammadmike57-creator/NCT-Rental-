@@ -215,9 +215,9 @@ export const DetailList: React.FC<{ rows: { label: React.ReactNode; value: React
 );
 
 /** Centered dialog on desktop, full-screen sheet on phones. */
-export const Dialog: React.FC<{ open: boolean; onClose: () => void; title: React.ReactNode; subtitle?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; size?: 'md' | 'lg' | 'xl' }> = ({ open, onClose, title, subtitle, children, footer, size = 'lg' }) => {
+export const Dialog: React.FC<{ open: boolean; onClose: () => void; title: React.ReactNode; subtitle?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; size?: 'md' | 'lg' | 'xl' | 'wide' }> = ({ open, onClose, title, subtitle, children, footer, size = 'lg' }) => {
   if (!open) return null;
-  const w = size === 'md' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-4xl' : 'sm:max-w-2xl';
+  const w = size === 'md' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-4xl' : size === 'wide' ? 'sm:max-w-6xl' : 'sm:max-w-2xl';
   return (
     <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-slate-900/50" onClick={onClose} />

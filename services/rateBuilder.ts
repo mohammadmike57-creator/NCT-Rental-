@@ -156,3 +156,81 @@ export const rentalTotal = (plan: RatePlan, sippCode: string, days: number): { d
 /** Places where a longer rental costs less in total than a shorter one (customers would book extra days). */
 export const priceInversions = (plan: RatePlan): string[] =>
   (plan.sippRates || []).flatMap(r => tierInversions(r).map(m => `${plan.name} / ${r.sippCode}: ${m}`));
+
+// ===================================================================== period matrix
+
+/** A rental-length band shared by every car group of a period (toDay null = and longer). */
+export interface Band { fromDay: number; toDay: number | null }
+
+/** Daily price per car group per band (null = not sold for that rental length). */
+export type PriceMatrix = Record<string, (number | null)[]>;
+
+const isOpen = (t: RateTier['toDay']) => t === null || t === undefined || t === Infinity || typeof t !== 'number';
+
+/**
+ * The period's bands, shared by all its groups: every place a band starts in any group becomes a column,
+ * so a period whose groups were priced with different bands still shows every price without losing any.
+ */
+export function bandsOf(plan: RatePlan): Band[] {
+  const starts = new Set<number>();
+  let maxEnd = 0, open = false;
+  (plan.sippRates || []).forEach(r => (r.tiers || []).forEach(t => {
+    if (t.fromDay == null) return;
+    starts.add(t.fromDay);
+    if (isOpen(t.toDay)) open = true;
+    else { starts.add((t.toDay as number) + 1); maxEnd = Math.max(maxEnd, t.toDay as number); }
+  }));
+  const list = [...starts].filter(n => n >= 1).sort((a, b) => a - b);
+  if (!list.length) return [{ fromDay: 1, toDay: 2 }, { fromDay: 3, toDay: 6 }, { fromDay: 7, toDay: 13 }, { fromDay: 14, toDay: 29 }, { fromDay: 30, toDay: null }];
+  if (list[0] !== 1) list.unshift(1);
+  const bands: Band[] = [];
+  for (let i = 0; i < list.length; i++) {
+    const next = list[i + 1];
+    if (next != null) bands.push({ fromDay: list[i], toDay: next - 1 });
+    else if (open) bands.push({ fromDay: list[i], toDay: null });
+    else if (list[i] <= maxEnd) bands.push({ fromDay: list[i], toDay: maxEnd });
+  }
+  return bands;
+}
+
+/** Prices of the period as a matrix over the given bands (the price of the tier covering each band's first day). */
+export function matrixOf(plan: RatePlan, bands: Band[]): PriceMatrix {
+  const m: PriceMatrix = {};
+  (plan.sippRates || []).forEach(r => {
+    m[r.sippCode] = bands.map(b => {
+      const t = findTier(r, b.fromDay);
+      return t && t.dailyPrice != null && Number(t.dailyPrice) > 0 ? Number(t.dailyPrice) : null;
+    });
+  });
+  return m;
+}
+
+/** The period with every group priced over the same bands; groups keep their order, unpriced bands are left out. */
+export function withMatrix(plan: RatePlan, bands: Band[], groups: string[], prices: PriceMatrix, stamp: number = Date.now()): RatePlan {
+  return {
+    ...plan,
+    sippRates: groups.map((code, gi) => ({
+      id: plan.sippRates.find(r => r.sippCode === code)?.id || `sipp-${stamp}-${gi}`,
+      sippCode: code,
+      tiers: bands.map((b, bi) => ({ id: `tier-${stamp}-${gi}-${bi}`, fromDay: b.fromDay, toDay: b.toDay, dailyPrice: prices[code]?.[bi] ?? null }))
+        .filter(t => t.dailyPrice != null),
+    })),
+  };
+}
+
+/** Problems with a band layout: gaps, overlaps, or no open-ended last band. */
+export function checkBands(bands: Band[]): string[] {
+  const out: string[] = [];
+  if (!bands.length) return ['Add at least one rental-length band.'];
+  if (bands[0].fromDay !== 1) out.push('The first band must start at day 1.');
+  bands.forEach((b, i) => {
+    if (b.toDay != null && b.toDay < b.fromDay) out.push(`Band ${b.fromDay}–${b.toDay} ends before it starts.`);
+    const n = bands[i + 1];
+    if (n && b.toDay == null) out.push(`Only the last band can be open-ended.`);
+    if (n && b.toDay != null && n.fromDay !== b.toDay + 1) out.push(`Day ${b.toDay + 1} is ${n.fromDay <= b.toDay ? 'in two bands' : 'in no band'}.`);
+  });
+  if (bands[bands.length - 1].toDay != null) out.push(`Rentals longer than ${bands[bands.length - 1].toDay} days cannot be booked: make the last band open-ended.`);
+  return out;
+}
+
+export const bandLabel = (b: Band) => (b.toDay == null ? `${b.fromDay}+ days` : b.fromDay === b.toDay ? `${b.fromDay} day${b.fromDay === 1 ? '' : 's'}` : `${b.fromDay}–${b.toDay} days`);
