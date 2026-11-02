@@ -37,7 +37,8 @@ const TECHNICAL: Tech[] = [
     return groups.length > 0 && groups.every(g => !!a.bookingRules?.groupDetails?.[g]?.pictureUrl || f.some(v => (v.sippCode || '').toUpperCase() === g && !!v.imageUrl));
   } },
   { id: 'covers', label: 'Tax, mileage and insurance covers set', auto: a => (a.bookingRules?.pricing?.coverages || []).length > 0 },
-  { id: 'rules', label: 'Payment and cancellation rules saved', auto: a => !!a.bookingRules?.paymentModel },
+  // The server uses Pay at the counter and 48 h free cancellation when nothing else was chosen, so saved rules are enough.
+  { id: 'rules', label: 'Payment and cancellation rules saved (Booking API tab)', auto: a => !!a.bookingRules && Object.keys(a.bookingRules).length > 0 },
   { id: 'webhook', label: 'Webhook URL registered', auto: a => !!a.bookingRules?.webhookUrl },
   { id: 'secret', label: 'Webhook secret exchanged', auto: (_a, _f, s) => s },
   { id: 'guide', label: 'Integration guide and sample messages sent to the broker' },

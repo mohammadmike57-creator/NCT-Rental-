@@ -84,6 +84,8 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
     const p = rules.pricing;
     const clean: ChannelBookingRules = {
       ...rules,
+      // The payment model shown is saved too, even when left on the default.
+      paymentModel: r.paymentModel,
       locations: locations.filter(l => l.code.trim()).map(l => ({ ...l, code: l.code.trim().toUpperCase() })),
       ...(p ? { pricing: { ...p, coverages: (p.coverages || []).filter(c => c.code.trim()), promotions: (p.promotions || []).filter(c => c.code.trim()) } } : {}),
       ...(rules.allotments ? { allotments: rules.allotments.filter(a => a.group && a.from && a.to) } : {}),
