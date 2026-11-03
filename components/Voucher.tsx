@@ -382,6 +382,9 @@ const calculateDaysWithGrace = (start: string, end: string): number => {
   return remainingMs >= gracePeriodInMs ? fullDays + 1 : fullDays;
 };
 
+/** Extras that add a driver ("Additional driver", "Extra driver", "Second driver", Arabic "سائق إضافي"). */
+const isDriverExtra = (name: string) => /(additional|extra|second)\s*driver|سائق إضافي/i.test(name || '');
+
 /** What can still be changed on the agreement after check-out (with "Save changes"). */
 const AMEND_FIELDS: (keyof Reservation)[] = ['customerEmail', 'driver', 'additionalDrivers', 'paymentMethod', 'cardNumber', 'authNumber', 'finalAmountCharged', 'depositHoldMethod', 'depositAuthNumber',
   'carModel', 'licensePlate', 'sippCode', 'transmission'];
@@ -567,8 +570,20 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     const days = calculateDaysWithGrace(prev.startDate, prev.endDate);
     const sum = (l: ReservationExtra[]) => l.reduce((t, e) => (e.isComplementary ? t : t + (e.dailyPrice || 0) * days), 0);
     const base = prev.baseAmount ?? ((prev.amount || 0) - sum(prev.extras || []));
-    return { ...prev, extras: list, baseAmount: base, amount: Math.round((base + sum(list)) * 100) / 100 };
+    // Each "Additional driver" extra gets a driver line, so the name can be written straight away.
+    const wanted = list.filter(e => isDriverExtra(e.name)).length;
+    const drivers = [...(prev.additionalDrivers || [])];
+    while (drivers.length < wanted) drivers.push({ name: '' });
+    return { ...prev, extras: list, additionalDrivers: drivers, baseAmount: base, amount: Math.round((base + sum(list)) * 100) / 100 };
   });
+  const driverExtras = (localReservation.extras || []).filter(e => isDriverExtra(e.name)).length;
+  const setDriverName = (i: number, name: string) => {
+    const list = [...(localReservation.additionalDrivers || [])];
+    while (list.length <= i) list.push({ name: '' });
+    list[i] = { ...list[i], name };
+    if (isPickupEditable || extrasOnRent) setLocalReservation(prev => ({ ...prev, additionalDrivers: list }));
+    else handleFieldChange('additionalDrivers', list);
+  };
 
   const handleFieldChange = (field: keyof Reservation, value: any) => {
     const isEditable = viewMode === 'pickup' ? isPickupEditable : isDropoffEditable;
@@ -1387,8 +1402,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       <DriverDetailsForm
         driver={localReservation.driver || {}}
         additionalDrivers={localReservation.additionalDrivers || []}
-        editable={isPickupEditable}
-        fillMissing={canAmend ? { driver: savedBase.driver || {}, additionalDrivers: savedBase.additionalDrivers || [] } : undefined}
+        editable={isPickupEditable || canAmend}
         rentalEnd={localReservation.endDate}
         onChange={d => handleFieldChange('driver', d)}
         onChangeAdditional={list => handleFieldChange('additionalDrivers', list)}
@@ -1572,6 +1586,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
         <div className="md:col-span-2">
           <StepSection title="Extras & add-ons" subtitle={isPickupEditable ? 'Add what the customer asks for at the counter: child seat, additional driver, GPS…' : extrasOnRent ? 'Add or remove extras during the rental. The booking total is updated when you save.' : 'Extras on this rental'}>
             <ExtrasEditor extras={localReservation.extras || []} catalogue={availableExtras} days={rentalDays} editable={isPickupEditable || extrasOnRent} onChange={setExtras} />
+            {driverExtras > 0 && (
+              <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 space-y-2">
+                <p className="text-[13px] font-semibold text-slate-900"><Bi en="Additional driver name" />{driverExtras > 1 ? 's' : ''}</p>
+                {Array.from({ length: driverExtras }, (_, i) => (
+                  <input key={i} className={inputCls} value={(localReservation.additionalDrivers || [])[i]?.name || ''}
+                    onChange={e => setDriverName(i, e.target.value)} disabled={!(isPickupEditable || extrasOnRent || canAmend)}
+                    placeholder={`Full name of additional driver${driverExtras > 1 ? ` ${i + 1}` : ''}`} aria-label={`Additional driver ${i + 1} name`} />
+                ))}
+                <p className="text-[11px] text-slate-500">Printed on the agreement. Licence number and date of birth: Renter step, under Additional drivers.</p>
+              </div>
+            )}
           </StepSection>
         </div>
       )}
