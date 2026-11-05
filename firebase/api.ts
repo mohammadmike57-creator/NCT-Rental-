@@ -273,6 +273,11 @@ export interface ChannelWebhookRow {
 const channelPath = (id: string, p: string) => `${API_URL}/api/channels/${encodeURIComponent(id)}${p}`;
 export const fetchChannelBookings = async (channelId: string): Promise<ChannelBookingRow[]> =>
   (await axios.get(channelPath(channelId, '/bookings'), { headers: authHeaders() })).data;
+/** Deletes a broker booking from our records (OTA XML and its copy in the reservations list). The broker is not told. */
+export const deleteChannelBooking = async (channelId: string, reservationNumber: string): Promise<void> => {
+  try { await axios.delete(channelPath(channelId, `/bookings/${encodeURIComponent(reservationNumber)}`), { headers: authHeaders() }); }
+  catch (e) { throw apiError(e, 'Could not delete the booking.'); }
+};
 export const fetchChannelWebhooks = async (channelId: string): Promise<{ secretCreatedAt?: string; deliveries: ChannelWebhookRow[] }> =>
   (await axios.get(channelPath(channelId, '/webhooks'), { headers: authHeaders() })).data;
 export const rotateWebhookSecret = async (channelId: string): Promise<{ secret: string; createdAt: string }> => {

@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
-import { fetchChannelBookings, fetchChannelStatement, ChannelBookingRow, ChannelStatement } from '../../firebase/api';
+import { deleteChannelBooking, fetchChannelBookings, fetchChannelStatement, ChannelBookingRow, ChannelStatement } from '../../firebase/api';
+
+/** Asks before deleting a broker booking; a confirmed live one gets a stronger warning. */
+export const confirmDeleteBooking = (r: { reservationNumber: string; customerName?: string; status: string; sandbox?: boolean }) =>
+  window.confirm(r.sandbox || r.status === 'CANCELLED' || r.status === 'NO_SHOW' || r.status === 'COMPLETED'
+    ? `Delete ${r.reservationNumber}${r.customerName ? ` (${r.customerName})` : ''} from the records?`
+    : `Delete ${r.reservationNumber}${r.customerName ? ` (${r.customerName})` : ''}?\n\nThis booking is still ${r.status.toLowerCase()}. The broker is NOT told, and the customer may still come for the car. If it is real, cancel it with the broker first.\n\nDelete it anyway?`);
 import { Panel, Badge, Button, StatGrid, EmptyState, Tabs, table } from '../ui/Crm';
 
 const TONE: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'muted'> = {
@@ -238,7 +244,7 @@ const ChannelBookingsView: React.FC<{ aggregator: Aggregator }> = ({ aggregator 
   return (
     <div className="space-y-4">
       <StatGrid items={stats} />
-      <Panel title="Broker bookings" subtitle="Each one is also in Reservations under its pick-up month (search by the broker reference)."
+      <Panel title="Broker bookings" subtitle="They are shown only under OTA XML, not in Reservations."
         actions={<Button size="sm" onClick={load}>Refresh</Button>}>
         <Tabs value={view} onChange={k => setView(k as typeof view)} tabs={[{ key: 'live', label: 'Live', count: live.length }, { key: 'sandbox', label: 'Sandbox', count: sandbox.length }]} />
         {error && <p className="px-4 py-3 text-xs text-rose-600">{error}</p>}
@@ -247,7 +253,7 @@ const ChannelBookingsView: React.FC<{ aggregator: Aggregator }> = ({ aggregator 
         ) : (
           <div className="overflow-x-auto">
             <table className={`${table.wrap} min-w-[760px]`}>
-              <thead className={table.head}><tr>{['Reservation', 'Customer', 'Group', 'Rental', 'Total', 'Status'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+              <thead className={table.head}><tr>{['Reservation', 'Customer', 'Group', 'Rental', 'Total', 'Status', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
               <tbody className={table.body}>
                 {shown.map(r => (
                   <tr key={r.reservationNumber} className={table.row}>
@@ -266,6 +272,13 @@ const ChannelBookingsView: React.FC<{ aggregator: Aggregator }> = ({ aggregator 
                     </td>
                     <td className={`${table.td} text-right tabular-nums whitespace-nowrap`}>{(r.total ?? 0).toFixed(2)} {r.currency}</td>
                     <td className={table.td}><Badge tone={TONE[r.status] || 'muted'}>{LABEL[r.status] || r.status}</Badge></td>
+                    <td className={`${table.td} text-right`}>
+                      <button type="button" onClick={async () => {
+                        if (!confirmDeleteBooking(r)) return;
+                        try { await deleteChannelBooking(aggregator.id, r.reservationNumber); load(); }
+                        catch (e: any) { alert(e.message || 'Could not delete the booking.'); }
+                      }} className="h-8 px-2.5 rounded-md text-xs font-semibold text-rose-600 hover:bg-rose-50" title="Delete this booking from the records" aria-label={`Delete ${r.reservationNumber}`}>Delete</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

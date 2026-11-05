@@ -235,6 +235,16 @@ export const App: React.FC = () => {
   
   // State for each data slice
   const [reservations, setReservations] = useState<AppData>({});
+  // Bookings made by brokers over XML live only in OTA XML: every other screen and report leaves them out.
+  const shownReservations = useMemo<AppData>(() => {
+    const out: AppData = {};
+    Object.entries(reservations).forEach(([y, months]) => {
+      const ym: YearData = {} as YearData;
+      Object.entries(months as YearData).forEach(([m, list]) => { (ym as Record<string, Reservation[]>)[m] = (list as Reservation[]).filter(r => !r.channelId); });
+      out[y] = ym;
+    });
+    return out;
+  }, [reservations]);
   // A finished rental chosen for deletion (confirmed in DeleteAgreementDialog).
   const [agreementToDelete, setAgreementToDelete] = useState<Reservation | null>(null);
   const [deletingAgreement, setDeletingAgreement] = useState(false);
@@ -444,8 +454,8 @@ export const App: React.FC = () => {
 
   // Compute flat list of reservations for auto‑selection
   const allReservationsFlat = useMemo(() => {
-    return Object.values(reservations).flatMap((y: YearData) => Object.values(y).flat() as Reservation[]);
-  }, [reservations]);
+    return Object.values(shownReservations).flatMap((y: YearData) => Object.values(y).flat() as Reservation[]);
+  }, [shownReservations]);
 
   useEffect(() => {
       const cachedUsers = localStorage.getItem(USERS_CACHE_KEY);
@@ -1674,7 +1684,7 @@ ${currentUser?.fullName}
 
   const renderReservationView = (isAgreementView = false) => (
     <ReservationTable
-      allData={reservations}
+      allData={shownReservations}
       newReservations={newReservations}
       onUpdate={handleUpdateReservations}
       onAdd={handleAddNewReservation}
@@ -1729,14 +1739,14 @@ ${currentUser?.fullName}
     'Today\'s Reservations': { component: (
       <TodaysReservations
         fleet={fleet}
-        allData={reservations}
+        allData={shownReservations}
         rentalSources={sources}
         onShowVoucher={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month }}))}
       />
     ), permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
     'Needs Attention': { component: (
       <NeedsAttentionView
-        allData={reservations}
+        allData={shownReservations}
         sources={sources}
         onOpenBooking={(r, year, month) => { setSelectedYear(year); setSelectedMonth(month); handleNavigation('Reservations', { bookingIdSearch: r.bookingId || '' }); }}
         onOpenAgreement={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
@@ -1756,8 +1766,8 @@ ${currentUser?.fullName}
     ), permission: UserPermission.VIEW_INTERNAL_MESSAGES },
     'Yearly Summary': { component: (
         <SummaryTable 
-            allData={reservations} 
-            yearData={reservations[selectedYear]} 
+            allData={shownReservations} 
+            yearData={shownReservations[selectedYear]} 
             year={selectedYear} 
             companyDetails={companyDetails}
             franchisePayments={franchisePayments}
@@ -1769,7 +1779,7 @@ ${currentUser?.fullName}
     ), permission: UserPermission.VIEW_REPORTS_YEARLY_SUMMARY },
     'Unlisted Agreements': { component: (
         <UnlistedAgreementsView
-            allData={reservations}
+            allData={shownReservations}
             sources={sources}
             rentalLocations={rentalLocations}
             fleet={fleet}
@@ -1787,7 +1797,7 @@ ${currentUser?.fullName}
     ), permission: UserPermission.VIEW_RESERVATIONS },
     'Reservation Add-ons': { component: (
         <ReservationAddOnsView
-            allData={reservations}
+            allData={shownReservations}
             tickets={trafficTickets}
             damages={vehicleDamages}
             sources={sources}
@@ -1798,7 +1808,7 @@ ${currentUser?.fullName}
     'Fleet Availability': { component: (
       <FleetAvailability 
         fleet={fleet} 
-        yearData={reservations[selectedYear]} 
+        yearData={shownReservations[selectedYear]} 
         year={selectedYear} 
         currentMonth={selectedMonth} 
         onMonthChange={handleSetSelectedMonth} 
@@ -1806,16 +1816,16 @@ ${currentUser?.fullName}
         rentalSources={sources}
       />
     ), permission: UserPermission.VIEW_FLEET_AVAILABILITY },
-    'Invoice Generation': { component: <Invoice yearData={reservations[selectedYear]} allData={reservations} year={selectedYear} month={selectedMonth} companyDetails={companyDetails} sources={sources} aggregators={aggregators} invoices={invoices} currentUserName={currentUser?.fullName}
+    'Invoice Generation': { component: <Invoice yearData={shownReservations[selectedYear]} allData={shownReservations} year={selectedYear} month={selectedMonth} companyDetails={companyDetails} sources={sources} aggregators={aggregators} invoices={invoices} currentUserName={currentUser?.fullName}
         onSaveInvoice={(inv) => persistInvoices([...invoices, inv])}
         onUpdateInvoice={(inv) => persistInvoices(invoices.map(i => i.id === inv.id ? inv : i))} />, permission: UserPermission.VIEW_REPORTS_INVOICE_GENERATION },
     'Source Performance': { component: <SourcePerformanceReport reservations={allReservationsFlat} year={selectedYear} month={selectedMonth} />, permission: UserPermission.VIEW_REPORTS_SOURCE_PERFORMANCE },
-    'Accounting': { component: <AccountingDashboard allData={reservations} trafficTickets={trafficTickets} vehicleDamages={vehicleDamages} expenses={expenses} users={users} onUpdateExpenses={setExpenses} />, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },
-    'Payment Approvals': { component: <PaymentApprovals allData={reservations} onUpdateReservation={handleUpdateSingleReservation} currentUser={currentUser} showConfirmation={showConfirmation} companyDetails={companyDetails} />, permission: UserPermission.VIEW_FINANCIALS_PAYMENT_APPROVALS },
-    'Deferred Payments': { component: <DeferredPayments allData={reservations} onCollectPayment={handleCollectDeferredPayment} currentUser={currentUser} />, permission: UserPermission.VIEW_FINANCIALS_DEFERRED_PAYMENTS },
+    'Accounting': { component: <AccountingDashboard allData={shownReservations} trafficTickets={trafficTickets} vehicleDamages={vehicleDamages} expenses={expenses} users={users} onUpdateExpenses={setExpenses} />, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },
+    'Payment Approvals': { component: <PaymentApprovals allData={shownReservations} onUpdateReservation={handleUpdateSingleReservation} currentUser={currentUser} showConfirmation={showConfirmation} companyDetails={companyDetails} />, permission: UserPermission.VIEW_FINANCIALS_PAYMENT_APPROVALS },
+    'Deferred Payments': { component: <DeferredPayments allData={shownReservations} onCollectPayment={handleCollectDeferredPayment} currentUser={currentUser} />, permission: UserPermission.VIEW_FINANCIALS_DEFERRED_PAYMENTS },
     'Traffic Tickets': { component: (
         <TrafficTickets
-            tickets={trafficTickets} allData={reservations}
+            tickets={trafficTickets} allData={shownReservations}
             onAddTicket={ticket => setTrafficTickets(prev => [...prev, { ...ticket, id: `tt-${Date.now()}`}])}
             onUpdateTicket={updatedTicket => setTrafficTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t))}
             onDeleteTicket={id => setTrafficTickets(prev => prev.filter(t => t.id !== id))}
@@ -1825,7 +1835,7 @@ ${currentUser?.fullName}
     ), permission: UserPermission.VIEW_TRAFFIC_TICKETS },
     'Vehicle Damages': { component: (
          <VehicleDamages
-            damages={vehicleDamages} allData={reservations}
+            damages={vehicleDamages} allData={shownReservations}
             onAddDamage={damage => setVehicleDamages(prev => [...prev, { ...damage, id: `vd-${Date.now()}`}])}
             onUpdateDamage={updatedDamage => setVehicleDamages(prev => prev.map(dmg => dmg.id === updatedDamage.id ? updatedDamage : dmg))}
             onDeleteDamage={id => setVehicleDamages(prev => prev.filter(dmg => dmg.id !== id))}
@@ -2051,7 +2061,7 @@ ${currentUser?.fullName}
     ), permission: UserPermission.VIEW_MY_PROFILE },
     'Import Reservations': { component: (
         <ExcelUpload onReservationsImported={handleReservationsImport} years={years} focusYear={selectedYear} focusMonth={selectedMonth}
-            allData={reservations} sources={sources} fleet={fleet}
+            allData={shownReservations} sources={sources} fleet={fleet}
             onAddSources={async added => {
                 const next = [...sources, ...added];
                 setSources(next);
@@ -2340,7 +2350,7 @@ ${currentUser?.fullName}
               {currentViewHasAccess 
                 ? <ErrorBoundary resetKey={mainView}>
                     {mainView === 'Reservations' && hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_EDIT) && (
-                      <MisfiledNotice data={reservations} onMove={handleMoveToPickupMonths}
+                      <MisfiledNotice data={shownReservations} onMove={handleMoveToPickupMonths}
                         onReview={hasPermission(currentUser, UserPermission.VIEW_IMPORT_RESERVATIONS) ? () => setMainView('Import Reservations') : undefined} />
                     )}
                     {mainViews[mainView]?.component}
@@ -2379,7 +2389,7 @@ ${currentUser?.fullName}
 
       <Suspense fallback={<LoadingSpinner />}>
       <AnimatedModal isOpen={!!modals.viewVoucher} onClose={() => setModals(m=>({...m, viewVoucher: null}))}>
-        {modals.viewVoucher && <Voucher fleet={fleet} allData={reservations} availableExtras={availableExtras} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
+        {modals.viewVoucher && <Voucher fleet={fleet} allData={shownReservations} availableExtras={availableExtras} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewVoucher!.year, modals.viewVoucher!.month); }} />}
       </AnimatedModal>
 
       <AnimatedModal isOpen={showUnlistedAgreement} onClose={() => setShowUnlistedAgreement(false)}>
@@ -2395,7 +2405,7 @@ ${currentUser?.fullName}
         )}
       </AnimatedModal>
       {/* The agreement draws its own full-screen backdrop, so it is not wrapped in AnimatedModal. */}
-      {modals.viewRentalVoucher && <Voucher fleet={fleet} allData={reservations} availableExtras={availableExtras} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
+      {modals.viewRentalVoucher && <Voucher fleet={fleet} allData={shownReservations} availableExtras={availableExtras} onUpgrade={handleUpgradeVehicle} canUpgrade={hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE)} reservation={modals.viewRentalVoucher.reservation} sources={sources} rentalLocations={rentalLocations} companyDetails={companyDetails} trafficTickets={trafficTickets} onRecordReturnCharges={handleRecordReturnCharges} onClose={() => setModals(m=>({...m, viewRentalVoucher: null}))} onUpdate={(res) => {handleUpdateReservations(res, modals.viewRentalVoucher!.year, modals.viewRentalVoucher!.month); }} />}
 
       <AnimatedModal isOpen={!!modals.viewReceipt} onClose={() => setModals(m=>({...m, viewReceipt: null}))}>
         {modals.viewReceipt && <Receipt reservation={modals.viewReceipt} companyDetails={companyDetails} sources={sources} onClose={() => setModals(m=>({...m, viewReceipt: null}))} />}

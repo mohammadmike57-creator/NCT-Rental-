@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
-import { fetchChannelBookings, ChannelBookingRow } from '../../firebase/api';
+import { deleteChannelBooking, fetchChannelBookings, ChannelBookingRow } from '../../firebase/api';
+import { confirmDeleteBooking } from './ChannelBookingsView';
 import { Panel, Badge, Button, StatGrid, EmptyState, Tabs, Plate, table, inputCls, selectCls } from '../ui/Crm';
 
 const TONE: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'muted'> = {
@@ -80,7 +81,7 @@ const XmlReservationsView: React.FC<{ aggregators: Aggregator[] }> = ({ aggregat
   return (
     <div className="space-y-4">
       <StatGrid items={stats} />
-      <Panel title="XML reservations" subtitle="Bookings received from the brokers through OTA XML, SOAP, native XML or REST. Each one is also in Reservations under its pick-up month, with the broker as its source."
+      <Panel title="XML reservations" subtitle="Bookings received from the brokers through OTA XML, SOAP, native XML or REST. They are shown only here, not in Reservations, Today's Reservations or Agreement."
         actions={<div className="flex items-center gap-2">
           <Button size="sm" onClick={csv} disabled={!shown.length}>CSV</Button>
           <Button size="sm" onClick={() => void load()}>Refresh</Button>
@@ -114,7 +115,7 @@ const XmlReservationsView: React.FC<{ aggregators: Aggregator[] }> = ({ aggregat
         ) : (
           <div className="overflow-x-auto">
             <table className={`${table.wrap} min-w-[900px]`}>
-              <thead className={table.head}><tr>{['Reservation', 'Broker', 'Customer', 'Group', 'Rental', 'Total', 'Status'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+              <thead className={table.head}><tr>{['Reservation', 'Broker', 'Customer', 'Group', 'Rental', 'Total', 'Status', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
               <tbody className={table.body}>
                 {shown.map(r => (
                   <tr key={`${r.channelId}-${r.reservationNumber}`} className={table.row}>
@@ -136,6 +137,13 @@ const XmlReservationsView: React.FC<{ aggregators: Aggregator[] }> = ({ aggregat
                     </td>
                     <td className={`${table.td} text-right tabular-nums whitespace-nowrap`}>{money(r.total ?? 0)} {r.currency}</td>
                     <td className={table.td}><Badge tone={TONE[r.status] || 'muted'}>{LABEL[r.status] || r.status}</Badge></td>
+                    <td className={`${table.td} text-right`}>
+                      <button type="button" onClick={async () => {
+                        if (!confirmDeleteBooking(r)) return;
+                        try { await deleteChannelBooking(r.channelId, r.reservationNumber); load(); }
+                        catch (e: any) { alert(e.message || 'Could not delete the booking.'); }
+                      }} className="h-8 px-2.5 rounded-md text-xs font-semibold text-rose-600 hover:bg-rose-50" title="Delete this booking from the records" aria-label={`Delete ${r.reservationNumber}`}>Delete</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
