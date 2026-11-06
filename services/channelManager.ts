@@ -652,7 +652,7 @@ export const generateFeedKey = (): string => {
   crypto.getRandomValues(bytes);
   let bin = '';
   bytes.forEach(b => { bin += String.fromCharCode(b); });
-  return `nct_${btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+  return `urd_${btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
 };
 
 export const sha256Hex = async (text: string): Promise<string> => {

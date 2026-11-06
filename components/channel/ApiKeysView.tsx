@@ -19,7 +19,7 @@ export const keyMessage = (a: Aggregator, key: string, apiBase: string, kind: Ke
     `${kind === 'test' ? 'TEST' : 'API'} credentials for ${a.name}`,
     '',
     `Channel code:   ${partnerUrlCode(a)}`,
-    `Supplier code:  ${(a.vendorCode || 'NCT').toUpperCase()}`,
+    `Supplier code:  ${(a.vendorCode || 'URD').toUpperCase()}`,
     `${kind === 'test' ? 'Test key:' : 'API key: '}       ${key}`,
     `Environment:    ${kind === 'test' ? 'Sandbox only: this key never creates a real booking, also after go-live' : a.status === 'active' ? 'Production' : 'Sandbox (test bookings only, until go-live)'}`,
     '',
@@ -39,8 +39,8 @@ export const keyMessage = (a: Aggregator, key: string, apiBase: string, kind: Ke
 
 export type KeyKind = 'live' | 'test';
 const FIELDS = {
-  live: { hash: 'feedKeyHash', hint: 'feedKeyHint', at: 'feedKeyCreatedAt', label: 'API key', prefix: 'nct_' },
-  test: { hash: 'testKeyHash', hint: 'testKeyHint', at: 'testKeyCreatedAt', label: 'test key', prefix: 'nct_test_' },
+  live: { hash: 'feedKeyHash', hint: 'feedKeyHint', at: 'feedKeyCreatedAt', label: 'API key', prefix: 'urd_' },
+  test: { hash: 'testKeyHash', hint: 'testKeyHint', at: 'testKeyCreatedAt', label: 'test key', prefix: 'urd_test_' },
 } as const;
 
 /** Every broker's API key in one place: who has one, when it was made, whether the broker is using it. */
@@ -80,7 +80,7 @@ const ApiKeysView: React.FC<{
     setError('');
     setReplacing(null);
     try {
-      const key = kind === 'test' ? generateFeedKey().replace(/^nct_/, f.prefix) : generateFeedKey();
+      const key = kind === 'test' ? generateFeedKey().replace(/^urd_/, f.prefix) : generateFeedKey();
       const hash = await sha256Hex(key);
       const grace = kind === 'live' && graceHours && a.feedKeyHash
         ? { previousKeyHash: a.feedKeyHash, previousKeyExpiresAt: new Date(Date.now() + graceHours * 3600000).toISOString() }
@@ -108,7 +108,7 @@ const ApiKeysView: React.FC<{
     return (
       <div className="space-y-1">
         {a[f.hash]
-          ? <p className="font-mono text-xs text-slate-800">{f.prefix}••••{a[f.hint]}</p>
+          ? <p className="font-mono text-xs text-slate-800">••••{a[f.hint]}</p>
           : <Badge tone={kind === 'live' ? 'danger' : 'muted'}>{kind === 'live' ? 'No key' : 'None'}</Badge>}
         <p className="text-[11px] text-slate-400">{a[f.hash] ? `Created ${day(a[f.at])}` : kind === 'test' ? 'Optional' : 'Required to connect'}</p>
         {kind === 'live' && a.previousKeyExpiresAt && new Date(a.previousKeyExpiresAt).getTime() > Date.now() && (

@@ -141,7 +141,7 @@ ${section(2, 'Authentication and security', `
   <ul>
     <li>HTTPS only (TLS 1.2+). Credentials are never sent in the URL.</li>
     <li>Send your API key in <code>Authorization: Bearer &lt;key&gt;</code> or <code>X-Api-Key: &lt;key&gt;</code>. In OTA messages it may travel as <code>POS/Source/RequestorID MessagePassword</code>, over SOAP as a WS-Security <code>UsernameToken</code> (Username = <code>${esc(ch)}</code>, Password = key), and in native XML as <code>Credentials/ApiKey</code>. Keys are issued per channel and stored only as a hash.</li>
-    <li>On request you also receive a <b>test key</b> (it starts with <code>nct_test_</code>) for your test system. It works at the same addresses but is always answered in the sandbox, also after go-live: bookings made with it are never real.</li>
+    <li>On request you also receive a <b>test key</b> (it starts with <code>urd_test_</code>; older test keys may start differently) for your test system. It works at the same addresses but is always answered in the sandbox, also after go-live: bookings made with it are never real.</li>
     <li><b>Key replacement without downtime:</b> when we issue a new key, the previous one keeps working for an agreed switch-over period (normally 3 days), unless the key was exposed.</li>
     <li><b>Brute-force protection:</b> an address that fails authentication 10 times within 10 minutes is refused for 15 minutes, whatever key it sends (<code>AUTH_FAILED</code>, "Too many failed attempts").</li>
     <li><b>IP allow-list</b> (recommended for production): send us your outgoing server addresses and only they can use your key.</li>
