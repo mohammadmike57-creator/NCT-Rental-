@@ -381,6 +381,8 @@ export interface TrafficTicket {
   amount: number;
   details: string;
   status: TrafficTicketStatus;
+  /** When the ticket was added to the system: its revenue counts in that month (Yearly Summary). */
+  createdAt?: string;
   ticketDocument?: string; // base64 data URL
   ticketDocumentFilename?: string;
 }
@@ -391,6 +393,8 @@ export interface VehicleDamage {
   amount: number; // Cost of physical damage in JOD
   details: string;
   status: VehicleDamageStatus; // Status of amount collection
+  /** When the damage was added to the system: its revenue counts in that month (Yearly Summary). */
+  createdAt?: string;
   policeReportNumber?: string;
   policeReportAmount?: number; // Fine or collected amount (e.g., excess) in JOD
   repairInvoice?: string; // base64 data URL

@@ -1826,7 +1826,7 @@ ${currentUser?.fullName}
     'Traffic Tickets': { component: (
         <TrafficTickets
             tickets={trafficTickets} allData={shownReservations}
-            onAddTicket={ticket => setTrafficTickets(prev => [...prev, { ...ticket, id: `tt-${Date.now()}`}])}
+            onAddTicket={ticket => setTrafficTickets(prev => [...prev, { ...ticket, id: `tt-${Date.now()}`, createdAt: new Date().toISOString() }])}
             onUpdateTicket={updatedTicket => setTrafficTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t))}
             onDeleteTicket={id => setTrafficTickets(prev => prev.filter(t => t.id !== id))}
             currentUser={currentUser}
@@ -1836,7 +1836,7 @@ ${currentUser?.fullName}
     'Vehicle Damages': { component: (
          <VehicleDamages
             damages={vehicleDamages} allData={shownReservations}
-            onAddDamage={damage => setVehicleDamages(prev => [...prev, { ...damage, id: `vd-${Date.now()}`}])}
+            onAddDamage={damage => setVehicleDamages(prev => [...prev, { ...damage, id: `vd-${Date.now()}`, createdAt: new Date().toISOString() }])}
             onUpdateDamage={updatedDamage => setVehicleDamages(prev => prev.map(dmg => dmg.id === updatedDamage.id ? updatedDamage : dmg))}
             onDeleteDamage={id => setVehicleDamages(prev => prev.filter(dmg => dmg.id !== id))}
             currentUser={currentUser}

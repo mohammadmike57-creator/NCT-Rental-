@@ -2,7 +2,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
-import { bookingRevenue, indexRegisters, countsInSummary } from '../services/revenue';
+import { countsInSummary } from '../services/revenue';
+import { allRevenueEvents, monthlyBreakdown } from '../services/revenueByMonth';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
@@ -252,14 +253,18 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
   const now = new Date();
 
-  // Revenue per booking = rental (with extras, upgrades, extensions) + damages + traffic tickets + other return charges.
-  const registers = useMemo(() => indexRegisters({ trafficTickets, vehicleDamages }), [trafficTickets, vehicleDamages]);
+  // Revenue counts in the month it was earned: the booking's original price in its own month, every later
+  // change (extras, upgrades, extensions, tickets, damages, return charges) in the month it was added.
+  // A ticket added in November for an October rental is November revenue and November commission.
+  const events = useMemo(() => allRevenueEvents(allData, { trafficTickets, vehicleDamages }), [allData, trafficTickets, vehicleDamages]);
+  const breakdown = useMemo(() => monthlyBreakdown(events, year), [events, year]);
   const months = useMemo(() => MONTHS.map((month, idx) => {
     const list = (yearData && yearData[month]) || [];
     // Everything except cancelled and no-show bookings (pending ones included).
     const confirmed = list.filter(countsInSummary);
     const cancelled = list.filter(r => r.status === ReservationStatus.CANCELLED || (r.status as string) === 'NO_SHOW').length;
-    const revenueUSD = confirmed.reduce((s, r) => s + bookingRevenue(r, registers).total, 0);
+    const parts = breakdown[idx];
+    const revenueUSD = parts.total;
     const commissionUSD = revenueUSD * COMMISSION_RATE;
     const waived = (WAIVED_MONTHS[year] || []).includes(month);
     const monthStart = new Date(year, idx, 1);
@@ -279,13 +284,16 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     return {
       // Bookings = every booking except cancelled and no-show; those are shown on their own.
       month, idx, total: confirmed.length, confirmed: confirmed.length, cancelled,
-      revenueUSD, commissionUSD, feeUSD, waived, started, payment, paidUSD, deadline, status,
+      revenueUSD, parts, commissionUSD, feeUSD, waived, started, payment, paidUSD, deadline, status,
     };
-  }), [yearData, year, franchisePayments, registers, now.toDateString()]);
+  }), [yearData, year, franchisePayments, breakdown, now.toDateString()]);
 
   const totals = useMemo(() => {
-    const t = { bookings: 0, confirmed: 0, cancelled: 0, revenueUSD: 0, commissionUSD: 0 };
-    months.forEach(m => { t.bookings += m.total; t.confirmed += m.confirmed; t.cancelled += m.cancelled; t.revenueUSD += m.revenueUSD; t.commissionUSD += m.commissionUSD; });
+    const t = { bookings: 0, confirmed: 0, cancelled: 0, revenueUSD: 0, commissionUSD: 0, rental: 0, addons: 0, tickets: 0, damages: 0, other: 0, lateFromEarlier: 0 };
+    months.forEach(m => {
+      t.bookings += m.total; t.confirmed += m.confirmed; t.cancelled += m.cancelled; t.revenueUSD += m.revenueUSD; t.commissionUSD += m.commissionUSD;
+      t.rental += m.parts.rental; t.addons += m.parts.addons; t.tickets += m.parts.tickets; t.damages += m.parts.damages; t.other += m.parts.other; t.lateFromEarlier += m.parts.lateFromEarlier;
+    });
     return t;
   }, [months]);
 
@@ -482,11 +490,11 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
           </Panel>
 
           {/* Monthly breakdown */}
-          <Panel title="Monthly breakdown" subtitle={`Amounts in ${currency}`}>
+          <Panel title="Monthly breakdown" subtitle={`Amounts in ${currency}. Each amount counts in the month it was earned: a ticket or upgrade added in November to an October booking is November revenue and November commission.`}>
             {/* phones */}
             <ul className="md:hidden divide-y divide-slate-100">
               {months.map(m => (
-                <li key={m.month} className={`px-4 py-3 ${m.idx === currentMonthIdx ? 'bg-indigo-50/40' : ''} ${!m.started && m.total === 0 ? 'opacity-60' : ''}`}>
+                <li key={m.month} className={`px-4 py-3 ${m.idx === currentMonthIdx ? 'bg-indigo-50/40' : ''} ${!m.started && m.total === 0 && !m.revenueUSD ? 'opacity-60' : ''}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex items-center gap-2">
                       <p className="text-[13px] font-semibold text-slate-900 truncate">{m.month}</p>
@@ -501,6 +509,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                     <div className="min-w-0"><p className="text-slate-400">Commission</p><p className="font-medium tabular-nums text-slate-700 truncate">{money(m.commissionUSD * rate)}</p></div>
                     <div className="min-w-0"><p className="text-slate-400">Fee</p><button onClick={() => setActiveTab('franchise')} className="mt-0.5"><StatusChip status={m.status} /></button></div>
                   </div>
+                  {m.revenueUSD > 0 && (
+                    <p className="mt-2 text-[11px] text-slate-500 tabular-nums">
+                      {[['Rental', m.parts.rental], ['Add-ons', m.parts.addons], ['Tickets', m.parts.tickets], ['Damages', m.parts.damages], ['Other', m.parts.other]]
+                        .filter(([, v]) => (v as number) > 0).map(([l, v]) => `${l} ${money((v as number) * rate)}`).join(' · ')}
+                      {m.parts.lateFromEarlier > 0 && <span className="block text-indigo-600">incl. {money(m.parts.lateFromEarlier * rate)} from earlier bookings</span>}
+                    </p>
+                  )}
                 </li>
               ))}
               <li className="px-4 py-3 bg-slate-50">
@@ -521,22 +536,33 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                   <tr>
                     <th className={`${table.th} ${stickyCell} bg-slate-50`}>Month</th>
                     <th className={`${table.th} text-right`} title="Every booking except cancelled and no-show">Bookings</th>
-                    <th className={`${table.th} text-right`}>Cancelled / no-show</th>
+                    <th className={`${table.th} text-right`} title="Cancelled and no-show bookings">Cancelled</th>
+                    <th className={`${table.th} text-right`} title="Original price of the bookings made this month">Rental</th>
+                    <th className={`${table.th} text-right`} title="Extras added later, upgrades, extensions and price edits, in the month they were made">Add-ons</th>
+                    <th className={`${table.th} text-right`} title="Traffic tickets, in the month they were added">Tickets</th>
+                    <th className={`${table.th} text-right`} title="Damages, in the month they were added">Damages</th>
+                    <th className={`${table.th} text-right`} title="Fuel, cleaning, late return and other return charges">Other</th>
                     <th className={`${table.th} text-right`}>Revenue</th>
-                    <th className={`${table.th} text-right`}>Avg booking</th>
-                    <th className={`${table.th} text-right`}>Commission</th>
-                    <th className={table.th}>Franchise fee</th>
+                    <th className={`${table.th} text-right`} title="Revenue per booking">Avg</th>
+                    <th className={`${table.th} text-right`} title="7.5% of revenue">Commission</th>
+                    <th className={table.th}>Fee</th>
                   </tr>
                 </thead>
                 <tbody className={table.body}>
                   {months.map(m => {
                     const current = m.idx === currentMonthIdx;
                     return (
-                      <tr key={m.month} className={`group transition-colors ${current ? 'bg-indigo-50/60' : 'bg-white hover:bg-slate-50'} ${!m.started && m.total === 0 ? 'text-slate-400' : 'text-slate-700'}`}>
+                      <tr key={m.month} className={`group transition-colors ${current ? 'bg-indigo-50/60' : 'bg-white hover:bg-slate-50'} ${!m.started && m.total === 0 && !m.revenueUSD ? 'text-slate-400' : 'text-slate-700'}`}>
                         <td className={`${table.td} ${stickyCell} ${current ? 'bg-indigo-50' : 'bg-white group-hover:bg-slate-50'} font-medium text-slate-900`}>{m.month}{current && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Current</span>}</td>
                         <td className={`${table.td} text-right tabular-nums`}>{m.total}</td>
                         <td className={`${table.td} text-right tabular-nums`}>{m.cancelled}</td>
-                        <td className={`${table.td} text-right tabular-nums font-semibold text-slate-900`}>{money(m.revenueUSD * rate)}</td>
+                        {(['rental', 'addons', 'tickets', 'damages', 'other'] as const).map(k => (
+                          <td key={k} className={`${table.td} text-right tabular-nums ${m.parts[k] ? '' : 'text-slate-300'}`}>{m.parts[k] ? money(m.parts[k] * rate) : '—'}</td>
+                        ))}
+                        <td className={`${table.td} text-right tabular-nums font-semibold text-slate-900`}>
+                          {money(m.revenueUSD * rate)}
+                          {m.parts.lateFromEarlier > 0 && <span className="block ml-auto max-w-[7.5rem] whitespace-normal leading-tight text-[11px] font-normal text-indigo-600" title="Charges added this month to bookings of earlier months">{money(m.parts.lateFromEarlier * rate)} from earlier bookings</span>}
+                        </td>
                         <td className={`${table.td} text-right tabular-nums`}>{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</td>
                         <td className={`${table.td} text-right tabular-nums`}>{money(m.commissionUSD * rate)}</td>
                         <td className={table.td}><button onClick={() => setActiveTab('franchise')}><StatusChip status={m.status} /></button></td>
@@ -549,6 +575,9 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                     <td className={`${table.td} ${stickyCell} bg-slate-50 font-semibold`}>Total {year}</td>
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{totals.bookings}</td>
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{totals.cancelled}</td>
+                    {(['rental', 'addons', 'tickets', 'damages', 'other'] as const).map(k => (
+                      <td key={k} className={`${table.td} text-right tabular-nums font-semibold`}>{money(totals[k] * rate)}</td>
+                    ))}
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{money(totals.revenueUSD * rate)}</td>
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{money(avgBooking * rate)}</td>
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{money(totals.commissionUSD * rate)}</td>
