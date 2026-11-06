@@ -26,10 +26,12 @@ const StatementPanel: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) =>
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [st, setSt] = useState<ChannelStatement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const base = aggregator.currency || 'JOD';
+  const [settle, setSettle] = useState<string>('');     // '' = channel currency; 'USD' = settlement
   useEffect(() => {
     setSt(null); setError(null);
-    fetchChannelStatement(aggregator.id, month).then(setSt).catch((e: any) => setError(e.message));
-  }, [aggregator.id, month]);
+    fetchChannelStatement(aggregator.id, month, settle || undefined).then(setSt).catch((e: any) => setError(e.message));
+  }, [aggregator.id, month, settle]);
 
   const csv = () => {
     if (!st) return;
@@ -65,12 +67,22 @@ const StatementPanel: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) =>
     <Panel title="Commission statement" subtitle={`Live bookings by pick-up month. Commission ${aggregator.commissionPercent ?? 0}% (Overview tab) on bookings, and on the fee for cancellations and no-shows.`}
       actions={<div className="flex items-center gap-2">
         <input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} className="h-8 rounded-lg border border-slate-200 px-2 text-xs" aria-label="Month" />
+        {base !== 'USD' && (
+          <select value={settle} onChange={e => setSettle(e.target.value)} className="h-8 rounded-lg border border-slate-200 px-2 text-xs" aria-label="Statement currency">
+            <option value="">In {base}</option><option value="USD">Settle in USD</option>
+          </select>
+        )}
         <Button size="sm" onClick={csv} disabled={!st || !st.rows.length}>CSV</Button>
         <Button size="sm" onClick={print} disabled={!st || !st.rows.length}>Print</Button>
       </div>}>
       {error && <p className="px-4 py-3 text-xs text-rose-600">{error}</p>}
       {!st && !error ? <p className="px-4 py-8 text-center text-[13px] text-slate-500">Loading…</p> : st && (
         <>
+          {st.channelCurrency && st.exchangeRate && (
+            <p className="px-4 py-2 text-[11px] text-slate-500 border-b border-slate-100 bg-slate-50">
+              Converted for settlement: 1 {st.channelCurrency} = {st.exchangeRate} {st.currency} (the USD rate under Booking API → Currencies). Each row is converted; totals are the sums.
+            </p>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 border-b border-slate-100">
             {[['Commissionable', `${money(st.gross)} ${st.currency}`, `${st.bookings} booking${st.bookings === 1 ? '' : 's'}`],
               ['Cancellation & no-show fees', `${money(st.fees)} ${st.currency}`, `${st.cancelled} cancelled · ${st.noShows} no-show`],

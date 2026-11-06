@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { API_URL } from '../../firebase/api';
+import React, { useEffect, useState } from 'react';
+import { API_URL, RetentionPolicy, fetchRetentionPolicy } from '../../firebase/api';
 import { Panel, Badge, Button, table } from '../ui/Crm';
 
 /**
@@ -9,6 +9,8 @@ import { Panel, Badge, Button, table } from '../ui/Crm';
 const DeveloperView: React.FC = () => {
   const base = (API_URL || window.location.origin).replace(/\/$/, '');
   const [copied, setCopied] = useState('');
+  const [retention, setRetention] = useState<RetentionPolicy | null>(null);
+  useEffect(() => { fetchRetentionPolicy().then(setRetention).catch(() => setRetention(null)); }, []);
   const copy = (k: string, v: string) => { navigator.clipboard?.writeText(v).then(() => { setCopied(k); setTimeout(() => setCopied(''), 1500); }).catch(() => {}); };
 
   const versions: [string, string, string, 'success' | 'info' | 'muted' | 'warning', string][] = [
@@ -86,6 +88,31 @@ function verify(req, secret) {
             </li>
           ))}
         </ul>
+      </Panel>
+
+      <Panel title="Data retention" subtitle="The gateway's own working records are cleaned up daily. Reservations, agreements and live broker bookings are never removed by this.">
+        <div className="overflow-x-auto">
+          <table className={`${table.wrap} min-w-[560px]`}>
+            <thead className={table.head}><tr>{['Record', 'Kept for', 'Why'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+            <tbody className={table.body}>
+              {([
+                ['XML traffic log (requests and answers)', retention?.trafficLogDays ?? 30, 'Support and disputes; contains customer names'],
+                ['Quotes not booked', retention?.quoteDays ?? 3, 'Only needed while the broker may book them'],
+                ['Delivered webhooks', retention?.deliveredWebhookDays ?? 90, 'Proof of delivery'],
+                ['Failed webhooks (dead letter)', retention?.deadLetterDays ?? 180, 'Time to replay'],
+                ['Rate sheet delivery log', retention?.deliveryLogDays ?? 180, 'History of what was sent'],
+                ['Test (sandbox) bookings', retention?.sandboxBookingDays ?? 90, 'Certification evidence; never in the reservations list'],
+              ] as [string, number, string][]).map(([r, d, w]) => (
+                <tr key={r} className={table.row}>
+                  <td className={`${table.td} text-[13px] font-medium text-slate-900`}>{r}</td>
+                  <td className={`${table.td} tabular-nums`}>{d} days</td>
+                  <td className={`${table.td} text-xs text-slate-500`}>{w}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-4 py-2 text-[11px] text-slate-500">{retention?.lastRun?.ranAt ? `Last clean-up ${new Date(retention.lastRun.ranAt).toLocaleString('en-GB')}: ${retention.lastRun.sandboxBookings ?? 0} test bookings, ${(retention.lastRun.deliveredWebhooks ?? 0) + (retention.lastRun.deadLetterWebhooks ?? 0)} webhooks, ${retention.lastRun.deliveryLog ?? 0} log rows removed.` : 'The first clean-up runs a few minutes after the server starts, then every 24 hours.'}</p>
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">

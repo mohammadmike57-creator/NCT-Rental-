@@ -632,6 +632,7 @@ export interface AggregatorConnectionDetails {
 export interface AggregatorExtra {
     id: string; // Links to AvailableExtra id
     name: string;
+    nameAr?: string;
     price: number;
     otaEquipType?: string; // OTA equipment code the partner expects (EquipType)
     maxPerRental?: number; // Optional cap on the rental charge, 0 / undefined = no cap
@@ -645,6 +646,8 @@ export interface Aggregator {
     ratePlanHistory: RatePlanSubmission[];
     extras: AggregatorExtra[];
     termsAndConditions: string;
+    /** Arabic terms for brokers that ask in Arabic; empty = the English terms. */
+    termsAndConditionsAr?: string;
     // Channel manager settings (optional for backward compatibility)
     channelCode?: string;        // Short partner code, e.g. BKG
     vendorCode?: string;         // Our supplier code at the partner, e.g. NCT
@@ -698,6 +701,9 @@ export interface ChannelBookingLocation {
     afterHoursFee?: number;
     /** Holidays and special days: closed (no pick-ups or returns), or open at other hours than usual. */
     specialDays?: ChannelSpecialDay[];
+    /** Shown to brokers that ask in Arabic (PrimaryLangID="ar" / Accept-Language: ar). */
+    nameAr?: string;
+    addressAr?: string;
 }
 
 export interface ChannelSpecialDay {
@@ -717,6 +723,7 @@ export interface ChannelGroupDetail {
     fuel?: string;
     pictureUrl?: string;
     description?: string;
+    descriptionAr?: string;
 }
 
 export interface ChannelCoverage {

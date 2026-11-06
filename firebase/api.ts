@@ -259,6 +259,8 @@ export interface ChannelStatementRow {
 }
 export interface ChannelStatement {
   channel: string; month: string; currency: string; commissionPercent: number; rows: ChannelStatementRow[];
+  /** Set when the statement was converted for settlement (e.g. to USD). */
+  channelCurrency?: string; exchangeRate?: number;
   bookings: number; cancelled: number; noShows: number; gross: number; fees: number; commission: number; net: number;
 }
 export interface ChannelInventory {
@@ -304,8 +306,8 @@ export const sendTestWebhook = async (channelId: string): Promise<ChannelWebhook
 };
 export const replayWebhook = async (channelId: string, deliveryId: number): Promise<ChannelWebhookRow> =>
   (await axios.post(channelPath(channelId, `/webhooks/${deliveryId}/replay`), {}, { headers: authHeaders() })).data;
-export const fetchChannelStatement = async (channelId: string, month: string): Promise<ChannelStatement> => {
-  try { return (await axios.get(channelPath(channelId, '/statement'), { params: { month }, headers: authHeaders() })).data; }
+export const fetchChannelStatement = async (channelId: string, month: string, currency?: string): Promise<ChannelStatement> => {
+  try { return (await axios.get(channelPath(channelId, '/statement'), { params: { month, ...(currency ? { currency } : {}) }, headers: authHeaders() })).data; }
   catch (e) { throw apiError(e, 'Could not load the statement.'); }
 };
 export const fetchChannelInventory = async (channelId: string, days?: number): Promise<ChannelInventory> => {
@@ -569,3 +571,10 @@ export const uploadImage = async (dataUrl: string): Promise<string> => {
 /** Turns a stored media path into a full URL for <img>; other URLs (data:, https:) pass through. */
 export const mediaUrl = (path?: string): string | undefined =>
   !path ? undefined : path.startsWith('/api/') ? `${API_URL}${path}` : path;
+
+export interface RetentionPolicy {
+  trafficLogDays: number; quoteDays: number; deliveredWebhookDays: number; deadLetterDays: number; deliveryLogDays: number; sandboxBookingDays: number;
+  lastRun?: { ranAt?: string; deliveredWebhooks?: number; deadLetterWebhooks?: number; deliveryLog?: number; sandboxBookings?: number };
+}
+export const fetchRetentionPolicy = async (): Promise<RetentionPolicy> =>
+  (await axios.get(`${API_URL}/api/channel-platform/retention`, { headers: authHeaders() })).data;
