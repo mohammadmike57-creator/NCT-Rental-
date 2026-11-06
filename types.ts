@@ -648,6 +648,7 @@ export interface Aggregator {
     // Channel manager settings (optional for backward compatibility)
     channelCode?: string;        // Short partner code, e.g. BKG
     vendorCode?: string;         // Our supplier code at the partner, e.g. NCT
+    vendorName?: string;         // Supplier name brokers see in every response (Vendor), e.g. UR-Drive Jordan
     locationCode?: string;       // Pick-up location code sent in XML, e.g. AMM
     currency?: string;           // ISO 4217, defaults to USD
     status?: ChannelStatus;

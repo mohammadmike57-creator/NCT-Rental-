@@ -16,6 +16,7 @@ type Draft = {
   connection: AggregatorConnectionDetails;
   channelCode: string;
   vendorCode: string;
+  vendorName: string;
   locationCode: string;
   currency: string;
   status: ChannelStatus;
@@ -33,6 +34,7 @@ const toDraft = (agg: Aggregator): Draft => ({
   },
   channelCode: agg.channelCode || '',
   vendorCode: agg.vendorCode || 'NCT',
+  vendorName: agg.vendorName || 'NCT Rental',
   locationCode: agg.locationCode || 'AMM',
   currency: agg.currency || 'USD',
   status: agg.status || 'active',
@@ -76,6 +78,7 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
       connectionDetails: { ...draft.connection, apiUrl: draft.connection.apiUrl.trim(), username: draft.connection.username.trim() },
       channelCode: draft.channelCode.trim().toUpperCase() || undefined,
       vendorCode: draft.vendorCode.trim().toUpperCase() || undefined,
+      vendorName: draft.vendorName.trim() || undefined,
       locationCode: draft.locationCode.trim().toUpperCase() || undefined,
       currency: draft.currency,
       status: draft.status,
@@ -266,6 +269,10 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
 
       <Section title="XML identifiers & commercial terms" subtitle="Values written into every XML message for this channel.">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="sm:col-span-3">
+            <Label hint="(Vendor name)">Supplier name shown to the broker</Label>
+            <input value={draft.vendorName} onChange={e => set('vendorName', e.target.value.slice(0, 60))} className={inputCls} placeholder="UR-Drive Jordan" />
+          </div>
           <div>
             <Label hint="(Vendor Code)">Supplier code</Label>
             <input value={draft.vendorCode} onChange={e => set('vendorCode', e.target.value.toUpperCase().slice(0, 8))} className={`${inputCls} font-mono`} placeholder="NCT" />
