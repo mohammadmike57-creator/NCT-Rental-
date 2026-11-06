@@ -578,3 +578,29 @@ export interface RetentionPolicy {
 }
 export const fetchRetentionPolicy = async (): Promise<RetentionPolicy> =>
   (await axios.get(`${API_URL}/api/channel-platform/retention`, { headers: authHeaders() })).data;
+
+export type ConnectorType = 'RATE_FILE' | 'ARI_PUSH' | 'RES_NOTIFY';
+export interface OutboundConnectorRow {
+  id: string; name: string; type: ConnectorType; url: string; method: 'POST' | 'PUT'; format: 'XML' | 'CSV' | 'JSON';
+  authType: 'NONE' | 'BASIC' | 'BEARER' | 'HEADER' | 'OAUTH2'; authUser?: string; tokenUrl?: string; scope?: string; hasSecret: boolean;
+  dailyHour: number; days: number; minIntervalSeconds: number; onPublish: boolean; enabled: boolean;
+  lastOk: boolean; lastResult?: string; lastSentAt?: string; createdBy?: string; createdAt: string; fieldMap: Record<string, string>;
+}
+export interface ConnectorSendRow {
+  id: number; kind: string; reservationNumber?: string; status: 'PENDING' | 'SENT' | 'FAILED'; attempts: number;
+  lastHttpStatus?: number; lastError?: string; bytes: number; createdAt: string; nextAttemptAt?: string; sentAt?: string;
+}
+const connectorPath = (channelId: string, rest = '') => `${API_URL}/api/channels/${encodeURIComponent(channelId)}/connectors${rest}`;
+export const fetchConnectors = async (channelId: string): Promise<OutboundConnectorRow[]> =>
+  (await axios.get(connectorPath(channelId), { headers: authHeaders() })).data.connectors;
+export const saveConnector = async (channelId: string, body: Record<string, unknown>, id?: string): Promise<OutboundConnectorRow> => {
+  try { return (await (id ? axios.patch(connectorPath(channelId, `/${id}`), body, { headers: authHeaders() }) : axios.post(connectorPath(channelId), body, { headers: authHeaders() }))).data; }
+  catch (e) { throw apiError(e, 'Could not save the connection.'); }
+};
+export const deleteConnector = async (channelId: string, id: string): Promise<void> => { await axios.delete(connectorPath(channelId, `/${id}`), { headers: authHeaders() }); };
+export const testConnector = async (channelId: string, id: string): Promise<{ ok: boolean; httpStatus?: number; error?: string; bytes: number; preview: string }> => {
+  try { return (await axios.post(connectorPath(channelId, `/${id}/test`), {}, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not send the test.'); }
+};
+export const fetchConnectorSends = async (channelId: string, id: string): Promise<ConnectorSendRow[]> =>
+  (await axios.get(connectorPath(channelId, `/${id}/sends`), { headers: authHeaders() })).data.sends;
