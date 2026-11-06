@@ -6,7 +6,7 @@ import { Panel, Button, Badge, inputCls, selectCls, labelCls } from '../ui/Crm';
 import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSection, OperationsSection, CancellationSchedule, CurrenciesSection } from './CommercialRules';
 
 /** Defaults the server uses when a rule is not set (see ChannelRules.java). */
-export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'allowedGroups' | 'ipAllowlist' | 'requireSignature' | 'webhookUrl' | 'webhookEvents'
+export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'commercial' | 'allowedGroups' | 'ipAllowlist' | 'requireSignature' | 'webhookUrl' | 'webhookEvents'
   | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies' | 'operations'>> = {
   bookingsEnabled: true, paymentModel: 'PAY_AT_COUNTER', freeCancellationHours: 48, lateCancellationFeePercent: 100, modificationFee: 0,
   minLeadHours: 2, maxRentalDays: 60, maxHorizonDays: 365, minDriverAge: 21, maxDriverAge: 0, offerValidityMinutes: 30, holdMinutes: 15,

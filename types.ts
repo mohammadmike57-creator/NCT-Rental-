@@ -667,6 +667,10 @@ export interface Aggregator {
     previousKeyExpiresAt?: string;
     /** Rules for the booking API (search, book, modify, cancel); see ChannelRules on the server. */
     bookingRules?: ChannelBookingRules;
+    /** Unpublished changes to the commercial terms; the server never reads them. */
+    commercialDraft?: ChannelCommercialTerms;
+    /** Every published version of the commercial terms, newest first (kept for roll-back). */
+    commercialHistory?: ChannelCommercialVersion[];
     /** Go-live checklist, last certification run and approval. */
     goLive?: ChannelGoLive;
     /** The real connection with this broker (Connection tab); a new channel is Not connected. */
@@ -756,6 +760,32 @@ export interface ChannelAllotment {
     stopSell?: boolean;
 }
 
+/** Markups, day-of-week prices, booking-window rules, minimum days, closed dates and stop sales agreed with one broker. */
+export interface ChannelCommercialTerms {
+    markupPercent?: number;            // + markup / - discount on the published daily rate
+    markupPerDay?: number;             // fixed amount per day, channel currency
+    roundTo?: 0 | 1 | 5 | 10;          // daily rate rounding
+    groups?: Record<string, { markupPercent?: number; minDays?: number }>;
+    pickupDayPercent?: Partial<Record<ChannelWeekday, number>>;
+    earlyBooking?: { days?: number; percent?: number };
+    lastMinute?: { hours?: number; percent?: number };
+    minRentalDays?: number;
+    closedToArrival?: string[];
+    closedToDeparture?: string[];
+    blackouts?: { from: string; to: string; groups?: string[]; note?: string }[];
+    version?: number;
+    publishedAt?: string;
+    publishedBy?: string;
+}
+
+export interface ChannelCommercialVersion {
+    version: number;
+    publishedAt: string;
+    publishedBy?: string;
+    note?: string;
+    terms: ChannelCommercialTerms;
+}
+
 export interface ChannelBookingRules {
     bookingsEnabled?: boolean;
     paymentModel?: ChannelPaymentModel;
@@ -782,6 +812,8 @@ export interface ChannelBookingRules {
     pricing?: ChannelPricingRules;
     groupDetails?: Record<string, ChannelGroupDetail>;
     allotments?: ChannelAllotment[];
+    /** The broker's own commercial terms, as last published (Price rules tab); ChannelCommercial.java reads it. */
+    commercial?: ChannelCommercialTerms;
     noShowAfterHours?: number;
     noShowFeePercent?: number;
     inventoryPushDays?: number;

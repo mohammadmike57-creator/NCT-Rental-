@@ -23,6 +23,7 @@ import ChannelReadiness from './channel/ChannelReadiness';
 import ChannelDashboardView from './channel/ChannelDashboardView';
 import ChannelSecurityView from './channel/ChannelSecurityView';
 import ApiV3View from './channel/ApiV3View';
+import PriceRulesView from './channel/PriceRulesView';
 import DeveloperView from './channel/DeveloperView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks } from '../firebase/api';
@@ -41,11 +42,11 @@ interface AggregatorSetupViewProps {
   companyDetails?: CompanyDetails;
 }
 
-export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'API v3' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
+export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'API v3' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Price rules' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
 /** A channel's screens, grouped by job and in the order they are set up. */
 const TAB_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
   { label: 'Overview', tabs: ['Overview', 'Go-live'] },
-  { label: 'Pricing', tabs: ['Rates', 'Extras', 'Terms & Conditions'] },
+  { label: 'Pricing', tabs: ['Rates', 'Price rules', 'Extras', 'Terms & Conditions'] },
   { label: 'Connection', tabs: ['Connection', 'Booking API', 'Security', 'API v3'] },
   { label: 'Operations', tabs: ['Bookings', 'Traffic', 'Test console'] },
   { label: 'Publishing', tabs: ['Publish History', 'XML Feed'] },
@@ -57,7 +58,7 @@ const groupOf = (t: ChannelTab) => TAB_GROUPS.find(g => g.tabs.includes(t)) || T
 const copiedSetup = (src: Aggregator): Partial<Aggregator> => {
   const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v ?? null));
   const rules = clone(src.bookingRules) || undefined;
-  if (rules) { delete rules.webhookUrl; delete rules.webhookEvents; delete rules.ipAllowlist; delete rules.allotments; }
+  if (rules) { delete rules.webhookUrl; delete rules.webhookEvents; delete rules.ipAllowlist; delete rules.allotments; delete rules.commercial; }
   const latest = (src.ratePlanHistory || [])[0]?.ratePlans;
   return {
     vendorCode: src.vendorCode, locationCode: src.locationCode, currency: src.currency,
@@ -455,6 +456,10 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 )}
                 {activeTab === 'Booking API' && (
                   <BookingApiView aggregator={selectedAggregator} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                )}
+                {activeTab === 'Price rules' && (
+                  <PriceRulesView key={selectedAggregator.id} aggregator={selectedAggregator} fleet={fleet} currentUserName={currentUserName}
+                    onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
                 {activeTab === 'API v3' && <ApiV3View aggregator={selectedAggregator} showConfirmation={showConfirmation} />}
                 {activeTab === 'Security' && <ChannelSecurityView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />}
