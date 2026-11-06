@@ -20,6 +20,8 @@ const DeveloperView: React.FC = () => {
     ['REST partner v1', `/partner/v1/{CODE}/…`, 'API key', 'warning', 'Kept; use v3 for new brokers'],
   ];
   const docs: [string, string, string][] = [
+    ['Developer portal', `${base}/ota/developers`, 'The full guide for brokers: every API, code samples, webhooks, errors, go-live steps'],
+    ['Postman collection', `${base}/api/v3/postman.json`, 'Every REST and XML request, ready to run in the sandbox'],
     ['OpenAPI 3.1 (REST v3)', `${base}/api/v3/openapi.yaml`, 'Import into Postman, Swagger or code generators'],
     ['Error catalogue', `${base}/ota/errors`, 'Every error code with HTTP status, OTA code and what to do'],
     ['Platform health', `${base}/ota/health`, 'Database check, time zone, API versions'],

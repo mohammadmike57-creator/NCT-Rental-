@@ -35,7 +35,7 @@ const ChannelSecurityView: React.FC<{ aggregator: Aggregator; onUpdate: (a: Aggr
     };
     const toggleSignature = (on: boolean) => {
       if (on && !info?.signingSecretCreatedAt) { window.alert('Create the signing secret first and give it to the broker.'); return; }
-      if (on && !window.confirm(`Require signed requests from ${a.name}?\n\nRequests without a valid X-NCT-Signature are refused from now on. Only switch this on once the broker has confirmed they sign every request.`)) return;
+      if (on && !window.confirm(`Require signed requests from ${a.name}?\n\nRequests without a valid X-URD-Signature are refused from now on. Only switch this on once the broker has confirmed they sign every request.`)) return;
       saveRules({ requireSignature: on }, on ? `${a.name} must now sign every request.` : `Signed requests are no longer required for ${a.name}.`);
     };
     const createSecret = async () => {
@@ -107,7 +107,7 @@ const ChannelSecurityView: React.FC<{ aggregator: Aggregator; onUpdate: (a: Aggr
             <div className="p-4 space-y-3">
               <label className="flex items-start gap-2 text-[13px] text-slate-700 cursor-pointer">
                 <input type="checkbox" className="mt-0.5" checked={!!rules.requireSignature} onChange={e => toggleSignature(e.target.checked)} />
-                <span>Require signed requests<span className="block text-xs text-slate-400">Headers X-NCT-Timestamp (Unix seconds) and X-NCT-Signature: sha256=HMAC(secret, timestamp + "." + body). At most 5 minutes old; each signature is accepted once.</span></span>
+                <span>Require signed requests<span className="block text-xs text-slate-400">Headers X-URD-Timestamp (Unix seconds) and X-URD-Signature: sha256=HMAC(secret, timestamp + "." + body). At most 5 minutes old; each signature is accepted once. Brokers already sending X-NCT-* keep working.</span></span>
               </label>
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={() => void createSecret()}>{info?.signingSecretCreatedAt ? 'Replace signing secret' : 'Create signing secret'}</Button>
