@@ -273,6 +273,20 @@ export interface ChannelWebhookRow {
 const channelPath = (id: string, p: string) => `${API_URL}/api/channels/${encodeURIComponent(id)}${p}`;
 export const fetchChannelBookings = async (channelId: string): Promise<ChannelBookingRow[]> =>
   (await axios.get(channelPath(channelId, '/bookings'), { headers: authHeaders() })).data;
+export interface OAuthClientRow {
+  clientId: string; name?: string; environment: 'sandbox' | 'production'; scopes: string[]; status: 'ACTIVE' | 'REVOKED';
+  secretHint?: string; createdAt: string; createdBy?: string; lastUsedAt?: string; revokedAt?: string; clientSecret?: string;
+}
+export const fetchOAuthClients = async (channelId: string): Promise<{ clients: OAuthClientRow[]; scopes: string[] }> =>
+  (await axios.get(channelPath(channelId, '/oauth-clients'), { headers: authHeaders() })).data;
+export const createOAuthClient = async (channelId: string, body: { environment: string; name?: string; scopes: string[] }): Promise<OAuthClientRow> => {
+  try { return (await axios.post(channelPath(channelId, '/oauth-clients'), body, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not create the OAuth client.'); }
+};
+export const revokeOAuthClient = async (channelId: string, clientId: string): Promise<void> => {
+  try { await axios.delete(channelPath(channelId, `/oauth-clients/${encodeURIComponent(clientId)}`), { headers: authHeaders() }); }
+  catch (e) { throw apiError(e, 'Could not revoke the OAuth client.'); }
+};
 /** Deletes a broker booking from our records (OTA XML and its copy in the reservations list). The broker is not told. */
 export const deleteChannelBooking = async (channelId: string, reservationNumber: string): Promise<void> => {
   try { await axios.delete(channelPath(channelId, `/bookings/${encodeURIComponent(reservationNumber)}`), { headers: authHeaders() }); }

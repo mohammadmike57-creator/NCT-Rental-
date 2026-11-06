@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
-import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon } from './icons';
+import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon } from './icons';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
@@ -22,6 +22,8 @@ import ApiKeysView from './channel/ApiKeysView';
 import ChannelReadiness from './channel/ChannelReadiness';
 import ChannelDashboardView from './channel/ChannelDashboardView';
 import ChannelSecurityView from './channel/ChannelSecurityView';
+import ApiV3View from './channel/ApiV3View';
+import DeveloperView from './channel/DeveloperView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks } from '../firebase/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -39,12 +41,12 @@ interface AggregatorSetupViewProps {
   companyDetails?: CompanyDetails;
 }
 
-export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
+export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'API v3' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
 /** A channel's screens, grouped by job and in the order they are set up. */
 const TAB_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
   { label: 'Overview', tabs: ['Overview', 'Go-live'] },
   { label: 'Pricing', tabs: ['Rates', 'Extras', 'Terms & Conditions'] },
-  { label: 'Connection', tabs: ['Connection', 'Booking API', 'Security'] },
+  { label: 'Connection', tabs: ['Connection', 'Booking API', 'Security', 'API v3'] },
   { label: 'Operations', tabs: ['Bookings', 'Traffic', 'Test console'] },
   { label: 'Publishing', tabs: ['Publish History', 'XML Feed'] },
 ];
@@ -109,7 +111,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const openChannel = (id: string, tab: ChannelTab) => { setSelectedAggregatorId(id); setActiveTab(tab); setMode('channels'); };
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
-  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard'>('channels');
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer'>('channels');
   const showStopSale = mode === 'stopsale';
   const [sending, setSending] = useState(false);
   const [deliveryRefresh, setDeliveryRefresh] = useState(0);
@@ -273,6 +275,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
           ['keys', 'API keys', KeyIcon, undefined],
           ['multi', 'Bulk editor', PencilIcon, undefined],
           ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
+          ['developer', 'Developer', CodeBracketIcon, undefined],
         ] as const).map(([key, label, Icon, count]) => (
           <button key={key} type="button" onClick={() => setMode(key)} aria-current={mode === key ? 'page' : undefined}
             className={`h-9 px-3 rounded-lg inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap transition-colors ${mode === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
@@ -298,7 +301,9 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         </div>
       )}
 
-      {mode === 'dashboard' ? (
+      {mode === 'developer' ? (
+        <DeveloperView />
+      ) : mode === 'dashboard' ? (
         <ChannelDashboardView aggregators={aggregators} onOpenChannel={openChannel} />
       ) : mode === 'reservations' ? (
         <XmlReservationsView aggregators={aggregators} />
@@ -450,6 +455,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 {activeTab === 'Booking API' && (
                   <BookingApiView aggregator={selectedAggregator} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
+                {activeTab === 'API v3' && <ApiV3View aggregator={selectedAggregator} showConfirmation={showConfirmation} />}
                 {activeTab === 'Security' && <ChannelSecurityView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />}
                 {activeTab === 'Bookings' && <ChannelBookingsView aggregator={selectedAggregator} />}
                 {activeTab === 'Traffic' && <TrafficView aggregator={selectedAggregator} />}
