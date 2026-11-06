@@ -10,7 +10,7 @@ import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Fiel
 import SecurityKeyModal from './SecurityKeyModal';
 import { API_URL } from '../firebase/api';
 
-const FIXED_ADDON = 250; // Fixed franchise fee per month (USD)
+const FIXED_ADDON = 148; // Fixed franchise fee per month (USD)
 // Franchise fees for these months were settled outside the system and are not charged.
 const WAIVED_MONTHS: Record<number, string[]> = { 2026: ['January', 'February', 'March', 'April', 'May'] };
 const DEADLINE_DAY = 5; // fee is due on the 5th of the following month
