@@ -252,6 +252,9 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     currentUser?.role === 'ADMIN' || currentUser?.username === 'admin' || currentUser?.email === 'nadeenalnahas@gmail.com';
 
   const now = new Date();
+  // The breakdown (rental, add-ons, tickets, damages, other) is for admins, and for staff given the permission.
+  const showBreakdown = !!currentUser?.permissions?.includes(UserPermission.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN)
+    || !!currentUser?.permissions?.includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);
 
   // Revenue counts in the month it was earned: the booking's original price in its own month, every later
   // change (extras, upgrades, extensions, tickets, damages, return charges) in the month it was added.
@@ -490,7 +493,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
           </Panel>
 
           {/* Monthly breakdown */}
-          <Panel title="Monthly breakdown" subtitle={`Amounts in ${currency}. Each amount counts in the month it was earned: a ticket or upgrade added in November to an October booking is November revenue and November commission.`}>
+          <Panel title="Monthly breakdown" subtitle={showBreakdown ? `Amounts in ${currency}. Each amount counts in the month it was earned: a ticket or upgrade added in November to an October booking is November revenue and November commission.` : `Amounts in ${currency}`}>
             {/* phones */}
             <ul className="md:hidden divide-y divide-slate-100">
               {months.map(m => (
@@ -509,7 +512,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                     <div className="min-w-0"><p className="text-slate-400">Commission</p><p className="font-medium tabular-nums text-slate-700 truncate">{money(m.commissionUSD * rate)}</p></div>
                     <div className="min-w-0"><p className="text-slate-400">Fee</p><button onClick={() => setActiveTab('franchise')} className="mt-0.5"><StatusChip status={m.status} /></button></div>
                   </div>
-                  {m.revenueUSD > 0 && (
+                  {showBreakdown && m.revenueUSD > 0 && (
                     <p className="mt-2 text-[11px] text-slate-500 tabular-nums">
                       {[['Rental', m.parts.rental], ['Add-ons', m.parts.addons], ['Tickets', m.parts.tickets], ['Damages', m.parts.damages], ['Other', m.parts.other]]
                         .filter(([, v]) => (v as number) > 0).map(([l, v]) => `${l} ${money((v as number) * rate)}`).join(' · ')}
@@ -537,11 +540,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                     <th className={`${table.th} ${stickyCell} bg-slate-50`}>Month</th>
                     <th className={`${table.th} text-right`} title="Every booking except cancelled and no-show">Bookings</th>
                     <th className={`${table.th} text-right`} title="Cancelled and no-show bookings">Cancelled</th>
+                    {showBreakdown && <>
                     <th className={`${table.th} text-right`} title="Original price of the bookings made this month">Rental</th>
                     <th className={`${table.th} text-right`} title="Extras added later, upgrades, extensions and price edits, in the month they were made">Add-ons</th>
                     <th className={`${table.th} text-right`} title="Traffic tickets, in the month they were added">Tickets</th>
                     <th className={`${table.th} text-right`} title="Damages, in the month they were added">Damages</th>
                     <th className={`${table.th} text-right`} title="Fuel, cleaning, late return and other return charges">Other</th>
+                    </>}
                     <th className={`${table.th} text-right`}>Revenue</th>
                     <th className={`${table.th} text-right`} title="Revenue per booking">Avg</th>
                     <th className={`${table.th} text-right`} title="7.5% of revenue">Commission</th>
@@ -556,12 +561,12 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                         <td className={`${table.td} ${stickyCell} ${current ? 'bg-indigo-50' : 'bg-white group-hover:bg-slate-50'} font-medium text-slate-900`}>{m.month}{current && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Current</span>}</td>
                         <td className={`${table.td} text-right tabular-nums`}>{m.total}</td>
                         <td className={`${table.td} text-right tabular-nums`}>{m.cancelled}</td>
-                        {(['rental', 'addons', 'tickets', 'damages', 'other'] as const).map(k => (
+                        {showBreakdown && (['rental', 'addons', 'tickets', 'damages', 'other'] as const).map(k => (
                           <td key={k} className={`${table.td} text-right tabular-nums ${m.parts[k] ? '' : 'text-slate-300'}`}>{m.parts[k] ? money(m.parts[k] * rate) : '—'}</td>
                         ))}
                         <td className={`${table.td} text-right tabular-nums font-semibold text-slate-900`}>
                           {money(m.revenueUSD * rate)}
-                          {m.parts.lateFromEarlier > 0 && <span className="block ml-auto max-w-[7.5rem] whitespace-normal leading-tight text-[11px] font-normal text-indigo-600" title="Charges added this month to bookings of earlier months">{money(m.parts.lateFromEarlier * rate)} from earlier bookings</span>}
+                          {showBreakdown && m.parts.lateFromEarlier > 0 && <span className="block ml-auto max-w-[7.5rem] whitespace-normal leading-tight text-[11px] font-normal text-indigo-600" title="Charges added this month to bookings of earlier months">{money(m.parts.lateFromEarlier * rate)} from earlier bookings</span>}
                         </td>
                         <td className={`${table.td} text-right tabular-nums`}>{m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—'}</td>
                         <td className={`${table.td} text-right tabular-nums`}>{money(m.commissionUSD * rate)}</td>
@@ -575,7 +580,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
                     <td className={`${table.td} ${stickyCell} bg-slate-50 font-semibold`}>Total {year}</td>
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{totals.bookings}</td>
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{totals.cancelled}</td>
-                    {(['rental', 'addons', 'tickets', 'damages', 'other'] as const).map(k => (
+                    {showBreakdown && (['rental', 'addons', 'tickets', 'damages', 'other'] as const).map(k => (
                       <td key={k} className={`${table.td} text-right tabular-nums font-semibold`}>{money(totals[k] * rate)}</td>
                     ))}
                     <td className={`${table.td} text-right tabular-nums font-semibold`}>{money(totals.revenueUSD * rate)}</td>

@@ -68,7 +68,9 @@ export const PERMISSION_AREAS: PermissionArea[] = [
   {
     id: 'reports', title: 'Reports', description: 'Performance and partner billing',
     sections: [
-      sec('yearly', 'Yearly Summary', 'Monthly revenue, commission and franchise fees', P.VIEW_REPORTS_YEARLY_SUMMARY),
+      sec('yearly', 'Yearly Summary', 'Monthly revenue, commission and franchise fees', P.VIEW_REPORTS_YEARLY_SUMMARY, [
+        p(P.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN, 'Revenue breakdown', 'See rental, extras / upgrades / extensions, traffic tickets, damages and other charges per month. Admins always see it.'),
+      ]),
       sec('sources', 'Source Performance', 'Bookings and revenue by channel', P.VIEW_REPORTS_SOURCE_PERFORMANCE),
       sec('invoices', 'Invoice Generation', 'Bill booking partners', P.VIEW_REPORTS_INVOICE_GENERATION),
     ],
@@ -174,7 +176,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   {
     id: 'manager', name: 'Branch manager', color: 'bg-indigo-600',
     description: 'Runs the branch: bookings, agreements, reports, finance and incidents',
-    permissions: ALL_PERMISSIONS.filter(k => ![P.ACTION_ADMIN_MANAGE_USERS, P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS, P.ACTION_ADMIN_MANAGE_YEARS].includes(k)),
+    permissions: ALL_PERMISSIONS.filter(k => ![P.ACTION_ADMIN_MANAGE_USERS, P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS, P.ACTION_ADMIN_MANAGE_YEARS, P.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN].includes(k)),
   },
   {
     id: 'agent', name: 'Reservations agent', color: 'bg-sky-600',
