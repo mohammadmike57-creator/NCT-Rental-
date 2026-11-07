@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
-import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon } from './icons';
+import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon,
+  ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon } from './icons';
 import RateRulesView from './channel/RateRulesView';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
@@ -29,7 +30,7 @@ import LanguagesView from './channel/LanguagesView';
 import OutboundView from './channel/OutboundView';
 import DeveloperView from './channel/DeveloperView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
-import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks } from '../firebase/api';
+import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../firebase/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
 
 interface AggregatorSetupViewProps {
@@ -56,6 +57,131 @@ const TAB_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
 ];
 const TAB_LABEL: Partial<Record<ChannelTab, string>> = { 'Terms & Conditions': 'Terms', 'Publish History': 'Publish history', 'XML Feed': 'XML feed' };
 const groupOf = (t: ChannelTab) => TAB_GROUPS.find(g => g.tabs.includes(t)) || TAB_GROUPS[0];
+
+type IconC = React.FC<{ className?: string }>;
+/** Icon and one plain line for every channel section. */
+const SECTION_INFO: Record<ChannelTab, { icon: IconC; text: string }> = {
+  'Overview': { icon: ChartPieIcon, text: 'Setup progress, what the broker gets and anything that still needs attention.' },
+  'Go-live': { icon: BoltIcon, text: 'Checklist, certification test and approval before the broker goes live.' },
+  'Rates': { icon: CurrencyDollarIcon, text: 'Seasons, car groups and rental-length bands the broker is quoted.' },
+  'Price rules': { icon: ChartBarIcon, text: 'This broker\'s own terms: markup or discount, minimum days, closed dates.' },
+  'Extras': { icon: PlusCircleIcon, text: 'Extras sold on this channel, such as GPS, child seats or an extra driver.' },
+  'Terms & Conditions': { icon: DocumentTextIcon, text: 'The rental terms sent with every quote and booking.' },
+  'Connection': { icon: CloudIcon, text: 'The broker\'s contacts, connection profile and how they reach us.' },
+  'Booking API': { icon: ServerIcon, text: 'Branches, booking rules, fees, cancellation and status updates to the broker.' },
+  'Outbound': { icon: PaperAirplaneIcon, text: 'Rates, availability and bookings we send to the broker\'s own system.' },
+  'Languages': { icon: GlobeAltIcon, text: 'Arabic texts for brokers that ask in Arabic.' },
+  'Security': { icon: ShieldCheckIcon, text: 'Who is calling, failed sign-ins, IP limits and signed requests.' },
+  'API v3': { icon: CodeBracketIcon, text: 'REST v3 clients with OAuth 2.0 and webhook subscriptions.' },
+  'Bookings': { icon: CalendarCheckIcon, text: 'Every booking this broker made, live and sandbox.' },
+  'Traffic': { icon: ArrowPathIcon, text: 'Every call with its request, answer and time taken.' },
+  'Test console': { icon: DesktopComputerIcon, text: 'Send real test messages as the broker would.' },
+  'Publish History': { icon: ClockIcon, text: 'Every published rate version and its delivery to the broker.' },
+  'XML Feed': { icon: DocumentReportIcon, text: 'The rate sheet and messages exactly as the broker receives them.' },
+};
+/** Title band for the console-wide pages. */
+const MODULE_INFO: Record<string, { icon: IconC; title: string; text: string }> = {
+  dashboard: { icon: ChartBarIcon, title: 'Dashboard', text: 'Requests, bookings, revenue, errors and alerts across every broker.' },
+  reservations: { icon: InboxIcon, title: 'XML reservations', text: 'Every booking received from the brokers, kept apart from your own reservations.' },
+  rates: { icon: CurrencyDollarIcon, title: 'Rate rules', text: 'Seasons, events and last-minute pricing, calculated day by day.' },
+  keys: { icon: KeyIcon, title: 'API keys', text: 'One key per broker. Only a fingerprint is stored; a key is shown once.' },
+  multi: { icon: PencilIcon, title: 'Bulk editor', text: 'Change rates, extras, terms and policies for several brokers at once.' },
+  stopsale: { icon: StopIcon, title: 'Stop sales', text: 'Close a car or a car group for some dates, for every broker or chosen ones.' },
+  developer: { icon: CodeBracketIcon, title: 'Developer', text: 'Addresses, formats and samples for the brokers\' developers.' },
+};
+const AVATAR = ['bg-indigo-600', 'bg-sky-600', 'bg-emerald-600', 'bg-amber-600', 'bg-rose-600', 'bg-violet-600', 'bg-teal-600', 'bg-fuchsia-600'];
+const avatarOf = (a: Aggregator) => {
+  const key = a.channelCode || a.name;
+  let h = 0; for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return { bg: AVATAR[h % AVATAR.length], text: (a.channelCode || a.name).replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?' };
+};
+const Monogram: React.FC<{ a: Aggregator; size?: 'sm' | 'md' }> = ({ a, size = 'sm' }) => {
+  const av = avatarOf(a);
+  return <span className={`${av.bg} ${size === 'md' ? 'w-10 h-10 text-[13px]' : 'w-7 h-7 text-[10px]'} rounded-lg text-white font-bold inline-flex items-center justify-center shrink-0 tracking-wide`}>{av.text}</span>;
+};
+
+/** Live figures for one broker, last 7 days (shown in its header). */
+const ChannelKpis: React.FC<{ a: Aggregator }> = ({ a }) => {
+  const [k, setK] = useState<{ calls: number; errors: number; bookings: number; value: Record<string, number> } | null>(null);
+  useEffect(() => {
+    let on = true; setK(null);
+    const since = Date.now() - 7 * 86400000;
+    Promise.all([fetchChannelTrafficStats(a.id, 168).catch(() => null), fetchChannelBookings(a.id).catch(() => [])]).then(([st, bk]) => {
+      if (!on) return;
+      const live = (Array.isArray(bk) ? bk : []).filter(b => !b.sandbox && new Date(b.createdAt || 0).getTime() >= since);
+      const value: Record<string, number> = {};
+      live.filter(b => b.status !== 'CANCELLED' && b.status !== 'NO_SHOW').forEach(b => { value[b.currency || 'USD'] = (value[b.currency || 'USD'] || 0) + (b.total || 0); });
+      setK({ calls: st && typeof st.calls === 'number' ? st.calls : 0, errors: st && typeof st.errors === 'number' ? st.errors : 0, bookings: live.length, value });
+    });
+    return () => { on = false; };
+  }, [a.id]);
+  const cells = [
+    { l: 'Requests', v: k ? k.calls.toLocaleString() : '…' },
+    { l: 'Bookings', v: k ? String(k.bookings) : '…' },
+    { l: 'Booked value', v: k ? (Object.entries(k.value).map(([c, n]) => `${Math.round(n).toLocaleString()} ${c}`)[0] || '0') : '…' },
+    { l: 'Error rate', v: k ? (k.calls ? `${((k.errors / k.calls) * 100).toFixed(1)}%` : '—') : '…', bad: !!k && k.calls > 0 && k.errors / k.calls > 0.05 },
+  ];
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-slate-100 border-t border-slate-100">
+      {cells.map(c => (
+        <div key={c.l} className="px-4 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{c.l} <span className="normal-case tracking-normal font-normal">· 7 days</span></p>
+          <p className={`text-[16px] font-semibold tabular-nums ${c.bad ? 'text-rose-600' : 'text-slate-900'}`}>{c.v}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+type JumpItem = { id: string; label: string; hint: string; group: string; icon: IconC; run: () => void };
+/** Ctrl/⌘ K: jump to any broker, section or page by typing. */
+const QuickJump: React.FC<{ open: boolean; onClose: () => void; items: JumpItem[] }> = ({ open, onClose, items }) => {
+  const [q, setQ] = useState('');
+  const [i, setI] = useState(0);
+  useEffect(() => { if (open) { setQ(''); setI(0); } }, [open]);
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const list = items.filter(it => words.every(w => `${it.label} ${it.hint} ${it.group}`.toLowerCase().includes(w))).slice(0, 12);
+  if (!open) return null;
+  const go = (it?: JumpItem) => { if (!it) return; it.run(); onClose(); };
+  return (
+    <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-[2px] flex items-start justify-center pt-[12vh] px-4" onClick={onClose}>
+      <div className="w-full max-w-xl rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden" onClick={e => e.stopPropagation()} role="dialog" aria-label="Quick search">
+        <div className="flex items-center gap-2 px-4 border-b border-slate-100">
+          <SearchIcon className="w-4 h-4 text-slate-400" />
+          <input autoFocus value={q} onChange={e => { setQ(e.target.value); setI(0); }} placeholder="Search brokers, sections and pages…  e.g. “rates booking”"
+            onKeyDown={e => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setI(x => Math.min(list.length - 1, x + 1)); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setI(x => Math.max(0, x - 1)); }
+              else if (e.key === 'Enter') { e.preventDefault(); go(list[i]); }
+              else if (e.key === 'Escape') onClose();
+            }}
+            className="flex-1 h-12 text-[14px] outline-none bg-transparent" aria-label="Search" />
+          <kbd className="text-[10px] font-mono text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">Esc</kbd>
+        </div>
+        <ul className="max-h-[55vh] overflow-y-auto py-1.5">
+          {list.length === 0 && <li className="px-4 py-6 text-center text-[13px] text-slate-500">Nothing matches “{q}”.</li>}
+          {list.map((it, k) => { const I = it.icon; return (
+            <li key={it.id}>
+              <button type="button" onMouseEnter={() => setI(k)} onClick={() => go(it)}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-left ${k === i ? 'bg-indigo-50' : ''}`}>
+                <span className={`w-8 h-8 rounded-lg inline-flex items-center justify-center ${k === i ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}><I className="w-4 h-4" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold text-slate-900 truncate">{it.label}</span><span className="block text-[11px] text-slate-500 truncate">{it.hint}</span></span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{it.group}</span>
+              </button>
+            </li>
+          ); })}
+        </ul>
+        <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-500 flex gap-4"><span>↑ ↓ to move</span><span>Enter to open</span><span>Ctrl K / ⌘ K anywhere in OTA XML</span></div>
+      </div>
+    </div>
+  );
+};
+
+const AmmanClock: React.FC = () => {
+  const [t, setT] = useState(() => new Date());
+  useEffect(() => { const i = setInterval(() => setT(new Date()), 30000); return () => clearInterval(i); }, []);
+  return <span className="font-mono tabular-nums">{t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Amman' })} Amman</span>;
+};
 
 /** What a new channel takes over from an existing one: the supplier's own setup, nothing that belongs to the other broker. */
 const copiedSetup = (src: Aggregator): Partial<Aggregator> => {
@@ -115,6 +241,12 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const openChannel = (id: string, tab: ChannelTab) => { setSelectedAggregatorId(id); setActiveTab(tab); setMode('channels'); };
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
   const [channelSearch, setChannelSearch] = useState('');
+  const [jumpOpen, setJumpOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setJumpOpen(o => !o); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
   const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates'>('channels');
   const showStopSale = mode === 'stopsale';
@@ -265,6 +397,22 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   };
 
   const sel = selectedAggregator;
+  const jumpItems: JumpItem[] = [
+    ...Object.entries(MODULE_INFO).map(([k, m]) => ({ id: `m-${k}`, label: m.title, hint: m.text, group: 'Page', icon: m.icon, run: () => setMode(k as typeof mode) })),
+    ...aggregators.flatMap(a => [
+      { id: `c-${a.id}`, label: a.name, hint: `${a.channelCode || ''} · ${STATUS_STYLE[channelStatus(a)].label} · open the broker`, group: 'Broker', icon: ServerIcon, run: () => openChannel(a.id, 'Overview') },
+      ...TAB_GROUPS.flatMap(g => g.tabs.map(t => ({ id: `t-${a.id}-${t}`, label: `${TAB_LABEL[t] || t} — ${a.name}`, hint: SECTION_INFO[t].text, group: g.label, icon: SECTION_INFO[t].icon, run: () => openChannel(a.id, t) }))),
+    ]),
+    { id: 'add', label: 'Add channel', hint: 'Create a new broker connection', group: 'Action', icon: PlusIcon, run: () => setIsAddingPartner(true) },
+  ];
+  /** Small status hint next to a section in the broker menu. */
+  const sectionHint = (a: Aggregator, t: ChannelTab): { text: string; tone: string } | null => {
+    if (t === 'Go-live') return a.goLive?.approvedAt ? { text: 'Done', tone: 'bg-emerald-100 text-emerald-700' } : channelStatus(a) === 'active' ? null : { text: 'To do', tone: 'bg-slate-100 text-slate-500' };
+    if (t === 'Connection') { const cs = connectionStateOf(a); return cs.tone === 'success' ? null : { text: cs.label.replace('Not connected', 'Not set'), tone: 'bg-slate-100 text-slate-500' }; }
+    if (t === 'Booking API') return (a.bookingRules?.locations || []).length ? null : { text: 'No branches', tone: 'bg-amber-100 text-amber-700' };
+    if (t === 'Extras') return (a.extras || []).length ? { text: String(a.extras!.length), tone: 'bg-slate-100 text-slate-500' } : null;
+    return null;
+  };
   const filteredChannels = aggregators.filter(a => !channelSearch.trim()
     || `${a.name} ${a.channelCode || ''}`.toLowerCase().includes(channelSearch.trim().toLowerCase()));
   const failingUpdates = failedUpdates.reduce((n, f) => n + f.count, 0);
@@ -291,7 +439,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   return (
     <Page className="ota-console">
       {/* Console header: identity, live system status and the module menu */}
-      <header className="rounded-xl bg-slate-900 text-white shadow-sm overflow-hidden">
+      <header className="rounded-xl bg-slate-900 text-white shadow-sm overflow-hidden relative"
+        style={{ backgroundImage: 'radial-gradient(1200px 260px at 85% -40%, rgba(99,102,241,0.35), transparent 60%), radial-gradient(600px 200px at 0% 120%, rgba(14,165,233,0.18), transparent 60%), linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)', backgroundSize: 'auto, auto, 28px 28px, 28px 28px' }}>
         <div className="px-5 pt-4 pb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-10 h-10 rounded-lg bg-indigo-500/15 ring-1 ring-inset ring-indigo-400/30 inline-flex items-center justify-center shrink-0">
@@ -304,9 +453,17 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-white/5 ring-1 ring-inset ring-white/10 text-[11px] font-medium text-slate-300">
+            <span className="hidden xl:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-white/5 ring-1 ring-inset ring-white/10 text-[11px] font-medium text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /><AmmanClock />
+            </span>
+            <span className="hidden 2xl:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-white/5 ring-1 ring-inset ring-white/10 text-[11px] font-medium text-slate-300">
               <span className="font-mono">OTA 2003/05 · 2018A · 2024A</span><span className="text-slate-600">|</span><span className="font-mono">REST v3</span>
             </span>
+            <button type="button" onClick={() => setJumpOpen(true)} aria-label="Quick search"
+              className="h-9 pl-3 pr-2 rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-inset ring-white/15 text-slate-200 text-[13px] inline-flex items-center gap-2 min-w-[180px]">
+              <SearchIcon className="w-4 h-4 text-slate-400" /><span className="flex-1 text-left text-slate-400">Jump to…</span>
+              <kbd className="text-[10px] font-mono text-slate-400 border border-white/15 rounded px-1.5 py-0.5">Ctrl K</kbd>
+            </button>
             <button type="button" onClick={() => setIsAddingPartner(true)}
               className="h-9 px-3.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[13px] font-semibold inline-flex items-center gap-2 shadow-sm">
               <PlusIcon className="w-4 h-4" />Add channel
@@ -335,14 +492,21 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       </header>
 
       {failedUpdates.length > 0 && mode !== 'dashboard' && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2" role="alert">
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-          <p className="text-[13px] text-rose-800 flex-1 min-w-0">
-            <b>Status updates are failing</b> for {failedUpdates.map(f => `${f.name} (${f.count})`).join(', ')}. The broker does not know about those changes until they are delivered.
+        <div className="rounded-lg border border-rose-200 bg-white px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2 shadow-sm" role="alert">
+          <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md bg-rose-600 text-white text-[11px] font-bold uppercase tracking-wide">Action needed</span>
+          <p className="text-[13px] text-slate-700 flex-1 min-w-0">
+            Status updates are not reaching {failedUpdates.map(f => `${f.name} (${f.count})`).join(', ')}.
           </p>
-          {failedUpdates.map(f => <Button key={f.id} size="sm" onClick={() => openChannel(f.id, 'Booking API')}>Open {f.name}</Button>)}
+          {failedUpdates.map(f => <Button key={f.id} size="sm" onClick={() => openChannel(f.id, 'Booking API')}>Fix in {f.name} →</Button>)}
         </div>
       )}
+
+      {mode !== 'channels' && MODULE_INFO[mode] && (() => { const m = MODULE_INFO[mode]; const I = m.icon; return (
+        <section className="flex items-center gap-3 px-1">
+          <span className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm inline-flex items-center justify-center text-indigo-600"><I className="w-5 h-5" /></span>
+          <div className="min-w-0"><h3 className="text-[18px] font-semibold text-slate-900 leading-tight">{m.title}</h3><p className="text-[13px] text-slate-500">{m.text}</p></div>
+        </section>
+      ); })()}
 
       {mode === 'developer' ? (
         <DeveloperView />
@@ -390,12 +554,14 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                     return (
                       <li key={agg.id} onClick={() => selectChannel(agg.id)}
                         className={`group relative pl-3 pr-8 py-2 cursor-pointer border-l-2 transition-colors ${selected ? 'bg-indigo-50/70 border-indigo-600' : 'border-transparent hover:bg-slate-50'}`}>
-                        <div className="flex items-center gap-2">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} title={st.label} />
-                          <span className={`text-[13px] font-semibold truncate ${selected ? 'text-indigo-900' : 'text-slate-800'}`}>{agg.name}</span>
-                          {agg.channelCode && <span className="ml-auto font-mono text-[10px] font-semibold text-slate-500">{agg.channelCode}</span>}
+                        <div className="flex items-center gap-2.5">
+                          <span className="relative"><Monogram a={agg} /><span className={`absolute -right-0.5 -bottom-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${st.dot}`} title={st.label} /></span>
+                          <span className="min-w-0 flex-1">
+                            <span className={`block text-[13px] font-semibold truncate ${selected ? 'text-indigo-900' : 'text-slate-800'}`}>{agg.name}</span>
+                            <span className="block text-[11px] text-slate-500 truncate">{st.label}{agg.channelCode ? ` · ${agg.channelCode}` : ''}</span>
+                          </span>
                         </div>
-                        <div className="mt-0.5 pl-3.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+                        <div className="mt-1 pl-[38px] flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
                           <span className="tabular-nums">{latest ? `v${submissionVersion(agg, 0)} · ${relativeTime(latest.submittedAt)}` : 'never published'}</span>
                           {pending && <span className="text-amber-600 font-medium">changes</span>}
                           {h && h.errors > 0 && <span className="text-rose-600 font-medium">{h.errors} error{h.errors > 1 ? 's' : ''}</span>}
@@ -425,10 +591,11 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                           return (
                             <button key={t} type="button" onClick={() => setActiveTab(t)} aria-current={on ? 'page' : undefined}
                               className={`w-full h-8 px-2 rounded-md flex items-center gap-2 text-[13px] text-left transition-colors ${on ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
-                              <span className={`w-1 h-4 rounded-full ${on ? 'bg-indigo-600' : 'bg-transparent'}`} />
+                              {(() => { const I = SECTION_INFO[t].icon; return <I className={`w-4 h-4 shrink-0 ${on ? 'text-indigo-600' : 'text-slate-400'}`} />; })()}
                               <span className="truncate">{TAB_LABEL[t] || t}</span>
                               {t === 'Overview' && errors ? <span className="ml-auto px-1.5 py-px rounded bg-rose-100 text-rose-700 text-[10px] font-semibold tabular-nums">{errors}</span> : null}
-                              {t === 'Rates' && hasUnpublishedChanges(sel) ? <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500" title="Unpublished changes" /> : null}
+                              {t === 'Rates' && hasUnpublishedChanges(sel) ? <span className="ml-auto px-1.5 py-px rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">Draft</span> : null}
+                              {(() => { const h = sectionHint(sel, t); return h ? <span className={`ml-auto px-1.5 py-px rounded text-[10px] font-semibold ${h.tone}`}>{h.text}</span> : null; })()}
                             </button>
                           );
                         })}
@@ -451,11 +618,10 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
           {/* Workspace */}
           {sel ? (
             <div className="min-w-0 space-y-4">
-              <section className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+              <section className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                <Monogram a={sel} size="md" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-slate-500">
-                    {groupOf(activeTab).label !== activeTab && <>{groupOf(activeTab).label} <span className="text-slate-300 mx-1">/</span> </>}<span className="text-slate-700 font-medium">{TAB_LABEL[activeTab] || activeTab}</span>
-                  </p>
                   <h3 className="mt-0.5 flex flex-wrap items-center gap-2 text-[17px] font-semibold text-slate-900">
                     {sel.name}
                     {sel.channelCode && <Plate value={sel.channelCode} />}
@@ -479,7 +645,27 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                     <Button size="sm" className="!text-amber-700 !border-amber-200 !bg-amber-50 hover:!bg-amber-100" onClick={() => setActiveTab('Rates')}>Unpublished changes</Button>
                   )}
                 </dl>
+              </div>
+              <div className="px-4 py-2 border-t border-slate-100 flex flex-wrap items-center gap-2 bg-slate-50/60">
+                <nav className="flex items-center gap-1.5 text-[12px] text-slate-500 min-w-0 flex-1" aria-label="Breadcrumb">
+                  <button type="button" className="hover:text-indigo-700" onClick={() => setMode('channels')}>Channels</button><span className="text-slate-300">›</span>
+                  <button type="button" className="hover:text-indigo-700 truncate" onClick={() => setActiveTab('Overview')}>{sel.name}</button><span className="text-slate-300">›</span>
+                  <span>{groupOf(activeTab).label}</span>{groupOf(activeTab).label !== activeTab && <><span className="text-slate-300">›</span><span className="font-semibold text-slate-800">{TAB_LABEL[activeTab] || activeTab}</span></>}
+                </nav>
+                {([['Rates', 'Rates'], ['Test console', 'Test console'], ['Traffic', 'Traffic'], ['Go-live', 'Go-live']] as [ChannelTab, string][]).filter(([t]) => t !== activeTab).map(([t, l]) => {
+                  const I = SECTION_INFO[t].icon;
+                  return <button key={t} type="button" onClick={() => setActiveTab(t)} className="h-7 px-2.5 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-700 inline-flex items-center gap-1.5"><I className="w-3.5 h-3.5" />{l}</button>;
+                })}
+              </div>
+              <ChannelKpis a={sel} />
               </section>
+
+              {(() => { const info = SECTION_INFO[activeTab]; const I = info.icon; return (
+                <div className="flex items-center gap-3 px-1">
+                  <span className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 inline-flex items-center justify-center"><I className="w-5 h-5" /></span>
+                  <div className="min-w-0"><p className="text-[16px] font-semibold text-slate-900 leading-tight">{TAB_LABEL[activeTab] || activeTab}</p><p className="text-[12px] text-slate-500">{info.text}</p></div>
+                </div>
+              ); })()}
 
               <div className="space-y-4">
                 {activeTab === 'Overview' && (
@@ -575,6 +761,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
           )}
         </div>
       )}
+
+      <QuickJump open={jumpOpen} onClose={() => setJumpOpen(false)} items={jumpItems} />
 
       <Dialog
         open={isAddingPartner}

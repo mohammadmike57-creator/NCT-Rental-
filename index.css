@@ -462,3 +462,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .ota-console table tbody td { padding-top: 8px; padding-bottom: 8px; }
 .ota-console table tbody tr:hover { background: #f8fafc; }
 .ota-console .grid > .rounded-xl.border { border-radius: 10px; box-shadow: none; }
+
+.ota-console table thead th { position: sticky; top: 0; z-index: 1; background: #f8fafc; }
+.ota-console table tbody tr { transition: background-color .12s ease, box-shadow .12s ease; }
+.ota-console table tbody tr:hover { box-shadow: inset 3px 0 0 #6366f1; }
+.ota-console section.rounded-xl > div.border-b:first-child h3 { font-size: 13.5px; font-weight: 600; color: #0f172a; }
+.ota-console button:focus-visible, .ota-console input:focus-visible, .ota-console select:focus-visible { outline: 2px solid #6366f1; outline-offset: 1px; }
