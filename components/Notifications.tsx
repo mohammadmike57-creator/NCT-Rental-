@@ -6,7 +6,7 @@ import { CloseIcon } from './icons';
 interface Notification {
   id: string;
   message: string;
-  type: 'warning' | 'error' | 'info';
+  type: 'warning' | 'error' | 'info' | 'success';
   title?: string;
 }
 
@@ -25,6 +25,11 @@ const notificationStyles = {
     container: 'bg-red-100 border-red-500 text-red-700',
     title: 'Alert',
     dismiss: 'text-red-500 hover:text-red-700 hover:bg-red-200 focus:ring-red-500',
+  },
+  success: {
+    container: 'bg-green-100 border-green-500 text-green-700',
+    title: 'Done',
+    dismiss: 'text-green-500 hover:text-green-700 hover:bg-green-200 focus:ring-green-500',
   },
   info: {
     container: 'bg-blue-100 border-blue-500 text-blue-700',

@@ -232,6 +232,8 @@ export enum TransmissionType {
 
 export interface Reservation {
   id: string;
+  /** Extras ticked in the reservation form (ids of AvailableExtra). */
+  selectedExtras?: string[];
   uploadBatchId: string;
   createdAt: string;
   updatedAt: string;
@@ -565,6 +567,8 @@ export interface AvailableExtra {
   id: string;
   name: string;
   defaultDailyPrice: number;
+  /** Older records store the daily price under this name too (see services/extras.ts). */
+  pricePerDay?: number;
 }
 
 export interface FranchisePayment {
