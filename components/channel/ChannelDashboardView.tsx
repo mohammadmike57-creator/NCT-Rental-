@@ -38,6 +38,60 @@ export function channelAlerts(rows: Row[]): ChannelAlert[] {
   return out;
 }
 
+/** Requests and errors over the period, every broker together: one axis, crosshair and readout on hover. */
+const TrafficChart: React.FC<{ series: { at: string; calls: number; errors: number }[]; hours: number }> = ({ series, hours }) => {
+  const [hover, setHover] = useState<number | null>(null);
+  const W = 960, H = 200, L = 44, R = 12, T = 12, B = 26;
+  if (series.length < 2) return <p className="px-4 py-10 text-center text-[13px] text-slate-500">Not enough traffic in this period to draw a chart.</p>;
+  const max = Math.max(1, ...series.map(p => p.calls));
+  const nice = (() => { const m = Math.pow(10, Math.floor(Math.log10(max))); const f = max / m; return (f <= 2 ? 2 : f <= 5 ? 5 : 10) * m; })();
+  const x = (i: number) => L + (i / (series.length - 1)) * (W - L - R);
+  const y = (v: number) => T + (1 - v / nice) * (H - T - B);
+  const path = (k: 'calls' | 'errors') => series.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join(' ');
+  const label = (iso: string) => {
+    const d = new Date(iso);
+    return hours <= 24 ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  };
+  const ticks = [0, Math.floor((series.length - 1) / 2), series.length - 1];
+  const onMove = (e: React.PointerEvent<SVGRectElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = ((e.clientX - r.left) / r.width) * W;
+    setHover(Math.max(0, Math.min(series.length - 1, Math.round(((px - L) / (W - L - R)) * (series.length - 1)))));
+  };
+  const h = hover != null ? series[hover] : null;
+  return (
+    <div className="px-4 pb-3">
+      <div className="flex items-center gap-4 text-[12px] text-slate-600 pb-1">
+        <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-[2px] rounded bg-indigo-600" />Requests</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-[2px] rounded bg-rose-600" />Errors</span>
+      </div>
+      <div className="relative">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[200px]" preserveAspectRatio="none" role="img" aria-label="Requests and errors over time">
+          {[0, 0.5, 1].map(f => (
+            <g key={f}>
+              <line x1={L} x2={W - R} y1={y(nice * f)} y2={y(nice * f)} stroke="#e2e8f0" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+              <text x={L - 8} y={y(nice * f) + 4} textAnchor="end" fontSize={11} fill="#94a3b8">{(nice * f).toLocaleString()}</text>
+            </g>
+          ))}
+          {ticks.map(i => <text key={i} x={x(i)} y={H - 6} textAnchor={i === 0 ? 'start' : i === series.length - 1 ? 'end' : 'middle'} fontSize={11} fill="#94a3b8">{label(series[i].at)}</text>)}
+          <path d={path('calls')} fill="none" stroke="#4f46e5" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <path d={path('errors')} fill="none" stroke="#e11d48" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {hover != null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} stroke="#94a3b8" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+          <rect x={L} y={0} width={W - L - R} height={H} fill="transparent" onPointerMove={onMove} onPointerLeave={() => setHover(null)} />
+        </svg>
+        {h && (
+          <div className="pointer-events-none absolute top-1 rounded-md border border-slate-200 bg-white shadow-md px-2.5 py-1.5 text-[12px]"
+            style={{ left: `calc(${(x(hover!) / W) * 100}% ${hover! > series.length / 2 ? '- 150px' : '+ 10px'})` }}>
+            <p className="text-slate-500">{new Date(h.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            <p className="flex items-center gap-2"><span className="w-3 h-[2px] bg-indigo-600" /><b className="tabular-nums text-slate-900">{h.calls.toLocaleString()}</b><span className="text-slate-500">requests</span></p>
+            <p className="flex items-center gap-2"><span className="w-3 h-[2px] bg-rose-600" /><b className="tabular-nums text-slate-900">{h.errors.toLocaleString()}</b><span className="text-slate-500">errors</span></p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /** Every broker at a glance: requests, bookings, conversion, revenue, errors, speed and alerts. */
 const ChannelDashboardView: React.FC<{ aggregators: Aggregator[]; onOpenChannel: (id: string, tab: ChannelTab) => void }> = ({ aggregators, onOpenChannel }) => {
   const [hours, setHours] = useState(24 * 7);
@@ -79,6 +133,15 @@ const ChannelDashboardView: React.FC<{ aggregators: Aggregator[]; onOpenChannel:
     return t;
   }, [rows]);
   const alerts = useMemo(() => channelAlerts(rows || []), [rows]);
+  const traffic = useMemo(() => {
+    const m = new Map<string, { at: string; calls: number; errors: number }>();
+    (rows || []).forEach(r => (r.stats?.series || []).forEach(p => {
+      const key = (p.at || '').slice(0, 13);   // same hour = same point, whichever broker sent it
+      const e = m.get(key) || { at: p.at, calls: 0, errors: 0 };
+      e.calls += p.calls; e.errors += p.errors; m.set(key, e);
+    }));
+    return Array.from(m.values()).sort((a, b) => a.at.localeCompare(b.at));
+  }, [rows]);
 
   return (
     <div className="space-y-4">
@@ -96,10 +159,15 @@ const ChannelDashboardView: React.FC<{ aggregators: Aggregator[]; onOpenChannel:
       <StatGrid items={[
         { label: 'Requests', value: rows ? totals.calls.toLocaleString() : '…', sub: `${totals.searches.toLocaleString()} searches` },
         { label: 'Bookings', value: rows ? totals.bookings : '…', sub: totals.searches ? `${((totals.bookings / totals.searches) * 100).toFixed(2)}% of searches` : 'no searches', tone: totals.bookings ? 'success' : 'default' },
-        { label: 'Booked value', value: rows ? money(totals.value) : '…', sub: `${totals.cancelled} cancelled / no-show` },
+        { label: 'Booked value', value: rows ? (money(totals.value).split(' · ')[0]) : '…',
+          sub: `${money(totals.value).split(' · ').slice(1).map(v => `+ ${v} · `).join('')}${totals.cancelled} cancelled / no-show` },
         { label: 'Errors', value: rows ? totals.errors.toLocaleString() : '…', sub: totals.calls ? `${pct(totals.errors / totals.calls)} of requests` : '—', tone: totals.calls && totals.errors / totals.calls > 0.05 ? 'warning' : 'default' },
         { label: 'Alerts', value: rows ? alerts.length : '…', sub: alerts.length ? 'need attention' : 'all clear', tone: alerts.length ? 'danger' : 'success' },
       ]} />
+
+      <Panel title="Traffic" subtitle={`Requests and errors from every broker, last ${PERIODS.find(p => p[0] === hours)?.[1]}`}>
+        {rows === null ? <p className="px-4 py-10 text-center text-[13px] text-slate-500">Loading…</p> : <TrafficChart series={traffic} hours={hours} />}
+      </Panel>
 
       {alerts.length > 0 && (
         <Panel title="Alerts" subtitle="Problems with a broker connection to look at now.">

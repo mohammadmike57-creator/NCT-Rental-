@@ -452,3 +452,13 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 @font-face { font-family: 'Plex Arabic'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/plex-arabic-600.woff2') format('woff2'); }
 @font-face { font-family: 'Plex Arabic'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/plex-arabic-700.woff2') format('woff2'); }
 .ar-ui { font-family: 'Plex Arabic', 'Noto Naskh Arabic', Tahoma, sans-serif; letter-spacing: 0 !important; text-transform: none !important; font-weight: 600; color: #64748b; unicode-bidi: isolate; }
+
+/* OTA XML console: one dense, flat enterprise style for every screen inside the Channel Manager. */
+.ota-console section.rounded-xl { border-radius: 10px; box-shadow: none; }
+.ota-console section.rounded-xl > div.border-b:first-child { background: #f8fafc; padding-top: 10px; padding-bottom: 10px; }
+.ota-console section.rounded-xl > div.border-b:first-child h3 { font-size: 13px; letter-spacing: -0.005em; }
+.ota-console table thead { background: #f8fafc; }
+.ota-console table thead th { font-size: 10.5px; letter-spacing: 0.06em; color: #64748b; padding-top: 8px; padding-bottom: 8px; }
+.ota-console table tbody td { padding-top: 8px; padding-bottom: 8px; }
+.ota-console table tbody tr:hover { background: #f8fafc; }
+.ota-console .grid > .rounded-xl.border { border-radius: 10px; box-shadow: none; }

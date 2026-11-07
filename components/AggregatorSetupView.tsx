@@ -6,7 +6,7 @@ import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
 import TrafficView from './channel/TrafficView';
 import ConsoleView from './channel/ConsoleView';
-import { Page, PageHeader, StatGrid, Panel, Tabs, Badge, Plate, Button, Field, EmptyState, Dialog, inputCls } from './ui/Crm';
+import { Page, Panel, Badge, Plate, Button, Field, EmptyState, Dialog, inputCls } from './ui/Crm';
 import ManageRatePlansView from './ManageRatePlansView';
 import ManageTermsView from './ManageTermsView';
 import ManageConnectionView from './ManageConnectionView';
@@ -113,6 +113,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   }, [hookChannels]);
   const openChannel = (id: string, tab: ChannelTab) => { setSelectedAggregatorId(id); setActiveTab(tab); setMode('channels'); };
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
+  const [channelSearch, setChannelSearch] = useState('');
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
   const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer'>('channels');
   const showStopSale = mode === 'stopsale';
@@ -262,42 +263,78 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     return st === 'active' ? 'success' : st === 'testing' ? 'warning' : 'muted';
   };
 
+  const sel = selectedAggregator;
+  const filteredChannels = aggregators.filter(a => !channelSearch.trim()
+    || `${a.name} ${a.channelCode || ''}`.toLowerCase().includes(channelSearch.trim().toLowerCase()));
+  const failingUpdates = failedUpdates.reduce((n, f) => n + f.count, 0);
+  const MODULES = [
+    ['channels', 'Channels', ServerIcon, aggregators.length],
+    ['dashboard', 'Dashboard', ChartBarIcon, undefined],
+    ['reservations', 'XML reservations', InboxIcon, undefined],
+    ['keys', 'API keys', KeyIcon, undefined],
+    ['multi', 'Bulk editor', PencilIcon, undefined],
+    ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
+    ['developer', 'Developer', CodeBracketIcon, undefined],
+  ] as const;
+  const statusCells: { label: string; value: React.ReactNode; tone: 'ok' | 'warn' | 'bad' | 'plain' }[] = [
+    { label: 'Broker updates', value: failingUpdates ? `${failingUpdates} failing` : 'Operational', tone: failingUpdates ? 'bad' : 'ok' },
+    { label: 'Live channels', value: `${liveChannels} / ${aggregators.length}`, tone: liveChannels ? 'ok' : 'plain' },
+    { label: 'Unpublished', value: pendingChannels ? `${pendingChannels} channel${pendingChannels === 1 ? '' : 's'}` : 'In sync', tone: pendingChannels ? 'warn' : 'ok' },
+    { label: 'Blocking errors', value: attention ? `${attention} channel${attention === 1 ? '' : 's'}` : 'None', tone: attention ? 'bad' : 'ok' },
+    { label: 'Stop sales today', value: activeStopSales, tone: activeStopSales ? 'warn' : 'plain' },
+    { label: 'Last publish', value: relativeTime(lastPublish), tone: 'plain' },
+  ];
+  const cellDot = { ok: 'bg-emerald-400', warn: 'bg-amber-400', bad: 'bg-rose-400', plain: 'bg-slate-500' } as const;
+
   return (
-    <Page>
-      <PageHeader
-        section="OTA XML"
-        title="Channel Manager"
-        subtitle="OTA XML distribution — rates, availability, extras and stop sales for every partner."
-        actions={<Button variant="primary" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add channel</Button>}
-      />
-
-      <nav className="flex gap-1 overflow-x-auto no-scrollbar rounded-xl border border-slate-200 bg-white p-1" aria-label="OTA XML sections">
-        {([
-          ['channels', 'Channels', ServerIcon, aggregators.length],
-          ['dashboard', 'Dashboard', ChartBarIcon, undefined],
-          ['reservations', 'XML reservations', InboxIcon, undefined],
-          ['keys', 'API keys', KeyIcon, undefined],
-          ['multi', 'Bulk editor', PencilIcon, undefined],
-          ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
-          ['developer', 'Developer', CodeBracketIcon, undefined],
-        ] as const).map(([key, label, Icon, count]) => (
-          <button key={key} type="button" onClick={() => setMode(key)} aria-current={mode === key ? 'page' : undefined}
-            className={`h-9 px-3 rounded-lg inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap transition-colors ${mode === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
-            <Icon className="w-4 h-4" />{label}
-            {count !== undefined && <span className={`px-1.5 py-px rounded text-[11px] tabular-nums ${mode === key ? 'bg-white/15' : key === 'stopsale' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
-          </button>
-        ))}
-      </nav>
-
-      <StatGrid items={[
-        { label: 'Live channels', value: `${liveChannels} / ${aggregators.length}`, sub: 'connected partners', tone: liveChannels ? 'success' : 'default' },
-        { label: 'Unpublished', value: pendingChannels, sub: pendingChannels ? 'channels with rate changes' : 'all channels in sync', tone: pendingChannels ? 'warning' : 'default' },
-        { label: 'Needs attention', value: attention, sub: attention ? 'channels with blocking errors' : 'no blocking errors', tone: attention ? 'danger' : 'default' },
-        { label: 'Last publish', value: relativeTime(lastPublish), sub: `${activeStopSales} stop sale${activeStopSales === 1 ? '' : 's'} active today` },
-      ]} />
+    <Page className="ota-console">
+      {/* Console header: identity, live system status and the module menu */}
+      <header className="rounded-xl bg-slate-900 text-white shadow-sm overflow-hidden">
+        <div className="px-5 pt-4 pb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-10 h-10 rounded-lg bg-indigo-500/15 ring-1 ring-inset ring-indigo-400/30 inline-flex items-center justify-center shrink-0">
+              <GlobeAltIcon className="w-5 h-5 text-indigo-300" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-300">OTA XML · Distribution</p>
+              <h2 className="text-lg font-semibold leading-tight">Channel Manager</h2>
+              <p className="text-[12px] text-slate-400 truncate">{companyDetails?.name || 'UR-Drive Jordan'} · rates, availability and bookings for every broker</p>
+            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-white/5 ring-1 ring-inset ring-white/10 text-[11px] font-medium text-slate-300">
+              <span className="font-mono">OTA 2003/05 · 2018A · 2024A</span><span className="text-slate-600">|</span><span className="font-mono">REST v3</span>
+            </span>
+            <button type="button" onClick={() => setIsAddingPartner(true)}
+              className="h-9 px-3.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[13px] font-semibold inline-flex items-center gap-2 shadow-sm">
+              <PlusIcon className="w-4 h-4" />Add channel
+            </button>
+          </div>
+        </div>
+        <dl className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 border-t border-white/10 divide-x divide-white/10">
+          {statusCells.map(c => (
+            <div key={c.label} className="px-5 py-2.5 min-w-0 max-xl:border-b max-xl:border-white/10">
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 truncate">{c.label}</dt>
+              <dd className="mt-0.5 flex items-center gap-2 text-[14px] font-semibold tabular-nums truncate">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cellDot[c.tone]}`} />{c.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <nav className="px-3 flex gap-0.5 overflow-x-auto no-scrollbar border-t border-white/10 bg-slate-950/40" aria-label="OTA XML sections">
+          {MODULES.map(([key, label, Icon, count]) => (
+            <button key={key} type="button" onClick={() => setMode(key)} aria-current={mode === key ? 'page' : undefined}
+              className={`h-11 px-3 inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${mode === key ? 'border-indigo-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-100'}`}>
+              <Icon className="w-4 h-4" />{label}
+              {count !== undefined && <span className={`px-1.5 py-px rounded text-[10px] font-semibold tabular-nums ${key === 'stopsale' ? 'bg-rose-500/20 text-rose-200' : 'bg-white/10 text-slate-300'}`}>{count}</span>}
+            </button>
+          ))}
+        </nav>
+      </header>
 
       {failedUpdates.length > 0 && mode !== 'dashboard' && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2" role="alert">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2" role="alert">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
           <p className="text-[13px] text-rose-800 flex-1 min-w-0">
             <b>Status updates are failing</b> for {failedUpdates.map(f => `${f.name} (${f.count})`).join(', ')}. The broker does not know about those changes until they are delivered.
           </p>
@@ -320,109 +357,150 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       ) : showStopSale ? (
         <ManageStopSaleView stopSales={stopSales} onUpdate={onUpdateStopSales} fleet={fleet} channels={aggregators.map(a => ({ id: a.id, name: a.name }))} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[272px_minmax(0,1fr)] gap-4 items-start">
-          {/* Channel list */}
-          <Panel title="Channels" subtitle={`${aggregators.length} partner${aggregators.length === 1 ? '' : 's'}`} className="lg:sticky lg:top-4">
-            {aggregators.length === 0 ? (
-              <p className="px-4 py-6 text-[13px] text-slate-500 text-center">No channels yet.</p>
-            ) : (
-              <ul className="max-h-64 lg:max-h-[70vh] overflow-y-auto divide-y divide-slate-100">
-                {aggregators.map(agg => {
-                  const selected = selectedAggregator?.id === agg.id;
-                  const st = STATUS_STYLE[channelStatus(agg)];
-                  const h = health[agg.id];
-                  const pending = hasUnpublishedChanges(agg);
-                  const latest = (agg.ratePlanHistory || [])[0];
-                  return (
-                    <li
-                      key={agg.id}
-                      onClick={() => selectChannel(agg.id)}
-                      className={`group relative px-4 py-2.5 cursor-pointer border-l-2 transition-colors ${selected ? 'bg-indigo-50/60 border-indigo-600' : 'border-transparent hover:bg-slate-50'}`}
-                    >
-                      <div className="flex items-center gap-2 pr-7">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} title={st.label}></span>
-                        <span className="text-[13px] font-semibold text-slate-900 truncate">{agg.name}</span>
-                        {agg.channelCode && <span className="ml-auto"><Plate value={agg.channelCode} /></span>}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-                        <span className="tabular-nums">{latest ? `v${submissionVersion(agg, 0)} · ${relativeTime(latest.submittedAt)}` : 'never published'}</span>
-                        {(() => { const cs = connectionStateOf(agg); return <Badge tone={cs.tone} dot={false} className="!px-1.5 !py-0 !text-[10px]">{cs.label}</Badge>; })()}
-                        {pending && <Badge tone="warning" dot={false} className="!px-1.5 !py-0 !text-[10px]">changes</Badge>}
-                        {h && h.errors > 0 && <Badge tone="danger" dot={false} className="!px-1.5 !py-0 !text-[10px]">{h.errors} error{h.errors > 1 ? 's' : ''}</Badge>}
-                      </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); handleDeleteAggregator(agg); }}
-                        title={`Delete ${agg.name}`}
-                        aria-label={`Delete ${agg.name}`}
-                        className="absolute right-2 top-2 w-7 h-7 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
-                      >
-                        <TrashIcon className="w-3.5 h-3.5" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            <div className="p-3 border-t border-slate-100">
-              <Button className="w-full" icon={<PlusIcon className="w-4 h-4" />} onClick={() => setIsAddingPartner(true)}>Add channel</Button>
-            </div>
-          </Panel>
-
-          {/* Channel workspace */}
-          {selectedAggregator ? (
-            <Panel
-              title={
-                <span className="flex flex-wrap items-center gap-2">
-                  {selectedAggregator.name}
-                  {selectedAggregator.channelCode && <Plate value={selectedAggregator.channelCode} />}
-                  <Badge tone={statusTone(selectedAggregator)}>{STATUS_STYLE[channelStatus(selectedAggregator)].label}</Badge>
-                </span>
-              }
-              actions={hasUnpublishedChanges(selectedAggregator) ? (
-                <Button size="sm" className="!text-amber-700 !border-amber-200 !bg-amber-50 hover:!bg-amber-100" onClick={() => setActiveTab('Rates')}>Unpublished changes</Button>
-              ) : undefined}
-            >
-              <div className="px-3 pt-3 flex gap-1 overflow-x-auto no-scrollbar" role="tablist" aria-label="Channel sections">
-                {TAB_GROUPS.map(g => {
-                  const on = groupOf(activeTab).label === g.label;
-                  const errors = g.label === 'Overview' ? health[selectedAggregator.id]?.errors : undefined;
-                  return (
-                    <button key={g.label} type="button" role="tab" aria-selected={on} onClick={() => !on && setActiveTab(g.tabs[0])}
-                      className={`h-8 px-3 rounded-lg text-[12px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors ${on ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
-                      {g.label}{errors ? <span className="ml-1.5 px-1.5 py-px rounded bg-rose-100 text-rose-700 text-[10px] tabular-nums">{errors}</span> : null}
-                    </button>
-                  );
-                })}
+        <div className="grid grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)] gap-4 items-start">
+          {/* Navigator: the brokers, then the sections of the selected one */}
+          <aside className="space-y-3">
+            <section className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="px-3 pt-3 pb-2 flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Channels <span className="ml-1 text-slate-400 tabular-nums">{aggregators.length}</span></h3>
+                <button type="button" onClick={() => setIsAddingPartner(true)} className="w-6 h-6 inline-flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" aria-label="Add channel" title="Add channel">
+                  <PlusIcon className="w-4 h-4" />
+                </button>
               </div>
-              <Tabs
-                tabs={groupOf(activeTab).tabs.map(tab => ({ key: tab, label: TAB_LABEL[tab] || tab }))}
-                value={activeTab}
-                onChange={k => setActiveTab(k as ChannelTab)}
-              />
-              <div className="p-4 bg-slate-50/60 space-y-4">
+              {aggregators.length > 4 && (
+                <div className="px-3 pb-2">
+                  <input value={channelSearch} onChange={e => setChannelSearch(e.target.value)} placeholder="Find a channel" aria-label="Find a channel"
+                    className="w-full h-8 px-2.5 rounded-md border border-slate-200 bg-slate-50 text-[12px] focus:bg-white focus:border-indigo-400 outline-none" />
+                </div>
+              )}
+              {aggregators.length === 0 ? (
+                <p className="px-3 pb-4 text-[12px] text-slate-500">No channels yet.</p>
+              ) : (
+                <ul className="max-h-56 lg:max-h-[38vh] overflow-y-auto border-t border-slate-100">
+                  {filteredChannels.map(agg => {
+                    const selected = sel?.id === agg.id;
+                    const st = STATUS_STYLE[channelStatus(agg)];
+                    const h = health[agg.id];
+                    const pending = hasUnpublishedChanges(agg);
+                    const latest = (agg.ratePlanHistory || [])[0];
+                    return (
+                      <li key={agg.id} onClick={() => selectChannel(agg.id)}
+                        className={`group relative pl-3 pr-8 py-2 cursor-pointer border-l-2 transition-colors ${selected ? 'bg-indigo-50/70 border-indigo-600' : 'border-transparent hover:bg-slate-50'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} title={st.label} />
+                          <span className={`text-[13px] font-semibold truncate ${selected ? 'text-indigo-900' : 'text-slate-800'}`}>{agg.name}</span>
+                          {agg.channelCode && <span className="ml-auto font-mono text-[10px] font-semibold text-slate-500">{agg.channelCode}</span>}
+                        </div>
+                        <div className="mt-0.5 pl-3.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+                          <span className="tabular-nums">{latest ? `v${submissionVersion(agg, 0)} · ${relativeTime(latest.submittedAt)}` : 'never published'}</span>
+                          {pending && <span className="text-amber-600 font-medium">changes</span>}
+                          {h && h.errors > 0 && <span className="text-rose-600 font-medium">{h.errors} error{h.errors > 1 ? 's' : ''}</span>}
+                        </div>
+                        <button onClick={e => { e.stopPropagation(); handleDeleteAggregator(agg); }} title={`Delete ${agg.name}`} aria-label={`Delete ${agg.name}`}
+                          className="absolute right-1.5 top-1.5 w-6 h-6 inline-flex items-center justify-center rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100">
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {filteredChannels.length === 0 && <li className="px-3 py-3 text-[12px] text-slate-500">No channel matches.</li>}
+                </ul>
+              )}
+            </section>
+
+            {sel && (
+              <>
+                <nav className="hidden lg:block bg-white rounded-lg border border-slate-200 py-2" aria-label="Channel sections">
+                  {TAB_GROUPS.map(g => {
+                    const errors = g.label === 'Overview' ? health[sel.id]?.errors : undefined;
+                    return (
+                      <div key={g.label} className="px-2 pb-1.5">
+                        <p className="px-2 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{g.label}</p>
+                        {g.tabs.map(t => {
+                          const on = activeTab === t;
+                          return (
+                            <button key={t} type="button" onClick={() => setActiveTab(t)} aria-current={on ? 'page' : undefined}
+                              className={`w-full h-8 px-2 rounded-md flex items-center gap-2 text-[13px] text-left transition-colors ${on ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                              <span className={`w-1 h-4 rounded-full ${on ? 'bg-indigo-600' : 'bg-transparent'}`} />
+                              <span className="truncate">{TAB_LABEL[t] || t}</span>
+                              {t === 'Overview' && errors ? <span className="ml-auto px-1.5 py-px rounded bg-rose-100 text-rose-700 text-[10px] font-semibold tabular-nums">{errors}</span> : null}
+                              {t === 'Rates' && hasUnpublishedChanges(sel) ? <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500" title="Unpublished changes" /> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </nav>
+                <select className="lg:hidden w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px]" value={activeTab}
+                  onChange={e => setActiveTab(e.target.value as ChannelTab)} aria-label="Channel section">
+                  {TAB_GROUPS.map(g => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.tabs.map(t => <option key={t} value={t}>{TAB_LABEL[t] || t}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </>
+            )}
+          </aside>
+
+          {/* Workspace */}
+          {sel ? (
+            <div className="min-w-0 space-y-4">
+              <section className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] text-slate-500">
+                    {groupOf(activeTab).label !== activeTab && <>{groupOf(activeTab).label} <span className="text-slate-300 mx-1">/</span> </>}<span className="text-slate-700 font-medium">{TAB_LABEL[activeTab] || activeTab}</span>
+                  </p>
+                  <h3 className="mt-0.5 flex flex-wrap items-center gap-2 text-[17px] font-semibold text-slate-900">
+                    {sel.name}
+                    {sel.channelCode && <Plate value={sel.channelCode} />}
+                    <Badge tone={statusTone(sel)}>{STATUS_STYLE[channelStatus(sel)].label}</Badge>
+                    {(() => { const cs = connectionStateOf(sel); return <Badge tone={cs.tone} dot={false}>{cs.label}</Badge>; })()}
+                  </h3>
+                </div>
+                <dl className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
+                  {[
+                    ['Supplier', `${sel.vendorCode || 'URD'} · ${sel.locationCode || 'AMM'}`],
+                    ['Currency', sel.currency || 'USD'],
+                    ['Rates', (sel.ratePlanHistory || [])[0] ? `v${submissionVersion(sel, 0)} · ${relativeTime((sel.ratePlanHistory || [])[0].submittedAt)}` : 'not published'],
+                    ['Environment', sel.connectionDetails?.environment === 'production' ? 'Production' : 'Test'],
+                  ].map(([k, v]) => (
+                    <div key={k} className="min-w-0">
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{k}</dt>
+                      <dd className="font-medium text-slate-700 tabular-nums whitespace-nowrap">{v}</dd>
+                    </div>
+                  ))}
+                  {hasUnpublishedChanges(sel) && (
+                    <Button size="sm" className="!text-amber-700 !border-amber-200 !bg-amber-50 hover:!bg-amber-100" onClick={() => setActiveTab('Rates')}>Unpublished changes</Button>
+                  )}
+                </dl>
+              </section>
+
+              <div className="space-y-4">
                 {activeTab === 'Overview' && (
-                  <ChannelReadiness aggregator={selectedAggregator} fleet={fleet} validation={health[selectedAggregator.id]}
+                  <ChannelReadiness aggregator={sel} fleet={fleet} validation={health[sel.id]}
                     onNavigate={t => (t === 'API keys' ? setMode('keys') : setActiveTab(t))} />
                 )}
                 {activeTab === 'Overview' && (
                   <ChannelOverviewView
-                    aggregator={selectedAggregator}
+                    aggregator={sel}
                     fleet={fleet}
-                    stopSales={stopSalesFor(stopSales, selectedAggregator.id)}
-                    validation={health[selectedAggregator.id]}
+                    stopSales={stopSalesFor(stopSales, sel.id)}
+                    validation={health[sel.id]}
                     onNavigate={setActiveTab}
                   />
                 )}
                 {activeTab === 'Connection' && (
                   <>
-                    <ConnectionProfileView aggregator={selectedAggregator} fleet={fleet} currentUserName={currentUserName}
+                    <ConnectionProfileView aggregator={sel} fleet={fleet} currentUserName={currentUserName}
                       onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
-                    <ManageConnectionView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                    <ManageConnectionView aggregator={sel} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                   </>
                 )}
                 {activeTab === 'Rates' && (
                   <ManageRatePlansView
-                    aggregator={selectedAggregator}
+                    aggregator={sel}
                     onUpdateAggregator={handleUpdateAggregator}
                     fleet={fleet}
                     stopSales={stopSales}
@@ -435,52 +513,52 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                   <>
                     <Panel padded>
                       <ChannelDeliveryLogView
-                        aggregator={selectedAggregator}
+                        aggregator={sel}
                         refreshKey={deliveryRefresh}
                         sending={sending}
-                        onSend={() => sendRates(selectedAggregator)}
+                        onSend={() => sendRates(sel)}
                       />
                     </Panel>
                     <Panel padded>
-                      <RateHistoryView aggregator={selectedAggregator} />
+                      <RateHistoryView aggregator={sel} />
                     </Panel>
                   </>
                 )}
                 {activeTab === 'Extras' && (
                   <Panel padded>
-                    <ManageAggregatorExtrasView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} globalExtras={availableExtras} />
+                    <ManageAggregatorExtrasView aggregator={sel} onUpdate={handleUpdateAggregator} globalExtras={availableExtras} />
                   </Panel>
                 )}
                 {activeTab === 'Terms & Conditions' && (
                   <Panel padded>
-                    <ManageTermsView terms={selectedAggregator.termsAndConditions} onUpdate={terms => handleUpdateAggregator({ ...selectedAggregator, termsAndConditions: terms })} />
+                    <ManageTermsView terms={sel.termsAndConditions} onUpdate={terms => handleUpdateAggregator({ ...sel, termsAndConditions: terms })} />
                   </Panel>
                 )}
                 {activeTab === 'Booking API' && (
-                  <BookingApiView aggregator={selectedAggregator} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                  <BookingApiView aggregator={sel} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
                 {activeTab === 'Price rules' && (
-                  <PriceRulesView key={selectedAggregator.id} aggregator={selectedAggregator} fleet={fleet} currentUserName={currentUserName}
+                  <PriceRulesView key={sel.id} aggregator={sel} fleet={fleet} currentUserName={currentUserName}
                     onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
-                {activeTab === 'Outbound' && <OutboundView key={selectedAggregator.id} aggregator={selectedAggregator} showConfirmation={showConfirmation} />}
+                {activeTab === 'Outbound' && <OutboundView key={sel.id} aggregator={sel} showConfirmation={showConfirmation} />}
                 {activeTab === 'Languages' && (
-                  <LanguagesView key={selectedAggregator.id} aggregator={selectedAggregator} fleet={fleet} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                  <LanguagesView key={sel.id} aggregator={sel} fleet={fleet} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
-                {activeTab === 'API v3' && <ApiV3View aggregator={selectedAggregator} showConfirmation={showConfirmation} />}
-                {activeTab === 'Security' && <ChannelSecurityView aggregator={selectedAggregator} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />}
-                {activeTab === 'Bookings' && <ChannelBookingsView aggregator={selectedAggregator} />}
-                {activeTab === 'Traffic' && <TrafficView aggregator={selectedAggregator} />}
-                {activeTab === 'Test console' && <ConsoleView aggregator={selectedAggregator} fleet={fleet} />}
+                {activeTab === 'API v3' && <ApiV3View aggregator={sel} showConfirmation={showConfirmation} />}
+                {activeTab === 'Security' && <ChannelSecurityView aggregator={sel} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />}
+                {activeTab === 'Bookings' && <ChannelBookingsView aggregator={sel} />}
+                {activeTab === 'Traffic' && <TrafficView aggregator={sel} />}
+                {activeTab === 'Test console' && <ConsoleView aggregator={sel} fleet={fleet} />}
                 {activeTab === 'Go-live' && (
-                  <GoLiveView aggregator={selectedAggregator} fleet={fleet} company={companyDetails || ({ name: 'NCT Rental' } as CompanyDetails)}
+                  <GoLiveView aggregator={sel} fleet={fleet} company={companyDetails || ({ name: 'NCT Rental' } as CompanyDetails)}
                     currentUserName={currentUserName} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
                 )}
                 {activeTab === 'XML Feed' && (
-                  <XMLPreviewView aggregator={selectedAggregator} fleet={fleet} stopSales={stopSalesFor(stopSales, selectedAggregator.id)} />
+                  <XMLPreviewView aggregator={sel} fleet={fleet} stopSales={stopSalesFor(stopSales, sel.id)} />
                 )}
               </div>
-            </Panel>
+            </div>
           ) : (
             <Panel>
               <EmptyState
