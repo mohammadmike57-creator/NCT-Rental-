@@ -1,6 +1,14 @@
 import path from 'path';
+import { execSync } from 'child_process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+
+/** The commit being built: Render's RENDER_GIT_COMMIT (passed into the Docker build), else git, else none. */
+const buildCommit = (() => {
+    const fromEnv = (process.env.RENDER_GIT_COMMIT || '').trim();
+    if (fromEnv) return fromEnv.slice(0, 7);
+    try { return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return ''; }
+})();
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -19,7 +27,7 @@ export default defineConfig(({ mode }) => {
       },
       define: {
         // Shown in the account menu so staff can confirm which version is running after a deploy.
-        __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
+        __APP_BUILD__: JSON.stringify((buildCommit ? `${buildCommit} · ` : '') + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },
