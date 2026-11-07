@@ -7,7 +7,7 @@ import {
   LeadTier, PRICE_CHANNELS, PriceAdjust, PriceChannelType, PriceResult, SEASON_KINDS, SeasonKind, SeasonRule,
   applyAdjust, describeAdjust, emptyPricingState, priceRental, rentalDayCount, summarise,
 } from '../../services/dynamicPricing';
-import { Icons, Popover, Seg, Stepper, Toggle, signed, toneOf, toneText } from './pricingKit';
+import { BuildStep, BuildUp, Card, Delta, FieldLabel, Icons, Icons2, Popover, SectionHead, Seg, StateChip, Stepper, Toggle, signed, toneOf, toneText } from './pricingKit';
 import { findPlanForDate, findTier, fleetSippCodes, tierLabel, vehiclesForSipp } from '../../services/channelManager';
 
 /**
@@ -17,6 +17,9 @@ import { findPlanForDate, findTier, fleetSippCodes, tierLabel, vehiclesForSipp }
  */
 
 type Tab = 'overview' | 'seasons' | 'lead' | 'limits' | 'channels' | 'preview' | 'history';
+const TAB_ICONS: Record<Tab, () => JSX.Element> = {
+  overview: Icons2.layers, seasons: Icons2.sun, lead: Icons.bolt, limits: Icons2.shield, channels: Icons2.signal, preview: Icons2.beaker, history: Icons.history,
+};
 const TABS: [Tab, string][] = [
   ['overview', 'Overview'], ['seasons', 'Seasons & events'], ['lead', 'Last minute'],
   ['limits', 'Price limits'], ['channels', 'Channels'], ['preview', 'Try a price'], ['history', 'History'],
@@ -115,57 +118,64 @@ const leadText = (t: { fromHours: number; toHours: number | null }) => {
   return t.toHours == null ? `Booked more than ${h(t.fromHours)} before pick-up` : t.fromHours === 0 ? `Booked less than ${h(t.toHours)} before pick-up` : `Booked ${h(t.fromHours)} – ${h(t.toHours)} before pick-up`;
 };
 
-/** "How it works" box: plain words on the left, a worked example on the right. */
+/** "How it works" box: plain words on the left, a worked example on the right. Can be folded away. */
 const Explainer: React.FC<{ title: string; children: React.ReactNode; example?: React.ReactNode; exampleTitle?: string }> = ({ title, children, example, exampleTitle = 'Example' }) => (
-  <section className="rounded-lg border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-white p-4 flex flex-col lg:flex-row gap-4">
-    <div className="flex-1 min-w-0">
-      <p className="flex items-center gap-2 text-[13px] font-semibold text-indigo-900">
-        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-bold inline-flex items-center justify-center">i</span>{title}
-      </p>
-      <div className="mt-1.5 text-[13px] leading-relaxed text-slate-600 space-y-1.5">{children}</div>
+  <details open className="group rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip">
+    <summary className="flex items-center gap-3 px-5 py-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50/60">
+      <span className="grid place-items-center w-7 h-7 rounded-lg bg-sky-50 text-sky-600 ring-1 ring-inset ring-sky-100 [&>svg]:w-4 [&>svg]:h-4"><Icons2.info /></span>
+      <span className="flex-1 min-w-0"><span className="block text-[10.5px] font-semibold uppercase tracking-wider text-sky-700">How it works</span>
+        <span className="block text-[13.5px] font-semibold text-slate-900 truncate">{title}</span></span>
+      <span className="text-[12px] font-medium text-slate-500 group-open:hidden">Show</span>
+      <span className="text-[12px] font-medium text-slate-500 hidden group-open:inline">Hide</span>
+    </summary>
+    <div className="flex flex-col lg:flex-row gap-5 px-5 pb-5 pt-1 border-t border-slate-100">
+      <div className="flex-1 min-w-0 pt-3 text-[13px] leading-relaxed text-slate-600 space-y-1.5">{children}</div>
+      {example && (
+        <div className="lg:w-[420px] shrink-0 mt-3 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200 p-4">
+          <p className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-2.5">{exampleTitle}</p>
+          {example}
+        </div>
+      )}
     </div>
-    {example && (
-      <div className="lg:w-[400px] shrink-0 rounded-md bg-white border border-indigo-100 shadow-sm p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 mb-2">{exampleTitle}</p>
-        {example}
-      </div>
-    )}
-  </section>
+  </details>
 );
 
 /** A price built step by step: 30 → 45 → 54. */
 const Chain: React.FC<{ steps: { label: string; value: number | null; note?: string; tone?: 'base' | 'season' | 'lead' | 'avail' | 'limit' | 'final' }[] }> = ({ steps }) => {
-  const tone = { base: 'bg-slate-100 text-slate-700', season: 'bg-violet-50 text-violet-700 ring-violet-200', lead: 'bg-sky-50 text-sky-700 ring-sky-200', avail: 'bg-amber-50 text-amber-700 ring-amber-200', limit: 'bg-slate-50 text-slate-600 ring-slate-200', final: 'bg-emerald-600 text-white ring-emerald-600' };
+  const bar = { base: 'before:bg-slate-400', season: 'before:bg-violet-500', lead: 'before:bg-sky-500', avail: 'before:bg-amber-500', limit: 'before:bg-slate-400', final: '' };
   return (
     <div className="flex flex-wrap items-stretch gap-1.5">
-      {steps.map((st, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <span className="self-center text-slate-300 text-lg leading-none">→</span>}
-          <div className={`rounded-md ring-1 ring-inset px-2.5 py-1.5 min-w-[78px] ${tone[st.tone || 'base']}`}>
-            <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{st.label}</p>
-            <p className="text-[15px] font-semibold tabular-nums leading-tight">{st.value == null ? '—' : money(st.value)}</p>
-            {st.note && <p className="text-[10px] opacity-80 whitespace-nowrap">{st.note}</p>}
-          </div>
-        </React.Fragment>
-      ))}
+      {steps.map((st, i) => {
+        const final = st.tone === 'final';
+        return (
+          <React.Fragment key={i}>
+            {i > 0 && <span className="self-center text-slate-300 [&>svg]:w-3.5 [&>svg]:h-3.5"><Icons2.arrowRight /></span>}
+            <div className={`relative overflow-hidden rounded-lg px-3 py-2 min-w-[84px] ${final ? 'bg-slate-900 text-white' : `bg-white ring-1 ring-inset ring-slate-200 before:absolute before:inset-x-0 before:top-0 before:h-0.5 ${bar[st.tone || 'base']}`}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-wide ${final ? 'text-slate-300' : 'text-slate-500'}`}>{st.label}</p>
+              <p className="text-[15px] font-bold tabular-nums leading-tight">{st.value == null ? '—' : money(st.value)}</p>
+              {st.note && <p className={`text-[10.5px] whitespace-nowrap ${final ? 'text-slate-300' : 'text-slate-500'}`}>{st.note}</p>}
+            </div>
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 };
 
 const BaseInput: React.FC<{ value: number; onChange: (n: number) => void }> = ({ value, onChange }) => (
-  <label className="inline-flex items-center gap-2 text-[12px] text-slate-500">Example base rate
-    <input type="number" min={1} value={value} onChange={e => onChange(Math.max(1, Number(e.target.value) || 1))} aria-label="Example base rate"
-      className={`${fieldCls} h-7 w-20 text-[12px] tabular-nums`} /> a day
-  </label>
+  <div className="flex items-center gap-2.5 pt-1">
+    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Example base rate</span>
+    <Stepper size="sm" label="Example base rate" unit="/day" min={1} max={100000} step={1} signedTone={false} width="w-12" value={value} onChange={v => onChange(Math.max(1, v || 1))} />
+  </div>
 );
 
 /** Twelve example days, with the days a rule covers highlighted. */
 const DayStrip: React.FC<{ days: { label: string; rate: number; hit: boolean }[] }> = ({ days }) => (
   <div className="grid grid-cols-6 gap-1">
     {days.map((d, i) => (
-      <div key={i} className={`rounded px-1 py-1 text-center ${d.hit ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+      <div key={i} className={`rounded-md px-1 py-1.5 text-center ring-1 ring-inset ${d.hit ? 'bg-violet-600 text-white ring-violet-600' : 'bg-white text-slate-600 ring-slate-200'}`}>
         <p className="text-[9px] opacity-80">{d.label}</p>
-        <p className="text-[11px] font-semibold tabular-nums">{d.rate % 1 ? d.rate.toFixed(2) : d.rate}</p>
+        <p className="text-[11.5px] font-semibold tabular-nums">{d.rate % 1 ? d.rate.toFixed(2) : d.rate}</p>
       </div>
     ))}
   </div>
@@ -185,6 +195,8 @@ const RateRulesView: React.FC<{
   const [editing, setEditing] = useState<SeasonRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [base, setBase] = useState(30);
+  const [presetsOpen, setPresetsOpen] = useState(false);
+  const closePresets = useCallback(() => setPresetsOpen(false), []);
   const cfg = state.draft;
   const user = currentUserName || 'Staff';
 
@@ -251,35 +263,52 @@ const RateRulesView: React.FC<{
   // ---------------------------------------------------------------- render
 
   return (
-    <div className="space-y-4">
-      {/* Status / publish bar */}
-      <section className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div className="min-w-0">
-          <h3 className="text-[15px] font-semibold text-slate-900">Draft &amp; publish</h3>
-          <p className="text-[12px] text-slate-500">Every change is saved as a draft. Brokers see it only after you press Publish.</p>
-        </div>
-        <dl className="ml-auto flex flex-wrap items-center gap-x-6 gap-y-1 text-[12px]">
-          {[
-            ['Published', state.version ? `v${state.version} · ${state.publishedAt ? new Date(state.publishedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}` : 'never'],
-            ['By', state.publishedBy || '—'],
-            ['Channels using it', `${dynamicChannels.length} of ${aggregators.length}`],
-          ].map(([k, v]) => <div key={k}><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{k}</dt><dd className="font-medium text-slate-700 whitespace-nowrap">{v}</dd></div>)}
-          <div className="flex items-center gap-2">
-            {saving ? <Badge tone="muted">Saving…</Badge> : unpublished ? <Badge tone="warning">Draft not published</Badge> : <Badge tone="success">Published = draft</Badge>}
-            {unpublished && state.published && <Button size="sm" variant="ghost" onClick={discard}>Discard</Button>}
-            <Button size="sm" variant="primary" disabled={!unpublished || saving} onClick={() => void publish()}>Publish</Button>
+    <div className="space-y-5">
+      {/* Workspace header: what is live, the draft, publish, and the sections */}
+      <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+          <span className="grid place-items-center w-11 h-11 rounded-xl bg-slate-900 text-white [&>svg]:w-5 [&>svg]:h-5"><Icons2.dollar /></span>
+          <div className="min-w-[240px] flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-600">OTA XML · Pricing engine</p>
+            <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-slate-900">Rate rules</h2>
+            <p className="text-[12.5px] text-slate-500">Seasons, events, last minute and price limits on top of your published rates. Every change is a draft until you publish.</p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {saving ? <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-slate-50 ring-1 ring-inset ring-slate-200 text-[12px] font-semibold text-slate-600"><span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />Saving…</span>
+              : unpublished ? <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-amber-50 ring-1 ring-inset ring-amber-200 text-[12px] font-semibold text-amber-800"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Draft has changes</span>
+              : <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-emerald-50 ring-1 ring-inset ring-emerald-200 text-[12px] font-semibold text-emerald-800"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Draft = live</span>}
+            {unpublished && state.published && <Button size="sm" variant="ghost" onClick={discard}>Discard draft</Button>}
+            <Button size="sm" variant="primary" disabled={!unpublished || saving} onClick={() => void publish()}>Publish{state.version ? ` v${state.version + 1}` : ''}</Button>
+          </div>
+        </div>
+        <dl className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-slate-100 bg-slate-50/50">
+          {([
+            ['Live version', state.version ? `v${state.version}` : 'Not published', state.publishedAt ? new Date(state.publishedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Brokers get your fixed rates', !!state.version],
+            ['Published by', state.publishedBy || '—', state.publishedBy ? 'Last publish' : 'Nobody yet', !!state.publishedBy],
+            ['Channels using it', `${dynamicChannels.length} of ${aggregators.length}`, dynamicChannels.length ? 'Smart pricing or seasons only' : 'All on fixed rates', dynamicChannels.length > 0],
+            ['Rules in the draft', `${cfg.seasonal.rules.filter(r => r.active).length + (cfg.leadTime.enabled ? cfg.leadTime.tiers.length : 0)}`, `${cfg.seasonal.rules.filter(r => r.active).length} season${cfg.seasonal.rules.filter(r => r.active).length === 1 ? '' : 's'} · last minute ${cfg.leadTime.enabled ? 'on' : 'off'}`, true],
+          ] as [string, string, string, boolean][]).map(([k, v, sub, on]) => (
+            <div key={k} className="px-5 py-3 min-w-0">
+              <dt className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400"><span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-indigo-500' : 'bg-slate-300'}`} />{k}</dt>
+              <dd className="mt-0.5 text-[17px] font-semibold tabular-nums text-slate-900 leading-6 truncate">{v}</dd>
+              <dd className="text-[11.5px] text-slate-500 truncate">{sub}</dd>
+            </div>
+          ))}
         </dl>
+        <nav className="flex gap-1 overflow-x-auto no-scrollbar px-3 py-2 border-t border-slate-100" aria-label="Rate rules sections">
+          {TABS.map(([k, l]) => {
+            const Icon = TAB_ICONS[k];
+            const count = k === 'seasons' ? cfg.seasonal.rules.length : k === 'lead' ? cfg.leadTime.tiers.length : k === 'history' ? (state.history || []).length : 0;
+            return (
+              <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
+                className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors [&>svg]:w-4 [&>svg]:h-4 ${tab === k ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+                <Icon />{l}
+                {count > 0 && <span className={`px-1.5 rounded-md text-[10.5px] font-semibold tabular-nums ${tab === k ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
+              </button>
+            );
+          })}
+        </nav>
       </section>
-
-      <nav className="flex gap-0.5 overflow-x-auto no-scrollbar border-b border-slate-200" aria-label="Rate rules sections">
-        {TABS.map(([k, l]) => (
-          <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
-            className={`px-3 py-2.5 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px ${tab === k ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-            {l}{k === 'seasons' && cfg.seasonal.rules.length ? <span className="ml-1.5 px-1.5 py-px rounded bg-slate-100 text-slate-500 text-[10px] tabular-nums">{cfg.seasonal.rules.length}</span> : null}
-          </button>
-        ))}
-      </nav>
 
       {tab === 'overview' && (
         <Overview cfg={cfg} base={base} setBase={setBase} published={!!state.published} aggregators={aggregators} onToggle={(k, on) => {
@@ -290,59 +319,107 @@ const RateRulesView: React.FC<{
         }} onGo={setTab} />
       )}
 
-      {tab === 'seasons' && (<div className="space-y-4">
-        <SeasonExplainer rules={cfg.seasonal.rules} base={base} setBase={setBase} />
-        <Panel title="Your seasons & events" subtitle="Add, edit, pause or delete. Priority 1 wins when two rules cover the same day."
-          actions={<Button size="sm" variant="primary" onClick={() => setEditing(newRule({ priority: (Math.max(0, ...cfg.seasonal.rules.map(r => r.priority)) || 4) + 1 }))}>Add rule</Button>}>
-          <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2">
-            <span className="text-[12px] text-slate-500">Start from:</span>
-            {PRESETS.map(p => <Button key={p.label} size="sm" onClick={() => setEditing(newRule(clone(p.rule)))}>{p.label}</Button>)}
+      {tab === 'seasons' && (<div className="space-y-5">
+        <SectionHead icon={<Icons2.sun />} eyebrow="Rate rules" title="Seasons & events"
+          description="A different price on special dates: low, high and peak seasons, Eid, Ramadan, Christmas, New Year or your own events. Priority 1 wins when two rules cover the same day."
+          actions={<>
+            <span className="relative">
+              <Button size="sm" onClick={() => setPresetsOpen(o => !o)}>Start from a template</Button>
+              {presetsOpen && (
+                <Popover onClose={closePresets} className="w-[260px] p-1.5">
+                  <p className="px-2.5 pt-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Templates</p>
+                  {PRESETS.map(p => (
+                    <button key={p.label} type="button" onClick={() => { setPresetsOpen(false); setEditing(newRule(clone(p.rule))); }}
+                      className="w-full flex items-center justify-between gap-3 px-2.5 h-9 rounded-lg text-[13px] text-slate-700 hover:bg-slate-50">
+                      <span className="flex items-center gap-2"><span className={`w-2 h-2 rounded-sm ${kindTone((p.rule.kind || 'custom') as SeasonKind)}`} />{p.label}</span>
+                    </button>
+                  ))}
+                </Popover>
+              )}
+            </span>
+            <Button size="sm" variant="primary" icon={<span className="[&>svg]:w-3.5 [&>svg]:h-3.5"><Icons.plus /></span>} onClick={() => setEditing(newRule({ priority: (Math.max(0, ...cfg.seasonal.rules.map(r => r.priority)) || 4) + 1 }))}>Add rule</Button>
+          </>}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-slate-100 bg-slate-50/50">
+            {([
+              ['Status', cfg.seasonal.enabled ? 'On' : 'Off', cfg.seasonal.enabled ? 'Used for Smart pricing and Seasons only' : 'Switch on in Overview', cfg.seasonal.enabled],
+              ['Active rules', `${cfg.seasonal.rules.filter(r => r.active).length} of ${cfg.seasonal.rules.length}`, `${cfg.seasonal.rules.filter(r => !r.active).length} paused`, cfg.seasonal.rules.some(r => r.active)],
+              ['Next', (() => { const today = new Date().toISOString().slice(0, 10); const n = [...cfg.seasonal.rules].filter(r => r.active && r.to >= today).sort((a, b) => a.from.localeCompare(b.from))[0]; return n ? n.name : 'None'; })(),
+                (() => { const today = new Date().toISOString().slice(0, 10); const n = [...cfg.seasonal.rules].filter(r => r.active && r.to >= today).sort((a, b) => a.from.localeCompare(b.from))[0]; return n ? `${n.from <= today ? 'Running now' : `From ${fmtDate(n.from)}`} · ${describeAdjust(n.adjust)}` : 'No upcoming dates'; })(), true],
+              ['Overlaps', cfg.seasonal.stack ? 'Stacked' : 'Priority wins', cfg.seasonal.stack ? 'Every matching rule is applied' : 'Only the top rule counts on a day', true],
+            ] as [string, string, string, boolean][]).map(([k, v, sub, on]) => (
+              <div key={k} className="px-5 py-3 min-w-0">
+                <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400"><span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-indigo-500' : 'bg-slate-300'}`} />{k}</p>
+                <p className="mt-0.5 text-[16px] font-semibold text-slate-900 leading-6 truncate">{v}</p>
+                <p className="text-[11.5px] text-slate-500 truncate">{sub}</p>
+              </div>
+            ))}
           </div>
-          {cfg.seasonal.rules.length === 0 ? (
-            <EmptyState title="No seasonal rules yet" hint="Add Eid, high season or any event with its dates; the rate applies only on those days." />
-          ) : (
-            <>
-              <SeasonTimeline rules={cfg.seasonal.rules} />
-              <div className="overflow-x-auto">
-                <table className={`${table.wrap} min-w-[980px]`}>
-                  <thead className={table.head}><tr>{['Priority', 'Rule', 'Dates', 'Applies to', 'Change', `Example (${base} a day)`, 'Rental length', 'On', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
-                  <tbody className={table.body}>
-                    {[...cfg.seasonal.rules].sort((a, b) => a.priority - b.priority).map(r => (
-                      <tr key={r.id} className={`${table.row} ${r.active ? '' : 'opacity-60'}`}>
-                        <td className={table.td}>
-                          <span className="inline-flex items-center gap-1">
-                            <span className="w-7 text-center font-semibold tabular-nums">{r.priority}</span>
-                            <button type="button" className="text-slate-400 hover:text-slate-700 px-1" onClick={() => ruleAction(r, 'up')} aria-label={`Raise priority of ${r.name}`}>▲</button>
-                            <button type="button" className="text-slate-400 hover:text-slate-700 px-1" onClick={() => ruleAction(r, 'down')} aria-label={`Lower priority of ${r.name}`}>▼</button>
+        </SectionHead>
+
+        {cfg.seasonal.rules.length === 0 ? (
+          <Card><EmptyState title="No seasonal rules yet" hint="Add Eid, high season or any event with its dates; the rate applies only on those days." action={<Button variant="primary" size="sm" onClick={() => setEditing(newRule(clone(PRESETS[0].rule)))}>Add your first rule</Button>} /></Card>
+        ) : (<>
+          <Card title="Calendar" subtitle="Your rules on a timeline, highest priority on top. Paused rules are faded.">
+            <SeasonTimeline rules={cfg.seasonal.rules} />
+          </Card>
+          <Card title="Rules" subtitle={`Prices shown on a base rate of ${money(base)} a day.`}
+            actions={<div className="flex items-center gap-2.5"><span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Base</span>
+              <Stepper size="sm" label="Example base rate" unit="/day" min={1} max={100000} step={1} signedTone={false} width="w-12" value={base} onChange={v => setBase(Math.max(1, v || 1))} /></div>}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px] text-[13px]">
+                <thead>
+                  <tr className="bg-slate-50/70 border-b border-slate-200 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
+                    {['Priority', 'Rule', 'Dates', 'Applies to', 'Change', 'Daily price', 'Rental length', 'Active', ''].map((h, i) => <th key={i} className={`px-3 py-2.5 first:pl-5 last:pr-5 whitespace-nowrap ${h === 'Daily price' ? 'text-right' : ''}`}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {[...cfg.seasonal.rules].sort((a, b) => a.priority - b.priority).map(r => {
+                    const len = Math.round((new Date(`${r.to}T12:00`).getTime() - new Date(`${r.from}T12:00`).getTime()) / 86400000) + 1;
+                    const price = exRate(base, r.adjust), d = r2(price - base);
+                    return (
+                      <tr key={r.id} className={`group hover:bg-slate-50/60 ${r.active ? '' : 'opacity-55'}`}>
+                        <td className="px-3 py-3 pl-5">
+                          <span className="inline-flex items-center rounded-lg ring-1 ring-inset ring-slate-200 bg-white overflow-hidden">
+                            <span className="w-8 text-center text-[13px] font-bold tabular-nums text-slate-900">{r.priority}</span>
+                            <span className="flex flex-col border-l border-slate-200">
+                              <button type="button" className="px-1.5 h-4 text-[9px] text-slate-400 hover:text-slate-800 hover:bg-slate-50" onClick={() => ruleAction(r, 'up')} aria-label={`Raise priority of ${r.name}`}>▲</button>
+                              <button type="button" className="px-1.5 h-4 text-[9px] text-slate-400 hover:text-slate-800 hover:bg-slate-50 border-t border-slate-200" onClick={() => ruleAction(r, 'down')} aria-label={`Lower priority of ${r.name}`}>▼</button>
+                            </span>
                           </span>
                         </td>
-                        <td className={table.td}>
-                          <p className="font-semibold text-slate-900 flex items-center gap-2"><span className={`w-2 h-2 rounded-sm ${kindTone(r.kind)}`} />{r.name || '(no name)'}</p>
-                          <p className="text-[11px] text-slate-500">{kindLabel(r.kind)}{r.notes ? ` · ${r.notes}` : ''}</p>
+                        <td className="px-3 py-3">
+                          <p className="font-semibold text-slate-900 flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-sm ${kindTone(r.kind)}`} />{r.name || '(no name)'}</p>
+                          <p className="text-[11.5px] text-slate-500 pl-[18px]">{kindLabel(r.kind)}{r.notes ? ` · ${r.notes}` : ''}</p>
                         </td>
-                        <td className={`${table.td} whitespace-nowrap tabular-nums`}>{fmtDate(r.from)} → {fmtDate(r.to)}
-                          {r.blackout.length > 0 && <p className="text-[11px] text-slate-500">{r.blackout.length} blackout date{r.blackout.length === 1 ? '' : 's'}</p>}</td>
-                        <td className={`${table.td} text-[12px] text-slate-600`}>
-                          <p>{r.groups.length ? r.groups.join(', ') : 'All car groups'}</p>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <p className="tabular-nums text-slate-800">{fmtDate(r.from)} <span className="text-slate-300">→</span> {fmtDate(r.to)}</p>
+                          <p className="text-[11.5px] text-slate-500">{len} day{len === 1 ? '' : 's'}{r.blackout.length ? ` · ${r.blackout.length} blackout` : ''}</p>
+                        </td>
+                        <td className="px-3 py-3 text-[12px]">
+                          <p className="text-slate-700">{r.groups.length ? r.groups.join(', ') : 'All car groups'}</p>
                           <p className="text-slate-400">{r.locations.length ? r.locations.join(', ') : 'All locations'} · {r.channels.length ? r.channels.map(c => PRICE_CHANNELS.find(x => x[0] === c)?.[1]).join(', ') : 'All channels'}</p>
                         </td>
-                        <td className={`${table.td} font-semibold tabular-nums whitespace-nowrap`}>{describeAdjust(r.adjust)}</td>
-                        <td className={`${table.td} tabular-nums whitespace-nowrap text-[12px]`}><span className="text-slate-400">{base} →</span> <b className="text-slate-900">{money(exRate(base, r.adjust))}</b></td>
-                        <td className={`${table.td} text-[12px] text-slate-600 whitespace-nowrap`}>{r.minDays || r.maxDays ? `${r.minDays || 1}–${r.maxDays || '∞'} days` : 'Any'}</td>
-                        <td className={table.td}><Switch on={r.active} onChange={() => ruleAction(r, 'toggle')} label={`${r.name} active`} /></td>
-                        <td className={`${table.td} whitespace-nowrap text-right`}>
-                          <Button size="sm" onClick={() => setEditing(clone(r))}>Edit</Button>{' '}
-                          <Button size="sm" variant="ghost" onClick={() => ruleAction(r, 'duplicate')}>Duplicate</Button>
-                          <Button size="sm" variant="ghost" className="!text-rose-600" onClick={() => ruleAction(r, 'delete')}>Delete</Button>
+                        <td className="px-3 py-3 whitespace-nowrap">{r.adjust.type === 'percent' ? <Delta value={r.adjust.value} size="md" /> : <span className={`inline-flex items-center px-2 py-0.5 rounded-md ring-1 ring-inset text-[12px] font-semibold ${toneOf(d) === 'up' ? 'bg-amber-50 text-amber-800 ring-amber-200' : toneOf(d) === 'down' ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-slate-50 text-slate-500 ring-slate-200'}`}>{describeAdjust(r.adjust)}</span>}</td>
+                        <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums"><span className="text-[11.5px] text-slate-400">{money(base)} → </span><b className="text-[14px] text-slate-900">{money(price)}</b>
+                          {d !== 0 && <p className={`text-[11px] font-semibold ${toneText[toneOf(d)]}`}>{d > 0 ? '+' : '−'}{money(Math.abs(d))}</p>}</td>
+                        <td className="px-3 py-3 text-[12px] text-slate-600 whitespace-nowrap">{r.minDays || r.maxDays ? `${r.minDays || 1}–${r.maxDays || '∞'} days` : 'Any length'}</td>
+                        <td className="px-3 py-3"><Toggle on={r.active} onChange={() => ruleAction(r, 'toggle')} label={`${r.name} active`} /></td>
+                        <td className="px-3 py-3 pr-5 whitespace-nowrap text-right">
+                          <span className="inline-flex items-center gap-1">
+                            <Button size="sm" onClick={() => setEditing(clone(r))}>Edit</Button>
+                            <button type="button" title="Duplicate" aria-label={`Duplicate ${r.name}`} onClick={() => ruleAction(r, 'duplicate')} className="grid place-items-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 [&>svg]:w-4 [&>svg]:h-4"><Icons2.copy /></button>
+                            <button type="button" title="Delete" aria-label={`Delete ${r.name}`} onClick={() => ruleAction(r, 'delete')} className="grid place-items-center w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 [&>svg]:w-4 [&>svg]:h-4"><Icons2.trash /></button>
+                          </span>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </Panel>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>)}
+        <SeasonExplainer rules={cfg.seasonal.rules} base={base} setBase={setBase} />
       </div>)}
 
       {tab === 'lead' && <LeadTimeEditor base={base} setBase={setBase} cfg={cfg} rateBands={rateBands} onSave={(next, what) => void setDraft(next, 'Last-minute rules changed', what)} />}
@@ -390,73 +467,102 @@ const Overview: React.FC<{ cfg: DynamicPricingConfig; base: number; setBase: (n:
   ];
   const modes = { net: 0, dynamic: 0, restricted: 0 };
   aggregators.forEach(a => { modes[a.pricingMode || 'net']++; });
+  const doneCount = started.filter(s => s.done).length;
+  const build: BuildStep[] = steps.map((st, i) => ({
+    label: st.label, detail: st.note, amount: st.value, kind: st.tone === 'final' ? 'final' : i === 0 ? 'base' : 'step',
+    delta: i === 0 || st.tone === 'final' ? undefined : r2(st.value - steps[i - 1].value),
+  }));
+  const pipeline: { n: number; title: string; text: string; chip: React.ReactNode; on: boolean | null; key?: 'seasonal' | 'leadTime'; tab?: Tab }[] = [
+    { n: 1, title: 'Base daily rate', text: "The channel's published rate (Rates tab) of each day's period, for the length of the whole rental.", chip: <StateChip on>Always on</StateChip>, on: null },
+    ...rows.map(r => ({ n: r.step, title: r.title, text: r.text, chip: <StateChip on={cfg[r.key].enabled}>{r.count}</StateChip>, on: cfg[r.key].enabled, key: r.key, tab: r.tab })),
+    { n: 4, title: 'Minimum and maximum daily price', text: cfg.limits.minDaily != null || cfg.limits.maxDaily != null ? `${cfg.limits.minDaily ?? '—'} to ${cfg.limits.maxDaily ?? '—'} a day${Object.keys(cfg.limits.groups || {}).length ? `, ${Object.keys(cfg.limits.groups).length} group limit(s)` : ''}` : 'No limit set. The price can go as high or low as the rules make it.',
+      chip: <StateChip on={cfg.limits.minDaily != null || cfg.limits.maxDaily != null}>{cfg.limits.minDaily != null || cfg.limits.maxDaily != null ? 'Set' : 'Not set'}</StateChip>, on: null, tab: 'limits' },
+  ];
+  const total = Math.max(1, aggregators.length);
   return (
-    <div className="space-y-4">
-    <Explainer title="How a daily price is built" exampleTitle={sample ? 'Example with sample rules — add your own' : 'Example with your rules'}
-      example={<div className="space-y-2"><Chain steps={steps} /><BaseInput value={base} onChange={setBase} /></div>}>
-      <p>Every day of a rental is priced on its own. The system starts from your <b>base rate</b>, then applies only the rules you switched on, in this order:</p>
-      <ol className="list-decimal pl-5 space-y-0.5">
-        <li><b>Season or event</b> of that day (Eid, high season…). If two rules cover the same day, only the one with priority 1 counts.</li>
-        <li><b>Last minute</b>: how long before pick-up the customer books.</li>
-        <li><b>Price limits</b>: never below your minimum or above your maximum.</li>
-      </ol>
-      <p className="text-slate-500">Each step changes the price once. Nothing is counted twice.</p>
-    </Explainer>
-    <section className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-      <p className="text-[13px] font-semibold text-slate-900">Getting started</p>
-      {started.map((st, i) => (
-        <button key={i} type="button" onClick={() => onGo(st.tab)} className="inline-flex items-center gap-2 text-[13px] text-slate-600 hover:text-indigo-700">
-          <span className={`w-5 h-5 rounded-full text-[11px] font-bold inline-flex items-center justify-center ${st.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}>{st.done ? '✓' : i + 1}</span>{st.text}
-        </button>
-      ))}
-    </section>
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel title="Rules" subtitle="Each rule is optional and switched on or off on its own. Changes stay in the draft until you publish.">
-        <ul className="divide-y divide-slate-100">
-          <li className="px-4 py-3 flex items-center gap-4">
-            <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 text-[12px] font-semibold inline-flex items-center justify-center shrink-0">1</span>
-            <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold text-slate-900">Base daily rate</p>
-              <p className="text-[12px] text-slate-500">The channel's published rate (Rates tab) of each day's period, for the length of the whole rental.</p></div>
-            <Badge tone="success">Always on</Badge>
-          </li>
-          {rows.map(r => (
-            <li key={r.key} className="px-4 py-3 flex items-center gap-4">
-              <span className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 text-[12px] font-semibold inline-flex items-center justify-center shrink-0">{r.step}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold text-slate-900">{r.title} <span className="ml-1 font-normal text-slate-400">{r.count}</span></p>
-                <p className="text-[12px] text-slate-500">{r.text}</p>
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => onGo(r.tab)}>Edit</Button>
-              <Switch on={cfg[r.key].enabled} onChange={b => onToggle(r.key, b)} label={r.title} />
+    <div className="space-y-5">
+      {/* Getting started */}
+      <Card>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+          <div className="min-w-[180px]">
+            <p className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Set-up</p>
+            <p className="text-[15px] font-semibold text-slate-900">{doneCount} of {started.length} done</p>
+            <div className="mt-1.5 h-1.5 w-40 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${(doneCount / started.length) * 100}%` }} /></div>
+          </div>
+          <ol className="flex-1 grid gap-2 md:grid-cols-3">
+            {started.map((st, i) => (
+              <li key={i}>
+                <button type="button" onClick={() => onGo(st.tab)} className={`w-full h-full text-left flex items-center gap-3 rounded-lg px-3 py-2.5 ring-1 ring-inset transition-colors ${st.done ? 'bg-emerald-50/60 ring-emerald-200' : 'bg-white ring-slate-200 hover:ring-indigo-300 hover:bg-indigo-50/30'}`}>
+                  <span className={`grid place-items-center w-6 h-6 rounded-full text-[11px] font-bold shrink-0 ${st.done ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'}`}>{st.done ? '✓' : i + 1}</span>
+                  <span className={`text-[12.5px] font-medium ${st.done ? 'text-emerald-900' : 'text-slate-700'}`}>{st.text}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </Card>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px] items-start">
+        {/* The pricing pipeline */}
+        <Card title="Pricing pipeline" subtitle="Each rental day passes these steps in order. Each step is optional; changes stay in the draft until you publish."
+          footer={<>After these steps the booking engine adds, as before: the broker's own terms (Price rules), promotions, extras, covers, one-way / airport / after-hours / driver fees and tax. When last minute prices a channel, that broker's own early-booking and last-minute percent is not added again.</>}>
+          <ol className="relative px-5 py-2">
+            {pipeline.map((p, i) => (
+              <li key={p.n} className="relative flex gap-4 py-3">
+                {i < pipeline.length - 1 && <span className="absolute left-[15px] top-[46px] bottom-[-10px] w-px bg-slate-200" />}
+                <span className={`relative z-[1] grid place-items-center w-8 h-8 rounded-full text-[12px] font-bold ring-4 ring-white shrink-0 ${p.on === false ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white'}`}>{p.n}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2"><p className="text-[13.5px] font-semibold text-slate-900">{p.title}</p>{p.chip}</div>
+                  <p className="mt-0.5 text-[12.5px] leading-5 text-slate-500">{p.text}</p>
+                </div>
+                <div className="flex items-start gap-3 pt-0.5">
+                  {p.tab && <Button size="sm" onClick={() => onGo(p.tab!)}>Edit</Button>}
+                  {p.key && <span className="pt-1.5"><Toggle on={cfg[p.key].enabled} onChange={b => onToggle(p.key!, b)} label={p.title} /></span>}
+                </div>
+              </li>
+            ))}
+            <li className="relative flex gap-4 py-3 mt-1 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 px-3 -mx-3">
+              <span className="w-8 shrink-0 grid place-items-center text-slate-400 [&>svg]:w-4 [&>svg]:h-4"><Icons2.layers /></span>
+              <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold text-slate-900">Stack seasonal rules</p>
+                <p className="mt-0.5 text-[12px] leading-5 text-slate-500">Off (recommended): the highest-priority rule replaces the rate, so Eid inside high season is charged at the Eid rate, never both. On: every matching rule is applied in priority order.</p></div>
+              <span className="pt-1"><Toggle on={cfg.seasonal.stack} onChange={b => onToggle('stack', b)} label="Stack seasonal rules" /></span>
             </li>
-          ))}
-          <li className="px-4 py-3 flex items-center gap-4">
-            <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 text-[12px] font-semibold inline-flex items-center justify-center shrink-0">4</span>
-            <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold text-slate-900">Minimum and maximum daily price</p>
-              <p className="text-[12px] text-slate-500">{cfg.limits.minDaily != null || cfg.limits.maxDaily != null ? `${cfg.limits.minDaily ?? '—'} to ${cfg.limits.maxDaily ?? '—'} a day` : 'No limit set'}{Object.keys(cfg.limits.groups || {}).length ? `, ${Object.keys(cfg.limits.groups).length} group limit(s)` : ''}</p></div>
-            <Button size="sm" variant="ghost" onClick={() => onGo('limits')}>Edit</Button>
-          </li>
-          <li className="px-4 py-3 flex items-center gap-4 bg-slate-50/60">
-            <span className="w-7" />
-            <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold text-slate-900">Stack seasonal rules</p>
-              <p className="text-[12px] text-slate-500">Off (recommended): the highest-priority rule replaces the rate, so Eid inside high season is charged at the Eid rate, never both. On: every matching rule is applied in priority order and the preview shows each step.</p></div>
-            <Switch on={cfg.seasonal.stack} onChange={b => onToggle('stack', b)} label="Stack seasonal rules" />
-          </li>
-        </ul>
-        <p className="px-4 py-3 border-t border-slate-100 text-[12px] text-slate-500">
-          After these steps the booking engine adds, as before: the broker's own terms (Price rules tab), promotions, extras, covers, one-way / airport / after-hours / driver fees and tax.
-          When the last-minute rule prices a channel, that broker's own early-booking and last-minute percent is not added again.
-        </p>
-      </Panel>
-      <Panel title="Channels" subtitle="Only channels set to Smart pricing or Seasons only use these rules.">
-        <ul className="divide-y divide-slate-100 text-[13px]">
-          {([['net', 'Fixed rates (as today)'], ['dynamic', 'Smart pricing (all rules)'], ['restricted', 'Seasons only']] as const).map(([k, l]) => (
-            <li key={k} className="px-4 py-2.5 flex items-center justify-between"><span className="text-slate-600">{l}</span><span className="font-semibold tabular-nums">{modes[k]}</span></li>
-          ))}
-        </ul>
-        <div className="px-4 py-3 border-t border-slate-100"><Button size="sm" onClick={() => onGo('channels')}>Choose channels</Button></div>
-      </Panel>
-    </div>
+          </ol>
+        </Card>
+
+        <div className="space-y-5">
+          <Card title="Example daily price" subtitle={sample ? 'With sample rules: add your own to see them here' : 'With your rules, booked 12 h before pick-up'}>
+            <div className="p-2"><BuildUp steps={build} currency="/ day" /></div>
+            <div className="px-5 pb-4"><BaseInput value={base} onChange={setBase} /></div>
+          </Card>
+          <Card title="Channels" subtitle="Only channels on Smart pricing or Seasons only use these rules."
+            footer={<Button size="sm" onClick={() => onGo('channels')}>Choose channels</Button>}>
+            <div className="px-5 py-4">
+              <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-100">
+                <div className="bg-slate-400" style={{ width: `${(modes.net / total) * 100}%` }} />
+                <div className="bg-indigo-600" style={{ width: `${(modes.dynamic / total) * 100}%` }} />
+                <div className="bg-violet-400" style={{ width: `${(modes.restricted / total) * 100}%` }} />
+              </div>
+              <ul className="mt-3 space-y-2 text-[13px]">
+                {([['net', 'Fixed rates (as today)', 'bg-slate-400'], ['dynamic', 'Smart pricing (all rules)', 'bg-indigo-600'], ['restricted', 'Seasons only', 'bg-violet-400']] as const).map(([k, l, c]) => (
+                  <li key={k} className="flex items-center gap-2.5"><span className={`w-2.5 h-2.5 rounded-sm ${c}`} /><span className="flex-1 text-slate-600">{l}</span><span className="font-semibold tabular-nums text-slate-900">{modes[k]}</span></li>
+                ))}
+              </ul>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      <Explainer title="How a daily price is built" exampleTitle={sample ? 'Example with sample rules — add your own' : 'Example with your rules'}
+        example={<div className="space-y-2"><Chain steps={steps} /></div>}>
+        <p>Every day of a rental is priced on its own. The system starts from your <b>base rate</b>, then applies only the rules you switched on, in this order:</p>
+        <ol className="list-decimal pl-5 space-y-0.5">
+          <li><b>Season or event</b> of that day (Eid, high season…). If two rules cover the same day, only the one with priority 1 counts.</li>
+          <li><b>Last minute</b>: how long before pick-up the customer books.</li>
+          <li><b>Price limits</b>: never below your minimum or above your maximum.</li>
+        </ol>
+        <p className="text-slate-500">Each step changes the price once. Nothing is counted twice.</p>
+      </Explainer>
     </div>
   );
 };
@@ -498,7 +604,7 @@ const SeasonTimeline: React.FC<{ rules: SeasonRule[] }> = ({ rules }) => {
   for (let d = new Date(start); d < end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) months.push(d);
   const sorted = [...rules].sort((a, b) => a.priority - b.priority || a.from.localeCompare(b.from));
   return (
-    <div className="px-4 py-3 border-b border-slate-100">
+    <div className="px-5 py-4">
       <div className="relative h-5 text-[10px] text-slate-400">
         {months.map(m => <span key={m.toISOString()} className="absolute top-0" style={{ left: `${pos(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`)}%` }}>{m.toLocaleDateString('en-GB', { month: 'short' })}{m.getMonth() === 0 || m === months[0] ? ` ${m.getFullYear()}` : ''}</span>)}
       </div>
@@ -901,39 +1007,63 @@ const LimitsEditor: React.FC<{ base: number; cfg: DynamicPricingConfig; groups: 
   const hi = r2(base * 1.5 * 1.4), max = l.limits.maxDaily ?? r2(base * 2);
   const lo = r2(base * 0.6), min = l.limits.minDaily ?? r2(base * 0.7);
   return (
-    <div className="space-y-4">
-    <Explainer title="Price limits: a safety net for every rule" exampleTitle={l.limits.maxDaily != null || l.limits.minDaily != null ? 'With your limits' : 'Example limits'}
-      example={<div className="space-y-2 text-[12px]">
-        <div><p className="text-slate-500 mb-1">Eid +50% and last minute +40% would give {money(hi)}:</p><Chain steps={[{ label: 'Rules give', value: hi, tone: 'lead' }, { label: 'Maximum', value: Math.min(hi, max), note: `max ${max}`, tone: 'final' }]} /></div>
-        <div><p className="text-slate-500 mb-1">Low season −40% would give {money(lo)}:</p><Chain steps={[{ label: 'Rules give', value: lo, tone: 'season' }, { label: 'Minimum', value: Math.max(lo, min), note: `min ${min}`, tone: 'final' }]} /></div>
-      </div>}>
-      <p>Whatever the seasons, events and last-minute rules do, the daily price never goes <b>below your minimum</b> or <b>above your maximum</b>.</p>
-      <p>Set one limit for every car group, and a different one for some groups if you like (for example a higher maximum for luxury cars). Leave a box empty for no limit.</p>
-    </Explainer>
-    <Panel title="Your price limits" subtitle="Amounts are in each channel's currency. Leave a box empty for no limit."
-      actions={<Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, limits: l.limits }, 'Daily price limits', text({ limits: cfg.limits }), text(l))}>Save</Button>}>
-      <div className="p-4 space-y-4">
-        <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-700">
-          <span className="font-semibold">Every group:</span>
-          minimum <NumOpt value={l.limits.minDaily} onChange={n => setL(x => ({ ...x, limits: { ...x.limits, minDaily: n } }))} label="Minimum daily price" />
-          maximum <NumOpt value={l.limits.maxDaily} onChange={n => setL(x => ({ ...x, limits: { ...x.limits, maxDaily: n } }))} label="Maximum daily price" /> a day
+    <div className="space-y-5">
+      <SectionHead icon={<Icons2.shield />} eyebrow="Rate rules" title="Price limits"
+        description="A safety net for every rule: whatever seasons, events and last minute do, the daily price never goes below your minimum or above your maximum. Amounts are in each channel's currency."
+        actions={<>
+          {dirty && <Button size="sm" variant="ghost" onClick={() => setL({ limits: cfg.limits })}>Discard</Button>}
+          <Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, limits: l.limits }, 'Daily price limits', text({ limits: cfg.limits }), text(l))}>Save to draft</Button>
+        </>} />
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px] items-start">
+        <div className="space-y-5 min-w-0">
+          <Card title="Every car group" subtitle="Leave a box empty for no limit.">
+            <div className="px-5 py-4 flex flex-wrap items-end gap-x-8 gap-y-4">
+              <div><FieldLabel>Minimum a day</FieldLabel>
+                <Stepper label="Minimum daily price" min={0} max={100000} step={1} signedTone={false} width="w-16" placeholder="None" value={l.limits.minDaily ?? undefined} onChange={n => setL(x => ({ ...x, limits: { ...x.limits, minDaily: n } }))} /></div>
+              <div><FieldLabel>Maximum a day</FieldLabel>
+                <Stepper label="Maximum daily price" min={0} max={100000} step={1} signedTone={false} width="w-16" placeholder="None" value={l.limits.maxDaily ?? undefined} onChange={n => setL(x => ({ ...x, limits: { ...x.limits, maxDaily: n } }))} /></div>
+              <div className="flex-1 min-w-[220px]">
+                <FieldLabel>Allowed range</FieldLabel>
+                <div className="relative h-9 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 overflow-hidden">
+                  <div className="absolute inset-y-1.5 rounded-md bg-indigo-100 ring-1 ring-inset ring-indigo-200" style={{ left: l.limits.minDaily != null ? '18%' : '1%', right: l.limits.maxDaily != null ? '18%' : '1%' }} />
+                  <span className="absolute inset-y-0 left-3 flex items-center text-[11px] font-mono text-slate-500">{l.limits.minDaily != null ? money(l.limits.minDaily) : 'no minimum'}</span>
+                  <span className="absolute inset-y-0 right-3 flex items-center text-[11px] font-mono text-slate-500">{l.limits.maxDaily != null ? money(l.limits.maxDaily) : 'no maximum'}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+          <Card title="By car group" subtitle="Optional: a different limit for some groups, for example a higher maximum for luxury cars. Empty uses the limit above.">
+            {groups.length === 0 ? <EmptyState title="No car groups" hint="Car groups come from your fleet and published rates." /> : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-[13px]">
+                  <thead><tr className="bg-slate-50/70 border-b border-slate-200 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-5 py-2.5">Group</th><th className="px-3 py-2.5">Minimum a day</th><th className="px-3 py-2.5">Maximum a day</th><th className="px-5 py-2.5 text-right">Uses</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {groups.map(g => {
+                      const own = l.limits.groups?.[g];
+                      return (
+                        <tr key={g} className="hover:bg-slate-50/60">
+                          <td className="px-5 py-2.5"><span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-900 text-white font-mono text-[11px] font-semibold tracking-wide">{g}</span></td>
+                          <td className="px-3 py-2.5"><Stepper size="sm" label={`${g} minimum`} min={0} max={100000} signedTone={false} width="w-14" placeholder={l.limits.minDaily != null ? String(l.limits.minDaily) : '—'} value={own?.minDaily ?? undefined} onChange={n => setG(g, { minDaily: n })} /></td>
+                          <td className="px-3 py-2.5"><Stepper size="sm" label={`${g} maximum`} min={0} max={100000} signedTone={false} width="w-14" placeholder={l.limits.maxDaily != null ? String(l.limits.maxDaily) : '—'} value={own?.maxDaily ?? undefined} onChange={n => setG(g, { maxDaily: n })} /></td>
+                          <td className="px-5 py-2.5 text-right">{own ? <StateChip on>Own limit</StateChip> : <span className="text-[12px] text-slate-400">Every group</span>}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </div>
-        <div className="overflow-x-auto">
-          <table className={`${table.wrap} max-w-xl`}>
-            <thead className={table.head}><tr>{['Group', 'Minimum a day', 'Maximum a day'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
-            <tbody className={table.body}>
-              {groups.map(g => (
-                <tr key={g} className={table.row}>
-                  <td className={`${table.td} font-mono text-[12px] font-semibold`}>{g}</td>
-                  <td className={table.td}><NumOpt value={l.limits.groups?.[g]?.minDaily} placeholder={l.limits.minDaily != null ? String(l.limits.minDaily) : '—'} onChange={n => setG(g, { minDaily: n })} label={`${g} minimum`} /></td>
-                  <td className={table.td}><NumOpt value={l.limits.groups?.[g]?.maxDaily} placeholder={l.limits.maxDaily != null ? String(l.limits.maxDaily) : '—'} onChange={n => setG(g, { maxDaily: n })} label={`${g} maximum`} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card title="What the limits do" subtitle={l.limits.maxDaily != null || l.limits.minDaily != null ? 'With your limits' : 'With example limits'}>
+          <div className="px-5 py-4 space-y-4 text-[12px]">
+            <div><p className="text-slate-500 mb-1.5">Eid +50% and last minute +40% would give {money(hi)}:</p><Chain steps={[{ label: 'Rules give', value: hi, tone: 'lead' }, { label: 'Maximum', value: Math.min(hi, max), note: `max ${max}`, tone: 'final' }]} /></div>
+            <div><p className="text-slate-500 mb-1.5">Low season −40% would give {money(lo)}:</p><Chain steps={[{ label: 'Rules give', value: lo, tone: 'season' }, { label: 'Minimum', value: Math.max(lo, min), note: `min ${min}`, tone: 'final' }]} /></div>
+          </div>
+        </Card>
       </div>
-    </Panel>
     </div>
   );
 };
@@ -947,57 +1077,78 @@ const ChannelsEditor: React.FC<{ aggregators: Aggregator[]; published: boolean; 
     ['restricted', 'Seasons only', 'Only seasons and events, day by day. No last-minute changes, so the broker sees steadier prices.'],
   ];
   const describe = (a: Aggregator) => `${MODES.find(m => m[0] === (a.pricingMode || 'net'))![1]} · ${PRICE_CHANNELS.find(c => c[0] === (a.channelType || 'broker'))![1]}`;
+  const counts = { net: 0, dynamic: 0, restricted: 0 } as Record<ChannelRateMode, number>;
+  aggregators.forEach(a => { counts[a.pricingMode || 'net']++; });
+  const change = (a: Aggregator, next: ChannelRateMode) => {
+    if (next === (a.pricingMode || 'net')) return;
+    if (next !== 'net' && !published && !window.confirm('No rate rules are published yet, so this channel keeps its net rates until you publish. Continue?')) return;
+    if (!window.confirm(`${a.name}: change the rate mode to ${MODES.find(m => m[0] === next)![1]}? Its next search is priced this way.`)) return;
+    const updated = { ...a, pricingMode: next };
+    onUpdate(updated, describe(a), describe(updated));
+  };
+  const tone: Record<ChannelRateMode, string> = { net: 'bg-slate-400', dynamic: 'bg-indigo-600', restricted: 'bg-violet-400' };
   return (
-    <div className="space-y-4">
-    <Explainer title="Choose how each channel is priced"
-      example={<div className="space-y-2 text-[12px]">{MODES.map(([k, l, d]) => <div key={k}><p className="font-semibold text-slate-800">{l}</p><p className="text-slate-500">{d}</p></div>)}</div>} exampleTitle="The three options">
-      <p>Every channel starts on <b>Fixed rates</b>, so nothing changes until you decide. Switch a channel to <b>Smart pricing</b> to use all your rules, or to <b>Seasons only</b> for steadier prices.</p>
-      <p>The <b>type</b> (website, app, walk-in, broker, OTA, corporate, travel agent) lets a rule apply to some channels only, for example a website-only discount.</p>
-      <p className="text-slate-500">A change is live at once for that channel's next search. Bookings already made keep their price.</p>
-    </Explainer>
-    <Panel title="Channels" subtitle="How each XML channel is priced. A change here is live at once for that channel's next search; bookings already made keep their price.">
-      {aggregators.length === 0 ? <EmptyState title="No channels yet" hint="Add a channel first." /> : (
-        <div className="overflow-x-auto">
-          <table className={`${table.wrap} min-w-[860px]`}>
-            <thead className={table.head}><tr>{['Channel', 'Rate mode', 'Channel type', 'What the broker gets'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
-            <tbody className={table.body}>
-              {aggregators.map(a => {
-                const mode = a.pricingMode || 'net';
-                return (
-                  <tr key={a.id} className={table.row}>
-                    <td className={table.td}><p className="font-semibold text-slate-900">{a.name}</p><p className="text-[11px] text-slate-500 font-mono">{a.channelCode} · {a.currency || 'USD'}</p></td>
-                    <td className={table.td}>
-                      <select value={mode} aria-label={`${a.name} rate mode`} className={`${selectCls} h-8 text-[12px]`} onChange={e => {
-                        const next = e.target.value as ChannelRateMode;
-                        if (next !== 'net' && !published && !window.confirm('No rate rules are published yet, so this channel keeps its net rates until you publish. Continue?')) return;
-                        if (!window.confirm(`${a.name}: change the rate mode to ${MODES.find(m => m[0] === next)![1]}? Its next search is priced this way.`)) return;
-                        const updated = { ...a, pricingMode: next };
-                        onUpdate(updated, describe(a), describe(updated));
-                      }}>
-                        {MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                      </select>
-                    </td>
-                    <td className={table.td}>
-                      <select value={a.channelType || 'broker'} aria-label={`${a.name} channel type`} className={`${selectCls} h-8 text-[12px]`}
-                        onChange={e => { const updated = { ...a, channelType: e.target.value as PriceChannelType }; onUpdate(updated, describe(a), describe(updated)); }}>
-                        {PRICE_CHANNELS.map(([k, l]) => <option key={k} value={k}>{l.replace(/s$/, '').replace('accounts', 'account')}</option>)}
-                      </select>
-                    </td>
-                    <td className={`${table.td} text-[12px] text-slate-600`}>{MODES.find(m => m[0] === mode)![2]}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <p className="px-4 py-3 border-t border-slate-100 text-[12px] text-slate-500">The broker always sees one net amount per offer; the customer price is the broker's own. Fixed amounts and limits in the rules are read in each channel's currency.</p>
-    </Panel>
+    <div className="space-y-5">
+      <SectionHead icon={<Icons2.signal />} eyebrow="Rate rules" title="Channels"
+        description="Choose how each XML channel is priced. Every channel starts on fixed rates, so nothing changes until you decide. A change is live at once for that channel's next search; bookings already made keep their price." />
+      <div className="grid gap-4 md:grid-cols-3">
+        {MODES.map(([k, l, d]) => (
+          <div key={k} className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-[13.5px] font-semibold text-slate-900"><span className={`w-2.5 h-2.5 rounded-sm ${tone[k]}`} />{l}</p>
+              <span className="text-[20px] font-semibold tabular-nums text-slate-900">{counts[k]}</span>
+            </div>
+            <p className="mt-1 text-[12px] leading-5 text-slate-500">{d}</p>
+          </div>
+        ))}
+      </div>
+      <Card title="Your channels" subtitle="Rate mode and channel type for each broker connection."
+        footer="The broker always sees one net amount per offer; the customer price is the broker's own. Fixed amounts and limits in the rules are read in each channel's currency.">
+        {aggregators.length === 0 ? <EmptyState title="No channels yet" hint="Add a channel first." /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-[13px]">
+              <thead><tr className="bg-slate-50/70 border-b border-slate-200 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
+                <th className="px-5 py-2.5">Channel</th><th className="px-3 py-2.5">Rate mode</th><th className="px-3 py-2.5">Channel type</th><th className="px-5 py-2.5">What the broker gets</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">
+                {aggregators.map(a => {
+                  const mode = a.pricingMode || 'net';
+                  return (
+                    <tr key={a.id} className="hover:bg-slate-50/60">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="grid place-items-center w-9 h-9 rounded-lg bg-slate-900 text-white text-[11px] font-bold tracking-wide">{(a.channelCode || a.name).slice(0, 3).toUpperCase()}</span>
+                          <div><p className="font-semibold text-slate-900">{a.name}</p><p className="text-[11px] text-slate-500 font-mono">{a.channelCode} · {a.currency || 'USD'}</p></div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3"><Seg size="sm" label={`${a.name} rate mode`} value={mode} onChange={v => change(a, v)} options={[['net', 'Fixed'], ['dynamic', 'Smart'], ['restricted', 'Seasons only']]} /></td>
+                      <td className="px-3 py-3">
+                        <select value={a.channelType || 'broker'} aria-label={`${a.name} channel type`} className={`${selectCls} h-8 text-[12px]`}
+                          onChange={e => { const updated = { ...a, channelType: e.target.value as PriceChannelType }; onUpdate(updated, describe(a), describe(updated)); }}>
+                          {PRICE_CHANNELS.map(([k, l]) => <option key={k} value={k}>{l.replace(/s$/, '').replace('accounts', 'account')}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-5 py-3 text-[12px] text-slate-600 max-w-[340px]">{MODES.find(m => m[0] === mode)![2]}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+      <Explainer title="Rate modes and channel types"
+        example={<div className="space-y-2 text-[12px]">{MODES.map(([k, l, d]) => <div key={k}><p className="font-semibold text-slate-800">{l}</p><p className="text-slate-500">{d}</p></div>)}</div>} exampleTitle="The three options">
+        <p>Every channel starts on <b>Fixed rates</b>, so nothing changes until you decide. Switch a channel to <b>Smart pricing</b> to use all your rules, or to <b>Seasons only</b> for steadier prices.</p>
+        <p>The <b>type</b> (website, app, walk-in, broker, OTA, corporate, travel agent) lets a rule apply to some channels only, for example a website-only discount.</p>
+      </Explainer>
     </div>
   );
 };
 
 // ---------------------------------------------------------------- preview
+
+/** A labelled field (defined outside the panel so inputs keep focus while typing). */
+const F: React.FC<{ label: string; hint?: string; children: React.ReactNode; className?: string }> = ({ label, hint, children, className }) => <label className={`block min-w-0 ${className || ''}`}><FieldLabel hint={hint}>{label}</FieldLabel>{children}</label>;
 
 const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregator[]; fleet: Fleet; groups: string[] }> = ({ state, aggregators, fleet, groups }) => {
   const [aggId, setAggId] = useState(aggregators[0]?.id || '');
@@ -1070,84 +1221,94 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
     return { lines, total: Math.round(total * 100) / 100, tax };
   }, [result, promo, extras, days, agg, l, r, br, pr, locs]);
 
-  if (!agg) return <Panel><EmptyState title="No channels yet" hint="Add a channel and publish its rates to preview prices." /></Panel>;
+  if (!agg) return <Card><EmptyState title="No channels yet" hint="Add a channel and publish its rates to preview prices." /></Card>;
   return (
-    <div className="space-y-4">
-      <Explainer title="Try any booking before you publish">
-        <p>Pick a channel, a car group and the dates. The price is worked out day by day, exactly as a broker will see it, and updates as soon as you change anything.</p>
-        <p className="text-slate-500">Use <b>Draft</b> to test changes you have not published yet.</p>
-      </Explainer>
-      <Panel title="Try a price" subtitle="Day by day, with the rule that changed each day.">
-        <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Field label="Channel"><select value={agg.id} onChange={e => { setAggId(e.target.value); setGroup(''); setLoc(''); setRet(''); }} className={`${selectCls} w-full`}>{aggregators.map(a => <option key={a.id} value={a.id}>{a.name} ({a.channelCode})</option>)}</select></Field>
-          <Field label="Car group"><select value={g} onChange={e => setGroup(e.target.value)} className={`${selectCls} w-full font-mono`}>{(aggGroups.length ? aggGroups : groups).map(x => <option key={x}>{x}</option>)}</select></Field>
-          <Field label="Pick-up location"><select value={l} onChange={e => setLoc(e.target.value)} className={`${selectCls} w-full`}>{(locs.length ? locs.map(x => x.code) : [l]).map(x => <option key={x}>{x}</option>)}</select></Field>
-          <Field label="Return location"><select value={r} onChange={e => setRet(e.target.value)} className={`${selectCls} w-full`}>{(locs.length ? locs.map(x => x.code) : [l]).map(x => <option key={x}>{x}</option>)}</select></Field>
-          <Field label="Pick-up"><input type="datetime-local" value={pickup} onChange={e => setPickup(e.target.value)} className={inputCls} /></Field>
-          <Field label="Return"><input type="datetime-local" value={dropOff} onChange={e => setDropOff(e.target.value)} className={inputCls} /></Field>
-          <Field label="Booked at" hint="for the last-minute rule"><input type="datetime-local" value={bookedAt} onChange={e => setBookedAt(e.target.value)} className={inputCls} /></Field>
-          <Field label="Rules"><select value={which} onChange={e => setWhich(e.target.value as 'draft' | 'published')} className={`${selectCls} w-full`}><option value="draft">Draft (not yet published)</option><option value="published" disabled={!state.published}>Published v{state.version}</option></select></Field>
-          <Field label="Rate mode"><select value={modeOverride} onChange={e => setModeOverride(e.target.value as '' | ChannelRateMode)} className={`${selectCls} w-full`}>
-            <option value="">{agg.pricingMode && agg.pricingMode !== 'net' ? `As the channel (${agg.pricingMode})` : 'Dynamic (channel is on net rates)'}</option>
-            <option value="dynamic">Dynamic</option><option value="restricted">Restricted</option><option value="net">Net rates</option></select></Field>
-          <Field label="Promotion code"><select value={promo} onChange={e => setPromo(e.target.value)} className={`${selectCls} w-full`}><option value="">None</option>{(pr.promotions || []).map(p => <option key={p.code}>{p.code}</option>)}</select></Field>
-          <Field label="Extras">
-            <div className="flex flex-wrap gap-1.5">{(agg.extras || []).length === 0 ? <span className="text-[12px] text-slate-400">None on this channel</span> : (agg.extras || []).map(x => (
-              <button key={x.id} type="button" aria-pressed={extras.includes(x.id)} onClick={() => setExtras(v => (v.includes(x.id) ? v.filter(y => y !== x.id) : [...v, x.id]))}
-                className={`h-7 px-2 rounded-md text-[12px] border ${extras.includes(x.id) ? 'bg-indigo-50 text-indigo-700 border-indigo-300' : 'bg-white text-slate-600 border-slate-200'}`}>{x.name}</button>))}</div>
-          </Field>
-        </div>
-      </Panel>
+    <div className="space-y-5">
+      <SectionHead icon={<Icons2.beaker />} eyebrow="Rate rules" title="Try a price"
+        description="Pick a channel, a car group and the dates. The price is worked out day by day, exactly as a broker will see it, and updates as soon as you change anything. Use Draft to test changes you have not published yet."
+        actions={<Seg label="Rules to test" size="sm" value={which} onChange={v => (v === 'published' && !state.published ? undefined : setWhich(v))}
+          options={[['draft', 'Draft'], ['published', state.published ? `Published v${state.version}` : 'Published (none)']]} />} />
 
-      {!cfg ? <Panel><EmptyState title="Nothing published yet" hint="Choose the draft, or publish the rules first." /></Panel>
-        : !result ? <Panel><EmptyState title="Check the dates" hint="The return must be after the pick-up." /></Panel>
-        : !result.bookable ? <Panel><div className="p-4 flex items-center gap-3"><Badge tone="danger">Not offered</Badge><p className="text-[13px] text-slate-700">{result.reason}</p></div></Panel>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Card title="Booking" subtitle="What the broker asks for">
+          <div className="px-5 py-4 grid gap-4 sm:grid-cols-2">
+            <F label="Channel"><select value={agg.id} onChange={e => { setAggId(e.target.value); setGroup(''); setLoc(''); setRet(''); }} className={`${selectCls} w-full`}>{aggregators.map(a => <option key={a.id} value={a.id}>{a.name} ({a.channelCode})</option>)}</select></F>
+            <F label="Car group"><select value={g} onChange={e => setGroup(e.target.value)} className={`${selectCls} w-full font-mono`}>{(aggGroups.length ? aggGroups : groups).map(x => <option key={x}>{x}</option>)}</select></F>
+            <F label="Pick-up location"><select value={l} onChange={e => setLoc(e.target.value)} className={`${selectCls} w-full`}>{(locs.length ? locs.map(x => x.code) : [l]).map(x => <option key={x}>{x}</option>)}</select></F>
+            <F label="Return location"><select value={r} onChange={e => setRet(e.target.value)} className={`${selectCls} w-full`}>{(locs.length ? locs.map(x => x.code) : [l]).map(x => <option key={x}>{x}</option>)}</select></F>
+            <F label="Pick-up"><input type="datetime-local" value={pickup} onChange={e => setPickup(e.target.value)} className={inputCls} /></F>
+            <F label="Return"><input type="datetime-local" value={dropOff} onChange={e => setDropOff(e.target.value)} className={inputCls} /></F>
+          </div>
+        </Card>
+        <Card title="Conditions" subtitle="When it is booked, and what is added">
+          <div className="px-5 py-4 grid gap-4 sm:grid-cols-2">
+            <F label="Booked at" hint="for last minute"><input type="datetime-local" value={bookedAt} onChange={e => setBookedAt(e.target.value)} className={inputCls} /></F>
+            <F label="Rate mode"><select value={modeOverride} onChange={e => setModeOverride(e.target.value as '' | ChannelRateMode)} className={`${selectCls} w-full`}>
+              <option value="">{agg.pricingMode && agg.pricingMode !== 'net' ? `As the channel (${agg.pricingMode})` : 'Dynamic (channel is on net rates)'}</option>
+              <option value="dynamic">Dynamic</option><option value="restricted">Restricted</option><option value="net">Net rates</option></select></F>
+            <F label="Promotion code"><select value={promo} onChange={e => setPromo(e.target.value)} className={`${selectCls} w-full`}><option value="">None</option>{(pr.promotions || []).map(p => <option key={p.code}>{p.code}</option>)}</select></F>
+            <div className="min-w-0"><FieldLabel>Extras</FieldLabel>
+              <div className="flex flex-wrap gap-1.5">{(agg.extras || []).length === 0 ? <span className="inline-flex items-center h-9 text-[12px] text-slate-400">None on this channel</span> : (agg.extras || []).map(x => (
+                <button key={x.id} type="button" aria-pressed={extras.includes(x.id)} onClick={() => setExtras(v => (v.includes(x.id) ? v.filter(y => y !== x.id) : [...v, x.id]))}
+                  className={`h-8 px-2.5 rounded-md text-[12px] font-medium ring-1 ring-inset ${extras.includes(x.id) ? 'bg-indigo-50 text-indigo-700 ring-indigo-300' : 'bg-white text-slate-600 ring-slate-200 hover:ring-slate-300'}`}>{x.name}</button>))}</div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {!cfg ? <Card><EmptyState title="Nothing published yet" hint="Choose the draft, or publish the rules first." /></Card>
+        : !result ? <Card><EmptyState title="Check the dates" hint="The return must be after the pick-up." /></Card>
+        : !result.bookable ? <Card><div className="px-5 py-4 flex items-center gap-3"><Badge tone="danger">Not offered</Badge><p className="text-[13px] text-slate-700">{result.reason}</p></div></Card>
         : (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <Panel title="Day by day" subtitle={`${result.days} rental day${result.days === 1 ? '' : 's'} (rate band ${bandText}) · ${result.leadHours.toFixed(0)} h between booking and pick-up · ${mode} mode`}>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px] items-start">
+            <Card title="Day by day" subtitle={`${result.days} rental day${result.days === 1 ? '' : 's'} · rate band ${bandText} · booked ${result.leadHours.toFixed(0)} h before pick-up · ${mode} mode`}>
               <div className="overflow-x-auto">
-                <table className={`${table.wrap} min-w-[640px]`}>
-                  <thead className={table.head}><tr>{['Day', 'Base', 'Rules applied', 'Rate'].map(h => <th key={h} className={`${table.th} ${h === 'Base' || h === 'Rate' ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
-                  <tbody className={table.body}>
-                    {result.perDay.map(d => (
-                      <tr key={d.date} className={table.row}>
-                        <td className={`${table.td} whitespace-nowrap tabular-nums`}>{new Date(`${d.date}T12:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })}</td>
-                        <td className={`${table.td} text-right tabular-nums text-slate-500`}>{money(d.base)}</td>
-                        <td className={`${table.td} text-[12px]`}>
-                          {d.steps.length === 0 ? <span className="text-slate-400">Base rate</span> : (
-                            <ol className="space-y-0.5">{d.steps.map((s, i) => (
-                              <li key={i} className="flex flex-wrap items-center gap-1.5">
-                                <span className={`px-1.5 rounded text-[10px] font-semibold uppercase ${s.stage === 'season' ? 'bg-violet-50 text-violet-700' : s.stage === 'lead' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'}`}>{s.stage === 'lead' ? 'last minute' : s.stage}</span>
-                                <span className="text-slate-700">{s.label}</span>
-                                <span className="text-slate-400 tabular-nums">{money(s.from)} → {money(s.to)}</span>
-                              </li>))}</ol>
-                          )}
-                        </td>
-                        <td className={`${table.td} text-right font-semibold tabular-nums`}>{money(d.rate)}</td>
-                      </tr>
-                    ))}
+                <table className="w-full min-w-[640px] text-[13px]">
+                  <thead><tr className="bg-slate-50/70 border-b border-slate-200 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-5 py-2.5">Day</th><th className="px-3 py-2.5 text-right">Base</th><th className="px-3 py-2.5">Rules applied</th><th className="px-5 py-2.5 text-right">Rate</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {result.perDay.map(d => {
+                      const diff = r2(d.rate - d.base);
+                      return (
+                        <tr key={d.date} className="hover:bg-slate-50/60 align-top">
+                          <td className="px-5 py-2.5 whitespace-nowrap tabular-nums font-medium text-slate-800">{new Date(`${d.date}T12:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{money(d.base)}</td>
+                          <td className="px-3 py-2.5 text-[12px]">
+                            {d.steps.length === 0 ? <span className="text-slate-400">Base rate</span> : (
+                              <ol className="space-y-1">{d.steps.map((s, i) => (
+                                <li key={i} className="flex flex-wrap items-center gap-1.5">
+                                  <span className={`px-1.5 py-px rounded text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${s.stage === 'season' ? 'bg-violet-50 text-violet-700 ring-violet-200' : s.stage === 'lead' ? 'bg-sky-50 text-sky-700 ring-sky-200' : 'bg-slate-50 text-slate-600 ring-slate-200'}`}>{s.stage === 'lead' ? 'last minute' : s.stage}</span>
+                                  <span className="text-slate-700">{s.label}</span>
+                                  <span className="text-slate-400 tabular-nums">{money(s.from)} → {money(s.to)}</span>
+                                </li>))}</ol>
+                            )}
+                          </td>
+                          <td className="px-5 py-2.5 text-right tabular-nums"><b className="text-slate-900">{money(d.rate)}</b>{diff !== 0 && <p className={`text-[11px] font-semibold ${toneText[toneOf(diff)]}`}>{diff > 0 ? '+' : '−'}{money(Math.abs(diff))}</p>}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot><tr className="border-t border-slate-200 bg-slate-50">
-                    <td className={`${table.td} font-semibold`} colSpan={3}>{summarise(result.perDay).map(x => `${x.count} × ${money(x.rate)}${x.rule ? ` (${x.rule})` : ''}`).join(' + ')}</td>
-                    <td className={`${table.td} text-right font-semibold tabular-nums`}>{money(result.total)}</td>
+                    <td className="px-5 py-3 text-[12px] font-medium text-slate-600" colSpan={3}>{summarise(result.perDay).map(x => `${x.count} × ${money(x.rate)}${x.rule ? ` (${x.rule})` : ''}`).join(' + ')}</td>
+                    <td className="px-5 py-3 text-right font-bold tabular-nums text-slate-900">{money(result.total)}</td>
                   </tr></tfoot>
                 </table>
               </div>
-              {result.notes.length > 0 && <ul className="px-4 py-2 border-t border-slate-100 text-[12px] text-slate-500 list-disc pl-8">{result.notes.map(n => <li key={n}>{n}</li>)}</ul>}
-            </Panel>
+              {result.notes.length > 0 && <ul className="px-5 py-2.5 border-t border-slate-100 text-[12px] text-slate-500 list-disc pl-9">{result.notes.map(n => <li key={n}>{n}</li>)}</ul>}
+            </Card>
 
-            <Panel title="Price shown" subtitle={`${agg.name} · ${cur}`}>
+            <Card title="Price shown to the broker" subtitle={`${agg.name} · ${cur}`}>
               {quote && (
-                <div className="p-4 space-y-3 text-[13px]">
-                  <div className="flex items-baseline justify-between"><span className="text-slate-500">Average daily rate</span><span className="font-semibold tabular-nums">{money(result.total / result.days)}</span></div>
-                  <ul className="space-y-1.5 border-t border-slate-100 pt-3">
+                <div className="p-2 text-[13px]">
+                  <div className="flex items-baseline justify-between px-3 py-2"><span className="text-slate-500">Average daily rate</span><span className="font-semibold tabular-nums text-slate-900">{money(result.total / result.days)}</span></div>
+                  <ul className="px-3 py-2 space-y-1.5 border-t border-slate-100">
                     {quote.lines.map((x, i) => (
-                      <li key={i} className="flex items-baseline justify-between gap-3"><span className={x.kind === 'discount' ? 'text-emerald-700' : 'text-slate-600'}>{x.label}</span><span className="tabular-nums">{x.amount < 0 ? '−' : ''}{money(Math.abs(x.amount))}</span></li>
+                      <li key={i} className="flex items-baseline justify-between gap-3"><span className={x.kind === 'discount' ? 'text-emerald-700' : 'text-slate-600'}>{x.label}</span><span className="tabular-nums text-slate-800">{x.amount < 0 ? '−' : ''}{money(Math.abs(x.amount))}</span></li>
                     ))}
                   </ul>
-                  <div className="flex items-baseline justify-between border-t border-slate-200 pt-3"><span className="font-semibold text-slate-900">Total</span><span className="text-xl font-semibold tabular-nums">{money(quote.total)} <span className="text-[12px] font-medium text-slate-500">{cur}</span></span></div>
-                  {pr.taxPercent ? <p className="text-[11px] text-slate-500">{pr.taxIncluded === false ? 'Tax added above.' : `Includes ${pr.taxName || 'tax'} ${pr.taxPercent}%: ${money(quote.tax)}.`}</p> : null}
-                  <dl className="border-t border-slate-100 pt-3 space-y-1.5 text-[12px]">
+                  <div className="flex items-baseline justify-between rounded-lg bg-slate-900 text-white px-3 py-3 mt-1"><span className="font-semibold">Total</span><span className="text-[20px] font-bold tabular-nums">{money(quote.total)} <span className="text-[12px] font-medium text-slate-300">{cur}</span></span></div>
+                  {pr.taxPercent ? <p className="px-3 pt-2 text-[11px] text-slate-500">{pr.taxIncluded === false ? 'Tax added above.' : `Includes ${pr.taxName || 'tax'} ${pr.taxPercent}%: ${money(quote.tax)}.`}</p> : null}
+                  <dl className="mx-3 mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-[12px]">
                     <div className="flex justify-between"><dt className="text-slate-500">Deposit</dt><dd className="tabular-nums">{car ? money(car.securityDeposit || 0) : '—'}</dd></div>
                     <div className="flex justify-between"><dt className="text-slate-500">Excess</dt><dd className="tabular-nums">{car ? money(car.excess || 0) : '—'}</dd></div>
                     <div className="flex justify-between gap-3"><dt className="text-slate-500">Payment</dt><dd className="text-right">{br.paymentModel === 'BROKER_PREPAID' ? 'Prepaid to the broker' : 'Pay at the counter'}</dd></div>
@@ -1155,10 +1316,10 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
                       ? br.cancellationTiers!.map(t => `<${t.hoursBefore} h: ${t.feePercent}%`).join(', ')
                       : `Free until ${br.freeCancellationHours ?? 48} h before, then ${br.lateCancellationFeePercent ?? 100}%`}</dd></div>
                   </dl>
-                  <p className="text-[11px] text-slate-400">The broker's own terms (Price rules tab) are applied by the server on top of this net rental.</p>
+                  <p className="px-3 pt-3 pb-1 text-[11px] text-slate-400">The broker's own terms (Price rules) are applied by the server on top of this net rental.</p>
                 </div>
               )}
-            </Panel>
+            </Card>
           </div>
         )}
     </div>
@@ -1167,28 +1328,49 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
 
 // ---------------------------------------------------------------- history
 
-const HistoryPanel: React.FC<{ state: DynamicPricingState }> = ({ state }) => (
-  <Panel title="Change history" subtitle="Every change to the rules, who made it and when, with the old and new values. Kept for the last 500 changes.">
-    {(state.history || []).length === 0 ? <EmptyState title="No changes yet" /> : (
-      <div className="overflow-x-auto">
-        <table className={`${table.wrap} min-w-[900px]`}>
-          <thead className={table.head}><tr>{['When', 'Who', 'Change', 'What', 'Before', 'After'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
-          <tbody className={table.body}>
-            {state.history.map((h, i) => (
-              <tr key={i} className={table.row}>
-                <td className={`${table.td} whitespace-nowrap tabular-nums text-[12px]`}>{new Date(h.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                <td className={`${table.td} text-[12px]`}>{h.by}</td>
-                <td className={table.td}><Badge tone={h.action === 'Published' ? 'success' : /deleted|off/i.test(h.action) ? 'warning' : 'default'} dot={false}>{h.action}</Badge></td>
-                <td className={`${table.td} text-[12px] text-slate-700`}>{h.detail}</td>
-                <td className={`${table.td} text-[12px] text-slate-500`}>{h.before ?? '—'}</td>
-                <td className={`${table.td} text-[12px] text-slate-700`}>{h.after ?? '—'}</td>
-              </tr>
+const HistoryPanel: React.FC<{ state: DynamicPricingState }> = ({ state }) => {
+  const [q, setQ] = useState('');
+  const [kind, setKind] = useState<'all' | 'published' | 'rules' | 'channels'>('all');
+  const all = state.history || [];
+  const list = all.filter(h => (kind === 'all' || (kind === 'published' ? h.action === 'Published' : kind === 'channels' ? /channel/i.test(h.action) : h.action !== 'Published' && !/channel/i.test(h.action)))
+    && (!q.trim() || `${h.action} ${h.detail} ${h.by} ${h.before || ''} ${h.after || ''}`.toLowerCase().includes(q.trim().toLowerCase())));
+  const tone = (a: string) => (a === 'Published' ? 'bg-emerald-500' : /deleted|off|discarded/i.test(a) ? 'bg-rose-500' : /channel/i.test(a) ? 'bg-sky-500' : 'bg-indigo-500');
+  return (
+    <div className="space-y-5">
+      <SectionHead icon={<Icons.history />} eyebrow="Rate rules" title="Change history"
+        description="Every change to the rules, who made it and when, with the old and new values. The last 500 changes are kept."
+        actions={<span className="inline-flex items-center h-7 px-2.5 rounded-full bg-slate-50 ring-1 ring-inset ring-slate-200 text-[12px] font-semibold text-slate-600 tabular-nums">{all.length} change{all.length === 1 ? '' : 's'}</span>} />
+      <Card>
+        <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-slate-100">
+          <Seg label="Filter changes" size="sm" value={kind} onChange={v => setKind(v)} options={[['all', 'All'], ['published', 'Publishes'], ['rules', 'Rules'], ['channels', 'Channels']]} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search changes, people or values" aria-label="Search history" className={`${inputCls} h-8 max-w-xs ml-auto`} />
+        </div>
+        {list.length === 0 ? <EmptyState title={all.length ? 'No changes match' : 'No changes yet'} hint={all.length ? 'Try another filter or search.' : 'Changes appear here as soon as you edit a rule.'} /> : (
+          <ol className="px-5 py-4">
+            {list.map((h, i) => (
+              <li key={i} className="relative grid grid-cols-[150px_1fr] gap-5 pb-5 last:pb-0">
+                <div className="text-right pt-0.5">
+                  <p className="text-[12px] font-semibold text-slate-800 tabular-nums">{new Date(h.at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  <p className="text-[11px] text-slate-500 tabular-nums">{new Date(h.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {h.by}</p>
+                </div>
+                <div className="relative pl-6 min-w-0">
+                  {i < list.length - 1 && <span className="absolute left-[5px] top-4 bottom-[-20px] w-px bg-slate-200" />}
+                  <span className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full ring-4 ring-white ${tone(h.action)}`} />
+                  <p className="text-[13px]"><span className="font-semibold text-slate-900">{h.action}</span><span className="text-slate-500"> · {h.detail}</span></p>
+                  {(h.before != null || h.after != null) && (
+                    <div className="mt-1.5 grid gap-1.5 md:grid-cols-2 text-[12px]">
+                      <div className="rounded-md bg-rose-50/60 ring-1 ring-inset ring-rose-100 px-2.5 py-1.5 min-w-0"><span className="text-[10px] font-semibold uppercase tracking-wider text-rose-600">Before</span><p className="text-slate-600 break-words">{h.before ?? '—'}</p></div>
+                      <div className="rounded-md bg-emerald-50/60 ring-1 ring-inset ring-emerald-100 px-2.5 py-1.5 min-w-0"><span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">After</span><p className="text-slate-800 break-words">{h.after ?? '—'}</p></div>
+                    </div>
+                  )}
+                </div>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </Panel>
-);
+          </ol>
+        )}
+      </Card>
+    </div>
+  );
+};
 
 export default RateRulesView;
