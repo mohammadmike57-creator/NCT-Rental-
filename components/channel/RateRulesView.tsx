@@ -586,124 +586,260 @@ const RuleDialog: React.FC<{ base: number; rule: SeasonRule; groups: string[]; l
 
 const DEFAULT_BANDS: LengthBand[] = [{ fromDay: 1, toDay: 2 }, { fromDay: 3, toDay: 6 }, { fromDay: 7, toDay: null }];
 
+/** Booking windows staff add with one click. */
+const WINDOW_PRESETS: { label: string; fromHours: number; toHours: number | null }[] = [
+  { label: 'Less than 24 hours', fromHours: 0, toHours: 24 },
+  { label: '24–48 hours', fromHours: 24, toHours: 48 },
+  { label: '2–7 days', fromHours: 48, toHours: 168 },
+  { label: '7–30 days', fromHours: 168, toHours: 720 },
+  { label: 'More than 30 days', fromHours: 720, toHours: null },
+];
+const inDays = (h: number) => h > 48 && h % 24 === 0;
+const hoursText = (h: number) => (inDays(h) ? `${h / 24} days` : `${h} hours`);
+const windowShort = (t: { fromHours: number; toHours: number | null }) => {
+  if (t.toHours == null) return `More than ${hoursText(t.fromHours)}`;
+  if (t.fromHours === 0) return `Less than ${hoursText(t.toHours)}`;
+  if (inDays(t.toHours) && (t.fromHours % 24 === 0)) return `${t.fromHours / 24}–${t.toHours / 24} days`;
+  return `${t.fromHours}–${t.toHours} hours`;
+};
+
+/** Plain choices instead of signed numbers: Increase % / Decrease % / Increase amount / Decrease amount / Fixed / No change. */
+type ChangeKind = 'none' | 'inc_pct' | 'dec_pct' | 'inc_amt' | 'dec_amt' | 'fixed';
+const kindOf = (a: PriceAdjust): ChangeKind => (a.type === 'none' ? 'none' : a.type === 'fixed' ? 'fixed'
+  : a.type === 'percent' ? (a.value < 0 ? 'dec_pct' : 'inc_pct') : (a.value < 0 ? 'dec_amt' : 'inc_amt'));
+const toAdjust = (k: ChangeKind, v: number): PriceAdjust => {
+  const n = Math.abs(Number.isFinite(v) ? v : 0);
+  return k === 'none' ? { type: 'none', value: 0 } : k === 'fixed' ? { type: 'fixed', value: n }
+    : k === 'inc_pct' ? { type: 'percent', value: n } : k === 'dec_pct' ? { type: 'percent', value: -n }
+    : k === 'inc_amt' ? { type: 'amount', value: n } : { type: 'amount', value: -n };
+};
+const changeTone = (a: PriceAdjust, base: number) => {
+  const v = exRate(base, a);
+  return a.type === 'none' || v === base ? 'border-slate-200 bg-white' : v > base ? 'border-amber-200 bg-amber-50/60' : 'border-emerald-200 bg-emerald-50/60';
+};
+
+const ChangeInput: React.FC<{ value: PriceAdjust; onChange: (a: PriceAdjust) => void; base: number; label: string }> = ({ value, onChange, base, label }) => {
+  const k = kindOf(value);
+  const n = Math.abs(value.value || 0);
+  const result = exRate(base, value);
+  return (
+    <div className={`rounded-lg border p-2 space-y-1.5 min-w-[188px] ${changeTone(value, base)}`}>
+      <div className="flex items-center gap-1.5">
+        <select value={k} onChange={e => onChange(toAdjust(e.target.value as ChangeKind, n || (e.target.value === 'fixed' ? base : 10)))}
+          aria-label={`${label}: change`} className={`${selectCls} h-8 text-[12px] flex-1 min-w-0`}>
+          <option value="none">No change</option>
+          <option value="inc_pct">Increase by %</option>
+          <option value="dec_pct">Decrease by %</option>
+          <option value="inc_amt">Increase by amount</option>
+          <option value="dec_amt">Decrease by amount</option>
+          <option value="fixed">Fixed daily rate</option>
+        </select>
+        {k !== 'none' && (
+          <span className="relative">
+            <input type="number" min={0} step={k.endsWith('pct') ? 1 : 0.5} value={n === 0 ? '' : n} placeholder="0" aria-label={`${label}: value`}
+              onChange={e => onChange(toAdjust(k, Number(e.target.value)))} className={`${fieldCls} h-8 w-[72px] pr-6 text-[12px] tabular-nums`} />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">{k.endsWith('pct') ? '%' : ''}</span>
+          </span>
+        )}
+      </div>
+      <p className="text-[11px] text-slate-500 tabular-nums">
+        {money(base)} → <b className={result > base ? 'text-amber-700' : result < base ? 'text-emerald-700' : 'text-slate-700'}>{money(result)}</b> a day
+        {k !== 'none' && result !== base && <span className="ml-1">({result > base ? '+' : '−'}{money(Math.abs(result - base))})</span>}
+      </p>
+    </div>
+  );
+};
+
+/** From the booking to the pick-up: which window applies and what it does. */
+const LeadTimeline: React.FC<{ tiers: LeadTier[]; base: number; bands: LengthBand[] }> = ({ tiers, base, bands }) => {
+  const rows = [...tiers].sort((a, b) => (b.toHours ?? 1e9) - (a.toHours ?? 1e9));   // far ahead on the left, pick-up on the right
+  const covered = (h: number) => tiers.some(t => h >= t.fromHours && (t.toHours == null || h < t.toHours));
+  const tone = (a: PriceAdjust) => { const v = exRate(base, a); return v > base ? 'text-amber-700' : v < base ? 'text-emerald-700' : 'text-slate-600'; };
+  const cells = (t: LeadTier) => (bands.length && t.byLength?.length ? bands.map((b, k) => ({ label: lengthLabel(b), a: t.byLength![k] || t.adjust })) : [{ label: 'Any length', a: t.adjust }]);
+  return (
+    <div className="flex items-stretch gap-1.5 overflow-x-auto">
+      <span className="self-center text-[11px] font-semibold uppercase tracking-wide text-slate-400 pr-1 whitespace-nowrap">Booking</span>
+      {!covered(1e6) && (
+        <div className="flex-1 min-w-[150px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-[12px] font-semibold text-slate-700">Earlier bookings</p>
+          <p className="text-[12px] text-slate-500 tabular-nums">Normal rates · {money(base)}</p>
+        </div>
+      )}
+      {rows.map(t => (
+        <div key={t.id} className="flex-1 min-w-[170px] rounded-lg border border-indigo-200 bg-indigo-50/50 px-3 py-2">
+          <p className="text-[12px] font-semibold text-indigo-900">{windowShort(t)}</p>
+          {cells(t).map((c, k) => (
+            <p key={k} className="text-[12px] tabular-nums flex justify-between gap-2"><span className="text-slate-500">{c.label}</span>
+              <span className={tone(c.a)}><b>{money(exRate(base, c.a))}</b>{c.a.type === 'none' ? '' : ` (${describeAdjust(c.a)})`}</span></p>
+          ))}
+        </div>
+      ))}
+      <span className="self-center text-[11px] font-semibold uppercase tracking-wide text-slate-400 pl-1 whitespace-nowrap">Pick-up</span>
+    </div>
+  );
+};
+
+const Step: React.FC<{ n: number; title: string; hint: string; children: React.ReactNode; right?: React.ReactNode }> = ({ n, title, hint, children, right }) => (
+  <div className="px-4 py-4 border-t border-slate-100">
+    <div className="flex flex-wrap items-start gap-3 mb-3">
+      <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[12px] font-bold inline-flex items-center justify-center shrink-0">{n}</span>
+      <div className="flex-1 min-w-0"><p className="text-[14px] font-semibold text-slate-900">{title}</p><p className="text-[12px] text-slate-500">{hint}</p></div>
+      {right}
+    </div>
+    {children}
+  </div>
+);
+
 const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg: DynamicPricingConfig; rateBands: LengthBand[]; onSave: (c: DynamicPricingConfig, what: string) => void }> = ({ base, setBase, cfg, rateBands, onSave }) => {
   const [lt, setLt] = useState(cfg.leadTime);
   useEffect(() => setLt(cfg.leadTime), [cfg.leadTime]);
   const dirty = JSON.stringify(lt) !== JSON.stringify(cfg.leadTime);
   const bands = lt.lengthBands || [];
   const byLength = bands.length > 0;
+  const none: PriceAdjust = { type: 'none', value: 0 };
   const setTier = (i: number, p: Partial<LeadTier>) => setLt(x => ({ ...x, tiers: x.tiers.map((t, j) => (j === i ? { ...t, ...p } : t)) }));
   const setCell = (i: number, k: number, a: PriceAdjust) => setLt(x => ({ ...x, tiers: x.tiers.map((t, j) => (j === i ? { ...t, byLength: bands.map((_, m) => (m === k ? a : (t.byLength?.[m] || t.adjust))) } : t)) }));
-  /** Switch columns on / off, or replace them, keeping each row's values where possible. */
   const useBands = (next: LengthBand[]) => setLt(x => ({
     ...x, lengthBands: next.length ? next : undefined,
     tiers: x.tiers.map(t => (next.length ? { ...t, byLength: next.map((_, m) => t.byLength?.[m] || t.adjust) } : { ...t, byLength: undefined })),
   }));
   const setBand = (k: number, p: Partial<LengthBand>) => useBands(bands.map((b, m) => (m === k ? { ...b, ...p } : b)));
+  const addWindow = (w: { fromHours: number; toHours: number | null }) => setLt(x => ({
+    ...x, tiers: [...x.tiers, { id: uid('lt'), fromHours: w.fromHours, toHours: w.toHours, adjust: none, ...(bands.length ? { byLength: bands.map(() => none) } : {}) }]
+      .sort((a, b) => a.fromHours - b.fromHours),
+  }));
+  const has = (w: { fromHours: number; toHours: number | null }) => lt.tiers.some(t => t.fromHours === w.fromHours && t.toHours === w.toHours);
   const sorted = [...lt.tiers].sort((a, b) => a.fromHours - b.fromHours);
-  const gaps = sorted.some((t, i) => i > 0 && sorted[i - 1].toHours != null && sorted[i - 1].toHours !== t.fromHours);
-  const ex = sorted.length ? sorted : EXAMPLE_LEAD;
+  const overlaps = sorted.some((t, i) => i > 0 && sorted[i - 1].toHours != null && sorted[i - 1].toHours! > t.fromHours);
   const cellOf = (t: LeadTier, k: number) => t.byLength?.[k] || t.adjust;
   const rateText = rateBands.length ? rateBands.map(lengthLabel).join(', ') : '1–2, 3–6, 7+ days';
+  const cols = byLength ? bands : [null];
   return (
     <div className="space-y-4">
-    <Explainer title="Last minute: price by how early the customer books" exampleTitle={sorted.length ? `Your grid, for a ${base} a day car` : `Example, for a ${base} a day car`}
-      example={<div className="space-y-2">
-        <table className="w-full text-[12px]">
-          <thead><tr className="text-slate-400"><th className="text-left font-medium pb-1">Booked before pick-up</th>
-            {(byLength ? bands : [null]).map((b, k) => <th key={k} className="text-right font-medium pb-1 pl-2 whitespace-nowrap">{b ? lengthLabel(b) : 'Any length'}</th>)}</tr></thead>
-          <tbody>
-            {ex.map(t => (
-              <tr key={t.id} className="border-t border-slate-100">
-                <td className="py-1 text-slate-700">{leadText(t).replace('Booked ', '').replace(' before pick-up', '')}</td>
-                {(byLength && sorted.length ? bands : [null]).map((b, k) => {
-                  const a = b ? cellOf(t, k) : t.adjust;
-                  return <td key={k} className="py-1 pl-2 text-right tabular-nums whitespace-nowrap"><b className={a.type === 'none' ? 'text-slate-500' : 'text-slate-900'}>{money(exRate(base, a))}</b> <span className="text-slate-400">{a.type === 'none' ? '' : describeAdjust(a)}</span></td>;
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <BaseInput value={base} onChange={setBase} />
-      </div>}>
-      <p>Charge more when a customer books at the last minute, or give a discount to customers who book early. Each <b>row</b> is a time window between the booking and the pick-up: less than 24 hours, 24–48 hours, 2–7 days, more than 30 days…</p>
-      <p>Choose <b>Different by rental length</b> to give each row one change per length band, like your rates ({rateText}). For example, booked less than 24 hours ahead: <b>1–2 days +20%</b>, <b>3–6 days +10%</b>, <b>7+ days no change</b>.</p>
-      <p><b>Bookings outside your rows get your normal rates.</b> If you only add “less than 24 hours”, a customer who books 2 days or 2 weeks ahead pays exactly the rates you created in Rates and Seasons.</p>
-      <p className="text-slate-500">Every cell can be a percentage (+20%, −10%), an amount a day (+5, −3), a fixed daily rate, or no change. The change is applied after the season, once.</p>
-    </Explainer>
-    <Panel title="Your last-minute grid" subtitle="Rows: how long before pick-up the customer books. Columns: rental length. Press Save when you are done."
-      actions={<>
-        {lt.tiers.length === 0 && <Button size="sm" onClick={() => setLt(x => ({ ...x, tiers: clone(EXAMPLE_LEAD).map(t => (bands.length ? { ...t, byLength: bands.map(() => t.adjust) } : t)) }))}>Use the example rows</Button>}
-        <Button size="sm" onClick={() => setLt(x => {
-          const from = x.tiers.length ? Math.max(...x.tiers.map(t => t.toHours ?? t.fromHours)) : 0;
-          const none: PriceAdjust = { type: 'none', value: 0 };
-          return { ...x, tiers: [...x.tiers, { id: uid('lt'), fromHours: from, toHours: null, adjust: none, ...(bands.length ? { byLength: bands.map(() => none) } : {}) }] };
-        })}>Add row</Button>
-        <Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, leadTime: lt }, `${lt.tiers.length} row(s)${byLength ? ` × ${bands.length} rental-length column(s)` : ''}`)}>Save</Button>
-      </>}>
-      <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
-        <span className="text-[12px] text-slate-500">Applies to</span>
-        <Chips options={PRICE_CHANNELS} value={lt.channels} onChange={v => setLt(x => ({ ...x, channels: v as PriceChannelType[] }))} allLabel="All channel types" />
-        <span className="ml-auto inline-flex items-center gap-2 text-[12px] text-slate-600">{lt.enabled ? 'On' : 'Off'} <Switch on={lt.enabled} onChange={b => setLt(x => ({ ...x, enabled: b }))} label="Last-minute pricing" /></span>
-      </div>
-      <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3 bg-slate-50/60">
-        <span className="text-[12px] font-semibold text-slate-700">Rental length</span>
-        <div className="inline-flex p-0.5 rounded-lg bg-white border border-slate-200">
-          {([[false, 'Same for every length'], [true, 'Different by rental length']] as const).map(([v, l]) => (
-            <button key={String(v)} type="button" aria-pressed={byLength === v} onClick={() => useBands(v ? (bands.length ? bands : (rateBands.length ? rateBands : DEFAULT_BANDS)) : [])}
-              className={`h-7 px-3 rounded-md text-[12px] font-medium ${byLength === v ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'}`}>{l}</button>
-          ))}
+      <Explainer title="Last minute pricing">
+        <p>Change the daily price by <b>how long before pick-up</b> the customer books: charge more for same-day bookings, or reward customers who book early.</p>
+        <ul className="list-disc pl-5 space-y-0.5">
+          <li>Add the booking windows you need (for example <b>less than 24 hours</b>).</li>
+          <li>Optional: a different change for each <b>rental length</b>, like your rates ({rateText}).</li>
+          <li>Bookings outside your windows always keep your <b>normal rates</b>.</li>
+        </ul>
+      </Explainer>
+
+      <section className="bg-white rounded-lg border border-slate-200 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[14px] font-semibold text-slate-900">What the customer pays, by booking time</p>
+            <p className="text-[12px] text-slate-500">{sorted.length ? 'Your rules, from early bookings on the left to the pick-up on the right.' : 'Example only — add your own windows below.'} Amber = higher, green = lower.</p>
+          </div>
+          <BaseInput value={base} onChange={setBase} />
         </div>
-        {byLength && (
-          <>
-            {bands.map((b, k) => (
-              <span key={k} className="inline-flex items-center gap-1 h-8 pl-2 pr-1 rounded-md bg-white border border-slate-200 text-[12px] text-slate-600">
-                <NumOpt value={b.fromDay} onChange={n => setBand(k, { fromDay: Math.max(1, n ?? 1) })} label={`Column ${k + 1} from day`} w="w-12" />–
-                <NumOpt value={b.toDay ?? undefined} placeholder="+" onChange={n => setBand(k, { toDay: n ?? null })} label={`Column ${k + 1} to day`} w="w-12" /> days
-                {bands.length > 1 && <button type="button" className="px-1 text-slate-400 hover:text-rose-600" onClick={() => useBands(bands.filter((_, m) => m !== k))} aria-label={`Remove column ${lengthLabel(b)}`}>×</button>}
-              </span>
+        <LeadTimeline tiers={sorted.length ? sorted : EXAMPLE_LEAD} base={base} bands={sorted.length ? bands : []} />
+      </section>
+
+      <section className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div className="px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[15px] font-semibold text-slate-900">Your last-minute rules</h3>
+            <p className="text-[12px] text-slate-500">Changes are kept in the draft until you press Save here and then Publish.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 text-[13px] font-medium text-slate-700">{lt.enabled ? 'On' : 'Off'} <Switch on={lt.enabled} onChange={b => setLt(x => ({ ...x, enabled: b }))} label="Last-minute pricing" /></span>
+          <Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, leadTime: lt }, `${lt.tiers.length} window(s)${byLength ? ` × ${bands.length} rental length(s)` : ''}`)}>Save</Button>
+        </div>
+        {!lt.enabled && <p className="px-4 pb-3 -mt-1 text-[12px] text-amber-700">Last-minute pricing is off: brokers get your normal rates until you switch it on, save and publish.</p>}
+
+        <Step n={1} title="Booking windows" hint="How long before pick-up the customer books. Click to add; edit the hours if you need other windows.">
+          <div className="flex flex-wrap gap-2">
+            {WINDOW_PRESETS.map(w => (
+              <button key={w.label} type="button" disabled={has(w)} onClick={() => addWindow(w)}
+                className={`h-8 px-3 rounded-full text-[12px] font-medium border ${has(w) ? 'bg-indigo-50 text-indigo-700 border-indigo-200 cursor-default' : 'bg-white text-slate-700 border-slate-300 hover:border-indigo-400 hover:text-indigo-700'}`}>
+                {has(w) ? '✓ ' : '+ '}{w.label}
+              </button>
             ))}
-            <Button size="sm" variant="ghost" onClick={() => { const last = bands[bands.length - 1]; const from = last ? (last.toDay ?? last.fromDay) + 1 : 1; useBands([...bands.map((b, m) => (m === bands.length - 1 && b.toDay == null ? { ...b, toDay: Math.max(b.fromDay, from - 1) } : b)), { fromDay: from, toDay: null }]); }}>Add column</Button>
-            {rateBands.length > 0 && <Button size="sm" variant="ghost" onClick={() => useBands(rateBands)}>Use my rate bands ({rateText})</Button>}
-          </>
-        )}
-      </div>
-      {lt.tiers.length === 0 ? <EmptyState title="No rows yet" hint="Press “Use the example rows” for less than 24 hours, 24–48 hours, 2–7 days, 7–30 days and more than 30 days." /> : (
-        <div className="overflow-x-auto">
-          <table className={`${table.wrap} ${byLength ? 'min-w-[900px]' : 'min-w-[720px]'}`}>
-            <thead className={table.head}><tr>
-              <th className={table.th}>Booked before pick-up</th>
-              <th className={table.th}>Window (hours)</th>
-              {(byLength ? bands : [null]).map((b, k) => <th key={k} className={table.th}>{b ? lengthLabel(b) : 'Change (any rental length)'}</th>)}
-              <th className={table.th}></th>
-            </tr></thead>
-            <tbody className={table.body}>
-              {lt.tiers.map((t, i) => (
-                <tr key={t.id} className={table.row}>
-                  <td className={`${table.td} font-semibold text-slate-900 text-[13px]`}>{leadText(t)}</td>
-                  <td className={`${table.td} whitespace-nowrap text-[12px] text-slate-500`}>
-                    <NumOpt value={t.fromHours} onChange={n => setTier(i, { fromHours: Math.max(0, n ?? 0) })} label="From hours" w="w-16" /> –{' '}
-                    <NumOpt value={t.toHours ?? undefined} placeholder="∞" onChange={n => setTier(i, { toHours: n ?? null })} label="To hours" w="w-16" /> h
-                  </td>
-                  {(byLength ? bands : [null]).map((b, k) => {
-                    const a = b ? cellOf(t, k) : t.adjust;
-                    return (
-                      <td key={k} className={table.td}>
-                        <AdjustInput value={a} onChange={v => (b ? setCell(i, k, v) : setTier(i, { adjust: v }))} label={`${leadText(t)}${b ? `, ${lengthLabel(b)}` : ''}`} />
-                        <p className="mt-1 text-[11px] text-slate-500 tabular-nums">{base} → <b className="text-slate-800">{money(exRate(base, a))}</b> a day</p>
-                      </td>
-                    );
-                  })}
-                  <td className={`${table.td} text-right`}><Button size="sm" variant="ghost" className="!text-rose-600" onClick={() => setLt(x => ({ ...x, tiers: x.tiers.filter((_, j) => j !== i) }))}>Remove</Button></td>
-                </tr>
+            <button type="button" onClick={() => addWindow({ fromHours: sorted.length ? (sorted[sorted.length - 1].toHours ?? sorted[sorted.length - 1].fromHours) : 0, toHours: null })}
+              className="h-8 px-3 rounded-full text-[12px] font-medium border border-dashed border-slate-300 text-slate-600 hover:border-indigo-400 hover:text-indigo-700">+ Custom window</button>
+          </div>
+        </Step>
+
+        <Step n={2} title="Rental length" hint="Use one change for every rental, or a different change per rental length.">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200">
+              {([[false, 'Same for every rental length'], [true, 'Different by rental length']] as const).map(([v, l]) => (
+                <button key={String(v)} type="button" aria-pressed={byLength === v} onClick={() => useBands(v ? (bands.length ? bands : (rateBands.length ? rateBands : DEFAULT_BANDS)) : [])}
+                  className={`h-8 px-3 rounded-md text-[12px] font-semibold ${byLength === v ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>{l}</button>
               ))}
-            </tbody>
-          </table>
+            </div>
+            {byLength && (
+              <>
+                {bands.map((b, k) => (
+                  <span key={k} className="inline-flex items-center gap-1 h-8 pl-2 pr-1 rounded-md bg-white border border-slate-200 text-[12px] text-slate-600">
+                    <NumOpt value={b.fromDay} onChange={n => setBand(k, { fromDay: Math.max(1, n ?? 1) })} label={`Length ${k + 1} from day`} w="w-12" />–
+                    <NumOpt value={b.toDay ?? undefined} placeholder="+" onChange={n => setBand(k, { toDay: n ?? null })} label={`Length ${k + 1} to day`} w="w-12" /> days
+                    {bands.length > 1 && <button type="button" className="px-1 text-slate-400 hover:text-rose-600" onClick={() => useBands(bands.filter((_, m) => m !== k))} aria-label={`Remove ${lengthLabel(b)}`}>×</button>}
+                  </span>
+                ))}
+                <Button size="sm" variant="ghost" onClick={() => { const last = bands[bands.length - 1]; const from = last ? (last.toDay ?? last.fromDay) + 1 : 1; useBands([...bands.map((b, m) => (m === bands.length - 1 && b.toDay == null ? { ...b, toDay: Math.max(b.fromDay, from - 1) } : b)), { fromDay: from, toDay: null }]); }}>+ Length</Button>
+                {rateBands.length > 0 && <Button size="sm" variant="ghost" onClick={() => useBands(rateBands)}>Use my rate bands ({rateText})</Button>}
+              </>
+            )}
+          </div>
+        </Step>
+
+        <Step n={3} title="Set the change" hint="Pick Increase, Decrease or a fixed daily rate for each cell. The new price is shown under it.">
+          {lt.tiers.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center">
+              <p className="text-[13px] font-semibold text-slate-700">No booking windows yet</p>
+              <p className="text-[12px] text-slate-500 mt-1">Add one in step 1, for example “Less than 24 hours”.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-[13px]">
+                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="text-left font-semibold px-3 py-2.5">Booked before pick-up</th>
+                    {cols.map((b, k) => <th key={k} className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">{b ? `Rental ${lengthLabel(b)}` : 'Every rental length'}</th>)}
+                    <th className="px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {lt.tiers.map((t, i) => (
+                    <tr key={t.id} className="align-top">
+                      <td className="px-3 py-3 min-w-[220px]">
+                        <p className="font-semibold text-slate-900">{windowShort(t)}</p>
+                        <p className="text-[11px] text-slate-500">{leadText(t)}</p>
+                        <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
+                          <NumOpt value={t.fromHours} onChange={n => setTier(i, { fromHours: Math.max(0, n ?? 0) })} label="From hours" w="w-14" /> to
+                          <NumOpt value={t.toHours ?? undefined} placeholder="∞" onChange={n => setTier(i, { toHours: n ?? null })} label="To hours" w="w-14" /> hours
+                        </p>
+                      </td>
+                      {cols.map((b, k) => (
+                        <td key={k} className="px-3 py-3">
+                          <ChangeInput base={base} value={b ? cellOf(t, k) : t.adjust} label={`${windowShort(t)}${b ? `, ${lengthLabel(b)}` : ''}`}
+                            onChange={v => (b ? setCell(i, k, v) : setTier(i, { adjust: v }))} />
+                        </td>
+                      ))}
+                      <td className="px-3 py-3 text-right">
+                        <button type="button" onClick={() => setLt(x => ({ ...x, tiers: x.tiers.filter((_, j) => j !== i) }))}
+                          className="text-[12px] font-medium text-slate-400 hover:text-rose-600" aria-label={`Remove ${windowShort(t)}`}>Remove</button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="bg-slate-50/70">
+                    <td className="px-3 py-3"><p className="font-semibold text-slate-700">All other bookings</p><p className="text-[11px] text-slate-500">Any time not covered above</p></td>
+                    {cols.map((_, k) => <td key={k} className="px-3 py-3"><span className="inline-flex items-center h-8 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-medium text-slate-600">Normal rates · {money(base)} a day</span></td>)}
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+          {overlaps && <p className="mt-2 text-[12px] text-amber-700">Two windows overlap. The window that starts first is used for the overlapping hours.</p>}
+        </Step>
+
+        <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center gap-3">
+          <span className="text-[12px] text-slate-500">Applies to</span>
+          <Chips options={PRICE_CHANNELS} value={lt.channels} onChange={v => setLt(x => ({ ...x, channels: v as PriceChannelType[] }))} allLabel="All channel types" />
         </div>
-      )}
-      <p className="px-4 py-2 border-t border-slate-100 text-[12px] text-slate-500">Any booking time not covered by a row (for example more than {sorted.length ? (sorted[sorted.length - 1].toHours ?? sorted[sorted.length - 1].fromHours) : 24} hours before pick-up) gets your normal rates, with no change.</p>
-      {gaps && <p className="px-4 py-2 border-t border-slate-100 text-[12px] text-amber-700">Some rows leave a gap or overlap; the first row that covers the booking time is used.</p>}
-    </Panel>
+      </section>
     </div>
   );
 };
