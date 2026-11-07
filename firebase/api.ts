@@ -110,6 +110,8 @@ type PatchOp =
 let serverState: Record<string, unknown> | null = null;
 const clone = <T,>(v: T): T => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 /** Called when server data is applied on screen, so later saves are compared with what the user actually sees. */
+/** A section of the saved data as last loaded (for sections only one screen uses, such as channelPricing). */
+export const loadedSection = <T,>(key: string): T | undefined => (serverState && serverState[key] !== undefined ? clone(serverState[key]) as T : undefined);
 export const rememberServerState = (data: unknown) => { if (data && typeof data === 'object') serverState = clone(data as Record<string, unknown>); };
 
 type Located = { year: string; month: string; json: string; res: Record<string, unknown> };
@@ -310,6 +312,9 @@ export const fetchChannelStatement = async (channelId: string, month: string, cu
   try { return (await axios.get(channelPath(channelId, '/statement'), { params: { month, ...(currency ? { currency } : {}) }, headers: authHeaders() })).data; }
   catch (e) { throw apiError(e, 'Could not load the statement.'); }
 };
+/** Cars of one group free for a rental, counted exactly as a broker search counts them. */
+export const fetchChannelAvailability = async (channelId: string, group: string, from: string, to: string): Promise<{ group: string; available: number; reason?: string }> =>
+  (await axios.get(channelPath(channelId, '/availability'), { params: { group, from, to }, headers: authHeaders() })).data;
 export const fetchChannelInventory = async (channelId: string, days?: number): Promise<ChannelInventory> => {
   try { return (await axios.get(channelPath(channelId, '/inventory'), { params: days ? { days } : {}, headers: authHeaders() })).data; }
   catch (e) { throw apiError(e, 'Could not load the inventory.'); }

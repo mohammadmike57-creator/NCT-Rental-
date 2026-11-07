@@ -679,6 +679,10 @@ export interface Aggregator {
     previousKeyHash?: string;
     previousKeyExpiresAt?: string;
     /** Rules for the booking API (search, book, modify, cancel); see ChannelRules on the server. */
+    /** Rate rules (OTA XML → Rate rules): net = published rates as before (default), dynamic = every rule, restricted = seasonal rules only. */
+    pricingMode?: 'net' | 'dynamic' | 'restricted';
+    /** Which rate rules apply to this channel (rules can be limited to some channel types). Default: broker. */
+    channelType?: 'website' | 'app' | 'walk_in' | 'broker' | 'ota' | 'corporate' | 'travel_agent';
     bookingRules?: ChannelBookingRules;
     /** Unpublished changes to the commercial terms; the server never reads them. */
     commercialDraft?: ChannelCommercialTerms;

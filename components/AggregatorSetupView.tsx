@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
-import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon } from './icons';
+import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon } from './icons';
+import RateRulesView from './channel/RateRulesView';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
@@ -115,7 +116,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
   const [channelSearch, setChannelSearch] = useState('');
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
-  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer'>('channels');
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates'>('channels');
   const showStopSale = mode === 'stopsale';
   const [sending, setSending] = useState(false);
   const [deliveryRefresh, setDeliveryRefresh] = useState(0);
@@ -271,6 +272,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     ['channels', 'Channels', ServerIcon, aggregators.length],
     ['dashboard', 'Dashboard', ChartBarIcon, undefined],
     ['reservations', 'XML reservations', InboxIcon, undefined],
+    ['rates', 'Rate rules', CurrencyDollarIcon, undefined],
     ['keys', 'API keys', KeyIcon, undefined],
     ['multi', 'Bulk editor', PencilIcon, undefined],
     ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
@@ -344,6 +346,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
 
       {mode === 'developer' ? (
         <DeveloperView />
+      ) : mode === 'rates' ? (
+        <RateRulesView aggregators={aggregators} fleet={fleet} currentUserName={currentUserName} onUpdateAggregator={handleUpdateAggregator} showConfirmation={showConfirmation} />
       ) : mode === 'dashboard' ? (
         <ChannelDashboardView aggregators={aggregators} onOpenChannel={openChannel} />
       ) : mode === 'reservations' ? (
