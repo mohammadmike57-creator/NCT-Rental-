@@ -1,13 +1,12 @@
 /**
  * Rate & price rules for the OTA XML channels: seasonal and event rates, last-minute (lead-time)
- * pricing and availability pricing, calculated day by day.
+ * pricing, calculated day by day. Prices never depend on how many cars are free.
  *
  * Order for every rental day:
  *   1. base daily rate (the channel's published rate for that day's period and the rental length)
  *   2. seasonal / event rule (highest priority wins; all matching rules only when stacking is on)
- *   3. last-minute rule (lead time between booking and pick-up; may be split by cars available)
- *   4. availability rule (skipped when the last-minute rule already priced availability)
- *   5. minimum / maximum daily price
+ *   3. last-minute rule (lead time between booking and pick-up)
+ *   4. minimum / maximum daily price
  * Fees, extras, tax and promotions are added afterwards by the booking engine, as before.
  *
  * The server runs the same calculation (ota/ChannelDynamicPricing.java); the tests of both use
@@ -32,8 +31,6 @@ export const SEASON_KINDS: [SeasonKind, string][] = [
   ['eid_fitr', 'Eid Al-Fitr'], ['eid_adha', 'Eid Al-Adha'], ['ramadan', 'Ramadan'], ['christmas', 'Christmas'], ['new_year', 'New Year'],
   ['national', 'National holiday'], ['custom', 'Custom event'],
 ];
-const EVENT_KINDS: SeasonKind[] = ['eid_fitr', 'eid_adha', 'ramadan', 'christmas', 'new_year', 'national', 'custom'];
-const HIGH_KINDS: SeasonKind[] = ['high', 'peak'];
 
 export interface SeasonRule {
   id: string;
@@ -53,35 +50,37 @@ export interface SeasonRule {
   notes?: string;
 }
 
-export interface AvailabilityBand { minCars: number; maxCars: number | null; adjust: PriceAdjust }
-
 export interface LeadTier {
   id: string;
   fromHours: number;         // inclusive
   toHours: number | null;    // exclusive; null = no upper limit
+  /** The change for every rental length (used when no length columns are set). */
   adjust: PriceAdjust;
-  /** Optional split by cars still available; when one matches it replaces `adjust` and the availability rule is not applied again. */
-  byAvailability?: AvailabilityBand[];
+  /** One change per rental-length column (leadTime.lengthBands), same order. */
+  byLength?: PriceAdjust[];
 }
 
-export type AvailabilityWhen = 'all' | 'high' | 'event' | 'weekend';
-export interface AvailabilityTier extends AvailabilityBand {
-  id: string;
-  minDaily?: number;
-  maxDaily?: number;
-  when: AvailabilityWhen;
-  locations: string[];       // empty = every location
+/** A rental-length column, like the rate bands: 1–2 days, 3–6 days, 7+ days. */
+export interface LengthBand { fromDay: number; toDay: number | null }
+export const lengthLabel = (b: LengthBand) => (b.toDay == null ? `${b.fromDay}+ days` : b.fromDay === b.toDay ? `${b.fromDay} day${b.fromDay === 1 ? '' : 's'}` : `${b.fromDay}–${b.toDay} days`);
+
+/** The last-minute change for one booking window and rental length. */
+export function leadAdjustFor(cfg: DynamicPricingConfig, tier: LeadTier, rentalDays: number): { adjust: PriceAdjust; band?: LengthBand } {
+  const bands = cfg.leadTime.lengthBands || [];
+  if (bands.length && tier.byLength?.length) {
+    const i = bands.findIndex(b => rentalDays >= b.fromDay && (b.toDay == null || rentalDays <= b.toDay));
+    if (i >= 0 && tier.byLength[i]) return { adjust: tier.byLength[i], band: bands[i] };
+  }
+  return { adjust: tier.adjust };
 }
 
 export interface PriceLimits { minDaily?: number; maxDaily?: number }
 
 export interface DynamicPricingConfig {
   seasonal: { enabled: boolean; stack: boolean; rules: SeasonRule[] };
-  leadTime: { enabled: boolean; channels: PriceChannelType[]; tiers: LeadTier[] };
-  availability: { enabled: boolean; channels: PriceChannelType[]; tiers: AvailabilityTier[] };
+  /** lengthBands: optional rental-length columns; empty = one change for every length. */
+  leadTime: { enabled: boolean; channels: PriceChannelType[]; tiers: LeadTier[]; lengthBands?: LengthBand[] };
   limits: PriceLimits & { groups: Record<string, PriceLimits> };
-  /** 0 = Sunday … 6 = Saturday. Jordan's weekend is Friday and Saturday. */
-  weekendDays: number[];
 }
 
 export interface PricingChange { at: string; by: string; action: string; detail: string; before?: string; after?: string }
@@ -99,9 +98,7 @@ export interface DynamicPricingState {
 export const emptyPricingConfig = (): DynamicPricingConfig => ({
   seasonal: { enabled: false, stack: false, rules: [] },
   leadTime: { enabled: false, channels: [], tiers: [] },
-  availability: { enabled: false, channels: [], tiers: [] },
   limits: { groups: {} },
-  weekendDays: [5, 6],
 });
 
 export const emptyPricingState = (): DynamicPricingState => ({ draft: emptyPricingConfig(), version: 0, history: [] });
@@ -118,14 +115,13 @@ export interface PriceRequest {
   pickup: string;            // YYYY-MM-DDTHH:mm, branch local time
   dropOff: string;
   now: string;               // when the booking is made, branch local time
-  availableCars: number;
   /** The published daily rate for one rental day (its period, the whole rental's length); null when no period covers it. */
   baseDaily: (date: string, rentalDays: number) => number | null;
   graceMinutes?: number;
   mode?: ChannelRateMode;
 }
 
-export interface PriceStep { stage: 'season' | 'lead' | 'availability' | 'limit'; label: string; from: number; to: number }
+export interface PriceStep { stage: 'season' | 'lead' | 'limit'; label: string; from: number; to: number }
 export interface PricedDay { date: string; base: number; rate: number; rule?: string; ruleKind?: SeasonKind; steps: PriceStep[] }
 export interface PriceResult {
   bookable: boolean;
@@ -188,20 +184,16 @@ export function seasonRulesFor(cfg: DynamicPricingConfig, day: string, req: Pick
     .map(({ r }) => r);
 }
 
-const inBand = (b: { minCars: number; maxCars: number | null }, n: number) => n >= b.minCars && (b.maxCars == null || n <= b.maxCars);
 
 export function priceRental(cfg: DynamicPricingConfig, req: PriceRequest): PriceResult {
   const mode = req.mode || 'dynamic';
   const days = rentalDayCount(req.pickup, req.dropOff, req.graceMinutes);
   const leadHours = (parse(req.pickup).getTime() - parse(req.now).getTime()) / 3600000;
   const notes: string[] = [];
-  if (req.availableCars <= 0) return { bookable: false, reason: 'No car of this group is free for these dates', days, leadHours, perDay: [], total: 0, notes };
 
   const full = mode === 'dynamic';
   const leadOn = full && cfg.leadTime.enabled && listHas(cfg.leadTime.channels, req.channel);
-  const availOn = full && cfg.availability.enabled && listHas(cfg.availability.channels, req.channel);
   const lead = leadOn ? cfg.leadTime.tiers.find(t => leadHours >= t.fromHours && (t.toHours == null || leadHours < t.toHours)) : undefined;
-  const leadBand = lead?.byAvailability?.find(b => inBand(b, req.availableCars));
   const limits = { ...cfg.limits, ...(cfg.limits.groups?.[upper(req.group)] || {}) };
 
   const perDay: PricedDay[] = [];
@@ -225,38 +217,20 @@ export function priceRental(cfg: DynamicPricingConfig, req: PriceRequest): Price
 
     // 3. Last-minute.
     if (lead) {
-      const a = leadBand ? leadBand.adjust : lead.adjust;
+      const { adjust, band } = leadAdjustFor(cfg, lead, days);
       const span = `${lead.fromHours}–${lead.toHours == null ? '∞' : lead.toHours} h before pick-up`;
-      const label = leadBand ? `Last minute ${span}, ${bandLabel(leadBand)} (${describeAdjust(a)})` : `Last minute ${span} (${describeAdjust(a)})`;
-      if (a.type !== 'none') step('lead', label, applyAdjust(rate, a));
+      if (adjust.type !== 'none') step('lead', `Last minute ${span}${band ? `, ${lengthLabel(band)}` : ''} (${describeAdjust(adjust)})`, applyAdjust(rate, adjust));
     }
 
-    // 4. Availability (not again when the last-minute rule already priced it).
-    if (availOn && !leadBand) {
-      const weekend = cfg.weekendDays.includes(d.getDay());
-      const t = cfg.availability.tiers.find(x => inBand(x, req.availableCars) && listHas(x.locations.map(upper), upper(req.location))
-        && (x.when === 'all' || (x.when === 'weekend' && weekend) || (x.when === 'event' && !!rule && EVENT_KINDS.includes(rule.kind))
-          || (x.when === 'high' && !!rule && HIGH_KINDS.includes(rule.kind))));
-      if (t) {
-        if (t.adjust.type !== 'none') step('availability', `${bandLabel(t)} (${describeAdjust(t.adjust)})`, applyAdjust(rate, t.adjust));
-        if (t.minDaily != null && rate < t.minDaily) step('limit', `Availability minimum ${t.minDaily}`, t.minDaily);
-        if (t.maxDaily != null && rate > t.maxDaily) step('limit', `Availability maximum ${t.maxDaily}`, t.maxDaily);
-      }
-    }
-
-    // 5. Minimum / maximum daily price.
+    // 4. Minimum / maximum daily price.
     if (limits.minDaily != null && rate < limits.minDaily) step('limit', `Minimum daily price ${limits.minDaily}`, limits.minDaily);
     if (limits.maxDaily != null && rate > limits.maxDaily) step('limit', `Maximum daily price ${limits.maxDaily}`, limits.maxDaily);
     rate = Math.max(0, round(rate));
     perDay.push({ date, base: round(base), rate, rule: rule?.name, ruleKind: rule?.kind, steps });
   }
-  if (leadBand) notes.push('Availability is priced inside the last-minute rule, so the availability rule is not applied again.');
   if (cfg.seasonal.enabled && cfg.seasonal.stack) notes.push('Stacking is on: every matching seasonal rule is applied, in priority order.');
   return { bookable: true, days, leadHours, perDay, total: round(perDay.reduce((s, d) => s + d.rate, 0)), notes };
 }
-
-export const bandLabel = (b: { minCars: number; maxCars: number | null }) =>
-  b.maxCars == null ? `${b.minCars}+ cars available` : b.minCars === b.maxCars ? `${b.minCars} car${b.minCars === 1 ? '' : 's'} available` : `${b.minCars}–${b.maxCars} cars available`;
 
 /** Days grouped by rate and rule for a short summary, e.g. "9 × 30.00 + 3 × 45.00 (Eid Al-Fitr)". */
 export function summarise(perDay: PricedDay[]): { count: number; rate: number; rule?: string }[] {

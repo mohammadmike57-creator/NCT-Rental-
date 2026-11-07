@@ -1,26 +1,25 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, RatePlan } from '../../types';
 import { Panel, Badge, Button, EmptyState, Dialog, Field, inputCls, selectCls, textareaCls, table } from '../ui/Crm';
-import { saveAllData, loadedSection, fetchChannelAvailability } from '../../firebase/api';
+import { saveAllData, loadedSection } from '../../firebase/api';
 import {
-  AdjustType, AvailabilityBand, AvailabilityTier, AvailabilityWhen, ChannelRateMode, DynamicPricingConfig, DynamicPricingState,
+  AdjustType, ChannelRateMode, LengthBand, lengthLabel, DynamicPricingConfig, DynamicPricingState,
   LeadTier, PRICE_CHANNELS, PriceAdjust, PriceChannelType, PriceResult, SEASON_KINDS, SeasonKind, SeasonRule,
-  bandLabel, describeAdjust, emptyPricingState, priceRental, rentalDayCount, summarise,
+  applyAdjust, describeAdjust, emptyPricingState, priceRental, rentalDayCount, summarise,
 } from '../../services/dynamicPricing';
 import { findPlanForDate, findTier, fleetSippCodes, tierLabel, vehiclesForSipp } from '../../services/channelManager';
 
 /**
- * OTA XML → Rate rules: seasonal / event rates, last-minute and availability pricing for the XML channels,
+ * OTA XML → Rate rules: seasonal / event rates and last-minute pricing for the XML channels (prices never depend on cars left),
  * edited as a draft, tested in the preview and published. Only channels switched to "Dynamic" or
  * "Restricted" (Channels tab) are priced with the published rules; every other channel keeps its net rates.
  */
 
-type Tab = 'overview' | 'seasons' | 'lead' | 'availability' | 'limits' | 'channels' | 'preview' | 'history';
+type Tab = 'overview' | 'seasons' | 'lead' | 'limits' | 'channels' | 'preview' | 'history';
 const TABS: [Tab, string][] = [
-  ['overview', 'Overview'], ['seasons', 'Seasons & events'], ['lead', 'Last minute'], ['availability', 'Availability'],
-  ['limits', 'Limits'], ['channels', 'Channels'], ['preview', 'Preview & test'], ['history', 'History'],
+  ['overview', 'Overview'], ['seasons', 'Seasons & events'], ['lead', 'Last minute'],
+  ['limits', 'Price limits'], ['channels', 'Channels'], ['preview', 'Try a price'], ['history', 'History'],
 ];
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const uid = (p: string) => `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const fieldCls = inputCls.replace('w-full ', '');
@@ -51,21 +50,11 @@ const PRESETS: { label: string; rule: Partial<SeasonRule> }[] = [
 ];
 
 const EXAMPLE_LEAD: LeadTier[] = [
-  { id: 'lt-24', fromHours: 0, toHours: 24, adjust: { type: 'none', value: 0 }, byAvailability: [
-    { minCars: 10, maxCars: null, adjust: { type: 'percent', value: -10 } }, { minCars: 4, maxCars: 9, adjust: { type: 'none', value: 0 } },
-    { minCars: 2, maxCars: 3, adjust: { type: 'percent', value: 20 } }, { minCars: 1, maxCars: 1, adjust: { type: 'percent', value: 40 } }] },
-  { id: 'lt-48', fromHours: 24, toHours: 48, adjust: { type: 'none', value: 0 }, byAvailability: [
-    { minCars: 10, maxCars: null, adjust: { type: 'percent', value: -5 } }, { minCars: 4, maxCars: 9, adjust: { type: 'none', value: 0 } },
-    { minCars: 2, maxCars: 3, adjust: { type: 'percent', value: 10 } }, { minCars: 1, maxCars: 1, adjust: { type: 'percent', value: 25 } }] },
+  { id: 'lt-24', fromHours: 0, toHours: 24, adjust: { type: 'percent', value: 20 } },
+  { id: 'lt-48', fromHours: 24, toHours: 48, adjust: { type: 'percent', value: 10 } },
   { id: 'lt-7d', fromHours: 48, toHours: 168, adjust: { type: 'none', value: 0 } },
   { id: 'lt-30d', fromHours: 168, toHours: 720, adjust: { type: 'none', value: 0 } },
   { id: 'lt-early', fromHours: 720, toHours: null, adjust: { type: 'percent', value: -5 } },
-];
-const EXAMPLE_AVAIL: AvailabilityTier[] = [
-  { id: 'av-10', minCars: 10, maxCars: null, adjust: { type: 'percent', value: -10 }, when: 'all', locations: [] },
-  { id: 'av-4', minCars: 4, maxCars: 9, adjust: { type: 'none', value: 0 }, when: 'all', locations: [] },
-  { id: 'av-2', minCars: 2, maxCars: 3, adjust: { type: 'percent', value: 20 }, when: 'all', locations: [] },
-  { id: 'av-1', minCars: 1, maxCars: 1, adjust: { type: 'percent', value: 40 }, when: 'all', locations: [] },
 ];
 
 // ---------------------------------------------------------------- small inputs
@@ -115,6 +104,72 @@ const NumOpt: React.FC<{ value?: number | null; onChange: (n?: number) => void; 
     className={`${fieldCls} h-8 ${w} tabular-nums text-[12px]`} />
 );
 
+// ---------------------------------------------------------------- explainers and examples
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+/** One rate after one change, for the examples. */
+const exRate = (base: number, a: PriceAdjust) => Math.max(0, r2(applyAdjust(base, a)));
+const leadText = (t: { fromHours: number; toHours: number | null }) => {
+  const h = (n: number) => (n % 24 === 0 && n >= 48 ? `${n / 24} days` : `${n} hours`);
+  return t.toHours == null ? `Booked more than ${h(t.fromHours)} before pick-up` : t.fromHours === 0 ? `Booked less than ${h(t.toHours)} before pick-up` : `Booked ${h(t.fromHours)} – ${h(t.toHours)} before pick-up`;
+};
+
+/** "How it works" box: plain words on the left, a worked example on the right. */
+const Explainer: React.FC<{ title: string; children: React.ReactNode; example?: React.ReactNode; exampleTitle?: string }> = ({ title, children, example, exampleTitle = 'Example' }) => (
+  <section className="rounded-lg border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-white p-4 flex flex-col lg:flex-row gap-4">
+    <div className="flex-1 min-w-0">
+      <p className="flex items-center gap-2 text-[13px] font-semibold text-indigo-900">
+        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-bold inline-flex items-center justify-center">i</span>{title}
+      </p>
+      <div className="mt-1.5 text-[13px] leading-relaxed text-slate-600 space-y-1.5">{children}</div>
+    </div>
+    {example && (
+      <div className="lg:w-[400px] shrink-0 rounded-md bg-white border border-indigo-100 shadow-sm p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 mb-2">{exampleTitle}</p>
+        {example}
+      </div>
+    )}
+  </section>
+);
+
+/** A price built step by step: 30 → 45 → 54. */
+const Chain: React.FC<{ steps: { label: string; value: number | null; note?: string; tone?: 'base' | 'season' | 'lead' | 'avail' | 'limit' | 'final' }[] }> = ({ steps }) => {
+  const tone = { base: 'bg-slate-100 text-slate-700', season: 'bg-violet-50 text-violet-700 ring-violet-200', lead: 'bg-sky-50 text-sky-700 ring-sky-200', avail: 'bg-amber-50 text-amber-700 ring-amber-200', limit: 'bg-slate-50 text-slate-600 ring-slate-200', final: 'bg-emerald-600 text-white ring-emerald-600' };
+  return (
+    <div className="flex flex-wrap items-stretch gap-1.5">
+      {steps.map((st, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span className="self-center text-slate-300 text-lg leading-none">→</span>}
+          <div className={`rounded-md ring-1 ring-inset px-2.5 py-1.5 min-w-[78px] ${tone[st.tone || 'base']}`}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{st.label}</p>
+            <p className="text-[15px] font-semibold tabular-nums leading-tight">{st.value == null ? '—' : money(st.value)}</p>
+            {st.note && <p className="text-[10px] opacity-80 whitespace-nowrap">{st.note}</p>}
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
+
+const BaseInput: React.FC<{ value: number; onChange: (n: number) => void }> = ({ value, onChange }) => (
+  <label className="inline-flex items-center gap-2 text-[12px] text-slate-500">Example base rate
+    <input type="number" min={1} value={value} onChange={e => onChange(Math.max(1, Number(e.target.value) || 1))} aria-label="Example base rate"
+      className={`${fieldCls} h-7 w-20 text-[12px] tabular-nums`} /> a day
+  </label>
+);
+
+/** Twelve example days, with the days a rule covers highlighted. */
+const DayStrip: React.FC<{ days: { label: string; rate: number; hit: boolean }[] }> = ({ days }) => (
+  <div className="grid grid-cols-6 gap-1">
+    {days.map((d, i) => (
+      <div key={i} className={`rounded px-1 py-1 text-center ${d.hit ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+        <p className="text-[9px] opacity-80">{d.label}</p>
+        <p className="text-[11px] font-semibold tabular-nums">{d.rate % 1 ? d.rate.toFixed(2) : d.rate}</p>
+      </div>
+    ))}
+  </div>
+);
+
 // ---------------------------------------------------------------- the view
 
 const RateRulesView: React.FC<{
@@ -128,6 +183,7 @@ const RateRulesView: React.FC<{
   const [tab, setTab] = useState<Tab>('overview');
   const [editing, setEditing] = useState<SeasonRule | null>(null);
   const [saving, setSaving] = useState(false);
+  const [base, setBase] = useState(30);
   const cfg = state.draft;
   const user = currentUserName || 'Staff';
 
@@ -136,6 +192,16 @@ const RateRulesView: React.FC<{
     aggregators.forEach(a => (a.ratePlanHistory?.[0]?.ratePlans || a.currentRatePlans || []).forEach(p => p.sippRates.forEach(r => r.sippCode && set.add(r.sippCode.toUpperCase()))));
     return Array.from(set).sort();
   }, [fleet, aggregators]);
+  /** Rental-length bands of the published rates (1–2, 3–6, 7+ days…), offered as last-minute columns. */
+  const rateBands = useMemo(() => {
+    const seen = new Map<string, LengthBand>();
+    aggregators.forEach(a => (a.ratePlanHistory?.[0]?.ratePlans || []).forEach(p => p.sippRates.slice(0, 1).forEach(r => r.tiers.forEach(t => {
+      if (t.fromDay == null) return;
+      const to = t.toDay == null || !Number.isFinite(Number(t.toDay)) ? null : Number(t.toDay);
+      seen.set(`${t.fromDay}-${to}`, { fromDay: Number(t.fromDay), toDay: to });
+    }))));
+    return Array.from(seen.values()).sort((x, y) => x.fromDay - y.fromDay);
+  }, [aggregators]);
   const locations = useMemo(() => Array.from(new Set(aggregators.flatMap(a => (a.bookingRules?.locations || []).map(l => (l.code || '').toUpperCase())).filter(Boolean))).sort(), [aggregators]);
   const unpublished = JSON.stringify(state.draft) !== JSON.stringify(state.published ?? null);
   const dynamicChannels = aggregators.filter(a => (a.pricingMode || 'net') !== 'net');
@@ -155,7 +221,7 @@ const RateRulesView: React.FC<{
   const publish = async () => {
     const version = (state.version || 0) + 1;
     await commit({ ...state, published: clone(state.draft), version, publishedAt: new Date().toISOString(), publishedBy: user },
-      'Published', `Version ${version} published: ${cfg.seasonal.rules.length} seasonal rule(s), ${cfg.leadTime.tiers.length} last-minute tier(s), ${cfg.availability.tiers.length} availability tier(s)`);
+      'Published', `Version ${version} published: ${cfg.seasonal.rules.length} seasonal rule(s), ${cfg.leadTime.tiers.length} last-minute tier(s)`);
     showConfirmation(`Rate rules version ${version} published. ${dynamicChannels.length ? `${dynamicChannels.length} channel(s) now price with them.` : 'No channel uses them yet: switch a channel to Dynamic in the Channels tab.'}`);
   };
   const discard = () => {
@@ -189,7 +255,7 @@ const RateRulesView: React.FC<{
       <section className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h3 className="text-[15px] font-semibold text-slate-900">Rate &amp; price rules</h3>
-          <p className="text-[12px] text-slate-500">Seasonal and event rates, last-minute and availability pricing for the XML channels, calculated day by day.</p>
+          <p className="text-[12px] text-slate-500">Seasonal and event rates and last-minute pricing for the XML channels, calculated day by day.</p>
         </div>
         <dl className="ml-auto flex flex-wrap items-center gap-x-6 gap-y-1 text-[12px]">
           {[
@@ -215,16 +281,17 @@ const RateRulesView: React.FC<{
       </nav>
 
       {tab === 'overview' && (
-        <Overview cfg={cfg} aggregators={aggregators} onToggle={(k, on) => {
+        <Overview cfg={cfg} base={base} setBase={setBase} published={!!state.published} aggregators={aggregators} onToggle={(k, on) => {
           const next = clone(cfg);
           if (k === 'stack') next.seasonal.stack = on; else next[k].enabled = on;
-          const names = { seasonal: 'Seasonal & event rates', leadTime: 'Last-minute pricing', availability: 'Availability pricing', stack: 'Stack seasonal rules' } as const;
+          const names = { seasonal: 'Seasonal & event rates', leadTime: 'Last-minute pricing', stack: 'Stack seasonal rules' } as const;
           void setDraft(next, on ? 'Switched on' : 'Switched off', names[k], on ? 'off' : 'on', on ? 'on' : 'off');
         }} onGo={setTab} />
       )}
 
-      {tab === 'seasons' && (
-        <Panel title="Seasonal & event rules" subtitle="Each rental day gets the highest-priority rule active on that date (1 = highest). Rules only add up when stacking is switched on in Overview."
+      {tab === 'seasons' && (<div className="space-y-4">
+        <SeasonExplainer rules={cfg.seasonal.rules} base={base} setBase={setBase} />
+        <Panel title="Your seasons & events" subtitle="Add, edit, pause or delete. Priority 1 wins when two rules cover the same day."
           actions={<Button size="sm" variant="primary" onClick={() => setEditing(newRule({ priority: (Math.max(0, ...cfg.seasonal.rules.map(r => r.priority)) || 4) + 1 }))}>Add rule</Button>}>
           <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2">
             <span className="text-[12px] text-slate-500">Start from:</span>
@@ -237,7 +304,7 @@ const RateRulesView: React.FC<{
               <SeasonTimeline rules={cfg.seasonal.rules} />
               <div className="overflow-x-auto">
                 <table className={`${table.wrap} min-w-[980px]`}>
-                  <thead className={table.head}><tr>{['Priority', 'Rule', 'Dates', 'Applies to', 'Rate', 'Rental length', 'Status', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+                  <thead className={table.head}><tr>{['Priority', 'Rule', 'Dates', 'Applies to', 'Change', `Example (${base} a day)`, 'Rental length', 'On', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
                   <tbody className={table.body}>
                     {[...cfg.seasonal.rules].sort((a, b) => a.priority - b.priority).map(r => (
                       <tr key={r.id} className={`${table.row} ${r.active ? '' : 'opacity-60'}`}>
@@ -259,6 +326,7 @@ const RateRulesView: React.FC<{
                           <p className="text-slate-400">{r.locations.length ? r.locations.join(', ') : 'All locations'} · {r.channels.length ? r.channels.map(c => PRICE_CHANNELS.find(x => x[0] === c)?.[1]).join(', ') : 'All channels'}</p>
                         </td>
                         <td className={`${table.td} font-semibold tabular-nums whitespace-nowrap`}>{describeAdjust(r.adjust)}</td>
+                        <td className={`${table.td} tabular-nums whitespace-nowrap text-[12px]`}><span className="text-slate-400">{base} →</span> <b className="text-slate-900">{money(exRate(base, r.adjust))}</b></td>
                         <td className={`${table.td} text-[12px] text-slate-600 whitespace-nowrap`}>{r.minDays || r.maxDays ? `${r.minDays || 1}–${r.maxDays || '∞'} days` : 'Any'}</td>
                         <td className={table.td}><Switch on={r.active} onChange={() => ruleAction(r, 'toggle')} label={`${r.name} active`} /></td>
                         <td className={`${table.td} whitespace-nowrap text-right`}>
@@ -274,11 +342,10 @@ const RateRulesView: React.FC<{
             </>
           )}
         </Panel>
-      )}
+      </div>)}
 
-      {tab === 'lead' && <LeadTimeEditor cfg={cfg} onSave={(next, what) => void setDraft(next, 'Last-minute rules changed', what)} />}
-      {tab === 'availability' && <AvailabilityEditor cfg={cfg} locations={locations} onSave={(next, what) => void setDraft(next, 'Availability rules changed', what)} />}
-      {tab === 'limits' && <LimitsEditor cfg={cfg} groups={groups} onSave={(next, what, b, a) => void setDraft(next, 'Limits changed', what, b, a)} />}
+      {tab === 'lead' && <LeadTimeEditor base={base} setBase={setBase} cfg={cfg} rateBands={rateBands} onSave={(next, what) => void setDraft(next, 'Last-minute rules changed', what)} />}
+      {tab === 'limits' && <LimitsEditor base={base} cfg={cfg} groups={groups} onSave={(next, what, b, a) => void setDraft(next, 'Limits changed', what, b, a)} />}
       {tab === 'channels' && <ChannelsEditor aggregators={aggregators} published={!!state.published} onUpdate={(a, before, after) => {
         onUpdateAggregator(a);
         void commit(state, 'Channel rate mode changed', a.name, before, after);
@@ -286,22 +353,62 @@ const RateRulesView: React.FC<{
       {tab === 'preview' && <PreviewPanel state={state} aggregators={aggregators} fleet={fleet} groups={groups} />}
       {tab === 'history' && <HistoryPanel state={state} />}
 
-      {editing && <RuleDialog rule={editing} groups={groups} locations={locations} onClose={() => setEditing(null)} onSave={saveRule} />}
+      {editing && <RuleDialog base={base} rule={editing} groups={groups} locations={locations} onClose={() => setEditing(null)} onSave={saveRule} />}
     </div>
   );
 };
 
 // ---------------------------------------------------------------- overview
 
-const Overview: React.FC<{ cfg: DynamicPricingConfig; aggregators: Aggregator[]; onToggle: (k: 'seasonal' | 'leadTime' | 'availability' | 'stack', on: boolean) => void; onGo: (t: Tab) => void }> = ({ cfg, aggregators, onToggle, onGo }) => {
-  const rows: { key: 'seasonal' | 'leadTime' | 'availability'; step: number; title: string; text: string; count: string; tab: Tab }[] = [
+const Overview: React.FC<{ cfg: DynamicPricingConfig; base: number; setBase: (n: number) => void; published: boolean; aggregators: Aggregator[]; onToggle: (k: 'seasonal' | 'leadTime' | 'stack', on: boolean) => void; onGo: (t: Tab) => void }> = ({ cfg, base, setBase, published, aggregators, onToggle, onGo }) => {
+  // One example day: the user's own rules when there are any, otherwise sample rules (clearly marked).
+  const rule = [...cfg.seasonal.rules].filter(r => r.active).sort((a, b) => a.priority - b.priority)[0];
+  const lead = cfg.leadTime.tiers.find(t => 12 >= t.fromHours && (t.toHours == null || 12 < t.toHours));
+  const sample = !rule && !lead;
+  const sRule = rule?.adjust || (sample ? { type: 'percent', value: 50 } as PriceAdjust : undefined);
+  const sLead = lead?.adjust.type !== 'none' && lead ? lead.adjust : (sample ? { type: 'percent', value: 20 } as PriceAdjust : undefined);
+  const a1 = sRule ? exRate(base, sRule) : base;
+  const a3 = sLead ? exRate(a1, sLead) : a1;
+  const max = cfg.limits.maxDaily, min = cfg.limits.minDaily;
+  const a4 = max != null && a3 > max ? max : min != null && a3 < min ? min : a3;
+  const steps = [
+    { label: 'Base rate', value: base, note: 'from the Rates tab', tone: 'base' as const },
+    ...(sRule ? [{ label: rule ? rule.name : 'Eid (example)', value: a1, note: describeAdjust(sRule), tone: 'season' as const }] : []),
+    ...(sLead ? [{ label: 'Last minute', value: a3, note: `${describeAdjust(sLead)} · booked 12 h ahead`, tone: 'lead' as const }] : []),
+    ...(a4 !== a3 ? [{ label: 'Price limit', value: a4, note: max != null && a3 > max ? `max ${max}` : `min ${min}`, tone: 'limit' as const }] : []),
+    { label: 'Daily price', value: a4, tone: 'final' as const },
+  ];
+  const started = [
+    { done: cfg.seasonal.rules.length > 0 || cfg.leadTime.tiers.length > 0, text: 'Add the rules you want (seasons, events, last minute)', tab: 'seasons' as Tab },
+    { done: published, text: 'Try a price, then press Publish', tab: 'preview' as Tab },
+    { done: aggregators.some(a => (a.pricingMode || 'net') !== 'net'), text: 'Choose which channels use smart pricing', tab: 'channels' as Tab },
+  ];
+  const rows: { key: 'seasonal' | 'leadTime'; step: number; title: string; text: string; count: string; tab: Tab }[] = [
     { key: 'seasonal', step: 2, title: 'Seasonal & event rates', text: 'Low, high and peak seasons, Eid Al-Fitr, Eid Al-Adha, Ramadan, Christmas, New Year and your own events. The rule of each rental day replaces that day\'s rate.', count: `${cfg.seasonal.rules.filter(r => r.active).length} active of ${cfg.seasonal.rules.length}`, tab: 'seasons' },
-    { key: 'leadTime', step: 3, title: 'Last-minute pricing', text: 'Changes the rate by how soon the car is picked up, optionally split by how many cars are still free.', count: `${cfg.leadTime.tiers.length} tier${cfg.leadTime.tiers.length === 1 ? '' : 's'}`, tab: 'lead' },
-    { key: 'availability', step: 4, title: 'Availability pricing', text: 'Changes the rate by how many cars of the group are still free at the pick-up location and time. 0 free = not offered.', count: `${cfg.availability.tiers.length} tier${cfg.availability.tiers.length === 1 ? '' : 's'}`, tab: 'availability' },
+    { key: 'leadTime', step: 3, title: 'Last-minute pricing', text: 'Changes the rate by how long before pick-up the customer books.', count: `${cfg.leadTime.tiers.length} tier${cfg.leadTime.tiers.length === 1 ? '' : 's'}`, tab: 'lead' },
   ];
   const modes = { net: 0, dynamic: 0, restricted: 0 };
   aggregators.forEach(a => { modes[a.pricingMode || 'net']++; });
   return (
+    <div className="space-y-4">
+    <Explainer title="How a daily price is built" exampleTitle={sample ? 'Example with sample rules — add your own' : 'Example with your rules'}
+      example={<div className="space-y-2"><Chain steps={steps} /><BaseInput value={base} onChange={setBase} /></div>}>
+      <p>Every day of a rental is priced on its own. The system starts from your <b>base rate</b>, then applies only the rules you switched on, in this order:</p>
+      <ol className="list-decimal pl-5 space-y-0.5">
+        <li><b>Season or event</b> of that day (Eid, high season…). If two rules cover the same day, only the one with priority 1 counts.</li>
+        <li><b>Last minute</b>: how long before pick-up the customer books.</li>
+        <li><b>Price limits</b>: never below your minimum or above your maximum.</li>
+      </ol>
+      <p className="text-slate-500">Each step changes the price once. Nothing is counted twice.</p>
+    </Explainer>
+    <section className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <p className="text-[13px] font-semibold text-slate-900">Getting started</p>
+      {started.map((st, i) => (
+        <button key={i} type="button" onClick={() => onGo(st.tab)} className="inline-flex items-center gap-2 text-[13px] text-slate-600 hover:text-indigo-700">
+          <span className={`w-5 h-5 rounded-full text-[11px] font-bold inline-flex items-center justify-center ${st.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}>{st.done ? '✓' : i + 1}</span>{st.text}
+        </button>
+      ))}
+    </section>
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel title="Rules" subtitle="Each rule is optional and switched on or off on its own. Changes stay in the draft until you publish.">
         <ul className="divide-y divide-slate-100">
@@ -323,7 +430,7 @@ const Overview: React.FC<{ cfg: DynamicPricingConfig; aggregators: Aggregator[];
             </li>
           ))}
           <li className="px-4 py-3 flex items-center gap-4">
-            <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 text-[12px] font-semibold inline-flex items-center justify-center shrink-0">5</span>
+            <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 text-[12px] font-semibold inline-flex items-center justify-center shrink-0">4</span>
             <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold text-slate-900">Minimum and maximum daily price</p>
               <p className="text-[12px] text-slate-500">{cfg.limits.minDaily != null || cfg.limits.maxDaily != null ? `${cfg.limits.minDaily ?? '—'} to ${cfg.limits.maxDaily ?? '—'} a day` : 'No limit set'}{Object.keys(cfg.limits.groups || {}).length ? `, ${Object.keys(cfg.limits.groups).length} group limit(s)` : ''}</p></div>
             <Button size="sm" variant="ghost" onClick={() => onGo('limits')}>Edit</Button>
@@ -340,15 +447,40 @@ const Overview: React.FC<{ cfg: DynamicPricingConfig; aggregators: Aggregator[];
           When the last-minute rule prices a channel, that broker's own early-booking and last-minute percent is not added again.
         </p>
       </Panel>
-      <Panel title="Channels" subtitle="Only channels switched to Dynamic or Restricted use the published rules.">
+      <Panel title="Channels" subtitle="Only channels set to Smart pricing or Seasons only use these rules.">
         <ul className="divide-y divide-slate-100 text-[13px]">
-          {([['net', 'Net rates (as before)'], ['dynamic', 'Dynamic (every rule)'], ['restricted', 'Restricted (seasonal only)']] as const).map(([k, l]) => (
+          {([['net', 'Fixed rates (as today)'], ['dynamic', 'Smart pricing (all rules)'], ['restricted', 'Seasons only']] as const).map(([k, l]) => (
             <li key={k} className="px-4 py-2.5 flex items-center justify-between"><span className="text-slate-600">{l}</span><span className="font-semibold tabular-nums">{modes[k]}</span></li>
           ))}
         </ul>
         <div className="px-4 py-3 border-t border-slate-100"><Button size="sm" onClick={() => onGo('channels')}>Choose channels</Button></div>
       </Panel>
     </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------- seasons explainer
+
+const SeasonExplainer: React.FC<{ rules: SeasonRule[]; base: number; setBase: (n: number) => void }> = ({ rules, base, setBase }) => {
+  const own = [...rules].filter(r => r.active && r.adjust.type !== 'none').sort((a, b) => a.priority - b.priority)[0];
+  const rule = own || ({ name: 'Eid', adjust: { type: 'percent', value: 50 } } as SeasonRule);
+  const seasonRate = exRate(base, rule.adjust);
+  const days = Array.from({ length: 12 }, (_, i) => ({ label: `Day ${i + 1}`, rate: i >= 9 ? seasonRate : base, hit: i >= 9 }));
+  const total = r2(9 * base + 3 * seasonRate);
+  const high = exRate(base, { type: 'percent', value: 40 }), eid = exRate(base, { type: 'percent', value: 50 }), both = exRate(base, { type: 'percent', value: 90 });
+  return (
+    <Explainer title="Seasons & events: a different price on special dates" exampleTitle={own ? `Example with "${own.name}"` : 'Example'}
+      example={<div className="space-y-2">
+        <p className="text-[12px] text-slate-600">A 12-day rental. {rule.name} ({describeAdjust(rule.adjust)}) covers the last 3 days:</p>
+        <DayStrip days={days} />
+        <p className="text-[12px] text-slate-700 tabular-nums">9 days × {money(base)} + 3 days × {money(seasonRate)} = <b>{money(total)}</b></p>
+        <BaseInput value={base} onChange={setBase} />
+      </div>}>
+      <p>Give a season or an event its dates and a change, for example <b>Eid Al-Fitr +50%</b>, <b>High season +40%</b> or <b>Low season −20%</b>. Only the rental days inside those dates change: <b>daily price = base rate × (1 + %)</b>.</p>
+      <p>When two rules cover the same day, only the one with <b>priority 1</b> counts. Eid inside high season is charged at the Eid rate ({money(eid)}), never both together ({money(both)}). Days in high season only keep {money(high)}.</p>
+      <p className="text-slate-500">Each rule can be limited to some car groups, branches or channels, a minimum or maximum rental length, and can skip blackout dates. Paused rules are kept but not used.</p>
+    </Explainer>
   );
 };
 
@@ -397,7 +529,7 @@ const SeasonTimeline: React.FC<{ rules: SeasonRule[] }> = ({ rules }) => {
 
 // ---------------------------------------------------------------- rule dialog
 
-const RuleDialog: React.FC<{ rule: SeasonRule; groups: string[]; locations: string[]; onClose: () => void; onSave: (r: SeasonRule) => void }> = ({ rule, groups, locations, onClose, onSave }) => {
+const RuleDialog: React.FC<{ base: number; rule: SeasonRule; groups: string[]; locations: string[]; onClose: () => void; onSave: (r: SeasonRule) => void }> = ({ base, rule, groups, locations, onClose, onSave }) => {
   const [r, setR] = useState<SeasonRule>(rule);
   const [blackout, setBlackout] = useState('');
   const set = (p: Partial<SeasonRule>) => setR(x => ({ ...x, ...p }));
@@ -418,6 +550,11 @@ const RuleDialog: React.FC<{ rule: SeasonRule; groups: string[]; locations: stri
         <Field label="Rate" hint="± percent of the base rate: daily price = base × (1 + %). Or a fixed daily rate, or ± amount a day (in each channel's currency)">
           <AdjustInput value={r.adjust} onChange={adjust => set({ adjust })} allowNone={false} label="Rate" />
         </Field>
+        <div className="sm:col-span-2 rounded-md bg-violet-50 border border-violet-100 px-3 py-2 text-[13px] text-violet-900">
+          <b>Example:</b> a car at <b>{base}</b> a day costs <b>{money(exRate(base, r.adjust))}</b> a day
+          {r.from && r.to && r.to >= r.from ? <> from {fmtDate(r.from)} to {fmtDate(r.to)} ({Math.round((new Date(`${r.to}T12:00`).getTime() - new Date(`${r.from}T12:00`).getTime()) / 86400000) + 1} days)</> : ''}.
+          Days outside these dates keep their normal rate.
+        </div>
         <Field label="Priority" hint="1 = highest; it wins over every other rule on the same day">
           <input type="number" min={1} value={r.priority} onChange={e => set({ priority: Math.max(1, Number(e.target.value) || 1) })} className={`${inputCls} tabular-nums`} />
         </Field>
@@ -447,130 +584,156 @@ const RuleDialog: React.FC<{ rule: SeasonRule; groups: string[]; locations: stri
 
 // ---------------------------------------------------------------- last minute
 
-const LeadTimeEditor: React.FC<{ cfg: DynamicPricingConfig; onSave: (c: DynamicPricingConfig, what: string) => void }> = ({ cfg, onSave }) => {
+const DEFAULT_BANDS: LengthBand[] = [{ fromDay: 1, toDay: 2 }, { fromDay: 3, toDay: 6 }, { fromDay: 7, toDay: null }];
+
+const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg: DynamicPricingConfig; rateBands: LengthBand[]; onSave: (c: DynamicPricingConfig, what: string) => void }> = ({ base, setBase, cfg, rateBands, onSave }) => {
   const [lt, setLt] = useState(cfg.leadTime);
   useEffect(() => setLt(cfg.leadTime), [cfg.leadTime]);
   const dirty = JSON.stringify(lt) !== JSON.stringify(cfg.leadTime);
+  const bands = lt.lengthBands || [];
+  const byLength = bands.length > 0;
   const setTier = (i: number, p: Partial<LeadTier>) => setLt(x => ({ ...x, tiers: x.tiers.map((t, j) => (j === i ? { ...t, ...p } : t)) }));
+  const setCell = (i: number, k: number, a: PriceAdjust) => setLt(x => ({ ...x, tiers: x.tiers.map((t, j) => (j === i ? { ...t, byLength: bands.map((_, m) => (m === k ? a : (t.byLength?.[m] || t.adjust))) } : t)) }));
+  /** Switch columns on / off, or replace them, keeping each row's values where possible. */
+  const useBands = (next: LengthBand[]) => setLt(x => ({
+    ...x, lengthBands: next.length ? next : undefined,
+    tiers: x.tiers.map(t => (next.length ? { ...t, byLength: next.map((_, m) => t.byLength?.[m] || t.adjust) } : { ...t, byLength: undefined })),
+  }));
+  const setBand = (k: number, p: Partial<LengthBand>) => useBands(bands.map((b, m) => (m === k ? { ...b, ...p } : b)));
   const sorted = [...lt.tiers].sort((a, b) => a.fromHours - b.fromHours);
   const gaps = sorted.some((t, i) => i > 0 && sorted[i - 1].toHours != null && sorted[i - 1].toHours !== t.fromHours);
+  const ex = sorted.length ? sorted : EXAMPLE_LEAD;
+  const cellOf = (t: LeadTier, k: number) => t.byLength?.[k] || t.adjust;
+  const rateText = rateBands.length ? rateBands.map(lengthLabel).join(', ') : '1–2, 3–6, 7+ days';
   return (
-    <Panel title="Last-minute pricing" subtitle="Hours between the booking and the pick-up. A tier can be split by cars still free; that split then prices availability, and the availability rule is not applied again."
+    <div className="space-y-4">
+    <Explainer title="Last minute: price by how early the customer books" exampleTitle={sorted.length ? `Your grid, for a ${base} a day car` : `Example, for a ${base} a day car`}
+      example={<div className="space-y-2">
+        <table className="w-full text-[12px]">
+          <thead><tr className="text-slate-400"><th className="text-left font-medium pb-1">Booked before pick-up</th>
+            {(byLength ? bands : [null]).map((b, k) => <th key={k} className="text-right font-medium pb-1 pl-2 whitespace-nowrap">{b ? lengthLabel(b) : 'Any length'}</th>)}</tr></thead>
+          <tbody>
+            {ex.map(t => (
+              <tr key={t.id} className="border-t border-slate-100">
+                <td className="py-1 text-slate-700">{leadText(t).replace('Booked ', '').replace(' before pick-up', '')}</td>
+                {(byLength && sorted.length ? bands : [null]).map((b, k) => {
+                  const a = b ? cellOf(t, k) : t.adjust;
+                  return <td key={k} className="py-1 pl-2 text-right tabular-nums whitespace-nowrap"><b className={a.type === 'none' ? 'text-slate-500' : 'text-slate-900'}>{money(exRate(base, a))}</b> <span className="text-slate-400">{a.type === 'none' ? '' : describeAdjust(a)}</span></td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <BaseInput value={base} onChange={setBase} />
+      </div>}>
+      <p>Charge more when a customer books at the last minute, or give a discount to customers who book early. Each <b>row</b> is a time window between the booking and the pick-up: less than 24 hours, 24–48 hours, 2–7 days, more than 30 days…</p>
+      <p>Choose <b>Different by rental length</b> to give each row one change per length band, like your rates ({rateText}). For example, booked less than 24 hours ahead: <b>1–2 days +20%</b>, <b>3–6 days +10%</b>, <b>7+ days no change</b>.</p>
+      <p><b>Bookings outside your rows get your normal rates.</b> If you only add “less than 24 hours”, a customer who books 2 days or 2 weeks ahead pays exactly the rates you created in Rates and Seasons.</p>
+      <p className="text-slate-500">Every cell can be a percentage (+20%, −10%), an amount a day (+5, −3), a fixed daily rate, or no change. The change is applied after the season, once.</p>
+    </Explainer>
+    <Panel title="Your last-minute grid" subtitle="Rows: how long before pick-up the customer books. Columns: rental length. Press Save when you are done."
       actions={<>
-        {lt.tiers.length === 0 && <Button size="sm" onClick={() => setLt(x => ({ ...x, tiers: clone(EXAMPLE_LEAD) }))}>Use the example tiers</Button>}
-        <Button size="sm" onClick={() => setLt(x => ({ ...x, tiers: [...x.tiers, { id: uid('lt'), fromHours: x.tiers.length ? Math.max(...x.tiers.map(t => t.toHours ?? t.fromHours)) : 0, toHours: null, adjust: { type: 'none', value: 0 } }] }))}>Add tier</Button>
-        <Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, leadTime: lt }, `${lt.tiers.length} tier(s)`)}>Save</Button>
+        {lt.tiers.length === 0 && <Button size="sm" onClick={() => setLt(x => ({ ...x, tiers: clone(EXAMPLE_LEAD).map(t => (bands.length ? { ...t, byLength: bands.map(() => t.adjust) } : t)) }))}>Use the example rows</Button>}
+        <Button size="sm" onClick={() => setLt(x => {
+          const from = x.tiers.length ? Math.max(...x.tiers.map(t => t.toHours ?? t.fromHours)) : 0;
+          const none: PriceAdjust = { type: 'none', value: 0 };
+          return { ...x, tiers: [...x.tiers, { id: uid('lt'), fromHours: from, toHours: null, adjust: none, ...(bands.length ? { byLength: bands.map(() => none) } : {}) }] };
+        })}>Add row</Button>
+        <Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, leadTime: lt }, `${lt.tiers.length} row(s)${byLength ? ` × ${bands.length} rental-length column(s)` : ''}`)}>Save</Button>
       </>}>
       <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
         <span className="text-[12px] text-slate-500">Applies to</span>
         <Chips options={PRICE_CHANNELS} value={lt.channels} onChange={v => setLt(x => ({ ...x, channels: v as PriceChannelType[] }))} allLabel="All channel types" />
         <span className="ml-auto inline-flex items-center gap-2 text-[12px] text-slate-600">{lt.enabled ? 'On' : 'Off'} <Switch on={lt.enabled} onChange={b => setLt(x => ({ ...x, enabled: b }))} label="Last-minute pricing" /></span>
       </div>
-      {lt.tiers.length === 0 ? <EmptyState title="No tiers yet" hint="Add tiers such as 0–24 hours, 24–48 hours, 2–7 days, 7–30 days and more than 30 days." /> : (
-        <ul className="divide-y divide-slate-100">
-          {lt.tiers.map((t, i) => (
-            <li key={t.id} className="px-4 py-3 space-y-2">
-              <div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-600">
-                <span className="font-semibold text-slate-800">Pick-up from</span>
-                <NumOpt value={t.fromHours} onChange={n => setTier(i, { fromHours: Math.max(0, n ?? 0) })} label="From hours" />
-                <span>to</span>
-                <NumOpt value={t.toHours ?? undefined} placeholder="∞" onChange={n => setTier(i, { toHours: n ?? null })} label="To hours" />
-                <span>hours ahead{t.toHours == null ? ' (no upper limit)' : ''}:</span>
-                <AdjustInput value={t.adjust} onChange={adjust => setTier(i, { adjust })} label="Tier adjustment" />
-                <span className="ml-auto flex items-center gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setTier(i, { byAvailability: t.byAvailability ? undefined : [{ minCars: 10, maxCars: null, adjust: { type: 'percent', value: -10 } }, { minCars: 1, maxCars: 3, adjust: { type: 'percent', value: 20 } }] })}>
-                    {t.byAvailability ? 'Remove split' : 'Split by cars available'}</Button>
-                  <Button size="sm" variant="ghost" className="!text-rose-600" onClick={() => setLt(x => ({ ...x, tiers: x.tiers.filter((_, j) => j !== i) }))}>Remove</Button>
-                </span>
-              </div>
-              {t.byAvailability && (
-                <div className="ml-4 pl-4 border-l-2 border-indigo-100 space-y-1.5">
-                  {t.byAvailability.map((b, k) => (
-                    <div key={k} className="flex flex-wrap items-center gap-2 text-[12px] text-slate-600">
-                      <span>If</span>
-                      <NumOpt value={b.minCars} onChange={n => setTier(i, { byAvailability: t.byAvailability!.map((x, m) => (m === k ? { ...x, minCars: Math.max(0, n ?? 0) } : x)) })} label="Minimum cars" w="w-16" />
-                      <span>to</span>
-                      <NumOpt value={b.maxCars ?? undefined} placeholder="∞" onChange={n => setTier(i, { byAvailability: t.byAvailability!.map((x, m) => (m === k ? { ...x, maxCars: n ?? null } : x)) })} label="Maximum cars" w="w-16" />
-                      <span>cars free:</span>
-                      <AdjustInput value={b.adjust} onChange={adjust => setTier(i, { byAvailability: t.byAvailability!.map((x, m) => (m === k ? { ...x, adjust } : x)) })} label="Band adjustment" />
-                      <button type="button" className="text-slate-400 hover:text-rose-600 px-1" onClick={() => setTier(i, { byAvailability: t.byAvailability!.filter((_, m) => m !== k) })} aria-label="Remove band">×</button>
-                    </div>
-                  ))}
-                  <Button size="sm" variant="ghost" onClick={() => setTier(i, { byAvailability: [...t.byAvailability!, { minCars: 0, maxCars: null, adjust: { type: 'none', value: 0 } }] })}>Add band</Button>
-                  <p className="text-[11px] text-slate-400">No band matches → the tier's own adjustment is used.</p>
-                </div>
-              )}
-            </li>
+      <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3 bg-slate-50/60">
+        <span className="text-[12px] font-semibold text-slate-700">Rental length</span>
+        <div className="inline-flex p-0.5 rounded-lg bg-white border border-slate-200">
+          {([[false, 'Same for every length'], [true, 'Different by rental length']] as const).map(([v, l]) => (
+            <button key={String(v)} type="button" aria-pressed={byLength === v} onClick={() => useBands(v ? (bands.length ? bands : (rateBands.length ? rateBands : DEFAULT_BANDS)) : [])}
+              className={`h-7 px-3 rounded-md text-[12px] font-medium ${byLength === v ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'}`}>{l}</button>
           ))}
-        </ul>
-      )}
-      {gaps && <p className="px-4 py-2 border-t border-slate-100 text-[12px] text-amber-700">Some tiers leave a gap or overlap; the first tier that covers the lead time is used.</p>}
-    </Panel>
-  );
-};
-
-// ---------------------------------------------------------------- availability
-
-const AvailabilityEditor: React.FC<{ cfg: DynamicPricingConfig; locations: string[]; onSave: (c: DynamicPricingConfig, what: string) => void }> = ({ cfg, locations, onSave }) => {
-  const [av, setAv] = useState(cfg.availability);
-  useEffect(() => setAv(cfg.availability), [cfg.availability]);
-  const dirty = JSON.stringify(av) !== JSON.stringify(cfg.availability);
-  const setTier = (i: number, p: Partial<AvailabilityTier>) => setAv(x => ({ ...x, tiers: x.tiers.map((t, j) => (j === i ? { ...t, ...p } : t)) }));
-  return (
-    <Panel title="Availability pricing" subtitle="Cars of the group still free at the pick-up location for the whole rental (bookings, holds, late returns, stop sales, maintenance and preparation time counted). The first tier that matches is used; 0 free = not offered."
-      actions={<>
-        {av.tiers.length === 0 && <Button size="sm" onClick={() => setAv(x => ({ ...x, tiers: clone(EXAMPLE_AVAIL) }))}>Use the example tiers</Button>}
-        <Button size="sm" onClick={() => setAv(x => ({ ...x, tiers: [...x.tiers, { id: uid('av'), minCars: 1, maxCars: null, adjust: { type: 'none', value: 0 }, when: 'all', locations: [] }] }))}>Add tier</Button>
-        <Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, availability: av }, `${av.tiers.length} tier(s)`)}>Save</Button>
-      </>}>
-      <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
-        <span className="text-[12px] text-slate-500">Applies to</span>
-        <Chips options={PRICE_CHANNELS} value={av.channels} onChange={v => setAv(x => ({ ...x, channels: v as PriceChannelType[] }))} allLabel="All channel types" />
-        <span className="ml-auto inline-flex items-center gap-2 text-[12px] text-slate-600">{av.enabled ? 'On' : 'Off'} <Switch on={av.enabled} onChange={b => setAv(x => ({ ...x, enabled: b }))} label="Availability pricing" /></span>
+        </div>
+        {byLength && (
+          <>
+            {bands.map((b, k) => (
+              <span key={k} className="inline-flex items-center gap-1 h-8 pl-2 pr-1 rounded-md bg-white border border-slate-200 text-[12px] text-slate-600">
+                <NumOpt value={b.fromDay} onChange={n => setBand(k, { fromDay: Math.max(1, n ?? 1) })} label={`Column ${k + 1} from day`} w="w-12" />–
+                <NumOpt value={b.toDay ?? undefined} placeholder="+" onChange={n => setBand(k, { toDay: n ?? null })} label={`Column ${k + 1} to day`} w="w-12" /> days
+                {bands.length > 1 && <button type="button" className="px-1 text-slate-400 hover:text-rose-600" onClick={() => useBands(bands.filter((_, m) => m !== k))} aria-label={`Remove column ${lengthLabel(b)}`}>×</button>}
+              </span>
+            ))}
+            <Button size="sm" variant="ghost" onClick={() => { const last = bands[bands.length - 1]; const from = last ? (last.toDay ?? last.fromDay) + 1 : 1; useBands([...bands.map((b, m) => (m === bands.length - 1 && b.toDay == null ? { ...b, toDay: Math.max(b.fromDay, from - 1) } : b)), { fromDay: from, toDay: null }]); }}>Add column</Button>
+            {rateBands.length > 0 && <Button size="sm" variant="ghost" onClick={() => useBands(rateBands)}>Use my rate bands ({rateText})</Button>}
+          </>
+        )}
       </div>
-      {av.tiers.length === 0 ? <EmptyState title="No tiers yet" hint="For example: 10+ cars −10%, 4–9 cars no change, 2–3 cars +20%, 1 car +40%." /> : (
+      {lt.tiers.length === 0 ? <EmptyState title="No rows yet" hint="Press “Use the example rows” for less than 24 hours, 24–48 hours, 2–7 days, 7–30 days and more than 30 days." /> : (
         <div className="overflow-x-auto">
-          <table className={`${table.wrap} min-w-[980px]`}>
-            <thead className={table.head}><tr>{['Cars free', 'Adjustment', 'Min / max daily', 'When', 'Locations', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
+          <table className={`${table.wrap} ${byLength ? 'min-w-[900px]' : 'min-w-[720px]'}`}>
+            <thead className={table.head}><tr>
+              <th className={table.th}>Booked before pick-up</th>
+              <th className={table.th}>Window (hours)</th>
+              {(byLength ? bands : [null]).map((b, k) => <th key={k} className={table.th}>{b ? lengthLabel(b) : 'Change (any rental length)'}</th>)}
+              <th className={table.th}></th>
+            </tr></thead>
             <tbody className={table.body}>
-              {av.tiers.map((t, i) => (
+              {lt.tiers.map((t, i) => (
                 <tr key={t.id} className={table.row}>
-                  <td className={`${table.td} whitespace-nowrap`}><NumOpt value={t.minCars} onChange={n => setTier(i, { minCars: Math.max(0, n ?? 0) })} label="Minimum cars" w="w-16" /> <span className="text-slate-400">to</span>{' '}
-                    <NumOpt value={t.maxCars ?? undefined} placeholder="∞" onChange={n => setTier(i, { maxCars: n ?? null })} label="Maximum cars" w="w-16" /></td>
-                  <td className={table.td}><AdjustInput value={t.adjust} onChange={adjust => setTier(i, { adjust })} /></td>
-                  <td className={`${table.td} whitespace-nowrap`}><NumOpt value={t.minDaily} placeholder="min" onChange={n => setTier(i, { minDaily: n })} label="Minimum daily" /> <NumOpt value={t.maxDaily} placeholder="max" onChange={n => setTier(i, { maxDaily: n })} label="Maximum daily" /></td>
-                  <td className={table.td}>
-                    <select value={t.when} onChange={e => setTier(i, { when: e.target.value as AvailabilityWhen })} className={`${selectCls} h-8 text-[12px]`} aria-label="When">
-                      <option value="all">All dates</option><option value="high">High & peak season</option><option value="event">Eid & events</option><option value="weekend">Weekends</option>
-                    </select>
+                  <td className={`${table.td} font-semibold text-slate-900 text-[13px]`}>{leadText(t)}</td>
+                  <td className={`${table.td} whitespace-nowrap text-[12px] text-slate-500`}>
+                    <NumOpt value={t.fromHours} onChange={n => setTier(i, { fromHours: Math.max(0, n ?? 0) })} label="From hours" w="w-16" /> –{' '}
+                    <NumOpt value={t.toHours ?? undefined} placeholder="∞" onChange={n => setTier(i, { toHours: n ?? null })} label="To hours" w="w-16" /> h
                   </td>
-                  <td className={table.td}><Chips options={locations.map(l => [l, l])} value={t.locations} onChange={v => setTier(i, { locations: v })} allLabel="All" /></td>
-                  <td className={`${table.td} text-right`}><Button size="sm" variant="ghost" className="!text-rose-600" onClick={() => setAv(x => ({ ...x, tiers: x.tiers.filter((_, j) => j !== i) }))}>Remove</Button></td>
+                  {(byLength ? bands : [null]).map((b, k) => {
+                    const a = b ? cellOf(t, k) : t.adjust;
+                    return (
+                      <td key={k} className={table.td}>
+                        <AdjustInput value={a} onChange={v => (b ? setCell(i, k, v) : setTier(i, { adjust: v }))} label={`${leadText(t)}${b ? `, ${lengthLabel(b)}` : ''}`} />
+                        <p className="mt-1 text-[11px] text-slate-500 tabular-nums">{base} → <b className="text-slate-800">{money(exRate(base, a))}</b> a day</p>
+                      </td>
+                    );
+                  })}
+                  <td className={`${table.td} text-right`}><Button size="sm" variant="ghost" className="!text-rose-600" onClick={() => setLt(x => ({ ...x, tiers: x.tiers.filter((_, j) => j !== i) }))}>Remove</Button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <p className="px-4 py-2 border-t border-slate-100 text-[12px] text-slate-500">Any booking time not covered by a row (for example more than {sorted.length ? (sorted[sorted.length - 1].toHours ?? sorted[sorted.length - 1].fromHours) : 24} hours before pick-up) gets your normal rates, with no change.</p>
+      {gaps && <p className="px-4 py-2 border-t border-slate-100 text-[12px] text-amber-700">Some rows leave a gap or overlap; the first row that covers the booking time is used.</p>}
     </Panel>
+    </div>
   );
 };
 
 // ---------------------------------------------------------------- limits
 
-const LimitsEditor: React.FC<{ cfg: DynamicPricingConfig; groups: string[]; onSave: (c: DynamicPricingConfig, what: string, before: string, after: string) => void }> = ({ cfg, groups, onSave }) => {
-  const [l, setL] = useState({ limits: cfg.limits, weekendDays: cfg.weekendDays });
-  useEffect(() => setL({ limits: cfg.limits, weekendDays: cfg.weekendDays }), [cfg.limits, cfg.weekendDays]);
-  const text = (x: typeof l) => `${x.limits.minDaily ?? '—'}–${x.limits.maxDaily ?? '—'}${Object.entries(x.limits.groups || {}).map(([g, v]) => `; ${g} ${v.minDaily ?? '—'}–${v.maxDaily ?? '—'}`).join('')}; weekend ${x.weekendDays.map(d => WEEKDAYS[d]).join('+')}`;
-  const dirty = JSON.stringify(l) !== JSON.stringify({ limits: cfg.limits, weekendDays: cfg.weekendDays });
+const LimitsEditor: React.FC<{ base: number; cfg: DynamicPricingConfig; groups: string[]; onSave: (c: DynamicPricingConfig, what: string, before: string, after: string) => void }> = ({ base, cfg, groups, onSave }) => {
+  const [l, setL] = useState({ limits: cfg.limits });
+  useEffect(() => setL({ limits: cfg.limits }), [cfg.limits]);
+  const text = (x: typeof l) => `${x.limits.minDaily ?? '—'}–${x.limits.maxDaily ?? '—'}${Object.entries(x.limits.groups || {}).map(([g, v]) => `; ${g} ${v.minDaily ?? '—'}–${v.maxDaily ?? '—'}`).join('')}`;
+  const dirty = JSON.stringify(l.limits) !== JSON.stringify(cfg.limits);
   const setG = (g: string, p: { minDaily?: number; maxDaily?: number }) => setL(x => {
     const next = { ...(x.limits.groups || {}), [g]: { ...(x.limits.groups?.[g] || {}), ...p } };
     if (next[g].minDaily == null && next[g].maxDaily == null) delete next[g];
     return { ...x, limits: { ...x.limits, groups: next } };
   });
+  const hi = r2(base * 1.5 * 1.4), max = l.limits.maxDaily ?? r2(base * 2);
+  const lo = r2(base * 0.6), min = l.limits.minDaily ?? r2(base * 0.7);
   return (
-    <Panel title="Limits" subtitle="The daily rate never goes below the minimum or above the maximum, whatever rules apply. Amounts are in each channel's currency."
-      actions={<Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, limits: l.limits, weekendDays: l.weekendDays }, 'Daily price limits', text({ limits: cfg.limits, weekendDays: cfg.weekendDays }), text(l))}>Save</Button>}>
+    <div className="space-y-4">
+    <Explainer title="Price limits: a safety net for every rule" exampleTitle={l.limits.maxDaily != null || l.limits.minDaily != null ? 'With your limits' : 'Example limits'}
+      example={<div className="space-y-2 text-[12px]">
+        <div><p className="text-slate-500 mb-1">Eid +50% and last minute +40% would give {money(hi)}:</p><Chain steps={[{ label: 'Rules give', value: hi, tone: 'lead' }, { label: 'Maximum', value: Math.min(hi, max), note: `max ${max}`, tone: 'final' }]} /></div>
+        <div><p className="text-slate-500 mb-1">Low season −40% would give {money(lo)}:</p><Chain steps={[{ label: 'Rules give', value: lo, tone: 'season' }, { label: 'Minimum', value: Math.max(lo, min), note: `min ${min}`, tone: 'final' }]} /></div>
+      </div>}>
+      <p>Whatever the seasons, events and last-minute rules do, the daily price never goes <b>below your minimum</b> or <b>above your maximum</b>.</p>
+      <p>Set one limit for every car group, and a different one for some groups if you like (for example a higher maximum for luxury cars). Leave a box empty for no limit.</p>
+    </Explainer>
+    <Panel title="Your price limits" subtitle="Amounts are in each channel's currency. Leave a box empty for no limit."
+      actions={<Button size="sm" variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, limits: l.limits }, 'Daily price limits', text({ limits: cfg.limits }), text(l))}>Save</Button>}>
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-700">
           <span className="font-semibold">Every group:</span>
@@ -591,13 +754,9 @@ const LimitsEditor: React.FC<{ cfg: DynamicPricingConfig; groups: string[]; onSa
             </tbody>
           </table>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-700">
-          <span className="font-semibold">Weekend days</span>
-          <Chips options={WEEKDAYS.map((d, i) => [String(i), d])} value={l.weekendDays.map(String)} onChange={v => setL(x => ({ ...x, weekendDays: v.length ? v.map(Number).sort() : [5, 6] }))} allLabel="Default (Fri + Sat)" />
-          <span className="text-[12px] text-slate-400">used by availability tiers set to "Weekends"</span>
-        </div>
       </div>
     </Panel>
+    </div>
   );
 };
 
@@ -605,12 +764,19 @@ const LimitsEditor: React.FC<{ cfg: DynamicPricingConfig; groups: string[]; onSa
 
 const ChannelsEditor: React.FC<{ aggregators: Aggregator[]; published: boolean; onUpdate: (a: Aggregator, before: string, after: string) => void }> = ({ aggregators, published, onUpdate }) => {
   const MODES: [ChannelRateMode, string, string][] = [
-    ['net', 'Net rates', 'The published rates exactly as today (the pick-up day\'s period for the whole rental) plus the broker\'s own terms.'],
-    ['dynamic', 'Dynamic', 'Every published rule, day by day: seasons and events, last minute, availability and limits.'],
-    ['restricted', 'Restricted', 'Seasonal and event rules only, day by day; no last-minute or availability changes.'],
+    ['net', 'Fixed rates (as today)', 'Your published rates exactly as today, plus the broker\'s own terms. The rules here are not used.'],
+    ['dynamic', 'Smart pricing', 'Every rule you switched on, day by day: seasons and events, last minute and price limits.'],
+    ['restricted', 'Seasons only', 'Only seasons and events, day by day. No last-minute changes, so the broker sees steadier prices.'],
   ];
   const describe = (a: Aggregator) => `${MODES.find(m => m[0] === (a.pricingMode || 'net'))![1]} · ${PRICE_CHANNELS.find(c => c[0] === (a.channelType || 'broker'))![1]}`;
   return (
+    <div className="space-y-4">
+    <Explainer title="Choose how each channel is priced"
+      example={<div className="space-y-2 text-[12px]">{MODES.map(([k, l, d]) => <div key={k}><p className="font-semibold text-slate-800">{l}</p><p className="text-slate-500">{d}</p></div>)}</div>} exampleTitle="The three options">
+      <p>Every channel starts on <b>Fixed rates</b>, so nothing changes until you decide. Switch a channel to <b>Smart pricing</b> to use all your rules, or to <b>Seasons only</b> for steadier prices.</p>
+      <p>The <b>type</b> (website, app, walk-in, broker, OTA, corporate, travel agent) lets a rule apply to some channels only, for example a website-only discount.</p>
+      <p className="text-slate-500">A change is live at once for that channel's next search. Bookings already made keep their price.</p>
+    </Explainer>
     <Panel title="Channels" subtitle="How each XML channel is priced. A change here is live at once for that channel's next search; bookings already made keep their price.">
       {aggregators.length === 0 ? <EmptyState title="No channels yet" hint="Add a channel first." /> : (
         <div className="overflow-x-auto">
@@ -649,6 +815,7 @@ const ChannelsEditor: React.FC<{ aggregators: Aggregator[]; published: boolean; 
       )}
       <p className="px-4 py-3 border-t border-slate-100 text-[12px] text-slate-500">The broker always sees one net amount per offer; the customer price is the broker's own. Fixed amounts and limits in the rules are read in each channel's currency.</p>
     </Panel>
+    </div>
   );
 };
 
@@ -668,8 +835,6 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
   const [bookedAt, setBookedAt] = useState(nowLocal());
   const [which, setWhich] = useState<'draft' | 'published'>('draft');
   const [modeOverride, setModeOverride] = useState<'' | ChannelRateMode>('');
-  const [live, setLive] = useState<{ n: number; reason?: string } | null>(null);
-  const [manual, setManual] = useState<number | undefined>(undefined);
   const [extras, setExtras] = useState<string[]>([]);
   const [promo, setPromo] = useState('');
   const g = group || aggGroups[0] || groups[0] || '';
@@ -677,25 +842,12 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
   const r = ret || l;
   const mode: ChannelRateMode = modeOverride || (agg?.pricingMode && agg.pricingMode !== 'net' ? agg.pricingMode : 'dynamic');
   const cfg = which === 'draft' ? state.draft : state.published;
-  const usesAvailability = !!cfg && mode === 'dynamic' && ((cfg.availability.enabled && cfg.availability.tiers.length > 0)
-    || (cfg.leadTime.enabled && cfg.leadTime.tiers.some(t => (t.byAvailability || []).length > 0)));
 
-  // Live free-car count from the server (exactly as a broker search counts), re-read whenever the itinerary changes.
-  useEffect(() => {
-    if (!agg || !g || !pickup || !dropOff || dropOff <= pickup) { setLive(null); return; }
-    let on = true;
-    const t = setTimeout(() => {
-      fetchChannelAvailability(agg.id, g, pickup, dropOff).then(x => on && setLive({ n: x.available, reason: x.reason })).catch(() => on && setLive(null));
-    }, 300);
-    return () => { on = false; clearTimeout(t); };
-  }, [agg?.id, g, pickup, dropOff]);
-  const fleetCount = vehiclesForSipp(fleet, g).length;
-  const cars = manual ?? live?.n ?? fleetCount;
 
   const result: PriceResult | null = useMemo(() => {
     if (!agg || !cfg || !g || dropOff <= pickup) return null;
     return priceRental(cfg, {
-      group: g, location: l, channel: (agg.channelType || 'broker') as PriceChannelType, pickup, dropOff, now: bookedAt, availableCars: cars, mode,
+      group: g, location: l, channel: (agg.channelType || 'broker') as PriceChannelType, pickup, dropOff, now: bookedAt, mode,
       graceMinutes: agg.bookingRules?.graceMinutes,
       baseDaily: (date, n) => {
         const plan = findPlanForDate(plans, date) || findPlanForDate(plans, pickup.slice(0, 10));
@@ -704,7 +856,7 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
         return tier?.dailyPrice ? Number(tier.dailyPrice) : null;
       },
     });
-  }, [agg, cfg, g, l, pickup, dropOff, bookedAt, cars, mode, plans]);
+  }, [agg, cfg, g, l, pickup, dropOff, bookedAt, mode, plans]);
 
   const cur = agg?.currency || 'USD';
   const br = agg?.bookingRules || {};
@@ -743,7 +895,11 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
   if (!agg) return <Panel><EmptyState title="No channels yet" hint="Add a channel and publish its rates to preview prices." /></Panel>;
   return (
     <div className="space-y-4">
-      <Panel title="Preview & test" subtitle="Prices any itinerary with the draft (or the published rules), day by day, before anything is published. Changing any field recalculates at once.">
+      <Explainer title="Try any booking before you publish">
+        <p>Pick a channel, a car group and the dates. The price is worked out day by day, exactly as a broker will see it, and updates as soon as you change anything.</p>
+        <p className="text-slate-500">Use <b>Draft</b> to test changes you have not published yet.</p>
+      </Explainer>
+      <Panel title="Try a price" subtitle="Day by day, with the rule that changed each day.">
         <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Field label="Channel"><select value={agg.id} onChange={e => { setAggId(e.target.value); setGroup(''); setLoc(''); setRet(''); }} className={`${selectCls} w-full`}>{aggregators.map(a => <option key={a.id} value={a.id}>{a.name} ({a.channelCode})</option>)}</select></Field>
           <Field label="Car group"><select value={g} onChange={e => setGroup(e.target.value)} className={`${selectCls} w-full font-mono`}>{(aggGroups.length ? aggGroups : groups).map(x => <option key={x}>{x}</option>)}</select></Field>
@@ -752,13 +908,6 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
           <Field label="Pick-up"><input type="datetime-local" value={pickup} onChange={e => setPickup(e.target.value)} className={inputCls} /></Field>
           <Field label="Return"><input type="datetime-local" value={dropOff} onChange={e => setDropOff(e.target.value)} className={inputCls} /></Field>
           <Field label="Booked at" hint="for the last-minute rule"><input type="datetime-local" value={bookedAt} onChange={e => setBookedAt(e.target.value)} className={inputCls} /></Field>
-          <Field label="Cars free" hint={usesAvailability ? 'optional: leave empty to use the live count, or type a number to test' : 'optional: only used when an availability rule is on'}>
-            <div className="flex items-center gap-2">
-              <input type="number" min={0} value={manual ?? ''} placeholder={live ? `${live.n} free now` : `${fleetCount} in the group`} aria-label="Cars free"
-                onChange={e => setManual(e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)))} className={`${inputCls} tabular-nums`} />
-              {manual != null && <Button size="sm" variant="ghost" onClick={() => setManual(undefined)}>Clear</Button>}
-            </div>
-          </Field>
           <Field label="Rules"><select value={which} onChange={e => setWhich(e.target.value as 'draft' | 'published')} className={`${selectCls} w-full`}><option value="draft">Draft (not yet published)</option><option value="published" disabled={!state.published}>Published v{state.version}</option></select></Field>
           <Field label="Rate mode"><select value={modeOverride} onChange={e => setModeOverride(e.target.value as '' | ChannelRateMode)} className={`${selectCls} w-full`}>
             <option value="">{agg.pricingMode && agg.pricingMode !== 'net' ? `As the channel (${agg.pricingMode})` : 'Dynamic (channel is on net rates)'}</option>
@@ -774,10 +923,10 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
 
       {!cfg ? <Panel><EmptyState title="Nothing published yet" hint="Choose the draft, or publish the rules first." /></Panel>
         : !result ? <Panel><EmptyState title="Check the dates" hint="The return must be after the pick-up." /></Panel>
-        : !result.bookable ? <Panel><div className="p-4 flex items-center gap-3"><Badge tone="danger">Not offered</Badge><p className="text-[13px] text-slate-700">{result.reason}{live?.reason ? ` (${live.reason})` : ''}</p></div></Panel>
+        : !result.bookable ? <Panel><div className="p-4 flex items-center gap-3"><Badge tone="danger">Not offered</Badge><p className="text-[13px] text-slate-700">{result.reason}</p></div></Panel>
         : (
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <Panel title="Day by day" subtitle={`${result.days} rental day${result.days === 1 ? '' : 's'} (rate band ${bandText}) · ${result.leadHours.toFixed(0)} h between booking and pick-up${usesAvailability ? ` · ${cars} car${cars === 1 ? '' : 's'} free` : ''} · ${mode} mode`}>
+            <Panel title="Day by day" subtitle={`${result.days} rental day${result.days === 1 ? '' : 's'} (rate band ${bandText}) · ${result.leadHours.toFixed(0)} h between booking and pick-up · ${mode} mode`}>
               <div className="overflow-x-auto">
                 <table className={`${table.wrap} min-w-[640px]`}>
                   <thead className={table.head}><tr>{['Day', 'Base', 'Rules applied', 'Rate'].map(h => <th key={h} className={`${table.th} ${h === 'Base' || h === 'Rate' ? 'text-right' : ''}`}>{h}</th>)}</tr></thead>
@@ -790,7 +939,7 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
                           {d.steps.length === 0 ? <span className="text-slate-400">Base rate</span> : (
                             <ol className="space-y-0.5">{d.steps.map((s, i) => (
                               <li key={i} className="flex flex-wrap items-center gap-1.5">
-                                <span className={`px-1.5 rounded text-[10px] font-semibold uppercase ${s.stage === 'season' ? 'bg-violet-50 text-violet-700' : s.stage === 'lead' ? 'bg-sky-50 text-sky-700' : s.stage === 'availability' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{s.stage === 'lead' ? 'last minute' : s.stage}</span>
+                                <span className={`px-1.5 rounded text-[10px] font-semibold uppercase ${s.stage === 'season' ? 'bg-violet-50 text-violet-700' : s.stage === 'lead' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'}`}>{s.stage === 'lead' ? 'last minute' : s.stage}</span>
                                 <span className="text-slate-700">{s.label}</span>
                                 <span className="text-slate-400 tabular-nums">{money(s.from)} → {money(s.to)}</span>
                               </li>))}</ol>
@@ -828,7 +977,7 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
                       ? br.cancellationTiers!.map(t => `<${t.hoursBefore} h: ${t.feePercent}%`).join(', ')
                       : `Free until ${br.freeCancellationHours ?? 48} h before, then ${br.lateCancellationFeePercent ?? 100}%`}</dd></div>
                   </dl>
-                  <p className="text-[11px] text-slate-400">The broker's own terms (Price rules tab) are applied by the server on top of this net rental. The server recounts free cars on every search.</p>
+                  <p className="text-[11px] text-slate-400">The broker's own terms (Price rules tab) are applied by the server on top of this net rental.</p>
                 </div>
               )}
             </Panel>
@@ -865,4 +1014,3 @@ const HistoryPanel: React.FC<{ state: DynamicPricingState }> = ({ state }) => (
 );
 
 export default RateRulesView;
-export type { AvailabilityBand };
