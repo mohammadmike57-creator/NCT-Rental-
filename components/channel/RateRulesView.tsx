@@ -7,6 +7,7 @@ import {
   LeadTier, PRICE_CHANNELS, PriceAdjust, PriceChannelType, PriceResult, SEASON_KINDS, SeasonKind, SeasonRule,
   applyAdjust, describeAdjust, emptyPricingState, priceRental, rentalDayCount, summarise,
 } from '../../services/dynamicPricing';
+import { Icons, Popover, Seg, Stepper, Toggle, signed, toneOf, toneText } from './pricingKit';
 import { findPlanForDate, findTier, fleetSippCodes, tierLabel, vehiclesForSipp } from '../../services/channelManager';
 
 /**
@@ -603,53 +604,98 @@ const windowShort = (t: { fromHours: number; toHours: number | null }) => {
   return `${t.fromHours}–${t.toHours} hours`;
 };
 
-/** Compact cell: [− | +] value [% | per day | fixed]  →  preview. */
+/** Edits one cell: direction, unit, amount, with the result on the base rate. */
 type Unit = 'none' | 'pct' | 'amt' | 'fixed';
 const unitOf = (a: PriceAdjust): Unit => (a.type === 'percent' ? 'pct' : a.type === 'amount' ? 'amt' : a.type === 'fixed' ? 'fixed' : 'none');
 const makeAdjust = (u: Unit, sign: 1 | -1, n: number): PriceAdjust => {
   const v = Math.abs(Number.isFinite(n) ? n : 0);
   return u === 'none' ? { type: 'none', value: 0 } : u === 'fixed' ? { type: 'fixed', value: v } : { type: u === 'pct' ? 'percent' : 'amount', value: sign * v };
 };
+const adjustShort = (a: PriceAdjust) => (a.type === 'percent' ? signed(a.value) : a.type === 'amount' ? `${signed(a.value, '')}/day`.replace(' /', '/') : a.type === 'fixed' ? `= ${money(a.value)}` : 'Normal');
 
-const CellEditor: React.FC<{ value: PriceAdjust; onChange: (a: PriceAdjust) => void; base: number; label: string }> = ({ value, onChange, base, label }) => {
+const CellEditor: React.FC<{ value: PriceAdjust; onChange: (a: PriceAdjust) => void; base: number; label: string; onRow?: () => void; onClose: () => void }> = ({ value, onChange, base, label, onRow, onClose }) => {
   const u = unitOf(value);
-  const sign: 1 | -1 = value.value < 0 ? -1 : 1;
+  const dir: 'up' | 'down' | 'none' = u === 'none' ? 'none' : u === 'fixed' ? (value.value >= base ? 'up' : 'down') : value.value < 0 ? 'down' : 'up';
   const n = Math.abs(value.value || 0);
-  const result = exRate(base, value);
-  const diff = r2(result - base);
+  const result = exRate(base, value), diff = r2(result - base);
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className={`inline-flex items-stretch h-8 rounded-md border bg-white overflow-hidden ${u === 'none' ? 'border-slate-200' : diff > 0 ? 'border-amber-300' : diff < 0 ? 'border-emerald-300' : 'border-slate-300'}`}>
-        {(u === 'pct' || u === 'amt') && (
-          <span className="inline-flex border-r border-slate-200">
-            {([-1, 1] as const).map(sg => (
-              <button key={sg} type="button" aria-pressed={sign === sg} aria-label={`${label}: ${sg > 0 ? 'increase' : 'decrease'}`} onClick={() => onChange(makeAdjust(u, sg, n))}
-                className={`w-7 text-[14px] font-semibold ${sign === sg ? (sg > 0 ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white') : 'text-slate-400 hover:bg-slate-50'}`}>{sg > 0 ? '+' : '−'}</button>
-            ))}
-          </span>
-        )}
-        {u !== 'none' && (
-          <input type="number" min={0} step={u === 'pct' ? 1 : 0.5} value={n === 0 ? '' : n} placeholder="0" aria-label={`${label}: value`}
-            onChange={e => onChange(makeAdjust(u, sign, Number(e.target.value)))} className="w-16 px-2 text-right text-[13px] font-semibold tabular-nums outline-none" />
-        )}
-        <select value={u} aria-label={`${label}: unit`} onChange={e => { const nu = e.target.value as Unit; onChange(makeAdjust(nu, sign, n || (nu === 'fixed' ? base : nu === 'none' ? 0 : 10))); }}
-          className={`text-[12px] pl-2 pr-1 outline-none bg-slate-50 border-l border-slate-200 ${u === 'none' ? 'w-[104px] text-slate-500 border-l-0 bg-white' : 'w-[84px] text-slate-700'}`}>
-          <option value="none">No change</option>
-          <option value="pct">%</option>
-          <option value="amt">per day</option>
-          <option value="fixed">fixed rate</option>
-        </select>
+    <Popover onClose={onClose} className="w-[320px]">
+      <div className="px-4 pt-3.5 pb-3 border-b border-slate-100">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Edit price</p>
+        <p className="text-[13px] font-semibold text-slate-900">{label}</p>
       </div>
-      <span className={`text-[11px] font-mono tabular-nums ${diff > 0 ? 'text-amber-700' : diff < 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
-        {money(base)} → {money(result)}{diff ? ` (${diff > 0 ? '+' : '−'}${money(Math.abs(diff))})` : ''}
-      </span>
+      <div className="px-4 py-3.5 space-y-3">
+        <div>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Rate</p>
+          <Seg label={`${label}: direction`} value={u === 'fixed' ? 'fixed' : dir} onChange={d => {
+            if (d === 'none') onChange(makeAdjust('none', 1, 0));
+            else if (d === 'fixed') onChange(makeAdjust('fixed', 1, u === 'fixed' ? n : base));
+            else onChange(makeAdjust(u === 'none' || u === 'fixed' ? 'pct' : u, d === 'up' ? 1 : -1, u === 'none' || u === 'fixed' ? 10 : n || 10));
+          }} options={[['up', 'Increase'], ['down', 'Decrease'], ['fixed', 'Fixed'], ['none', 'Normal']]} size="sm" />
+        </div>
+        {u !== 'none' && (
+          <div className="flex items-end gap-3">
+            {u !== 'fixed' && (
+              <div><p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">By</p>
+                <Seg label={`${label}: unit`} value={u} size="sm" onChange={nu => onChange(makeAdjust(nu, dir === 'down' ? -1 : 1, n))} options={[['pct', '%'], ['amt', 'Amount']]} /></div>
+            )}
+            <div><p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{u === 'fixed' ? 'Daily rate' : 'Value'}</p>
+              <Stepper size="sm" label={`${label}: value`} unit={u === 'pct' ? '%' : u === 'amt' ? '/day' : ''} min={0} max={u === 'pct' ? (dir === 'down' ? 90 : 500) : 100000} step={u === 'pct' ? 1 : 0.5}
+                signedTone={false} value={n || undefined} onChange={v => onChange(makeAdjust(u, dir === 'down' ? -1 : 1, v || 0))} /></div>
+          </div>
+        )}
+        <div className="flex items-center justify-between rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 px-3 py-2.5">
+          <span className="text-[12px] text-slate-500 tabular-nums">{money(base)} <span className="text-slate-300">→</span></span>
+          <span className="flex items-center gap-2"><span className="text-[17px] font-bold tabular-nums text-slate-900">{money(result)}</span>
+            {diff !== 0 && <span className={`text-[12px] font-semibold tabular-nums ${toneText[toneOf(diff)]}`}>{diff > 0 ? '+' : '−'}{money(Math.abs(diff))}</span>}</span>
+        </div>
+      </div>
+      <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-xl">
+        {onRow ? <button type="button" onClick={onRow} className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800">Copy to the whole row</button> : <span />}
+        <Button size="sm" variant="primary" onClick={onClose}>Done</Button>
+      </div>
+    </Popover>
+  );
+};
+
+/** The booking windows on a time axis: pick-up on the left. */
+const BookingCurve: React.FC<{ tiers: LeadTier[]; pick: (t: LeadTier) => PriceAdjust; base: number; enabled: boolean }> = ({ tiers, pick, base, enabled }) => {
+  const sorted = [...tiers].sort((a, b) => a.fromHours - b.fromHours);
+  const finite = sorted.flatMap(t => [t.fromHours, t.toHours ?? t.fromHours]);
+  const maxH = Math.max(72, ...finite) * 1.6;
+  const x = (h: number | null) => (h == null ? 100 : Math.min(100, (Math.log1p(h) / Math.log1p(maxH)) * 100));
+  const ticks = Array.from(new Set([0, ...finite])).sort((a, b) => a - b);
+  return (
+    <div className={enabled ? '' : 'opacity-50 grayscale'}>
+      <div className="relative h-14 rounded-lg bg-[repeating-linear-gradient(135deg,#f8fafc_0,#f8fafc_6px,#f1f5f9_6px,#f1f5f9_7px)] ring-1 ring-inset ring-slate-200 overflow-hidden">
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11.5px] font-medium text-slate-400">Normal rate</span>
+        {sorted.map(t => {
+          const a = pick(t), r = exRate(base, a), d = r2(r - base), tone = toneOf(d);
+          const l = x(t.fromHours), w = x(t.toHours) - l;
+          return (
+            <div key={t.id} className={`absolute inset-y-1.5 rounded-md px-2.5 flex flex-col justify-center overflow-hidden ring-1 ring-inset ${tone === 'up' ? 'bg-amber-100 ring-amber-300 text-amber-900' : tone === 'down' ? 'bg-emerald-100 ring-emerald-300 text-emerald-900' : 'bg-white ring-slate-200 text-slate-500'}`}
+              style={{ left: `calc(${l}% + 2px)`, width: `calc(${w}% - 4px)` }} title={`${windowShort(t)}: ${adjustShort(a)}`}>
+              <span className="text-[11.5px] font-semibold truncate">{windowShort(t)}</span>
+              <span className="text-[11px] tabular-nums truncate opacity-80">{adjustShort(a)} · {money(r)}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="relative h-5 mt-1">
+        {ticks.map(h => <span key={h} className="absolute -translate-x-1/2 text-[10.5px] font-mono text-slate-400 whitespace-nowrap first:translate-x-0" style={{ left: `${x(h)}%` }}>{h === 0 ? 'pick-up' : inDays(h) ? `${h / 24}d` : `${h}h`}</span>)}
+        <span className="absolute right-0 text-[10.5px] font-mono text-slate-400">earlier bookings →</span>
+      </div>
     </div>
   );
 };
 
 const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg: DynamicPricingConfig; rateBands: LengthBand[]; onSave: (c: DynamicPricingConfig, what: string) => void }> = ({ base, setBase, cfg, rateBands, onSave }) => {
   const [lt, setLt] = useState(cfg.leadTime);
+  const [edit, setEdit] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   useEffect(() => setLt(cfg.leadTime), [cfg.leadTime]);
+  const closeEdit = useCallback(() => setEdit(null), []);
+  const closeAdd = useCallback(() => setAdding(false), []);
   const dirty = JSON.stringify(lt) !== JSON.stringify(cfg.leadTime);
   const bands = lt.lengthBands || [];
   const byLength = bands.length > 0;
@@ -669,122 +715,171 @@ const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg
   const overlaps = sorted.some((t, i) => i > 0 && sorted[i - 1].toHours != null && sorted[i - 1].toHours! > t.fromHours);
   const cellOf = (t: LeadTier, k: number) => t.byLength?.[k] || t.adjust;
   const cols = byLength ? bands : [null];
-  const rateText = rateBands.length ? rateBands.map(lengthLabel).join(', ') : '';
-  const mono = (t: { fromHours: number; toHours: number | null }) => `${t.fromHours} – ${t.toHours == null ? '∞' : t.toHours} h`;
+  const bandsChanged = byLength && rateBands.length > 0 && JSON.stringify(bands) !== JSON.stringify(rateBands);
+  const lastEnd = sorted.length ? (sorted[sorted.length - 1].toHours ?? sorted[sorted.length - 1].fromHours) : 0;
+  const save = () => onSave({ ...cfg, leadTime: lt }, `${lt.tiers.length} window(s)${byLength ? ` × ${bands.length} rental length(s)` : ''}`);
+  const channelText = lt.channels.length ? lt.channels.map(c => PRICE_CHANNELS.find(p => p[0] === c)?.[1] || c).join(', ') : 'All channel types';
+
   return (
-    <div className="space-y-4">
-      {/* Header, like Rates → Rate periods */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[15px] font-semibold text-slate-900">Last-minute pricing</h3>
-          <p className="text-[13px] text-slate-500">Raise or lower your published rate by how long before pick-up the customer books, optionally per rate band.</p>
-        </div>
-        <span className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-slate-200 bg-white text-[13px] font-medium text-slate-700">
-          <Switch on={lt.enabled} onChange={b => setLt(x => ({ ...x, enabled: b }))} label="Last-minute pricing" />{lt.enabled ? 'On' : 'Off'}
-        </span>
-        <select value="" aria-label="Add booking window" onChange={e => {
-          const v = e.target.value; if (!v) return;
-          if (v === 'custom') addWindow({ fromHours: sorted.length ? (sorted[sorted.length - 1].toHours ?? sorted[sorted.length - 1].fromHours) : 0, toHours: null });
-          else { const w = WINDOW_PRESETS[Number(v)]; addWindow(w); }
-        }} className={`${selectCls} h-9 font-medium`}>
-          <option value="">＋ Add window</option>
-          {WINDOW_PRESETS.map((w, k) => <option key={w.label} value={k} disabled={has(w)}>{w.label}{has(w) ? ' (added)' : ''}</option>)}
-          <option value="custom">Custom window…</option>
-        </select>
-        <Button variant="primary" disabled={!dirty} onClick={() => onSave({ ...cfg, leadTime: lt }, `${lt.tiers.length} window(s)${byLength ? ` × ${bands.length} rental length(s)` : ''}`)}>Save</Button>
-      </div>
-
-      {/* Status line, like "Rates in sync with last publish" */}
-      <div className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
-        {lt.enabled
-          ? <Badge tone="success">On · {lt.tiers.length} window{lt.tiers.length === 1 ? '' : 's'}{byLength ? ` × ${bands.length} rental lengths` : ''}</Badge>
-          : <Badge tone="muted">Off · brokers get your normal rates</Badge>}
-        {dirty && <Badge tone="warning">Unsaved changes</Badge>}
-        <span className="text-slate-500">Works on your existing rates, periods and bands: it never creates a new period. Bookings outside these windows keep your normal rates.</span>
-      </div>
-
-      {/* The grid, like Rates → Price grid */}
-      <section className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
-          <span className="text-[13px] text-slate-500">Rental length</span>
-          <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200">
-            {([[false, 'Same for all'], [true, 'By rate band']] as const).map(([v, l]) => (
-              <button key={String(v)} type="button" aria-pressed={byLength === v} onClick={() => useBands(v ? (bands.length ? bands : (rateBands.length ? rateBands : DEFAULT_BANDS)) : [])}
-                className={`h-7 px-3 rounded-md text-[13px] font-medium ${byLength === v ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{l}</button>
-            ))}
+    <div className="space-y-5">
+      {/* Command bar */}
+      <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+          <span className="grid place-items-center w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-100 [&>svg]:w-5 [&>svg]:h-5"><Icons.bolt /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-600">Rate rules</p>
+            <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-slate-900">Last-minute pricing</h2>
+            <p className="text-[12.5px] text-slate-500">Raise or lower your published rate by how close to pick-up the customer books. Uses your existing periods and rate bands; never creates a new period.</p>
           </div>
-          {byLength && <span className="text-[12px] text-slate-500">Columns are your rate bands from the Rates tab{rateText ? ` (${rateText})` : ''}.</span>}
-          {byLength && rateBands.length > 0 && JSON.stringify(bands) !== JSON.stringify(rateBands) && (
-            <button type="button" onClick={() => useBands(rateBands)} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-amber-50 border border-amber-200 text-[12px] font-medium text-amber-800">Your rate bands changed · Update columns</button>
-          )}
-          <span className="ml-auto inline-flex items-center gap-2 text-[12px] text-slate-500">Preview on a base rate of
-            <input type="number" min={1} value={base} onChange={e => setBase(Math.max(1, Number(e.target.value) || 1))} aria-label="Preview base rate"
-              className="w-16 h-7 px-2 rounded-md border border-slate-200 text-right text-[12px] font-mono tabular-nums" /> / day</span>
+          <dl className="flex items-stretch divide-x divide-slate-200 text-[12px]">
+            <div className="pr-5"><dt className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Status</dt>
+              <dd className="mt-1 flex items-center gap-2 font-semibold text-slate-900"><Toggle on={lt.enabled} onChange={b => setLt(x => ({ ...x, enabled: b }))} label="Last-minute pricing" />{lt.enabled ? 'On' : 'Off'}</dd></div>
+            <div className="px-5"><dt className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Grid</dt>
+              <dd className="mt-1 font-semibold text-slate-900 tabular-nums">{lt.tiers.length} window{lt.tiers.length === 1 ? '' : 's'} × {byLength ? bands.length : 1} band{byLength && bands.length !== 1 ? 's' : ''}</dd></div>
+            <div className="pl-5"><dt className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Changes</dt>
+              <dd className="mt-1">{dirty
+                ? <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Not saved</span>
+                : <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Saved to draft</span>}</dd></div>
+          </dl>
+          <div className="flex items-center gap-2">
+            {dirty && <Button variant="ghost" size="sm" onClick={() => setLt(cfg.leadTime)}>Discard</Button>}
+            <Button variant="primary" size="sm" disabled={!dirty} onClick={save}>Save to draft</Button>
+          </div>
         </div>
+        {!lt.enabled && <div className="px-5 py-2 border-t border-slate-100 bg-slate-50/70 text-[12px] text-slate-500">Off: every booking gets your normal rates. Your grid is kept; switch it on to use it.</div>}
+      </section>
+
+      {/* Booking curve */}
+      {lt.tiers.length > 0 && (
+        <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] px-5 py-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <div><h3 className="text-[13.5px] font-semibold text-slate-900">Booking curve</h3>
+              <p className="text-[12px] text-slate-500">Time between booking and pick-up{byLength ? `, shown for the ${lengthLabel(bands[0])} band` : ''}, on a base rate of {money(base)}.</p></div>
+            <span className="flex items-center gap-3 text-[11px] text-slate-500"><span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-200 ring-1 ring-amber-300" />Higher</span>
+              <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-200 ring-1 ring-emerald-300" />Lower</span></span>
+          </div>
+          <BookingCurve tiers={lt.tiers} base={base} enabled={lt.enabled} pick={t => (byLength ? cellOf(t, 0) : t.adjust)} />
+        </section>
+      )}
+
+      {/* Price matrix */}
+      <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-x-5 gap-y-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Rental length</span>
+            <Seg label="Rental length" size="sm" value={byLength ? 'bands' : 'all'} onChange={v => useBands(v === 'bands' ? (bands.length ? bands : (rateBands.length ? rateBands : DEFAULT_BANDS)) : [])}
+              options={[['all', 'Same for all'], ['bands', 'By rate band']]} />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Preview base</span>
+            <Stepper size="sm" label="Preview base rate" unit="/day" min={1} max={100000} step={1} signedTone={false} width="w-12" value={base} onChange={v => setBase(Math.max(1, v || 1))} />
+          </div>
+          <div className="relative ml-auto">
+            <Button size="sm" icon={<span className="[&>svg]:w-3.5 [&>svg]:h-3.5"><Icons.plus /></span>} onClick={() => setAdding(a => !a)}>Add booking window</Button>
+            {adding && (
+              <Popover onClose={closeAdd} className="w-[260px] p-1.5">
+                <p className="px-2.5 pt-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">Booked before pick-up</p>
+                {WINDOW_PRESETS.map(w => (
+                  <button key={w.label} type="button" disabled={has(w)} onClick={() => { addWindow(w); setAdding(false); }}
+                    className="w-full flex items-center justify-between px-2.5 h-9 rounded-lg text-[13px] text-slate-700 hover:bg-slate-50 disabled:text-slate-300 disabled:hover:bg-transparent">
+                    {w.label}<span className="text-[11px] font-mono text-slate-400">{has(w) ? 'added' : `${w.fromHours}–${w.toHours ?? '∞'} h`}</span>
+                  </button>
+                ))}
+                <div className="my-1 h-px bg-slate-100" />
+                <button type="button" onClick={() => { addWindow({ fromHours: lastEnd, toHours: null }); setAdding(false); }}
+                  className="w-full flex items-center px-2.5 h-9 rounded-lg text-[13px] font-medium text-indigo-600 hover:bg-indigo-50">Custom window…</button>
+              </Popover>
+            )}
+          </div>
+        </div>
+        {bandsChanged && (
+          <div className="px-5 py-2 border-b border-amber-200 bg-amber-50 flex items-center justify-between gap-3 text-[12px] text-amber-900">
+            Your rate bands on the Rates tab changed ({rateBands.map(lengthLabel).join(', ')}).
+            <button type="button" onClick={() => useBands(rateBands)} className="font-semibold underline underline-offset-2">Update columns</button>
+          </div>
+        )}
 
         {lt.tiers.length === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <p className="text-[14px] font-semibold text-slate-800">No booking windows yet</p>
-            <p className="text-[13px] text-slate-500 mt-1">Use <b>＋ Add window</b> above, for example “Less than 24 hours”.</p>
+          <div className="px-5 py-14 text-center">
+            <span className="mx-auto grid place-items-center w-11 h-11 rounded-full bg-slate-100 text-slate-400 [&>svg]:w-5 [&>svg]:h-5"><Icons.clock /></span>
+            <p className="mt-3 text-[14px] font-semibold text-slate-800">No booking windows yet</p>
+            <p className="text-[13px] text-slate-500 mt-1">Start with a common window. You can change the hours and prices after.</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {WINDOW_PRESETS.slice(0, 3).map(w => <Button key={w.label} size="sm" onClick={() => addWindow(w)}>＋ {w.label}</Button>)}
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+          <div className="overflow-x-auto lg:overflow-visible">
+            <table className="w-full text-[13px] border-separate border-spacing-0">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70">
-                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Booked before pick-up</th>
+                <tr>
+                  <th className="sticky left-0 z-[1] bg-slate-50 text-left px-5 py-2.5 border-b border-slate-200 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 min-w-[230px]">Booked before pick-up</th>
                   {cols.map((b, k) => (
-                    <th key={k} className="text-right px-4 py-2 align-bottom">
-                      {b ? (
-                        <span className="inline-flex flex-col items-end">
-                          <span className="text-[13px] font-semibold text-slate-900">{lengthLabel(b)}</span>
-                          <span className="text-[11px] font-mono text-slate-400">rate band</span>
-                        </span>
-                      ) : <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Every rental length</span>}
+                    <th key={k} className="bg-slate-50 px-3 py-2.5 border-b border-l border-slate-200 text-center min-w-[150px]">
+                      {b ? <><p className="text-[13px] font-semibold text-slate-900">{lengthLabel(b)}</p><p className="text-[10.5px] font-medium text-slate-400">rate band</p></>
+                        : <p className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">Every rental length</p>}
                     </th>
                   ))}
-                  <th className="w-10" />
+                  <th className="bg-slate-50 border-b border-slate-200 w-12" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {lt.tiers.map((t, i) => (
-                  <tr key={t.id} className="group align-top hover:bg-slate-50/60">
-                    <td className="px-4 py-3">
-                      <p className="text-[14px] font-semibold text-slate-900">{windowShort(t)}</p>
-                      <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-mono text-slate-400">
-                        <input type="number" min={0} value={t.fromHours} onChange={e => setTier(i, { fromHours: Math.max(0, Number(e.target.value) || 0) })} aria-label="From hours" className="w-12 h-5 px-1 rounded border border-transparent group-hover:border-slate-200 text-right bg-transparent" />–
-                        <input type="number" min={0} value={t.toHours ?? ''} placeholder="∞" onChange={e => setTier(i, { toHours: e.target.value === '' ? null : Number(e.target.value) })} aria-label="To hours" className="w-12 h-5 px-1 rounded border border-transparent group-hover:border-slate-200 text-right bg-transparent" /> h before pick-up
-                      </p>
+                  <tr key={t.id} className="group">
+                    <td className="sticky left-0 z-[1] bg-white group-hover:bg-slate-50/60 px-5 py-3 border-b border-slate-100">
+                      <p className="text-[13.5px] font-semibold text-slate-900">{windowShort(t)}</p>
+                      <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200 px-1.5 h-6 text-[11px] font-mono text-slate-500">
+                        <input type="number" min={0} value={t.fromHours} onChange={e => setTier(i, { fromHours: Math.max(0, Number(e.target.value) || 0) })} aria-label="From hours" className="w-9 bg-transparent text-right outline-none focus:text-slate-900" />
+                        <span>–</span>
+                        <input type="number" min={0} value={t.toHours ?? ''} placeholder="∞" onChange={e => setTier(i, { toHours: e.target.value === '' ? null : Number(e.target.value) })} aria-label="To hours" className="w-9 bg-transparent text-right outline-none focus:text-slate-900" />
+                        <span>h</span>
+                      </div>
                     </td>
-                    {cols.map((b, k) => (
-                      <td key={k} className="px-4 py-3 text-right">
-                        <CellEditor base={base} value={b ? cellOf(t, k) : t.adjust} label={`${windowShort(t)}${b ? `, ${lengthLabel(b)}` : ''}`}
-                          onChange={v => (b ? setCell(i, k, v) : setTier(i, { adjust: v }))} />
-                      </td>
-                    ))}
-                    <td className="px-2 py-3 text-right">
+                    {cols.map((b, k) => {
+                      const a = b ? cellOf(t, k) : t.adjust, r = exRate(base, a), d = r2(r - base), tone = toneOf(d);
+                      const key = `${i}:${k}`, label = `${windowShort(t)}${b ? ` · ${lengthLabel(b)}` : ''}`;
+                      return (
+                        <td key={k} className="relative px-2 py-2 border-b border-l border-slate-100 group-hover:bg-slate-50/60">
+                          <button type="button" onClick={() => setEdit(edit === key ? null : key)} aria-label={`Edit ${label}`} aria-expanded={edit === key}
+                            className={`w-full rounded-lg px-3 py-2 text-center ring-1 ring-inset transition-all hover:shadow-sm ${edit === key ? 'ring-2 ring-indigo-500' : ''} ${tone === 'up' ? 'bg-amber-50 ring-amber-200 hover:ring-amber-300' : tone === 'down' ? 'bg-emerald-50 ring-emerald-200 hover:ring-emerald-300' : 'bg-white ring-slate-200 hover:ring-slate-300'}`}>
+                            <p className={`text-[15px] font-bold tabular-nums ${a.type === 'none' ? 'text-slate-400' : 'text-slate-900'}`}>{money(r)}</p>
+                            <p className={`text-[11px] font-semibold tabular-nums ${toneText[tone]}`}>{a.type === 'none' ? 'Normal rate' : `${adjustShort(a)}${a.type !== 'percent' && d ? '' : ''}`}{d !== 0 && a.type !== 'percent' ? ` (${d > 0 ? '+' : '−'}${money(Math.abs(d))})` : ''}</p>
+                          </button>
+                          {edit === key && (
+                            <CellEditor base={base} value={a} label={label} onClose={closeEdit}
+                              onChange={v => (b ? setCell(i, k, v) : setTier(i, { adjust: v }))}
+                              onRow={b && bands.length > 1 ? () => setLt(x => ({ ...x, tiers: x.tiers.map((tt, j) => (j === i ? { ...tt, byLength: bands.map(() => a) } : tt)) })) : undefined} />
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="px-2 py-2 border-b border-slate-100 text-center group-hover:bg-slate-50/60">
                       <button type="button" onClick={() => setLt(x => ({ ...x, tiers: x.tiers.filter((_, j) => j !== i) }))} title="Remove window" aria-label={`Remove ${windowShort(t)}`}
-                        className="w-7 h-7 rounded-md text-slate-300 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 focus:opacity-100">✕</button>
+                        className="grid place-items-center w-8 h-8 mx-auto rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 [&>svg]:w-4 [&>svg]:h-4"><Icons.x /></button>
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-slate-50/70">
-                  <td className="px-4 py-3"><p className="text-[13px] font-semibold text-slate-600">Any other time</p><p className="text-[11px] font-mono text-slate-400">{sorted.length ? `outside ${sorted.map(mono).join(', ')}` : ''}</p></td>
-                  {cols.map((_, k) => <td key={k} className="px-4 py-3 text-right"><span className="text-[13px] font-semibold text-slate-500">Normal rate</span><p className="text-[11px] font-mono text-slate-400">{money(base)} / day</p></td>)}
-                  <td />
+                <tr>
+                  <td className="sticky left-0 z-[1] bg-slate-50/80 px-5 py-3">
+                    <p className="text-[13px] font-semibold text-slate-600">Any other time</p>
+                    <p className="text-[11px] text-slate-400">Outside the windows above</p>
+                  </td>
+                  {cols.map((_, k) => (
+                    <td key={k} className="bg-slate-50/80 px-3 py-3 border-l border-slate-100 text-center">
+                      <p className="text-[14px] font-semibold tabular-nums text-slate-500">{money(base)}</p><p className="text-[11px] text-slate-400">Normal rate</p>
+                    </td>
+                  ))}
+                  <td className="bg-slate-50/80" />
                 </tr>
               </tbody>
             </table>
           </div>
         )}
-        {overlaps && <p className="px-4 py-2 border-t border-slate-100 text-[12px] text-amber-700">Two windows overlap. The window that starts first is used for the overlapping hours.</p>}
-        <div className="px-4 py-2.5 border-t border-slate-100 flex flex-wrap items-center gap-3 bg-slate-50/40">
-          <span className="text-[12px] text-slate-500">Applies to</span>
+        {overlaps && <p className="px-5 py-2 border-t border-amber-200 bg-amber-50 text-[12px] text-amber-900">Two windows overlap. The window that starts first is used for the overlapping hours.</p>}
+        <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-b-xl bg-slate-50/40">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Applies to</span>
           <Chips options={PRICE_CHANNELS} value={lt.channels} onChange={v => setLt(x => ({ ...x, channels: v as PriceChannelType[] }))} allLabel="All channel types" />
-          <span className="ml-auto text-[11px] text-slate-400"><span className="text-amber-600 font-semibold">+</span> raises the rate · <span className="text-emerald-600 font-semibold">−</span> lowers it</span>
+          <span className="ml-auto text-[11.5px] text-slate-400">Click a price to change it · {channelText}</span>
         </div>
       </section>
     </div>

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Aggregator, ChannelCommercialTerms, ChannelWeekday, Fleet } from '../../types';
-import { Panel, Badge, Button, Dialog, EmptyState, table, inputCls, selectCls } from '../ui/Crm';
+import { Badge, Button, Dialog, EmptyState, inputCls, selectCls } from '../ui/Crm';
+import { BuildStep, BuildUp, Delta, Icons, RuleCard, Seg, StateChip, Stepper, Toggle, money2, signed, toneOf, toneText } from './pricingKit';
 import { WEEKDAYS } from './CommercialRules';
 
 /**
@@ -72,33 +73,38 @@ export const brokerDaily = (t: Terms, group: string, daily: number, pickup: Date
   return { pct, daily: Math.max(0.01, Math.round(v * 100) / 100) };
 };
 
-const PctInput: React.FC<{ value?: number; onChange: (v?: number) => void; label: string; w?: string }> = ({ value, onChange, label, w = 'w-20' }) => (
-  <span className="inline-flex items-center gap-1">
-    <input type="number" step={0.5} min={-90} max={500} value={value ?? ''} placeholder="0" aria-label={label}
-      onChange={e => onChange(n(e.target.value))} className={`${fieldCls} ${w} tabular-nums px-2`} />
-    <span className="text-xs text-slate-500">%</span>
-  </span>
-);
+const fmtDay = (s: string) => new Date(`${s}T12:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+const nights = (from: string, to: string) => (from && to ? Math.max(1, Math.round((new Date(`${to}T12:00`).getTime() - new Date(`${from}T12:00`).getTime()) / 86400000) + 1) : 0);
+const r2 = (v: number) => Math.round(v * 100) / 100;
+const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-const DateList: React.FC<{ dates: string[]; onChange: (d: string[]) => void; label: string }> = ({ dates, onChange, label }) => {
+const DateList: React.FC<{ dates: string[]; onChange: (d: string[]) => void; label: string; empty: string }> = ({ dates, onChange, label, empty }) => {
   const [add, setAdd] = useState('');
   return (
     <div>
       <div className="flex items-center gap-2">
         <input type="date" value={add} onChange={e => setAdd(e.target.value)} aria-label={label} className={`${fieldCls} flex-1 min-w-0`} />
-        <Button size="sm" disabled={!add || dates.includes(add)} onClick={() => { onChange([...dates, add].sort()); setAdd(''); }}>Add</Button>
+        <Button size="sm" disabled={!add || dates.includes(add)} onClick={() => { onChange([...dates, add].sort()); setAdd(''); }}>Add date</Button>
       </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {dates.length === 0 && <span className="text-xs text-slate-400">None</span>}
+      <div className="mt-2.5 flex flex-wrap gap-1.5 min-h-[28px]">
+        {dates.length === 0 && <span className="inline-flex items-center h-7 text-[12px] text-slate-400">{empty}</span>}
         {dates.map(d => (
-          <span key={d} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 tabular-nums">
-            {d}<button type="button" aria-label={`Remove ${d}`} onClick={() => onChange(dates.filter(x => x !== d))} className="text-slate-400 hover:text-rose-600">×</button>
+          <span key={d} className="inline-flex items-center gap-1.5 h-7 pl-2 pr-1 rounded-md bg-white ring-1 ring-inset ring-slate-200 text-[12px] font-medium text-slate-700 tabular-nums shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />{fmtDay(d)}
+            <button type="button" aria-label={`Remove ${d}`} onClick={() => onChange(dates.filter(x => x !== d))} className="grid place-items-center w-5 h-5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 [&>svg]:w-3 [&>svg]:h-3"><Icons.x /></button>
           </span>
         ))}
       </div>
     </div>
   );
 };
+
+/** The label above a control. */
+const Lbl: React.FC<{ children: React.ReactNode; hint?: string }> = ({ children, hint }) => (
+  <span className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{children}{hint && <span className="ml-1 normal-case tracking-normal font-normal text-slate-400">{hint}</span>}</span>
+);
+
+const AHEAD: [number, string][] = [[12, '12 h'], [36, '36 h'], [24 * 7, '7 days'], [24 * 30, '30 days'], [24 * 90, '90 days']];
 
 const PriceRulesView: React.FC<{
   aggregator: Aggregator; fleet: Fleet; currentUserName?: string;
@@ -118,18 +124,36 @@ const PriceRulesView: React.FC<{
   const draftSaved = aggregator.commercialDraft ? same(aggregator.commercialDraft, t) : same(published, t);
   const changed = !same(published, t);
 
-  // Example: the first published rate of the first group, a pick-up 14 days from now.
+  // Simulator
   const [exGroup, setExGroup] = useState(groups[0] || 'CDAR');
   const [exDaily, setExDaily] = useState(40);
-  const [exAhead, setExAhead] = useState(14);
+  const [exAhead, setExAhead] = useState(24 * 7);
   const [exDay, setExDay] = useState<ChannelWeekday>('fri');
-  const example = useMemo(() => {
-    const booked = new Date(2027, 0, 4, 10);    // a fixed Monday, so the example never changes by itself
-    const pickup = new Date(booked.getTime() + exAhead * 86400000);
+  const sim = useMemo(() => {
+    const pickup = new Date(2027, 0, 4, 10);           // a fixed Monday 10:00, moved to the chosen day: the example never changes by itself
     while (DAY_INDEX[pickup.getDay()] !== exDay) pickup.setDate(pickup.getDate() + 1);
-    const ahead = Math.round((pickup.getTime() - booked.getTime()) / 86400000);
-    return { ...brokerDaily(t, exGroup, exDaily || 0, pickup, booked), ahead };
-  }, [t, exGroup, exDaily, exAhead, exDay]);
+    const booked = new Date(pickup.getTime() - exAhead * 3600000);
+    const res = brokerDaily(t, exGroup, exDaily || 0, pickup, booked);
+    const c = cleanTerms(t), base = exDaily || 0;
+    const own = c.groups?.[exGroup]?.markupPercent;
+    const mk = own ?? c.markupPercent ?? 0;
+    const dow = c.pickupDayPercent?.[exDay] ?? 0;
+    const early = c.earlyBooking && exAhead >= c.earlyBooking.days! * 24 ? c.earlyBooking.percent! : 0;
+    const last = c.lastMinute && exAhead < c.lastMinute.hours! ? c.lastMinute.percent! : 0;
+    const steps: BuildStep[] = [{ label: 'Published daily rate', detail: `${exGroup} · Rates tab`, amount: base, kind: 'base' }];
+    let run = base;
+    const add = (label: string, detail: string, pct: number) => { const d = r2((base * pct) / 100); run = r2(run + d); steps.push({ label, detail, delta: d, amount: run, kind: pct ? 'step' : 'muted' }); };
+    add(own != null ? `${exGroup} markup` : 'Channel markup', own != null ? `${signed(own)} · group's own` : mk ? signed(mk) : 'Not set', mk);
+    add(`Pick-up on ${WEEKDAYS.find(w => w[0] === exDay)?.[1]}`, dow ? signed(dow) : 'No change', dow);
+    if (c.lastMinute && exAhead < c.lastMinute.hours!) add('Last minute', `Booked < ${c.lastMinute.hours} h ahead · ${signed(last)}`, last);
+    else add('Early booking', c.earlyBooking ? (early ? `Booked ${c.earlyBooking.days}+ days ahead · ${signed(early)}` : `Needs ${c.earlyBooking.days}+ days ahead`) : 'Not set', early);
+    const sum = mk + dow + early + last;
+    if (sum !== res.pct) { const target = r2((base * (100 + res.pct)) / 100); steps.push({ label: 'Limit', detail: `Total change capped at ${signed(res.pct)}`, delta: r2(target - run), amount: target, kind: 'step' }); run = target; }
+    if (c.markupPerDay) { run = r2(run + c.markupPerDay); steps.push({ label: 'Fixed per day', detail: `${signed(c.markupPerDay, cur)}`, delta: c.markupPerDay, amount: run, kind: 'step' }); }
+    if (c.roundTo && r2(res.daily) !== run) steps.push({ label: 'Rounding', detail: c.roundTo === 1 ? 'Whole units' : `Nearest ${c.roundTo}`, delta: r2(res.daily - run), amount: res.daily, kind: 'step' });
+    steps.push({ label: 'Broker net daily rate', detail: `${signed(res.pct)} in total${c.markupPerDay ? ` ${signed(c.markupPerDay, cur)}` : ''}`, amount: res.daily, kind: 'final' });
+    return { ...res, steps };
+  }, [t, exGroup, exDaily, exAhead, exDay, cur]);
 
   const saveDraft = () => {
     onUpdate({ ...aggregator, commercialDraft: changed ? cleanTerms(t) : undefined });
@@ -161,135 +185,164 @@ const PriceRulesView: React.FC<{
 
   const now = describeTerms(t, cur), before = describeTerms(published, cur);
   const added = now.filter(x => !before.includes(x)), removed = before.filter(x => !now.includes(x));
+  const diffCount = added.length + removed.length;
   const bl = t.blackouts || [];
+  const c = cleanTerms(t);
+  const overrides = Object.values(c.groups || {}).filter(v => v.markupPercent != null).length;
+  const groupMins = Object.values(c.groups || {}).filter(v => v.minDays).length;
+  const dowSet = Object.keys(c.pickupDayPercent || {}).length;
+  const restrictions = (c.minRentalDays ? 1 : 0) + (c.closedToArrival?.length || 0) + (c.closedToDeparture?.length || 0);
+  const mkSign = (t.markupPercent ?? 0) > 0 ? 'up' : (t.markupPercent ?? 0) < 0 ? 'down' : 'none';
+  const quick = (pct: number, perDay = 0) => { let v = (exDaily * (100 + pct)) / 100 + perDay; if (c.roundTo) v = Math.round(v / c.roundTo) * c.roundTo; return Math.max(0.01, r2(v)); };
+
+  const kpis = [
+    { id: 'pr-markup', label: 'Channel markup', value: c.markupPercent ? signed(c.markupPercent) : '0%', sub: c.markupPerDay ? `${signed(c.markupPerDay, cur)} per day` : 'on every car group', on: !!(c.markupPercent || c.markupPerDay) },
+    { id: 'pr-groups', label: 'Car groups', value: `${overrides} of ${groups.length}`, sub: overrides ? 'with their own markup' : 'follow the channel markup', on: overrides + groupMins > 0 },
+    { id: 'pr-window', label: 'Day & booking window', value: `${dowSet + (c.earlyBooking ? 1 : 0) + (c.lastMinute ? 1 : 0)} rules`, sub: [c.earlyBooking && `early ${signed(c.earlyBooking.percent!)}`, c.lastMinute && `last minute ${signed(c.lastMinute.percent!)}`].filter(Boolean).join(' · ') || 'none set', on: dowSet > 0 || !!c.earlyBooking || !!c.lastMinute },
+    { id: 'pr-closed', label: 'Restrictions', value: `${restrictions + bl.length}`, sub: `${c.minRentalDays ? `min ${c.minRentalDays} days · ` : ''}${bl.length} stop sale${bl.length === 1 ? '' : 's'}`, on: restrictions + bl.length > 0 },
+  ];
 
   return (
-    <div className="space-y-4">
-      <Panel title="Price rules for this broker" subtitle="On top of the published rates. Built into the daily rate the broker receives (a net rate); never shown as a separate line."
-        actions={<div className="flex items-center gap-2">
-          {changed && <Button variant="ghost" size="sm" onClick={discard}>Discard changes</Button>}
-          <Button size="sm" onClick={saveDraft} disabled={draftSaved}>Save draft</Button>
-          <Button variant="primary" size="sm" onClick={() => setPublishing(true)} disabled={!changed}>Publish…</Button>
-        </div>}>
-        <div className="px-4 py-3 flex flex-wrap items-center gap-2 text-[13px]">
-          {version ? <Badge tone="success">Live: version {version}</Badge> : <Badge tone="muted">No price rules: published rates</Badge>}
-          {version > 0 && <span className="text-xs text-slate-500">published {when(published.publishedAt)}{published.publishedBy ? ` by ${published.publishedBy}` : ''}</span>}
-          {changed && <Badge tone="warning">{aggregator.commercialDraft && draftSaved ? 'Draft saved, not published' : 'Unsaved changes'}</Badge>}
-        </div>
-      </Panel>
-
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-4 min-w-0">
-          <Panel title="Markup or discount" subtitle="Applies to every car group unless a group has its own below. Use a minus for a discount.">
-            <div className="px-4 py-4 grid gap-4 sm:grid-cols-3">
-              <label className="block"><span className="block text-[12px] font-semibold text-slate-600 mb-1">On the daily rate</span>
-                <PctInput value={t.markupPercent} onChange={v => set('markupPercent', v)} label="Markup percent" w="w-24" /></label>
-              <label className="block"><span className="block text-[12px] font-semibold text-slate-600 mb-1">Fixed per day</span>
-                <span className="inline-flex items-center gap-1"><input type="number" step={0.5} value={t.markupPerDay ?? ''} placeholder="0" onChange={e => set('markupPerDay', n(e.target.value))}
-                  aria-label="Fixed amount per day" className={`${fieldCls} w-24 tabular-nums px-2`} /><span className="text-xs text-slate-500">{cur}</span></span></label>
-              <label className="block"><span className="block text-[12px] font-semibold text-slate-600 mb-1">Round the daily rate</span>
-                <select className={`${selectCls} w-full`} value={t.roundTo || 0} onChange={e => set('roundTo', Number(e.target.value) as Terms['roundTo'])}>
-                  <option value={0}>No rounding (cents)</option><option value={1}>Whole units</option><option value={5}>Nearest 5</option><option value={10}>Nearest 10</option>
-                </select></label>
+    <div className="space-y-5">
+      {/* Command bar */}
+      <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip">
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-3 px-5 py-4">
+          <div className="min-w-[260px] flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-600">Commercial terms</p>
+            <h2 className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] text-slate-900">Price rules for {aggregator.name}</h2>
+            <p className="text-[12.5px] text-slate-500">Built into the net daily rate this broker receives, on top of your published rates. Never shown as a separate line.</p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]">
+              <span className="inline-flex items-center gap-1.5 text-slate-500"><span className={`w-1.5 h-1.5 rounded-full ${version ? 'bg-emerald-500' : 'bg-slate-300'}`} />Live: <b className="font-semibold text-slate-900">{version ? `version ${version}` : 'published rates only'}</b></span>
+              {version > 0 && <span className="text-slate-500 tabular-nums">Published {when(published.publishedAt)}{published.publishedBy ? ` by ${published.publishedBy}` : ''}</span>}
+              {changed
+                ? <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-full bg-amber-50 ring-1 ring-inset ring-amber-200 font-semibold text-amber-800"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{diffCount} change{diffCount === 1 ? '' : 's'} in draft{aggregator.commercialDraft && draftSaved ? ' · saved' : ' · not saved'}</span>
+                : <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-full bg-emerald-50 ring-1 ring-inset ring-emerald-200 font-semibold text-emerald-800"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Draft = live</span>}
             </div>
-          </Panel>
+          </div>
+          <div className="flex items-center gap-2">
+            {changed && <Button variant="ghost" size="sm" onClick={discard}>Discard</Button>}
+            <Button size="sm" onClick={saveDraft} disabled={draftSaved}>Save draft</Button>
+            <Button variant="primary" size="sm" onClick={() => setPublishing(true)} disabled={!changed}>Publish{changed ? ` ${diffCount} change${diffCount === 1 ? '' : 's'}` : ''}</Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 divide-x divide-slate-100 bg-slate-50/50">
+          {kpis.map(k => (
+            <button key={k.id} type="button" onClick={() => scrollTo(k.id)} className="group text-left px-5 py-3 hover:bg-white transition-colors">
+              <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className={`w-1.5 h-1.5 rounded-full ${k.on ? 'bg-indigo-500' : 'bg-slate-300'}`} />{k.label}
+              </p>
+              <p className="mt-1 text-[18px] font-semibold tabular-nums text-slate-900 leading-6">{k.value}</p>
+              <p className="text-[11.5px] text-slate-500 truncate group-hover:text-indigo-600">{k.sub}</p>
+            </button>
+          ))}
+        </div>
+      </section>
 
-          <Panel title="Car groups" subtitle="A group's own markup replaces the one above. Minimum days closes shorter rentals for that group only.">
+      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_360px] items-start">
+          <section className="2xl:col-start-2 2xl:row-start-1 rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] 2xl:block">
+            <div className="lg:border-r 2xl:border-r-0 border-slate-100"><header className="px-4 py-3.5 border-b border-slate-100 flex items-center gap-2.5">
+              <span className="grid place-items-center w-8 h-8 rounded-lg bg-slate-900 text-white [&>svg]:w-4 [&>svg]:h-4"><Icons.calc /></span>
+              <div><h3 className="text-[13.5px] font-semibold text-slate-900">Rate build-up</h3><p className="text-[11.5px] text-slate-500">What the broker receives with the terms on screen</p></div>
+            </header>
+            <div className="px-4 py-3.5 space-y-3 border-b border-slate-100 bg-slate-50/40">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block"><Lbl>Car group</Lbl>
+                  <select className={`${selectCls} w-full font-mono`} value={exGroup} onChange={e => setExGroup(e.target.value)}>{(groups.length ? groups : ['CDAR']).map(g => <option key={g}>{g}</option>)}</select></label>
+                <div><Lbl>Published rate</Lbl><Stepper label="Published daily rate" step={1} min={0} max={100000} value={exDaily} onChange={v => setExDaily(v || 0)} signedTone={false} width="w-12" /></div>
+              </div>
+              <div><Lbl>Pick-up day</Lbl>
+                <div className="grid grid-cols-7 gap-1">{WEEKDAYS.map(([d, l]) => (
+                  <button key={d} type="button" aria-pressed={exDay === d} onClick={() => setExDay(d)}
+                    className={`h-7 rounded-md text-[11px] font-semibold ring-1 ring-inset ${exDay === d ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-600 ring-slate-200 hover:ring-slate-300'}`}>{l}</button>
+                ))}</div></div>
+              <div><Lbl>Booked before pick-up</Lbl>
+                <div className="grid grid-cols-5 gap-1">{AHEAD.map(([h, l]) => (
+                  <button key={h} type="button" aria-pressed={exAhead === h} onClick={() => setExAhead(h)}
+                    className={`h-7 rounded-md text-[11px] font-semibold ring-1 ring-inset ${exAhead === h ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-600 ring-slate-200 hover:ring-slate-300'}`}>{l}</button>
+                ))}</div></div>
+            </div>
+            </div>
+            <div className="p-2"><BuildUp steps={sim.steps} currency={cur} /></div>
+          </section>
+
+        <div className="space-y-5 min-w-0 2xl:col-start-1 2xl:row-start-1 2xl:row-span-2">
+          {/* 1. Markup */}
+          <RuleCard id="pr-markup" step={1} icon={<Icons.percent />} title="Channel markup or discount"
+            description="One change for every car group of this broker. A car group with its own markup (step 2) uses that instead."
+            summary={<StateChip on={!!(c.markupPercent || c.markupPerDay)}>{c.markupPercent ? signed(c.markupPercent) : c.markupPerDay ? signed(c.markupPerDay, cur) : 'Published rates'}</StateChip>}>
+            <div className="flex flex-wrap gap-x-8 gap-y-5">
+              <div>
+                <Lbl>On the daily rate</Lbl>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Seg label="Markup or discount" value={mkSign} onChange={s => set('markupPercent', s === 'none' ? undefined : (s === 'up' ? 1 : -1) * (Math.abs(t.markupPercent || 0) || 10))}
+                    options={[['up', 'Markup'], ['down', 'Discount'], ['none', 'None']]} />
+                  {mkSign !== 'none' && <Stepper label="Markup percent" unit="%" min={0} max={mkSign === 'down' ? 90 : 500} step={0.5} value={Math.abs(t.markupPercent || 0) || undefined}
+                    onChange={v => set('markupPercent', v ? (mkSign === 'down' ? -v : v) : undefined)} signedTone={false} />}
+                </div>
+              </div>
+              <div>
+                <Lbl hint="optional">Fixed amount per day</Lbl>
+                <Stepper label="Fixed amount per day" unit={cur} step={0.5} min={-1000} max={1000} value={t.markupPerDay} onChange={v => set('markupPerDay', v)} width="w-16" />
+              </div>
+              <div>
+                <Lbl>Round the daily rate</Lbl>
+                <Seg label="Rounding" value={t.roundTo || 0} onChange={v => set('roundTo', (v || undefined) as Terms['roundTo'])}
+                  options={[[0, 'Cents'], [1, 'Whole'], [5, 'Nearest 5'], [10, 'Nearest 10']]} />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 px-3 py-2.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">Impact</span>
+              {[0.6, 1, 1.9].map(f => { const b = r2(exDaily * f); const pct = c.markupPercent || 0; let v = (b * (100 + pct)) / 100 + (c.markupPerDay || 0); if (c.roundTo) v = Math.round(v / c.roundTo) * c.roundTo; v = Math.max(0.01, r2(v));
+                return (
+                  <span key={f} className="inline-flex items-center gap-2 h-7 px-2.5 rounded-md bg-white ring-1 ring-inset ring-slate-200 text-[12px] tabular-nums">
+                    <span className="text-slate-500">{money2(b)}</span><span className="text-slate-300">→</span><span className="font-semibold text-slate-900">{money2(v)}</span>
+                    <span className={`text-[11px] font-semibold ${toneText[toneOf(r2(v - b))]}`}>{v !== b ? `${v > b ? '+' : '−'}${money2(Math.abs(r2(v - b)))}` : ''}</span>
+                  </span>
+                ); })}
+              <span className="text-[11.5px] text-slate-400">{cur} per day, before day and booking-window rules</span>
+            </div>
+          </RuleCard>
+
+          {/* 2. Car groups */}
+          <RuleCard id="pr-groups" step={2} icon={<Icons.cars />} title="Car groups" flush
+            description="Give a group its own markup instead of the channel one, or a minimum rental length for that group only."
+            summary={<StateChip on={overrides + groupMins > 0}>{overrides + groupMins > 0 ? `${overrides} own markup · ${groupMins} minimum` : 'All follow the channel'}</StateChip>}>
             {groups.length === 0 ? <EmptyState title="No car groups in the fleet" hint="Car groups come from the SIPP codes of the fleet." /> : (
               <div className="overflow-x-auto">
-                <table className={`${table.wrap} min-w-[460px]`}>
-                  <thead className={table.head}><tr>{['Group', 'Own markup', 'Minimum days'].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
-                  <tbody className={table.body}>
-                    {groups.map(g => (
-                      <tr key={g} className={table.row}>
-                        <td className={`${table.td} font-mono text-xs font-semibold text-slate-900`}>{g}</td>
-                        <td className={table.td}><PctInput value={t.groups?.[g]?.markupPercent} onChange={v => setGroup(g, { markupPercent: v })} label={`${g} markup`} /></td>
-                        <td className={table.td}><input type="number" min={1} max={365} value={t.groups?.[g]?.minDays ?? ''} placeholder="1" aria-label={`${g} minimum days`}
-                          onChange={e => setGroup(g, { minDays: n(e.target.value) })} className={`${fieldCls} w-20 tabular-nums px-2`} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Pick-up day and booking window" subtitle="Added to the markup. Example: Friday +15 % and early booking -8 % makes a 10 % markup 17 %.">
-            <div className="px-4 py-4 space-y-4">
-              <div>
-                <p className="text-[12px] font-semibold text-slate-600 mb-1.5">By pick-up day <span className="font-normal text-slate-400">percent</span></p>
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                  {WEEKDAYS.map(([d, label]) => (
-                    <label key={d} className="block"><span className="block text-[11px] text-slate-500 mb-0.5">{label}</span>
-                      <input type="number" step={0.5} min={-90} max={500} value={t.pickupDayPercent?.[d] ?? ''} placeholder="0" aria-label={`${label} percent`}
-                        onChange={e => set('pickupDayPercent', { ...(t.pickupDayPercent || {}), [d]: n(e.target.value) })} className={`${inputCls} tabular-nums px-2`} /></label>
-                  ))}
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-[13px] font-semibold text-slate-900">Early booking</p>
-                  <p className="text-xs text-slate-500 mb-2">Booked at least this many days before pick-up.</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Days ahead (at least)</span>
-                      <input type="number" min={0} value={t.earlyBooking?.days ?? ''} placeholder="60" aria-label="Early booking days"
-                        onChange={e => set('earlyBooking', { ...(t.earlyBooking || {}), days: n(e.target.value) })} className={`${inputCls} tabular-nums px-2`} /></label>
-                    <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Change (%)</span>
-                      <input type="number" step={0.5} min={-90} max={500} value={t.earlyBooking?.percent ?? ''} placeholder="0" aria-label="Early booking percent"
-                        onChange={e => set('earlyBooking', { ...(t.earlyBooking || {}), percent: n(e.target.value) })} className={`${inputCls} tabular-nums px-2`} /></label>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-[13px] font-semibold text-slate-900">Last minute</p>
-                  <p className="text-xs text-slate-500 mb-2">Booked less than this many hours before pick-up.</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Hours ahead (less than)</span>
-                      <input type="number" min={0} value={t.lastMinute?.hours ?? ''} placeholder="48" aria-label="Last minute hours"
-                        onChange={e => set('lastMinute', { ...(t.lastMinute || {}), hours: n(e.target.value) })} className={`${inputCls} tabular-nums px-2`} /></label>
-                    <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Change (%)</span>
-                      <input type="number" step={0.5} min={-90} max={500} value={t.lastMinute?.percent ?? ''} placeholder="0" aria-label="Last minute percent"
-                        onChange={e => set('lastMinute', { ...(t.lastMinute || {}), percent: n(e.target.value) })} className={`${inputCls} tabular-nums px-2`} /></label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel title="Rental length and closed dates" subtitle="The broker gets a clear error with the reason; nothing can be booked around these rules.">
-            <div className="px-4 py-4 grid gap-5 sm:grid-cols-[150px_1fr_1fr]">
-              <label className="block"><span className="block text-[12px] font-semibold text-slate-600 mb-1">Shortest rental (all groups)</span>
-                <span className="inline-flex items-center gap-1"><input type="number" min={1} max={365} value={t.minRentalDays ?? ''} placeholder="1" aria-label="Shortest rental days"
-                  onChange={e => set('minRentalDays', n(e.target.value))} className={`${fieldCls} w-20 tabular-nums px-2`} /><span className="text-xs text-slate-500">days</span></span></label>
-              <div><p className="text-[12px] font-semibold text-slate-600 mb-1">No pick-ups on</p><DateList dates={t.closedToArrival || []} onChange={d => set('closedToArrival', d)} label="Closed to pick-up" /></div>
-              <div><p className="text-[12px] font-semibold text-slate-600 mb-1">No returns on</p><DateList dates={t.closedToDeparture || []} onChange={d => set('closedToDeparture', d)} label="Closed to return" /></div>
-            </div>
-          </Panel>
-
-          <Panel title="Stop sales" subtitle="No rental may touch these days. Leave groups empty to close every group for this broker."
-            actions={<Button size="sm" onClick={() => set('blackouts', [...bl, { from: '', to: '', groups: [], note: '' }])}>Add stop sale</Button>}>
-            {bl.length === 0 ? <EmptyState title="No stop sales" hint="Use one for events, fleet shortages or dates this broker may not sell." /> : (
-              <div className="overflow-x-auto">
-                <table className={`${table.wrap} min-w-[720px]`}>
-                  <thead className={table.head}><tr>{['From', 'To', 'Groups', 'Reason shown to the broker', ''].map(h => <th key={h} className={table.th}>{h}</th>)}</tr></thead>
-                  <tbody className={table.body}>
-                    {bl.map((b, i) => {
-                      const upd = (p: Partial<typeof b>) => set('blackouts', bl.map((x, j) => (j === i ? { ...x, ...p } : x)));
+                <table className="w-full min-w-[680px] text-[13px]">
+                  <thead>
+                    <tr className="bg-slate-50/70 border-b border-slate-200 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-5 py-2.5">Group</th><th className="px-3 py-2.5">Markup</th><th className="px-3 py-2.5">Applied</th>
+                      <th className="px-3 py-2.5 text-right">On {money2(exDaily)}</th><th className="px-5 py-2.5 text-right">Minimum rental</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {groups.map(g => {
+                      const own = t.groups?.[g]?.markupPercent;
+                      const pct = own ?? (c.markupPercent || 0);
+                      const v = quick(pct, c.markupPerDay || 0);
                       return (
-                        <tr key={i} className={table.row}>
-                          <td className={table.td}><input type="date" value={b.from} aria-label="Stop sale from" onChange={e => upd({ from: e.target.value })} className={`${fieldCls} w-36`} /></td>
-                          <td className={table.td}><input type="date" value={b.to} min={b.from} aria-label="Stop sale to" onChange={e => upd({ to: e.target.value })} className={`${fieldCls} w-36`} /></td>
-                          <td className={table.td}>
-                            <div className="flex flex-wrap gap-1 w-52">
-                              {groups.map(g => {
-                                const on = (b.groups || []).includes(g);
-                                return <button key={g} type="button" onClick={() => upd({ groups: on ? (b.groups || []).filter(x => x !== g) : [...(b.groups || []), g] })}
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ${on ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>{g}</button>;
-                              })}
-                              {!(b.groups || []).length && <span className="text-[11px] text-slate-400">All groups</span>}
-                            </div>
+                        <tr key={g} className="hover:bg-slate-50/60">
+                          <td className="px-5 py-2.5"><span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-900 text-white font-mono text-[11px] font-semibold tracking-wide">{g}</span></td>
+                          <td className="px-3 py-2.5">
+                            {own == null ? (
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-flex items-center h-8 px-2.5 rounded-lg border border-dashed border-slate-300 text-[12px] text-slate-500">Channel · {c.markupPercent ? signed(c.markupPercent) : '0%'}</span>
+                                <button type="button" onClick={() => setGroup(g, { markupPercent: c.markupPercent || 0 })} className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800">Set own</button>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-2">
+                                <Stepper size="sm" label={`${g} markup`} unit="%" step={0.5} value={own} onChange={x => setGroup(g, { markupPercent: x ?? 0 })} />
+                                <button type="button" onClick={() => setGroup(g, { markupPercent: undefined })} className="text-[12px] font-medium text-slate-500 hover:text-rose-600">Reset</button>
+                              </span>
+                            )}
                           </td>
-                          <td className={table.td}><input value={b.note || ''} placeholder="Not sold for these dates" aria-label="Reason" onChange={e => upd({ note: e.target.value })} className={`${fieldCls} w-56`} /></td>
-                          <td className={`${table.td} text-right`}><button type="button" onClick={() => set('blackouts', bl.filter((_, j) => j !== i))} className="h-8 px-2.5 rounded-md text-xs font-semibold text-rose-600 hover:bg-rose-50">Remove</button></td>
+                          <td className="px-3 py-2.5"><Delta value={pct} /></td>
+                          <td className="px-3 py-2.5 text-right tabular-nums"><span className="font-semibold text-slate-900">{money2(v)}</span><span className="ml-1 text-[11px] text-slate-400">{cur}</span></td>
+                          <td className="px-5 py-2.5 text-right">
+                            <Stepper size="sm" label={`${g} minimum days`} unit="days" min={1} max={365} placeholder="1" signedTone={false} width="w-10"
+                              value={t.groups?.[g]?.minDays} onChange={x => setGroup(g, { minDays: x && x > 1 ? x : undefined })} />
+                          </td>
                         </tr>
                       );
                     })}
@@ -297,63 +350,178 @@ const PriceRulesView: React.FC<{
                 </table>
               </div>
             )}
-          </Panel>
+          </RuleCard>
+
+          {/* 3. Pick-up day and booking window */}
+          <RuleCard id="pr-window" step={3} icon={<Icons.calendar />} title="Pick-up day and booking window"
+            description="Added to the markup. Example: markup +10%, Friday +15% and early booking −8% gives +17% on the published rate."
+            summary={<StateChip on={dowSet > 0 || !!c.earlyBooking || !!c.lastMinute}>{dowSet + (c.earlyBooking ? 1 : 0) + (c.lastMinute ? 1 : 0) || 'No'} rule{dowSet + (c.earlyBooking ? 1 : 0) + (c.lastMinute ? 1 : 0) === 1 ? '' : 's'}</StateChip>}>
+            <div className="flex items-center justify-between mb-2">
+              <Lbl>By pick-up day</Lbl>
+              {dowSet > 0 && <button type="button" onClick={() => set('pickupDayPercent', {})} className="text-[12px] font-medium text-slate-500 hover:text-rose-600">Clear days</button>}
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+              {WEEKDAYS.map(([d, label]) => {
+                const v = t.pickupDayPercent?.[d] ?? 0, tone = toneOf(v);
+                const setV = (x?: number) => set('pickupDayPercent', { ...(t.pickupDayPercent || {}), [d]: x || undefined });
+                return (
+                  <div key={d} className={`rounded-xl ring-1 ring-inset p-2 text-center transition-colors ${tone === 'up' ? 'bg-amber-50/70 ring-amber-200' : tone === 'down' ? 'bg-emerald-50/70 ring-emerald-200' : 'bg-white ring-slate-200'}`}>
+                    <p className={`text-[11px] font-semibold uppercase tracking-wider ${d === 'fri' || d === 'sat' ? 'text-slate-700' : 'text-slate-500'}`}>{label}</p>
+                    <div className="mt-1 flex items-center justify-center">
+                      <input type="number" step={0.5} min={-90} max={500} value={t.pickupDayPercent?.[d] ?? ''} placeholder="0" aria-label={`${label} percent`}
+                        onChange={e => setV(n(e.target.value))} className={`w-12 bg-transparent text-center text-[16px] font-semibold tabular-nums outline-none ${toneText[tone].replace('text-slate-400', 'text-slate-400')}`} />
+                      <span className="text-[11px] text-slate-400">%</span>
+                    </div>
+                    <div className="mt-1 grid grid-cols-2 gap-1">
+                      <button type="button" aria-label={`${label}: less`} onClick={() => setV(Math.max(-90, v - 5))} className="h-6 rounded-md bg-white ring-1 ring-inset ring-slate-200 text-[12px] text-slate-500 hover:text-slate-900">−5</button>
+                      <button type="button" aria-label={`${label}: more`} onClick={() => setV(Math.min(500, v + 5))} className="h-6 rounded-md bg-white ring-1 ring-inset ring-slate-200 text-[12px] text-slate-500 hover:text-slate-900">+5</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6">
+              <Lbl>By booking window</Lbl>
+              {/* The window as a timeline: pick-up is on the left */}
+              <div className="relative mt-1 mb-1 flex h-9 rounded-lg overflow-hidden ring-1 ring-inset ring-slate-200 text-[11.5px] font-medium">
+                <div className={`flex items-center justify-center px-2 basis-[24%] ${c.lastMinute ? (c.lastMinute.percent! > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900') : 'bg-slate-50 text-slate-400'}`}>
+                  Last minute {c.lastMinute ? `· ${signed(c.lastMinute.percent!)}` : '· off'}</div>
+                <div className="flex items-center justify-center px-2 flex-1 bg-white text-slate-500 border-x border-slate-200">Standard · markup only</div>
+                <div className={`flex items-center justify-center px-2 basis-[28%] ${c.earlyBooking ? (c.earlyBooking.percent! > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900') : 'bg-slate-50 text-slate-400'}`}>
+                  Early booking {c.earlyBooking ? `· ${signed(c.earlyBooking.percent!)}` : '· off'}</div>
+              </div>
+              <div className="flex text-[10.5px] font-mono text-slate-400 mb-3">
+                <span className="basis-[24%] flex justify-between pr-1"><span>pick-up</span><span>{c.lastMinute ? `${c.lastMinute.hours} h` : ''}</span></span>
+                <span className="flex-1" />
+                <span className="basis-[28%] text-left pl-1">{c.earlyBooking ? `${c.earlyBooking.days} days before →` : ''}</span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {([
+                  ['lastMinute', 'Last minute', 'Booked less than this many hours before pick-up.', 'hours', 'h', 48, 10, 720] as const,
+                  ['earlyBooking', 'Early booking', 'Booked at least this many days before pick-up.', 'days', 'days', 60, -8, 730] as const,
+                ]).map(([k, title, hint, field, unit, defN, defPct, maxN]) => {
+                  const val = t[k] as { hours?: number; days?: number; percent?: number } | undefined;
+                  const on = !!(val && (val as Record<string, number | undefined>)[field] && val.percent);
+                  return (
+                    <div key={k} className={`rounded-xl ring-1 ring-inset p-4 ${on ? 'ring-indigo-200 bg-indigo-50/30' : 'ring-slate-200 bg-white'}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div><p className="text-[13px] font-semibold text-slate-900">{title}</p><p className="text-[12px] text-slate-500">{hint}</p></div>
+                        <Toggle on={on} label={title} onChange={b => set(k, b ? { [field]: defN, percent: defPct } as never : undefined)} />
+                      </div>
+                      {on && (
+                        <div className="mt-3 flex flex-wrap items-end gap-3">
+                          <div><Lbl>{k === 'lastMinute' ? 'Less than' : 'At least'}</Lbl>
+                            <Stepper size="sm" label={`${title} ${field}`} unit={unit} min={1} max={maxN} signedTone={false} width="w-12"
+                              value={(val as Record<string, number | undefined>)[field]} onChange={x => set(k, { ...(val || {}), [field]: x } as never)} /></div>
+                          <div><Lbl>Change</Lbl>
+                            <Stepper size="sm" label={`${title} percent`} unit="%" step={0.5} value={val?.percent} onChange={x => set(k, { ...(val || {}), percent: x } as never)} /></div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {aggregator.pricingMode === 'dynamic' && (
+                <p className="mt-3 flex items-start gap-2 rounded-lg bg-sky-50 ring-1 ring-inset ring-sky-200 px-3 py-2 text-[12px] text-sky-900">
+                  <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />This channel uses dynamic rates. When Rate rules → Last minute is on for its channel type, that grid prices the booking window instead of these two rules.
+                </p>
+              )}
+            </div>
+          </RuleCard>
+
+          {/* 4. Restrictions */}
+          <RuleCard id="pr-closed" step={4} icon={<Icons.lock />} title="Rental length and closed dates"
+            description="The broker gets a clear error with the reason. Nothing can be booked around these rules."
+            summary={<StateChip on={restrictions > 0}>{restrictions ? `${restrictions} restriction${restrictions === 1 ? '' : 's'}` : 'Open'}</StateChip>}>
+            <div className="grid gap-5 lg:grid-cols-[180px_1fr_1fr]">
+              <div><Lbl>Shortest rental</Lbl>
+                <Stepper label="Shortest rental days" unit="days" min={1} max={365} placeholder="1" signedTone={false} width="w-10" value={t.minRentalDays} onChange={x => set('minRentalDays', x && x > 1 ? x : undefined)} />
+                <p className="mt-1.5 text-[11.5px] text-slate-400">All car groups</p></div>
+              <div><Lbl>No pick-ups on</Lbl><DateList dates={t.closedToArrival || []} onChange={d => set('closedToArrival', d)} label="Closed to pick-up" empty="Pick-ups allowed every day" /></div>
+              <div><Lbl>No returns on</Lbl><DateList dates={t.closedToDeparture || []} onChange={d => set('closedToDeparture', d)} label="Closed to return" empty="Returns allowed every day" /></div>
+            </div>
+          </RuleCard>
+
+          {/* 5. Stop sales */}
+          <RuleCard id="pr-stop" step={5} icon={<Icons.stop />} title="Stop sales" flush
+            description="No rental may touch these days. Leave the groups empty to close every group for this broker."
+            summary={<StateChip on={bl.length > 0}>{bl.length ? `${bl.length} active` : 'None'}</StateChip>}
+            actions={<Button size="sm" icon={<span className="[&>svg]:w-3.5 [&>svg]:h-3.5"><Icons.plus /></span>} onClick={() => set('blackouts', [...bl, { from: '', to: '', groups: [], note: '' }])}>Add stop sale</Button>}>
+            {bl.length === 0 ? (
+              <p className="px-5 py-6 text-center text-[12.5px] text-slate-500">No stop sales. Use one for events, fleet shortages or dates this broker may not sell.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {bl.map((b, i) => {
+                  const upd = (p: Partial<typeof b>) => set('blackouts', bl.map((x, j) => (j === i ? { ...x, ...p } : x)));
+                  const len = nights(b.from, b.to || b.from);
+                  return (
+                    <li key={i} className="px-5 py-3.5 grid gap-3 lg:grid-cols-[auto_1fr_auto] items-start">
+                      <div className="flex items-center gap-2">
+                        <input type="date" value={b.from} aria-label="Stop sale from" onChange={e => upd({ from: e.target.value })} className={`${fieldCls} w-[150px]`} />
+                        <span className="text-slate-300">→</span>
+                        <input type="date" value={b.to} min={b.from} aria-label="Stop sale to" onChange={e => upd({ to: e.target.value })} className={`${fieldCls} w-[150px]`} />
+                        <span className="inline-flex items-center h-6 px-2 rounded-full bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 text-[11px] font-semibold tabular-nums whitespace-nowrap">{len ? `${len} day${len === 1 ? '' : 's'}` : 'Set dates'}</span>
+                      </div>
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap gap-1">
+                          <button type="button" onClick={() => upd({ groups: [] })} className={`h-6 px-2 rounded-md text-[11px] font-semibold ring-1 ring-inset ${!(b.groups || []).length ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-500 ring-slate-200 hover:ring-slate-300'}`}>All groups</button>
+                          {groups.map(g => {
+                            const on = (b.groups || []).includes(g);
+                            return <button key={g} type="button" onClick={() => upd({ groups: on ? (b.groups || []).filter(x => x !== g) : [...(b.groups || []), g] })}
+                              className={`h-6 px-2 rounded-md text-[11px] font-mono font-semibold ring-1 ring-inset ${on ? 'bg-indigo-50 ring-indigo-300 text-indigo-700' : 'bg-white ring-slate-200 text-slate-500 hover:ring-slate-300'}`}>{g}</button>;
+                          })}
+                        </div>
+                        <input value={b.note || ''} placeholder="Reason shown to the broker, e.g. Not sold for these dates" aria-label="Reason" onChange={e => upd({ note: e.target.value })} className={`${fieldCls} w-full`} />
+                      </div>
+                      <button type="button" onClick={() => set('blackouts', bl.filter((_, j) => j !== i))} aria-label="Remove stop sale"
+                        className="justify-self-end grid place-items-center w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 [&>svg]:w-4 [&>svg]:h-4"><Icons.x /></button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </RuleCard>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-1 content-start">
-          <Panel title="Example" subtitle="What the broker receives with the terms on screen (draft included).">
-            <div className="px-4 py-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Group</span>
-                  <select className={`${selectCls} w-full`} value={exGroup} onChange={e => setExGroup(e.target.value)}>{(groups.length ? groups : ['CDAR']).map(g => <option key={g}>{g}</option>)}</select></label>
-                <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Published daily rate</span>
-                  <input type="number" min={0} step={0.5} value={exDaily} onChange={e => setExDaily(Number(e.target.value))} className={`${inputCls} tabular-nums`} /></label>
-                <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Pick-up day</span>
-                  <select className={`${selectCls} w-full`} value={exDay} onChange={e => setExDay(e.target.value as ChannelWeekday)}>{WEEKDAYS.map(([d, l]) => <option key={d} value={d}>{l}</option>)}</select></label>
-                <label className="block"><span className="block text-[11px] text-slate-500 mb-0.5">Booked days ahead</span>
-                  <input type="number" min={0} max={730} value={exAhead} onChange={e => setExAhead(Number(e.target.value))} className={`${inputCls} tabular-nums`} /></label>
-              </div>
-              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                <div className="flex items-baseline justify-between"><span className="text-xs text-slate-500">Published</span><span className="tabular-nums text-[13px] text-slate-700">{(exDaily || 0).toFixed(2)} {cur}</span></div>
-                <div className="flex items-baseline justify-between mt-1"><span className="text-xs text-slate-500">Adjustment</span><span className="tabular-nums text-[13px] text-slate-700">{pctText(example.pct)}{t.markupPerDay ? ` ${t.markupPerDay > 0 ? '+' : ''}${t.markupPerDay}` : ''}</span></div>
-                <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-slate-200"><span className="text-[13px] font-semibold text-slate-900">Broker daily rate</span><span className="tabular-nums text-lg font-bold text-slate-900">{example.daily.toFixed(2)} {cur}</span></div>
-                <p className="mt-1 text-[11px] text-slate-400">{exGroup}, pick-up on a {WEEKDAYS.find(w => w[0] === exDay)?.[1]}, booked {example.ahead} days ahead.</p>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel title="Version history" subtitle="Every published version. Rolling back publishes the old terms as a new version.">
-            {history.length === 0 ? <p className="px-4 py-6 text-center text-[13px] text-slate-500">Nothing published yet.</p> : (
-              <ul className="divide-y divide-slate-100">
-                {history.map(h => (
-                  <li key={h.version} className="px-4 py-3">
+          <section className="2xl:col-start-2 2xl:row-start-2 rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip">
+            <header className="px-4 py-3.5 border-b border-slate-100 flex items-center gap-2.5">
+              <span className="grid place-items-center w-8 h-8 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 text-slate-500 [&>svg]:w-4 [&>svg]:h-4"><Icons.history /></span>
+              <div><h3 className="text-[13.5px] font-semibold text-slate-900">Version history</h3><p className="text-[11.5px] text-slate-500">Roll back publishes the old terms as a new version</p></div>
+            </header>
+            {history.length === 0 ? <p className="px-4 py-6 text-center text-[12.5px] text-slate-500">Nothing published yet.</p> : (
+              <ol className="px-4 py-3 max-h-[420px] overflow-y-auto">
+                {history.map((h, i) => (
+                  <li key={h.version} className="relative pl-6 pb-4 last:pb-0">
+                    {i < history.length - 1 && <span className="absolute left-[7px] top-4 bottom-0 w-px bg-slate-200" />}
+                    <span className={`absolute left-0 top-1 w-[15px] h-[15px] rounded-full ring-4 ring-white ${h.version === version ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-semibold text-slate-900">Version {h.version}</span>
+                      <span className="text-[13px] font-semibold text-slate-900">v{h.version}</span>
                       {h.version === version && <Badge tone="success">Live</Badge>}
                       <span className="flex-1" />
-                      {h.version !== version && <Button size="sm" onClick={() => rollBack(h.version)}>Roll back</Button>}
+                      {h.version !== version && <button type="button" onClick={() => rollBack(h.version)} className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800">Roll back</button>}
                     </div>
-                    <p className="text-[11px] text-slate-500">{when(h.publishedAt)}{h.publishedBy ? ` · ${h.publishedBy}` : ''}{h.note ? ` · ${h.note}` : ''}</p>
-                    <ul className="mt-1 list-disc pl-4 text-[11px] text-slate-600">
-                      {(describeTerms(h.terms, cur).length ? describeTerms(h.terms, cur) : ['Published rates, no adjustments']).map(x => <li key={x}>{x}</li>)}
+                    <p className="text-[11px] text-slate-500 tabular-nums">{when(h.publishedAt)}{h.publishedBy ? ` · ${h.publishedBy}` : ''}</p>
+                    {h.note && <p className="text-[11.5px] text-slate-600 italic">“{h.note}”</p>}
+                    <ul className="mt-1 space-y-0.5 text-[11.5px] text-slate-600">
+                      {(describeTerms(h.terms, cur).length ? describeTerms(h.terms, cur) : ['Published rates, no adjustments']).map(x => <li key={x} className="flex gap-1.5"><span className="text-slate-300">–</span>{x}</li>)}
                     </ul>
                   </li>
                 ))}
-              </ul>
+              </ol>
             )}
-          </Panel>
-        </div>
+          </section>
       </div>
 
       {publishing && (
         <Dialog open onClose={() => setPublishing(false)} size="md" title={`Publish version ${version + 1} for ${aggregator.name}?`}
           subtitle="The broker's next search uses these terms. Bookings already made keep their price."
           footer={<><Button variant="ghost" onClick={() => setPublishing(false)}>Cancel</Button><Button variant="primary" onClick={() => publish(t, note.trim())}>Publish now</Button></>}>
-          <div className="space-y-3 text-[13px]">
-            {added.length > 0 && <div><p className="font-semibold text-emerald-700 mb-1">New or changed</p><ul className="list-disc pl-5 text-slate-700">{added.map(x => <li key={x}>{x}</li>)}</ul></div>}
-            {removed.length > 0 && <div><p className="font-semibold text-rose-700 mb-1">Removed</p><ul className="list-disc pl-5 text-slate-500 line-through">{removed.map(x => <li key={x}>{x}</li>)}</ul></div>}
+          <div className="space-y-4 text-[13px]">
+            {added.length > 0 && <div className="rounded-lg ring-1 ring-inset ring-emerald-200 bg-emerald-50/50 p-3"><p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 mb-1.5">New or changed</p><ul className="space-y-1 text-slate-800">{added.map(x => <li key={x} className="flex gap-2"><span className="text-emerald-600 font-bold">+</span>{x}</li>)}</ul></div>}
+            {removed.length > 0 && <div className="rounded-lg ring-1 ring-inset ring-rose-200 bg-rose-50/50 p-3"><p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 mb-1.5">Removed</p><ul className="space-y-1 text-slate-500">{removed.map(x => <li key={x} className="flex gap-2"><span className="text-rose-600 font-bold">−</span><span className="line-through">{x}</span></li>)}</ul></div>}
             {!added.length && !removed.length && <p className="text-slate-500">No adjustments: the broker gets the published rates.</p>}
-            <label className="block"><span className="block text-[12px] font-semibold text-slate-600 mb-1">Note <span className="font-normal text-slate-400">optional, kept in the history</span></span>
+            <label className="block"><Lbl hint="optional, kept in the history">Note</Lbl>
               <input className={inputCls} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Agreed with the broker on 6 Nov" /></label>
           </div>
         </Dialog>
