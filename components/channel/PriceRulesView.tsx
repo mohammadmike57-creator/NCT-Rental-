@@ -384,17 +384,17 @@ const PriceRulesView: React.FC<{
             <div className="mt-6">
               <Lbl>By booking window</Lbl>
               {/* The window as a timeline: pick-up is on the left */}
-              <div className="relative mt-1 mb-1 flex h-9 rounded-lg overflow-hidden ring-1 ring-inset ring-slate-200 text-[11.5px] font-medium">
-                <div className={`flex items-center justify-center px-2 basis-[24%] ${c.lastMinute ? (c.lastMinute.percent! > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900') : 'bg-slate-50 text-slate-400'}`}>
+              <div className="relative mt-1 mb-1 flex min-h-[36px] rounded-lg overflow-hidden ring-1 ring-inset ring-slate-200 text-[10.5px] sm:text-[11.5px] font-medium leading-tight text-center">
+                <div className={`flex items-center justify-center px-2 py-1 basis-[30%] sm:basis-[24%] ${c.lastMinute ? (c.lastMinute.percent! > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900') : 'bg-slate-50 text-slate-400'}`}>
                   Last minute {c.lastMinute ? `· ${signed(c.lastMinute.percent!)}` : '· off'}</div>
-                <div className="flex items-center justify-center px-2 flex-1 bg-white text-slate-500 border-x border-slate-200">Standard · markup only</div>
-                <div className={`flex items-center justify-center px-2 basis-[28%] ${c.earlyBooking ? (c.earlyBooking.percent! > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900') : 'bg-slate-50 text-slate-400'}`}>
+                <div className="flex items-center justify-center px-2 py-1 flex-1 bg-white text-slate-500 border-x border-slate-200">Standard<span className="hidden sm:inline">&nbsp;· markup only</span></div>
+                <div className={`flex items-center justify-center px-2 py-1 basis-[30%] sm:basis-[28%] ${c.earlyBooking ? (c.earlyBooking.percent! > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900') : 'bg-slate-50 text-slate-400'}`}>
                   Early booking {c.earlyBooking ? `· ${signed(c.earlyBooking.percent!)}` : '· off'}</div>
               </div>
               <div className="flex text-[10.5px] font-mono text-slate-400 mb-3">
-                <span className="basis-[24%] flex justify-between pr-1"><span>pick-up</span><span>{c.lastMinute ? `${c.lastMinute.hours} h` : ''}</span></span>
+                <span className="basis-[30%] sm:basis-[24%] flex justify-between pr-1"><span>pick-up</span><span>{c.lastMinute ? `${c.lastMinute.hours} h` : ''}</span></span>
                 <span className="flex-1" />
-                <span className="basis-[28%] text-left pl-1">{c.earlyBooking ? `${c.earlyBooking.days} days before →` : ''}</span>
+                <span className="basis-[30%] sm:basis-[28%] text-left pl-1">{c.earlyBooking ? `${c.earlyBooking.days} days before →` : ''}</span>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 {([

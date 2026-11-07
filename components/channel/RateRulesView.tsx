@@ -295,7 +295,7 @@ const RateRulesView: React.FC<{
             </div>
           ))}
         </dl>
-        <nav className="flex gap-1 overflow-x-auto no-scrollbar px-3 py-2 border-t border-slate-100" aria-label="Rate rules sections">
+        <nav className="flex flex-wrap md:flex-nowrap gap-1 md:overflow-x-auto no-scrollbar px-3 py-2 border-t border-slate-100" aria-label="Rate rules sections">
           {TABS.map(([k, l]) => {
             const Icon = TAB_ICONS[k];
             const count = k === 'seasons' ? cfg.seasonal.rules.length : k === 'lead' ? cfg.leadTime.tiers.length : k === 'history' ? (state.history || []).length : 0;
@@ -789,7 +789,7 @@ const BookingCurve: React.FC<{ tiers: LeadTier[]; pick: (t: LeadTier) => PriceAd
       </div>
       <div className="relative h-5 mt-1">
         {ticks.map(h => <span key={h} className="absolute -translate-x-1/2 text-[10.5px] font-mono text-slate-400 whitespace-nowrap first:translate-x-0" style={{ left: `${x(h)}%` }}>{h === 0 ? 'pick-up' : inDays(h) ? `${h / 24}d` : `${h}h`}</span>)}
-        <span className="absolute right-0 text-[10.5px] font-mono text-slate-400">earlier bookings →</span>
+        <span className="hidden md:inline absolute right-0 text-[10.5px] font-mono text-slate-400">earlier bookings →</span>
       </div>
     </div>
   );
@@ -919,9 +919,9 @@ const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg
             <table className="w-full text-[13px] border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-[1] bg-slate-50 text-left px-5 py-2.5 border-b border-slate-200 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 min-w-[230px]">Booked before pick-up</th>
+                  <th className="sticky left-0 z-[1] bg-slate-50 text-left px-5 py-2.5 border-b border-slate-200 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 min-w-[150px] md:min-w-[230px]">Booked before pick-up</th>
                   {cols.map((b, k) => (
-                    <th key={k} className="bg-slate-50 px-3 py-2.5 border-b border-l border-slate-200 text-center min-w-[150px]">
+                    <th key={k} className="bg-slate-50 px-3 py-2.5 border-b border-l border-slate-200 text-center min-w-[120px] md:min-w-[150px]">
                       {b ? <><p className="text-[13px] font-semibold text-slate-900">{lengthLabel(b)}</p><p className="text-[10.5px] font-medium text-slate-400">rate band</p></>
                         : <p className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">Every rental length</p>}
                     </th>
@@ -932,7 +932,7 @@ const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg
               <tbody>
                 {lt.tiers.map((t, i) => (
                   <tr key={t.id} className="group">
-                    <td className="sticky left-0 z-[1] bg-white group-hover:bg-slate-50/60 px-5 py-3 border-b border-slate-100">
+                    <td className="sticky left-0 z-[1] bg-white group-hover:bg-slate-50/60 px-3 md:px-5 py-3 border-b border-slate-100">
                       <p className="text-[13.5px] font-semibold text-slate-900">{windowShort(t)}</p>
                       <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200 px-1.5 h-6 text-[11px] font-mono text-slate-500">
                         <input type="number" min={0} value={t.fromHours} onChange={e => setTier(i, { fromHours: Math.max(0, Number(e.target.value) || 0) })} aria-label="From hours" className="w-9 bg-transparent text-right outline-none focus:text-slate-900" />

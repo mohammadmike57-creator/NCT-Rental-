@@ -146,7 +146,7 @@ export const Popover: React.FC<{ onClose: () => void; children: React.ReactNode;
     return () => { clearTimeout(t); document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
   }, [onClose]);
   return (
-    <div ref={ref} role="dialog" className={cx('absolute z-30 top-full mt-2 w-[300px] rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 ring-1 ring-black/5 text-left',
+    <div ref={ref} role="dialog" className={cx('absolute z-30 top-full mt-2 w-[300px] rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 ring-1 ring-black/5 text-left max-md:!fixed max-md:!inset-x-3 max-md:!top-auto max-md:!bottom-24 max-md:!left-3 max-md:!right-3 max-md:!w-auto max-md:z-50 max-md:shadow-2xl',
       align === 'right' ? 'right-0' : 'left-0', className)}>
       {children}
     </div>

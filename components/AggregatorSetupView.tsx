@@ -249,6 +249,13 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   }, []);
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
   const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates'>('channels');
+  /** Opens a section; on a phone also scrolls to it, so the content is not hidden below the header. */
+  const openModule = (key: typeof mode) => {
+    setMode(key);
+    if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches) {
+      setTimeout(() => document.getElementById('ota-module-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    }
+  };
   const showStopSale = mode === 'stopsale';
   const [sending, setSending] = useState(false);
   const [deliveryRefresh, setDeliveryRefresh] = useState(0);
@@ -460,29 +467,39 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
               <span className="font-mono">OTA 2003/05 · 2018A · 2024A</span><span className="text-slate-600">|</span><span className="font-mono">REST v3</span>
             </span>
             <button type="button" onClick={() => setJumpOpen(true)} aria-label="Quick search"
-              className="h-9 pl-3 pr-2 rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-inset ring-white/15 text-slate-200 text-[13px] inline-flex items-center gap-2 min-w-[180px]">
+              className="h-9 pl-3 pr-2 rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-inset ring-white/15 text-slate-200 text-[13px] hidden sm:inline-flex items-center gap-2 min-w-[180px]">
               <SearchIcon className="w-4 h-4 text-slate-400" /><span className="flex-1 text-left text-slate-400">Jump to…</span>
               <kbd className="text-[10px] font-mono text-slate-400 border border-white/15 rounded px-1.5 py-0.5">Ctrl K</kbd>
             </button>
             <button type="button" onClick={() => setIsAddingPartner(true)}
-              className="h-9 px-3.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[13px] font-semibold inline-flex items-center gap-2 shadow-sm">
+              className="h-9 px-3.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[13px] font-semibold inline-flex items-center gap-2 shadow-sm whitespace-nowrap">
               <PlusIcon className="w-4 h-4" />Add channel
             </button>
           </div>
         </div>
-        <dl className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 border-t border-white/10 divide-x divide-white/10">
+        <dl className="grid grid-cols-3 xl:grid-cols-6 border-t border-white/10 divide-x divide-white/10">
           {statusCells.map(c => (
-            <div key={c.label} className="px-5 py-2.5 min-w-0 max-xl:border-b max-xl:border-white/10">
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 truncate">{c.label}</dt>
-              <dd className="mt-0.5 flex items-center gap-2 text-[14px] font-semibold tabular-nums truncate">
+            <div key={c.label} className="px-2.5 py-2 sm:px-5 sm:py-2.5 min-w-0 max-xl:border-b max-xl:border-white/10">
+              <dt className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400 truncate">{c.label}</dt>
+              <dd className="mt-0.5 flex items-center gap-1.5 sm:gap-2 text-[12px] sm:text-[14px] font-semibold tabular-nums truncate">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cellDot[c.tone]}`} />{c.value}
               </dd>
             </div>
           ))}
         </dl>
-        <nav className="px-3 flex gap-0.5 overflow-x-auto no-scrollbar border-t border-white/10 bg-slate-950/40" aria-label="OTA XML sections">
+        {/* Phones: every section visible at once, no sideways scrolling */}
+        <nav className="md:hidden grid grid-cols-4 gap-1 p-2 border-t border-white/10 bg-slate-950/40" aria-label="OTA XML sections (phone)">
           {MODULES.map(([key, label, Icon, count]) => (
-            <button key={key} type="button" onClick={() => setMode(key)} aria-current={mode === key ? 'page' : undefined}
+            <button key={key} type="button" onClick={() => openModule(key)} aria-current={mode === key ? 'page' : undefined}
+              className={`relative flex flex-col items-center justify-center gap-1 h-14 rounded-lg px-1 text-[10.5px] font-medium leading-tight text-center transition-colors ${mode === key ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+              <Icon className="w-[18px] h-[18px]" /><span className="line-clamp-2">{label}</span>
+              {count !== undefined && <span className={`absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-4 tabular-nums ${key === 'stopsale' ? 'bg-rose-500 text-white' : 'bg-white/20 text-white'}`}>{count}</span>}
+            </button>
+          ))}
+        </nav>
+        <nav className="hidden md:flex px-3 gap-0.5 overflow-x-auto no-scrollbar border-t border-white/10 bg-slate-950/40" aria-label="OTA XML sections">
+          {MODULES.map(([key, label, Icon, count]) => (
+            <button key={key} type="button" onClick={() => openModule(key)} aria-current={mode === key ? 'page' : undefined}
               className={`h-11 px-3 inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${mode === key ? 'border-indigo-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-100'}`}>
               <Icon className="w-4 h-4" />{label}
               {count !== undefined && <span className={`px-1.5 py-px rounded text-[10px] font-semibold tabular-nums ${key === 'stopsale' ? 'bg-rose-500/20 text-rose-200' : 'bg-white/10 text-slate-300'}`}>{count}</span>}
@@ -494,14 +511,15 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       {failedUpdates.length > 0 && mode !== 'dashboard' && (
         <div className="rounded-lg border border-rose-200 bg-white px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2 shadow-sm" role="alert">
           <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md bg-rose-600 text-white text-[11px] font-bold uppercase tracking-wide">Action needed</span>
-          <p className="text-[13px] text-slate-700 flex-1 min-w-0">
+          <p className="text-[13px] text-slate-700 flex-1 min-w-[200px] basis-full sm:basis-auto">
             Status updates are not reaching {failedUpdates.map(f => `${f.name} (${f.count})`).join(', ')}.
           </p>
           {failedUpdates.map(f => <Button key={f.id} size="sm" onClick={() => openChannel(f.id, 'Booking API')}>Fix in {f.name} →</Button>)}
         </div>
       )}
 
-      {mode !== 'channels' && MODULE_INFO[mode] && (() => { const m = MODULE_INFO[mode]; const I = m.icon; return (
+      <div id="ota-module-top" className="scroll-mt-20" />
+      {mode !== 'channels' && mode !== 'rates' && MODULE_INFO[mode] && (() => { const m = MODULE_INFO[mode]; const I = m.icon; return (
         <section className="flex items-center gap-3 px-1">
           <span className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm inline-flex items-center justify-center text-indigo-600"><I className="w-5 h-5" /></span>
           <div className="min-w-0"><h3 className="text-[18px] font-semibold text-slate-900 leading-tight">{m.title}</h3><p className="text-[13px] text-slate-500">{m.text}</p></div>
@@ -603,7 +621,9 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                     );
                   })}
                 </nav>
-                <select className="lg:hidden w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px]" value={activeTab}
+                <label className="lg:hidden block rounded-xl border border-slate-200 bg-white px-3 pt-2 pb-2.5 shadow-sm">
+                <span className="block text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Section of {sel?.name || 'this channel'} · tap to change</span>
+                <select className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[14px] font-semibold text-slate-900" value={activeTab}
                   onChange={e => setActiveTab(e.target.value as ChannelTab)} aria-label="Channel section">
                   {TAB_GROUPS.map(g => (
                     <optgroup key={g.label} label={g.label}>
@@ -611,6 +631,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                     </optgroup>
                   ))}
                 </select>
+                </label>
               </>
             )}
           </aside>
@@ -647,7 +668,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 </dl>
               </div>
               <div className="px-4 py-2 border-t border-slate-100 flex flex-wrap items-center gap-2 bg-slate-50/60">
-                <nav className="flex items-center gap-1.5 text-[12px] text-slate-500 min-w-0 flex-1" aria-label="Breadcrumb">
+                <nav className="flex items-center gap-1.5 text-[12px] text-slate-500 min-w-0 flex-1 basis-full sm:basis-auto overflow-hidden whitespace-nowrap" aria-label="Breadcrumb">
                   <button type="button" className="hover:text-indigo-700" onClick={() => setMode('channels')}>Channels</button><span className="text-slate-300">›</span>
                   <button type="button" className="hover:text-indigo-700 truncate" onClick={() => setActiveTab('Overview')}>{sel.name}</button><span className="text-slate-300">›</span>
                   <span>{groupOf(activeTab).label}</span>{groupOf(activeTab).label !== activeTab && <><span className="text-slate-300">›</span><span className="font-semibold text-slate-800">{TAB_LABEL[activeTab] || activeTab}</span></>}
