@@ -705,6 +705,10 @@ export interface ChannelBookingLocation {
     afterHoursPickup?: boolean;
     afterHoursReturn?: boolean;
     afterHoursFee?: number;
+    /** Airport fee (airport branches only), charged once per rental that starts or ends here. */
+    stationFee?: number;
+    /** false = this airport is free of charge (no airport fee), whatever amount is saved. */
+    airportFeeCharged?: boolean;
     /** Holidays and special days: closed (no pick-ups or returns), or open at other hours than usual. */
     specialDays?: ChannelSpecialDay[];
     /** Shown to brokers that ask in Arabic (PrimaryLangID="ar" / Accept-Language: ar). */
@@ -814,6 +818,10 @@ export interface ChannelBookingRules {
     holdMinutes?: number;
     operationalBuffer?: number;
     oneWayFee?: number;
+    /** One-way fee per route (branch codes); routes not listed use oneWayFee. bothWays defaults to true. */
+    oneWayRoutes?: { from: string; to: string; fee: number; bothWays?: boolean }[];
+    /** A return up to this many minutes after a full day does not count as another day (0 = none, at most 180). */
+    graceMinutes?: number;
     allowedGroups?: string[];
     locations?: ChannelBookingLocation[];
     rateLimitPerMinute?: number;

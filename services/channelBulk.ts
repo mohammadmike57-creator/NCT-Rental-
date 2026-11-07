@@ -16,14 +16,14 @@ export const MODULE_LABEL: Record<BulkModule, string> = {
 
 /** Booking rules the "policies" module carries (the rest of the booking rules stay per channel). */
 export const POLICY_KEYS = [
-  'paymentModel', 'freeCancellationHours', 'lateCancellationFeePercent', 'cancellationTiers', 'modificationFee', 'oneWayFee',
+  'paymentModel', 'freeCancellationHours', 'lateCancellationFeePercent', 'cancellationTiers', 'modificationFee', 'oneWayFee', 'graceMinutes',
   'minLeadHours', 'maxHorizonDays', 'maxRentalDays', 'minDriverAge', 'maxDriverAge', 'noShowAfterHours', 'noShowFeePercent',
 ] as const satisfies readonly (keyof ChannelBookingRules)[];
 export type PolicyKey = typeof POLICY_KEYS[number];
 
 const POLICY_LABEL: Record<PolicyKey, string> = {
   paymentModel: 'payment model', freeCancellationHours: 'free cancellation', lateCancellationFeePercent: 'late cancellation fee',
-  cancellationTiers: 'cancellation schedule', modificationFee: 'modification fee', oneWayFee: 'one-way fee', minLeadHours: 'booking cut-off',
+  cancellationTiers: 'cancellation schedule', modificationFee: 'modification fee', oneWayFee: 'one-way fee', graceMinutes: 'grace period', minLeadHours: 'booking cut-off',
   maxHorizonDays: 'booking horizon', maxRentalDays: 'longest rental', minDriverAge: 'minimum driver age', maxDriverAge: 'maximum driver age',
   noShowAfterHours: 'no-show after', noShowFeePercent: 'no-show fee',
 };
@@ -90,6 +90,7 @@ const fmtPolicy = (k: PolicyKey, v: unknown) => {
   if (/Hours$/.test(k)) return `${v} h`;
   if (/Percent$/.test(k)) return `${v}%`;
   if (/Days$/.test(k)) return `${v} days`;
+  if (/Minutes$/.test(k)) return `${v} min`;
   return String(v);
 };
 

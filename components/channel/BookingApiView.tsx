@@ -7,10 +7,10 @@ import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSecti
 
 /** Defaults the server uses when a rule is not set (see ChannelRules.java). */
 export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'commercial' | 'allowedGroups' | 'ipAllowlist' | 'requireSignature' | 'webhookUrl' | 'webhookEvents'
-  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies' | 'operations'>> = {
+  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies' | 'operations' | 'oneWayRoutes'>> = {
   bookingsEnabled: true, paymentModel: 'PAY_AT_COUNTER', freeCancellationHours: 48, lateCancellationFeePercent: 100, modificationFee: 0,
   minLeadHours: 2, maxRentalDays: 60, maxHorizonDays: 365, minDriverAge: 21, maxDriverAge: 0, offerValidityMinutes: 30, holdMinutes: 15,
-  operationalBuffer: 0, oneWayFee: 0, rateLimitPerMinute: 120, timeZone: 'Asia/Amman', turnaroundMinutes: 0, overdueHoldHours: 24,
+  operationalBuffer: 0, oneWayFee: 0, rateLimitPerMinute: 120, timeZone: 'Asia/Amman', turnaroundMinutes: 0, overdueHoldHours: 24, graceMinutes: 0,
 };
 
 /** Time zones offered for the branches (the server accepts any IANA zone). */
@@ -48,6 +48,34 @@ export const NumberField: React.FC<{ label: string; hint?: string; value: number
       </div>
     </label>
   );
+
+type Route = NonNullable<ChannelBookingRules['oneWayRoutes']>[number];
+
+/** One-way fee per route; a route not listed pays the general one-way fee. */
+const OneWayRoutes: React.FC<{ routes: Route[]; codes: string[]; currency: string; onChange: (r: Route[]) => void }> = ({ routes, codes, currency, onChange }) => {
+  const upd = (i: number, p: Partial<Route>) => onChange(routes.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  const opts = (v: string) => Array.from(new Set([v, ...codes].filter(Boolean)));
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className={labelCls}>One-way fee per route <span className="ml-1 font-normal text-slate-400">routes not listed pay the fee above</span></span>
+        <Button size="sm" disabled={codes.length < 2} onClick={() => onChange([...routes, { from: codes[0] || '', to: codes[1] || '', fee: 0, bothWays: true }])}>Add route</Button>
+      </div>
+      {routes.map((x, i) => (
+        <div key={i} className="flex flex-wrap items-center gap-2 text-xs">
+          <select value={x.from} onChange={e => upd(i, { from: e.target.value })} className={`${selectCls} w-28 font-mono`} aria-label="From">{opts(x.from).map(c => <option key={c}>{c}</option>)}</select>
+          <span className="text-slate-400">{x.bothWays === false ? '→' : '↔'}</span>
+          <select value={x.to} onChange={e => upd(i, { to: e.target.value })} className={`${selectCls} w-28 font-mono`} aria-label="To">{opts(x.to).map(c => <option key={c}>{c}</option>)}</select>
+          <input type="number" min={0} step={0.5} value={x.fee} onChange={e => upd(i, { fee: Math.max(0, Number(e.target.value) || 0) })} className={`${inputCls.replace('w-full ', '')} w-24 tabular-nums`} aria-label="Route fee" />
+          <span className="text-slate-400">{currency}</span>
+          <label className="inline-flex items-center gap-1 text-slate-500"><input type="checkbox" checked={x.bothWays !== false} onChange={e => upd(i, { bothWays: e.target.checked })} />Both ways</label>
+          {x.from === x.to && <Badge tone="warning">Same branch</Badge>}
+          <button type="button" onClick={() => onChange(routes.filter((_, j) => j !== i))} className="ml-auto text-slate-400 hover:text-rose-600" aria-label="Remove route">Remove</button>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const statusTone = (s: ChannelWebhookRow['status']) => (s === 'DELIVERED' ? 'success' : s === 'FAILED' ? 'danger' : 'warning');
 
@@ -176,8 +204,10 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
           <CancellationSchedule rules={rules} set={set} />
           <div className="grid grid-cols-2 gap-3">
             <NumberField label="Modification fee" value={r.modificationFee} onChange={v => set('modificationFee', v)} step={0.5} suffix={aggregator.currency || 'USD'} />
-            <NumberField label="One-way fee" hint="different return location" value={r.oneWayFee} onChange={v => set('oneWayFee', v)} step={0.5} suffix={aggregator.currency || 'USD'} />
+            <NumberField label="One-way fee" hint="any other route" value={r.oneWayFee} onChange={v => set('oneWayFee', v)} step={0.5} suffix={aggregator.currency || 'USD'} />
           </div>
+          <OneWayRoutes routes={rules.oneWayRoutes || []} codes={locations.map(l => l.code).filter(Boolean)} currency={aggregator.currency || 'USD'}
+            onChange={v => set('oneWayRoutes', v.length ? v : undefined)} />
         </Section>
 
         <Section title="Booking limits" subtitle="Requests outside these limits get INVALID_DATE or POLICY_VIOLATION.">
@@ -192,6 +222,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
             <NumberField label="Hold a car for" hint="after a quote" value={r.holdMinutes} onChange={v => set('holdMinutes', v)} min={5} max={60} suffix="minutes" />
             <NumberField label="Turnaround time" hint="cleaning between rentals" value={r.turnaroundMinutes} onChange={v => set('turnaroundMinutes', v)} max={1440} step={15} suffix="minutes" />
             <NumberField label="Car not back yet" hint="treat as returning in" value={r.overdueHoldHours} onChange={v => set('overdueHoldHours', v)} min={1} max={336} suffix="hours" />
+            <NumberField label="Grace period" hint="late return before an extra day" value={r.graceMinutes} onChange={v => set('graceMinutes', Math.min(180, Math.max(0, v)))} max={180} step={15} suffix="minutes" />
           </div>
           <label className="block">
             <span className={labelCls}>Branch time zone <span className="ml-1 font-normal text-slate-400">cut-off, cancellation deadlines and no-shows are counted in it</span></span>

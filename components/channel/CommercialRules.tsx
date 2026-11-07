@@ -108,6 +108,21 @@ export const LocationDetails: React.FC<{ loc: ChannelBookingLocation; currency: 
         <span className="inline-flex items-center gap-2 text-xs text-slate-600">Fee each time
           <Small value={loc.afterHoursFee} onChange={n => onChange({ afterHoursFee: n })} step={0.5} w="w-20" label="After-hours fee" /> {currency}</span>
       </div>
+      {loc.type === 'AIRPORT' && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <span>Airport fee</span>
+          <select value={(loc.airportFeeCharged ?? (loc.stationFee || 0) > 0) ? 'charge' : 'free'} aria-label="Airport fee choice"
+            onChange={e => onChange(e.target.value === 'free' ? { airportFeeCharged: false, stationFee: undefined } : { airportFeeCharged: true })}
+            className={`${selectCls} h-8 text-xs`}>
+            <option value="free">Free of charge</option>
+            <option value="charge">Charge a fee</option>
+          </select>
+          {(loc.airportFeeCharged ?? (loc.stationFee || 0) > 0) && <>
+            <Small value={loc.stationFee} placeholder={0} onChange={n => onChange({ stationFee: n })} step={0.5} w="w-20" label="Airport fee" /> {currency}
+            <span className="text-slate-400">once per rental that starts or ends here</span>
+          </>}
+        </div>
+      )}
     </div>
   );
 };

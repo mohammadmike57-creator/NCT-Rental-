@@ -23,6 +23,8 @@ export const ERROR_CATALOGUE: [string, number, string, string][] = [
   ['SYSTEM_ERROR', 500, 'Internal error', 'Retry safely with the same idempotency key'],
 ];
 
+/** 10:00 plus the grace period, e.g. 60 → 11:00. */
+const graceExample = (m: number) => `${String(10 + Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const code = (s: string) => `<pre><code>${esc(s.trim())}</code></pre>`;
 
@@ -337,9 +339,12 @@ ${section(11, 'Commercial terms for this channel', table(['Term', 'Value'], [
   ['Payment model', r.paymentModel === 'BROKER_PREPAID' ? 'Broker prepaid — you collect from the customer and settle with us' : 'Pay at the counter — the customer pays at pick-up'],
   ['Cancellation', r.lateCancellationFeePercent === 0 ? 'Free at any time' : `Free until ${r.freeCancellationHours} hours before pick-up, then ${r.lateCancellationFeePercent}% of the booking (policy ${policy})`],
   ['Rate calculation', 'Daily price of the vehicle group for the season of the <b>pick-up date</b>, applied to the whole rental; the rental length decides the price band (longer rentals pay less per day). Extras, covers, fees and tax are added on top as itemised in each offer.'],
-  ['Rental days', 'Every started 24 hours counts as a day (pick-up 10:00, return 10:59 two days later = 3 days).'],
+  ['Rental days', r.graceMinutes ? `Every started 24 hours counts as a day, with a grace period of ${r.graceMinutes} minutes (pick-up 10:00, return two days later at ${graceExample(r.graceMinutes)} = 2 days; one minute later = 3 days).`
+    : 'Every started 24 hours counts as a day (pick-up 10:00, return 10:59 two days later = 3 days).'],
   ['Modification fee', r.modificationFee ? `${r.modificationFee} ${cur}` : 'None'],
-  ['One-way fee', r.oneWayFee ? `${r.oneWayFee} ${cur}` : 'None'],
+  ['One-way fee', [...(r.oneWayRoutes || []).map(x => `${esc(x.from)} ${x.bothWays === false ? '→' : '↔'} ${esc(x.to)}: ${x.fee} ${cur}`),
+    (r.oneWayRoutes || []).length ? `Other routes: ${r.oneWayFee ? `${r.oneWayFee} ${cur}` : 'none'}` : (r.oneWayFee ? `${r.oneWayFee} ${cur}` : 'None')].join('<br>')],
+  ['Airport fees', locs.filter(l => l.type === 'AIRPORT').map(l => `<code>${esc(l.code)}</code> ${esc(l.name)}: ${l.airportFeeCharged !== false && (l.stationFee || 0) > 0 ? `${l.stationFee} ${cur} once per rental starting or ending there` : 'free of charge'}`).join('<br>') || 'None'],
   ['Booking cut-off', `${r.minLeadHours} hours before pick-up`],
   ['Booking horizon', `Up to ${r.maxHorizonDays} days ahead`],
   ['Longest rental', `${r.maxRentalDays} days`],
