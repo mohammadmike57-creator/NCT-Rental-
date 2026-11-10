@@ -3,12 +3,13 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
 import { countsInSummary } from '../services/revenue';
-import { allRevenueEvents, monthlyBreakdown } from '../services/revenueByMonth';
+import { allRevenueEvents, applyMonthOverrides, monthlyBreakdown, CommissionMonthOverrides, RevenueEvent } from '../services/revenueByMonth';
+import CommissionAddOns from './CommissionAddOns';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
 import SecurityKeyModal from './SecurityKeyModal';
-import { API_URL } from '../firebase/api';
+import { API_URL, loadedSection, saveAllData } from '../firebase/api';
 
 const FIXED_ADDON = 148; // Fixed franchise fee per month (USD)
 // Franchise fees for these months were settled outside the system and are not charged.
@@ -239,7 +240,9 @@ const StripePaymentModal: React.FC<{
 
 const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, companyDetails, franchisePayments = [], onUpdateFranchisePayment, currentUser, trafficTickets = [], vehicleDamages = [] }) => {
   const [currency, setCurrency] = useState<'USD' | 'JOD'>('USD');
-  const [activeTab, setActiveTab] = useState<'overview' | 'franchise'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'addons' | 'franchise'>('overview');
+  // Months chosen by hand for single add-ons (Add-ons tab → Change month). Kept apart from the bookings.
+  const [monthOverrides, setMonthOverrides] = useState<CommissionMonthOverrides>(() => loadedSection<CommissionMonthOverrides>('commissionMonths') || {});
   const [entry, setEntry] = useState<{ month: string; fee: number; initial?: Partial<PaymentDraft> } | null>(null);
   const [cardDraft, setCardDraft] = useState<PaymentDraft | null>(null);
   const [pending, setPending] = useState<PaymentDraft | null>(null);
@@ -251,6 +254,16 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     !!currentUser?.permissions?.includes(UserPermission.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS) ||
     currentUser?.role === 'ADMIN' || currentUser?.username === 'admin' || currentUser?.email === 'nadeenalnahas@gmail.com';
 
+  /** Moves one add-on (and its 7.5% commission) to another month, or back to automatic. */
+  const moveAddOn = async (e: RevenueEvent, to: { year: number; month: number } | null) => {
+    const next = { ...monthOverrides };
+    if (to) next[e.id] = { ...to, by: currentUser?.fullName || currentUser?.username || 'Staff', at: new Date().toISOString() };
+    else delete next[e.id];
+    setMonthOverrides(next);
+    try { await saveAllData({ commissionMonths: next } as never); }
+    catch { window.alert('The change is shown here but could not be saved to the server yet. Please try again.'); }
+  };
+
   const now = new Date();
   // The breakdown (rental, add-ons, tickets, damages, other) is for admins, and for staff given the permission.
   const showBreakdown = !!currentUser?.permissions?.includes(UserPermission.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN)
@@ -259,7 +272,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   // Revenue counts in the month it was earned: the booking's original price in its own month, every later
   // change (extras, upgrades, extensions, tickets, damages, return charges) in the month it was added.
   // A ticket added in November for an October rental is November revenue and November commission.
-  const events = useMemo(() => allRevenueEvents(allData, { trafficTickets, vehicleDamages }), [allData, trafficTickets, vehicleDamages]);
+  const events = useMemo(() => applyMonthOverrides(allRevenueEvents(allData, { trafficTickets, vehicleDamages }), monthOverrides), [allData, trafficTickets, vehicleDamages, monthOverrides]);
   const breakdown = useMemo(() => monthlyBreakdown(events, year), [events, year]);
   const months = useMemo(() => MONTHS.map((month, idx) => {
     const list = (yearData && yearData[month]) || [];
@@ -424,11 +437,11 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
         subtitle={`${year} · revenue of all bookings except cancelled and no-show, ${(COMMISSION_RATE * 100).toFixed(1)}% commission and franchise fees by month.`}
         actions={
           <>
-            {activeTab === 'overview' && (
+            {activeTab !== 'franchise' && (
               <Segmented value={currency} onChange={k => setCurrency(k as 'USD' | 'JOD')} options={[{ key: 'USD', label: 'USD' }, { key: 'JOD', label: 'JOD' }]} />
             )}
-            <Button variant="primary" icon={<PdfIcon className="w-4 h-4" />} onClick={activeTab === 'overview' ? exportSummaryPDF : exportStatementPDF}>
-              {activeTab === 'overview' ? 'Export summary' : 'Export statement'}
+            <Button variant="primary" icon={<PdfIcon className="w-4 h-4" />} onClick={activeTab === 'franchise' ? exportStatementPDF : exportSummaryPDF}>
+              {activeTab === 'franchise' ? 'Export statement' : 'Export summary'}
             </Button>
           </>
         }
@@ -437,9 +450,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       <Tabs
         className="px-0 sm:px-0"
         value={activeTab}
-        onChange={k => setActiveTab(k as 'overview' | 'franchise')}
+        onChange={k => setActiveTab(k as 'overview' | 'addons' | 'franchise')}
         tabs={[
           { key: 'overview', label: 'Overview' },
+          ...(showBreakdown || canManage ? [{ key: 'addons', label: 'Add-ons & commission' }] : []),
           { key: 'franchise', label: <>Franchise fees{fees.overdueCount > 0 && <span className="ml-2 px-1.5 py-px rounded text-[11px] bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200">{fees.overdueCount} overdue</span>}</> },
         ]}
       />
@@ -593,6 +607,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
             </div>
           </Panel>
         </>
+      ) : activeTab === 'addons' ? (
+        <CommissionAddOns events={events} year={year} rate={rate} money={money} canEdit={canManage} onMove={moveAddOn} />
       ) : (
         <>
           <StatGrid items={[

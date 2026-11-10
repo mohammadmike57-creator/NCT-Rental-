@@ -16,6 +16,8 @@ import { lateFeeOf } from './lateReturn';
 export type RevenueKind = 'rental' | 'addons' | 'tickets' | 'damages' | 'other';
 
 export interface RevenueEvent {
+  /** Stable key of this amount (booking + source), used to move it to another month. */
+  id: string;
   year: number;
   /** 0 = January */
   month: number;
@@ -26,7 +28,19 @@ export interface RevenueEvent {
   /** The booking's own month (for showing "from an October booking"). */
   bookingYear: number;
   bookingMonth: number;
+  /** When it was added (ISO), when known. */
+  at?: string;
+  customer?: string;
+  /** The month the system chose (the month it was added); differs from year/month only when moved by hand. */
+  autoYear: number;
+  autoMonth: number;
+  /** Moved to another month by a person (see applyMonthOverrides). */
+  moved?: { by?: string; at?: string };
 }
+
+/** A person's choice of the month an add-on counts in (revenue and 7.5% commission). Keyed by RevenueEvent.id. */
+export interface CommissionMonthOverride { year: number; month: number; by?: string; at?: string }
+export type CommissionMonthOverrides = Record<string, CommissionMonthOverride>;
 
 export type MonthBreakdown = Record<RevenueKind, number> & { total: number; lateFromEarlier: number };
 
@@ -57,47 +71,48 @@ export function revenueEvents(r: Reservation, bookingYear: number, bookingMonth:
     if (!m || m.year < own.year || (m.year === own.year && m.month < own.month)) return own;
     return m;
   };
-  const add = (kind: RevenueKind, amountUSD: number, at: { year: number; month: number }, label: string) => {
+  const add = (kind: RevenueKind, amountUSD: number, at: { year: number; month: number }, label: string, key: string, iso?: string) => {
     if (!amountUSD) return;
-    out.push({ ...at, kind, amountUSD, bookingId: r.bookingId, label, bookingYear, bookingMonth });
+    out.push({ id: `${r.bookingId || r.id}:${key}`, ...at, autoYear: at.year, autoMonth: at.month, kind, amountUSD, bookingId: r.bookingId, label,
+      bookingYear, bookingMonth, ...(iso ? { at: iso } : {}), customer: r.personName || undefined });
   };
 
   // ---- Rental price: the original price in the booking's month, later changes in their own month.
-  const changes: { at?: string; amount: number; label: string }[] = [];
-  (r.priceChanges || []).forEach(c => changes.push({ at: c.at, amount: c.amount || 0, label: c.kind === 'extras' ? 'Extras changed' : 'Price edited' }));
-  (r.upgradeHistory || []).forEach(u => changes.push({ at: u.date, amount: u.fee || 0, label: `Upgrade to ${u.toCar}` }));
-  (r.extensionHistory || []).forEach(x => changes.push({ at: x.extensionDate, amount: x.cost || 0, label: `Extension ${x.days} day${x.days === 1 ? '' : 's'}` }));
+  const changes: { at?: string; amount: number; label: string; key: string }[] = [];
+  (r.priceChanges || []).forEach((c, i) => changes.push({ at: c.at, amount: c.amount || 0, label: c.kind === 'extras' ? `Extras${c.added?.length ? `: ${c.added.join(', ')}` : ' changed'}` : 'Price edited', key: `pc${i}` }));
+  (r.upgradeHistory || []).forEach((u, i) => changes.push({ at: u.date, amount: u.fee || 0, label: `Upgrade to ${u.toCar}`, key: `up${i}` }));
+  (r.extensionHistory || []).forEach((x, i) => changes.push({ at: x.extensionDate, amount: x.cost || 0, label: `Extension ${x.days} day${x.days === 1 ? '' : 's'}`, key: `ex${i}` }));
   const amount = amountOf(r);
   const changed = changes.reduce((s, c) => s + c.amount, 0);
   if (changes.length && amount - changed >= 0) {
-    add('rental', amount - changed, own, 'Rental');
-    changes.forEach(c => add('addons', c.amount, when(c.at), c.label));
+    add('rental', amount - changed, own, 'Rental', 'rental');
+    changes.forEach(c => add('addons', c.amount, when(c.at), c.label, c.key, c.at));
   } else {
-    add('rental', amount, own, 'Rental');   // no history, or history that does not fit the amount: as before
+    add('rental', amount, own, 'Rental', 'rental');   // no history, or history that does not fit the amount: as before
   }
 
   // ---- Late return fee (applied, not waived), in the month it was applied.
   const lf = lateFeeOf(r);
-  if (lf?.status === 'APPLIED' && !lf.isWaived && lf.amount) add('other', lf.amount, when(lf.feeAppliedDate || lf.resolvedDate), 'Late return');
+  if (lf?.status === 'APPLIED' && !lf.isWaived && lf.amount) add('other', lf.amount, when(lf.feeAppliedDate || lf.resolvedDate), 'Late return', 'late', lf.feeAppliedDate || lf.resolvedDate);
 
   // ---- Damages and tickets from their registers, in the month they were added.
   const rc = r.returnCharges;
   const issued = rc?.issuedAt || r.dropOffDateTime;
   const regDamages = idx.damages.get(r.bookingId) || [];
   const regTickets = idx.tickets.get(r.bookingId) || [];
-  regDamages.forEach(d => add('damages', jodToUsd(d.amount), when(d.id.startsWith(`vd-${r.id}-`) ? issued : addedAt(d)), d.details || 'Damage'));
-  regTickets.forEach(t => add('tickets', jodToUsd(t.amount), when(t.id.startsWith(`tt-${r.id}-`) ? issued : addedAt(t) || t.ticketDate), t.details || 'Traffic ticket'));
+  regDamages.forEach(d => { const iso = d.id.startsWith(`vd-${r.id}-`) ? issued : addedAt(d); add('damages', jodToUsd(d.amount), when(iso), d.details || 'Damage', `vd:${d.id}`, iso); });
+  regTickets.forEach(t => { const iso = t.id.startsWith(`tt-${r.id}-`) ? issued : addedAt(t) || t.ticketDate; add('tickets', jodToUsd(t.amount), when(iso), t.details || 'Traffic ticket', `tt:${t.id}`, iso); });
 
   // ---- Return charges not already in a register, in the month they were issued.
   (rc?.items || []).forEach(it => {
     const v = rc!.currency === 'JOD' ? jodToUsd(it.amount) : it.amount || 0;
     if (it.kind === 'damage') {
-      if (!regDamages.some(d => d.id === `vd-${r.id}-${it.id}`)) add('damages', v, when(issued), it.description || 'Damage');
+      if (!regDamages.some(d => d.id === `vd-${r.id}-${it.id}`)) add('damages', v, when(issued), it.description || 'Damage', `rc:${it.id}`, issued);
     } else if (it.kind === 'ticket') {
       const inRegister = it.ticketId ? regTickets.some(t => t.id === it.ticketId) : regTickets.some(t => t.id === `tt-${r.id}-${it.id}`);
-      if (!inRegister) add('tickets', v, when(issued), it.description || 'Traffic ticket');
+      if (!inRegister) add('tickets', v, when(issued), it.description || 'Traffic ticket', `rc:${it.id}`, issued);
     } else {
-      add('other', v, when(issued), it.description || 'Return charge');
+      add('other', v, when(issued), it.description || 'Return charge', `rc:${it.id}`, issued);
     }
   });
   return out;
@@ -115,6 +130,21 @@ export function allRevenueEvents(data: AppData, registers: { trafficTickets?: Tr
     });
   });
   return out;
+}
+
+/**
+ * Moves add-ons to the month a person chose (the action next to each add-on in Yearly Summary).
+ * Only the month changes: the amount, and so the 7.5% commission on it, stays the same. The booking's
+ * original rental price is never moved.
+ */
+export function applyMonthOverrides(events: RevenueEvent[], overrides: CommissionMonthOverrides | undefined): RevenueEvent[] {
+  if (!overrides || !Object.keys(overrides).length) return events;
+  return events.map(e => {
+    const o = e.kind === 'rental' ? undefined : overrides[e.id];
+    if (!o || !Number.isInteger(o.year) || o.month < 0 || o.month > 11) return e;
+    if (o.year === e.autoYear && o.month === e.autoMonth) return e;
+    return { ...e, year: o.year, month: o.month, moved: { by: o.by, at: o.at } };
+  });
 }
 
 /** Twelve months of one year: revenue per kind, the total, and how much came from bookings of earlier months. */

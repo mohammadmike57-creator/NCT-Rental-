@@ -1,4 +1,4 @@
-import { addedAt, allRevenueEvents, bookingTotal, eventsTotal, monthlyBreakdown, revenueEvents } from '../../services/revenueByMonth';
+import { addedAt, allRevenueEvents, applyMonthOverrides, bookingTotal, eventsTotal, monthlyBreakdown, revenueEvents } from '../../services/revenueByMonth';
 import { indexRegisters } from '../../services/revenue';
 
 const OCT = 9, NOV = 10;
@@ -78,5 +78,40 @@ describe('revenue by the month it was earned', () => {
   it('skips cancelled and no-show bookings, as the summary always did', () => {
     const data: any = { 2026: { October: [booking({ status: 'CANCELLED' })] } };
     expect(allRevenueEvents(data, { trafficTickets: [novTicket] })).toEqual([]);
+  });
+});
+
+describe('add-ons: 7.5% commission and the month they count in', () => {
+  const r = () => booking({
+    amount: 420,
+    upgradeHistory: [{ date: '2026-11-03T09:30:00', toCar: 'Jeep Wrangler', fee: 60 }],
+    extensionHistory: [{ extensionDate: '2026-11-03', newEndDate: '2026-11-05T10:00', days: 2, dailyRate: 30, extras: [], cost: 60, paymentMethod: 'payLater' }],
+  });
+
+  it('counts an add-on added on the 3rd of the next month in that next month, not in the booking month', () => {
+    const ev = revenueEvents(r(), 2026, OCT, indexRegisters({}));
+    const months = monthlyBreakdown(ev, 2026);
+    expect(months[OCT].total).toBe(300);
+    expect(months[NOV].addons).toBe(120);
+    expect(months[NOV].total * 0.075).toBeCloseTo(9);          // 7.5% of the add-ons is November commission
+    const up = ev.find(e => e.label.startsWith('Upgrade'))!;
+    expect(up).toEqual(expect.objectContaining({ id: 'BK-1:up0', month: NOV, autoMonth: NOV, bookingMonth: OCT, at: '2026-11-03T09:30:00' }));
+  });
+
+  it('moves one add-on to the month a person chose; amounts, and so commission, are unchanged', () => {
+    const ev = revenueEvents(r(), 2026, OCT, indexRegisters({}));
+    const moved = applyMonthOverrides(ev, { 'BK-1:up0': { year: 2026, month: OCT, by: 'Admin' }, 'BK-1:rental': { year: 2026, month: 11 } });
+    const months = monthlyBreakdown(moved, 2026);
+    expect(months[OCT].total).toBe(360);                       // rental 300 + upgrade 60 moved back to October
+    expect(months[NOV].total).toBe(60);                        // the extension stays in November
+    expect(months[11].total).toBe(0);                          // the rental price itself is never moved
+    expect(moved.find(e => e.id === 'BK-1:up0')!.moved).toEqual({ by: 'Admin', at: undefined });
+    const sum = (xs: typeof ev) => xs.reduce((s, e) => s + e.amountUSD, 0);
+    expect(sum(moved)).toBe(sum(ev));
+  });
+
+  it('a choice equal to the automatic month changes nothing', () => {
+    const ev = revenueEvents(r(), 2026, OCT, indexRegisters({}));
+    expect(applyMonthOverrides(ev, { 'BK-1:up0': { year: 2026, month: NOV } })).toEqual(ev);
   });
 });
