@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Aggregator, AggregatorConnectionDetails, ChannelStatus } from '../types';
 import { SaveIcon, LockClosedIcon, EyeIcon, CheckCircleIcon, AlertIcon } from './icons';
-import { SUPPORTED_CURRENCIES, validateChannel, generateFeedKey, sha256Hex, partnerEndpoints } from '../services/channelManager';
+import { SUPPORTED_CURRENCIES, acceptedVendorCodes, validateChannel, generateFeedKey, sha256Hex, partnerEndpoints } from '../services/channelManager';
 import { API_URL } from '../firebase/api';
 import { Panel, Button, inputCls, selectCls, labelCls } from './ui/Crm';
 import { keyMessage } from './channel/ApiKeysView';
@@ -276,6 +276,11 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
           <div>
             <Label hint="(Vendor Code)">Supplier code</Label>
             <input value={draft.vendorCode} onChange={e => set('vendorCode', e.target.value.toUpperCase().slice(0, 8))} className={`${inputCls} font-mono`} placeholder="NCT" />
+          </div>
+          <div className="sm:col-span-3 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 px-3 py-2 text-xs text-slate-600">
+            <span className="font-semibold text-slate-700">Codes the broker may use:</span>{' '}
+            {acceptedVendorCodes(draft.vendorCode, draft.vendorName).map(c => <span key={c} className="inline-block mx-0.5 px-1.5 py-px rounded bg-white ring-1 ring-inset ring-slate-200 font-mono font-semibold text-slate-800">{c}</span>)}
+            <span className="block mt-1 text-slate-500">Each answer uses the code the broker sent in VendorPref. A broker that sends none gets {(draft.vendorCode || 'NCT').toUpperCase()}.</span>
           </div>
           <div>
             <Label hint="(IATA / partner)">Location code</Label>

@@ -32,3 +32,11 @@ describe('code viewer helpers', () => {
     expect(checkMessage('{"ok":true}')!.success).toBe(true);
   });
 });
+
+import { acceptedVendorCodes } from '../../services/channelManager';
+describe('vendor codes a broker may use', () => {
+  it('matches the server: channel code, NCT, and codes from the supplier name', () => {
+    expect(acceptedVendorCodes('', 'UR-Drive Jordan')).toEqual(['NCT', 'URD', 'UDJ']);
+    expect(acceptedVendorCodes('urd', 'UR-Drive Jordan')).toEqual(['URD', 'NCT', 'UDJ']);
+  });
+});

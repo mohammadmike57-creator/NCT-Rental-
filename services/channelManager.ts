@@ -13,6 +13,13 @@ export const channelCurrency = (agg: Aggregator) => agg.currency || DEFAULT_CURR
 export const channelStatus = (agg: Aggregator) => agg.status || 'active';
 export const channelEnvironment = (agg: Aggregator) => agg.connectionDetails?.environment || 'production';
 export const channelVendorCode = (agg: Aggregator) => (agg.vendorCode || 'NCT').toUpperCase();
+/** Same rules as ChannelSnapshot.acceptedVendorCodes on the server: the channel's code, NCT, and codes from the supplier name (URD, UDJ). */
+export const acceptedVendorCodes = (code: string, supplierName: string): string[] => {
+  const name = (supplierName || 'UR-Drive Jordan').toUpperCase();
+  const compact = name.replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  const initials = name.split(/[^A-Z0-9]+/).filter(Boolean).map(w => w[0]).join('');
+  return Array.from(new Set([(code || 'NCT').toUpperCase(), 'NCT', ...(compact.length >= 2 ? [compact] : []), ...(initials.length >= 2 ? [initials] : [])]));
+};
 export const channelLocationCode = (agg: Aggregator) => (agg.locationCode || 'AMM').toUpperCase();
 
 export const formatMoney = (amount: number | null | undefined, currency: string): string => {
