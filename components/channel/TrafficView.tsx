@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
 import { fetchChannelTraffic, fetchChannelTrafficMessage, fetchChannelTrafficStats, ChannelTrafficMessage, ChannelTrafficRow, ChannelTrafficStats } from '../../firebase/api';
 import { Panel, Badge, Button, StatGrid, EmptyState, selectCls, inputCls, table } from '../ui/Crm';
+import CodeView, { detectLang } from './CodeView';
 
 /** Indents XML or JSON for reading; anything else is returned as it is. */
 export const pretty = (s?: string) => {
@@ -25,21 +26,10 @@ const kb = (n: number) => (n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`);
 const RANGES: [number, string][] = [[1, 'Last hour'], [24, 'Last 24 hours'], [168, 'Last 7 days'], [720, 'Last 30 days']];
 const FORMAT_TONE: Record<string, 'info' | 'success' | 'warning' | 'muted'> = { OTA: 'info', SOAP: 'warning', XML: 'success', REST: 'muted' };
 
-const CodeBlock: React.FC<{ title: string; body?: string; meta?: string }> = ({ title, body, meta }) => {
-  const [copied, setCopied] = useState(false);
-  const text = pretty(body);
-  return (
-    <div className="rounded-lg border border-slate-200 overflow-hidden flex flex-col min-h-0">
-      <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{title}</span>
-        {meta && <span className="text-[11px] text-slate-400">{meta}</span>}
-        <button type="button" onClick={() => navigator.clipboard?.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); })}
-          className="ml-auto text-xs font-semibold text-indigo-600 hover:underline">{copied ? 'Copied' : 'Copy'}</button>
-      </div>
-      <pre className="p-3 text-[11.5px] leading-[1.55] font-mono text-slate-800 bg-white overflow-auto max-h-[28rem] whitespace-pre">{text || '—'}</pre>
-    </div>
-  );
-};
+const CodeBlock: React.FC<{ title: string; body?: string; meta?: string }> = ({ title, body, meta }) => (
+  <CodeView code={body} title={title} summary={/answer|response/i.test(title)} download={`${title.toLowerCase().replace(/\W+/g, '-')}.${detectLang(body) === 'json' ? 'json' : 'xml'}`}
+    meta={meta ? <span className="text-[11px] text-slate-400 truncate">{meta}</span> : undefined} height="28rem" empty="—" />
+);
 
 /** Every broker call in full (masked), with volume, error and speed statistics. */
 const TrafficView: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { API_URL, RetentionPolicy, fetchRetentionPolicy } from '../../firebase/api';
 import { Panel, Badge, Button, table } from '../ui/Crm';
+import CodeView from './CodeView';
 
 /**
  * Developer hub of the distribution platform: every API version and its status, the documents brokers download,
@@ -116,11 +117,11 @@ function verify(req, secret) {
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Quick start: REST/JSON v3" subtitle="Three calls from login to booking." actions={<Button size="sm" onClick={() => copy('quick', quick)}>{copied === 'quick' ? 'Copied' : 'Copy'}</Button>}>
-          <pre className="m-3 p-3 rounded-lg bg-slate-900 text-slate-100 text-[11px] leading-relaxed overflow-x-auto whitespace-pre">{quick}</pre>
+        <Panel title="Quick start: REST/JSON v3" subtitle="Three calls from login to booking." bodyClassName="p-3">
+          <CodeView code={quick} lang="text" title="quick-start.sh" format={false} height="24rem" download="quick-start.sh" />
         </Panel>
-        <Panel title="Verifying webhooks v2" subtitle="HMAC-SHA256 over id.timestamp.nonce.body; 72 h retries, then the dead-letter list." actions={<Button size="sm" onClick={() => copy('verify', verify)}>{copied === 'verify' ? 'Copied' : 'Copy'}</Button>}>
-          <pre className="m-3 p-3 rounded-lg bg-slate-900 text-slate-100 text-[11px] leading-relaxed overflow-x-auto whitespace-pre">{verify}</pre>
+        <Panel title="Verifying webhooks v2" subtitle="HMAC-SHA256 over id.timestamp.nonce.body; 72 h retries, then the dead-letter list." bodyClassName="p-3">
+          <CodeView code={verify} lang="text" title="verify-webhook" format={false} height="24rem" download="verify-webhook.txt" />
         </Panel>
       </div>
     </div>

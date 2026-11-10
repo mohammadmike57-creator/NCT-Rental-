@@ -175,6 +175,7 @@ export const validateChannel = (agg: Aggregator, fleet: Fleet, today: string = t
   if (!conn.username) push('warning', 'Connection', 'Username / channel ID is not set.');
   if (!conn.apiKey) push('warning', 'Connection', 'API key / secret is not set.');
   if (!agg.vendorCode) push('info', 'Connection', 'Supplier (vendor) code not set — "NCT" will be used in XML.');
+  if (!agg.vendorName?.trim()) push('info', 'Connection', 'Supplier name not set — brokers see your company name (UR-Drive Jordan) in every answer.');
   if (!agg.locationCode) push('info', 'Connection', 'Location code not set — "AMM" will be used in XML.');
   if (!agg.feedKeyHash) {
     // Without a push endpoint the partner has no way to get rates at all.
@@ -482,7 +483,7 @@ export const generateVehAvailRateXml = (
   out.push('    </VehRentalCore>');
   out.push('    <VehVendorAvails>');
   out.push('      <VehVendorAvail>');
-  out.push(`        <Vendor${attrs({ Code: channelVendorCode(agg) })}>NCT Rental</Vendor>`);
+  out.push(`        <Vendor${attrs({ Code: channelVendorCode(agg) })}>${escapeXml(agg.vendorName || 'UR-Drive Jordan')}</Vendor>`);
   out.push('        <VehAvails>');
   lines.forEach(line => {
     out.push('          <VehAvail>');

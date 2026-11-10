@@ -34,7 +34,7 @@ const toDraft = (agg: Aggregator): Draft => ({
   },
   channelCode: agg.channelCode || '',
   vendorCode: agg.vendorCode || 'NCT',
-  vendorName: agg.vendorName || 'NCT Rental',
+  vendorName: agg.vendorName || 'UR-Drive Jordan',
   locationCode: agg.locationCode || 'AMM',
   currency: agg.currency || 'USD',
   status: agg.status || 'active',
