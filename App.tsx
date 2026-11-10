@@ -1803,6 +1803,7 @@ ${currentUser?.fullName}
             sources={sources}
             company={companyDetails}
             onOpenBooking={(reservation, year, month) => setModals(m => ({ ...m, viewRentalVoucher: { reservation, year, month } }))}
+            currentUser={currentUser}
         />
     ), permission: UserPermission.VIEW_RESERVATION_ADDONS },
     'Fleet Availability': { component: (

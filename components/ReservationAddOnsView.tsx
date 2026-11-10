@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { AppData, CompanyDetails, RentalSource, Reservation, ReservationStatus, TrafficTicket, VehicleDamage } from '../types';
-import { MONTHS } from '../constants';
+import { AppData, CompanyDetails, RentalSource, Reservation, ReservationStatus, TrafficTicket, User, UserPermission, VehicleDamage } from '../types';
+import { MONTHS, COMMISSION_RATE } from '../constants';
+import { applyMonthOverrides, revenueEvents, RevenueEvent } from '../services/revenueByMonth';
+import { countsInSummary, indexRegisters } from '../services/revenue';
+import { setCommissionMonth, useCommissionMonths } from '../services/commissionMonths';
+import { MonthChip, MoveDialog } from './CommissionAddOns';
 import { addOnsOf, AddOn, AddOnKind, AddOnStatus, AddOnSummary, isOpen, KIND_LABEL, STATUS_LABEL } from '../services/addOns';
 import { printHtml } from '../services/printDocs';
 import { Badge, Button, Dialog, EmptyState, Page, PageHeader, Panel, Segmented, StatGrid, inputCls, selectCls, table } from './ui/Crm';
@@ -14,6 +18,28 @@ interface Props {
   company?: CompanyDetails;
   /** Opens the booking's agreement (check-out / check-in screen). */
   onOpenBooking?: (r: Reservation, year: number, month: string) => void;
+  /** Changing the month an add-on counts in needs the franchise payments permission. */
+  currentUser?: User | null;
+}
+
+const PCT = `${(COMMISSION_RATE * 100).toFixed(1)}%`;
+
+/** The revenue amount (in Yearly Summary) behind one add-on line, if it counts for commission. */
+function eventFor(r: Reservation, a: AddOn, byKey: Map<string, RevenueEvent>): RevenueEvent | undefined {
+  const id = a.id;
+  const keys: string[] = [];
+  if (/^(pc|up|ex)-\d+$/.test(id)) keys.push(id.replace('-', ''));
+  else if (id === 'late') keys.push('late');
+  else if (id.startsWith('tt-')) keys.push(`tt:${id.slice(3)}`);
+  else if (id.startsWith('vd-')) keys.push(`vd:${id.slice(3)}`);
+  else if (id.startsWith('rc-')) {
+    const x = id.slice(3);
+    const item = (r.returnCharges?.items || []).find(i => i.id === x);
+    if (item?.ticketId) keys.push(`tt:${item.ticketId}`);
+    keys.push(`vd:vd-${r.id}-${x}`, `tt:tt-${r.id}-${x}`, `rc:${x}`);
+  }
+  for (const k of keys) { const e = byKey.get(k); if (e) return e; }
+  return undefined;
 }
 
 type Period = 'month' | 'quarter' | 'year' | 'all';
@@ -67,7 +93,32 @@ const KindChip: React.FC<{ kind: AddOnKind; count?: number }> = ({ kind, count }
  * Reservation Add-ons: every booking whose cost changed after it was made, with the original
  * reservation next to what it is now and each change (who, when, how much, paid or not).
  */
-const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sources, company, onOpenBooking }) => {
+/** Why an add-on line carries no commission. */
+const noCommissionReason = (e: AddOn) => (e.status === 'waived' ? 'waived' : e.status === 'pending' ? 'awaiting decision' : e.amount === 0 ? 'free' : e.kind === 'cancellation' || e.kind === 'noshow' ? 'cancelled or no-show booking' : 'not counted in revenue');
+
+/** Commission, month and the Change month action for one add-on line. */
+const CommissionCells: React.FC<{ ev?: RevenueEvent; canEdit: boolean; onChangeMonth: (e: RevenueEvent) => void }> = ({ ev, canEdit, onChangeMonth }) => (ev ? (
+  <>
+    <td className={`${table.td} text-right font-semibold tabular-nums whitespace-nowrap text-indigo-700`}>{usd(ev.amountUSD * COMMISSION_RATE)}</td>
+    <td className={table.td}>
+      <div className="flex flex-col items-start gap-1.5">
+        <MonthChip e={ev} />
+        {canEdit && <Button size="sm" onClick={() => onChangeMonth(ev)}>Change month</Button>}
+      </div>
+    </td>
+  </>
+) : (
+  <td className={`${table.td} text-[11px] text-slate-400`} colSpan={2}>No commission</td>
+));
+
+const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sources, company, onOpenBooking, currentUser }) => {
+  const overrides = useCommissionMonths();
+  const [moving, setMoving] = useState<RevenueEvent | null>(null);
+  const canEdit = !!currentUser?.permissions?.includes(UserPermission.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS)
+    || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin';
+  // Commission figures are for the same people who see the revenue breakdown in Yearly Summary.
+  const canSee = canEdit || !!currentUser?.permissions?.includes(UserPermission.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN)
+    || !!currentUser?.permissions?.includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);
   const [period, setPeriod] = useState<Period>('year');
   const [type, setType] = useState<TypeFilter>('all');
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -84,6 +135,29 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
     if (period === 'year') return d.getFullYear() === now.getFullYear();
     const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
     return period === 'month' ? months === 0 : months >= 0 && months < 3;
+  };
+
+  // The commission side: every booking's revenue amounts in the month they count in (as in Yearly Summary).
+  const commission = useMemo(() => {
+    const idx = indexRegisters({ trafficTickets: tickets, vehicleDamages: damages });
+    const out = new Map<string, Map<string, RevenueEvent>>();
+    Object.entries(allData || {}).forEach(([y, months]) => MONTHS.forEach((m, mi) => ((months as any)?.[m] || []).forEach((r: Reservation) => {
+      if (!r || !countsInSummary(r)) return;
+      const prefix = `${r.bookingId || r.id}:`;
+      const ev = applyMonthOverrides(revenueEvents(r, Number(y), mi, idx), overrides).filter(e => e.kind !== 'rental');
+      out.set(r.id, new Map(ev.map(e => [e.id.startsWith(prefix) ? e.id.slice(prefix.length) : e.id, e])));
+    })));
+    return out;
+  }, [allData, tickets, damages, overrides]);
+  const eventsOf = (s: AddOnSummary) => {
+    const byKey = commission.get(s.reservation.id) || new Map<string, RevenueEvent>();
+    return new Map(s.entries.map(e => [e.id, eventFor(s.reservation, e, byKey)] as const).filter((x): x is [string, RevenueEvent] => !!x[1]));
+  };
+  const commissionOf = (s: AddOnSummary) => Array.from(eventsOf(s).values()).reduce((t, e) => t + e.amountUSD * COMMISSION_RATE, 0);
+  const move = async (e: RevenueEvent, to: { year: number; month: number } | null) => {
+    try { await setCommissionMonth(e.id, to ? { ...to, by: currentUser?.fullName || currentUser?.username || 'Staff', at: new Date().toISOString() } : null); }
+    catch { window.alert('The change is shown here but could not be saved to the server yet. Please try again.'); }
+    setMoving(null);
   };
 
   // Every booking in the period, and those with at least one add-on.
@@ -177,6 +251,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
         { label: 'Charges raised', value: <Stack m={kpi.charges} />, sub: 'damages, tickets, fees' },
         { label: 'Outstanding', value: <Stack m={kpi.outstanding} />, sub: 'claims, tickets, extensions', tone: kpi.outstanding.USD || kpi.outstanding.JOD ? 'danger' : 'default', active: status === 'open', onClick: () => setStatus(s => (s === 'open' ? 'all' : 'open')) },
         { label: 'Waived', value: <Stack m={kpi.waived} />, sub: 'fees not charged', tone: 'muted' },
+        ...(canSee ? [{ label: `Commission ${PCT}`, value: usd(withAddOns.reduce((t, s) => t + commissionOf(s), 0)), sub: 'on these add-ons, in the month each counts in' }] : []),
       ]} />
 
       {byType.length > 0 && (
@@ -239,6 +314,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
                 <th className={`${table.th} text-right`}>Price now</th>
                 <th className={`${table.th} text-right`}>Charges</th>
                 <th className={`${table.th} text-right`}>Outstanding</th>
+                {canSee && <th className={`${table.th} text-right`} title={`${PCT} commission on this booking's add-ons`}>Commission {PCT}</th>}
                 <th className={table.th}><span className="sr-only">Open</span></th>
               </tr></thead>
               <tbody className={table.body}>
@@ -272,6 +348,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
                       </td>
                       <td className={`${table.td} text-right whitespace-nowrap tabular-nums text-slate-800`}>{both(s.charges)}</td>
                       <td className={`${table.td} text-right whitespace-nowrap tabular-nums ${owed ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>{owed ? both(s.outstanding) : 'Settled'}</td>
+                      {canSee && <td className={`${table.td} text-right whitespace-nowrap tabular-nums font-semibold text-indigo-700`}>{usd(commissionOf(s))}</td>}
                       <td className={`${table.td} text-right`}><ChevronRightIcon className="w-4 h-4 text-slate-400 inline" /></td>
                     </tr>
                   );
@@ -297,6 +374,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
                           <p className="text-[11px] text-slate-400 line-through tabular-nums">{s.priceChange !== 0 ? usd(s.originalPrice) : ''}</p>
                           <p className="font-semibold text-slate-900 tabular-nums">{usd(s.currentPrice)}</p>
                           {owed && <p className="text-[11px] font-semibold text-rose-600 tabular-nums">{both(s.outstanding)} due</p>}
+                          {canSee && <p className="text-[11px] font-semibold text-indigo-700 tabular-nums">{PCT}: {usd(commissionOf(s))}</p>}
                         </div>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-1">{kinds.map(([k, n]) => <KindChip key={k} kind={k} count={n} />)}</div>
@@ -310,13 +388,18 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
       </section>
 
       {open && <Statement summary={open} sourceName={sourceName} company={company} onClose={() => setOpen(null)}
+        events={eventsOf(open)} canSee={canSee} canEdit={canEdit} onChangeMonth={setMoving}
         onOpenBooking={onOpenBooking ? () => { openBooking(open.reservation); setOpen(null); } : undefined} />}
+      {moving && <MoveDialog e={moving} rate={1} money={n => usd(n)} onClose={() => setMoving(null)} onSave={to => move(moving, to)} />}
     </Page>
   );
 };
 
 /** One booking: the original reservation next to what it is now, and every change with its status. */
-const Statement: React.FC<{ summary: AddOnSummary; sourceName: (id?: string) => string; company?: CompanyDetails; onClose: () => void; onOpenBooking?: () => void }> = ({ summary: s, sourceName, company, onClose, onOpenBooking }) => {
+const Statement: React.FC<{
+  summary: AddOnSummary; sourceName: (id?: string) => string; company?: CompanyDetails; onClose: () => void; onOpenBooking?: () => void;
+  events: Map<string, RevenueEvent>; canSee: boolean; canEdit: boolean; onChangeMonth: (e: RevenueEvent) => void;
+}> = ({ summary: s, sourceName, company, onClose, onOpenBooking, events, canSee, canEdit, onChangeMonth }) => {
   const r = s.reservation;
   const compare: { label: string; was: string; now: string; changed: boolean }[] = [
     { label: 'Pick-up', was: fmtDate(r.startDate, true), now: fmtDate(r.startDate, true), changed: false },
@@ -354,10 +437,12 @@ const Statement: React.FC<{ summary: AddOnSummary; sourceName: (id?: string) => 
 
   const EntryTable: React.FC<{ list: AddOn[] }> = ({ list }) => (
     <>
-      <table className={`hidden md:table ${table.wrap}`}>
+      <div className="hidden md:block overflow-x-auto">
+      <table className={table.wrap}>
         <thead><tr className={table.head}>
           <th className={table.th}>Date</th><th className={table.th}>Type</th><th className={table.th}>Description</th>
-          <th className={table.th}>By</th><th className={table.th}>Status</th><th className={`${table.th} text-right`}>Amount</th>
+          <th className={table.th}>Status</th><th className={`${table.th} text-right`}>Amount</th>
+          {canSee && <><th className={`${table.th} text-right`}>{PCT}</th><th className={table.th}>Counts in · action</th></>}
         </tr></thead>
         <tbody className={table.body}>
           {list.map(e => (
@@ -367,15 +452,16 @@ const Statement: React.FC<{ summary: AddOnSummary; sourceName: (id?: string) => 
               <td className={table.td}>
                 <p className="font-medium text-slate-900">{e.title}</p>
                 {(e.detail || e.reference) && <p className="text-[11px] text-slate-500">{[e.detail, e.reference].filter(Boolean).join(' · ')}</p>}
-                {e.source === 'register' && <p className="text-[11px] text-slate-400">From the {e.kind === 'ticket' ? 'Traffic Tickets' : 'Vehicle Damages'} register</p>}
+                {(e.by || e.source === 'register') && <p className="text-[11px] text-slate-400">{[e.by && `by ${e.by}`, e.source === 'register' && `from the ${e.kind === 'ticket' ? 'Traffic Tickets' : 'Vehicle Damages'} register`].filter(Boolean).join(' · ')}</p>}
               </td>
-              <td className={`${table.td} text-slate-600 whitespace-nowrap`}>{e.by || '—'}</td>
               <td className={table.td}><Badge tone={STATUS_TONE[e.status]}>{STATUS_LABEL[e.status]}</Badge></td>
               <td className={`${table.td} text-right font-semibold tabular-nums whitespace-nowrap ${e.status === 'waived' ? 'text-slate-400 line-through' : e.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{money(e.amount, e.currency, true)}</td>
+              {canSee && <CommissionCells ev={events.get(e.id)} canEdit={canEdit} onChangeMonth={onChangeMonth} />}
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       <ul className="md:hidden divide-y divide-slate-100">
         {list.map(e => (
           <li key={e.id} className="py-2.5">
@@ -385,6 +471,13 @@ const Statement: React.FC<{ summary: AddOnSummary; sourceName: (id?: string) => 
               <div className="text-right shrink-0"><p className={`text-[13px] font-semibold tabular-nums ${e.status === 'waived' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{money(e.amount, e.currency, true)}</p>
                 <Badge tone={STATUS_TONE[e.status]} className="mt-1">{STATUS_LABEL[e.status]}</Badge></div>
             </div>
+            {!canSee ? null : events.get(e.id) ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px]">
+                <span className="font-semibold tabular-nums text-indigo-700">{PCT}: {usd(events.get(e.id)!.amountUSD * COMMISSION_RATE)}</span>
+                <MonthChip e={events.get(e.id)!} />
+                {canEdit && <Button size="sm" className="ml-auto" onClick={() => onChangeMonth(events.get(e.id)!)}>Change month</Button>}
+              </div>
+            ) : <p className="mt-1 text-[11px] text-slate-400">No commission ({noCommissionReason(e)})</p>}
           </li>
         ))}
       </ul>

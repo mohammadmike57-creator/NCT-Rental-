@@ -3,13 +3,14 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
 import { countsInSummary } from '../services/revenue';
-import { allRevenueEvents, applyMonthOverrides, monthlyBreakdown, CommissionMonthOverrides, RevenueEvent } from '../services/revenueByMonth';
+import { allRevenueEvents, applyMonthOverrides, monthlyBreakdown, RevenueEvent } from '../services/revenueByMonth';
 import CommissionAddOns from './CommissionAddOns';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
 import SecurityKeyModal from './SecurityKeyModal';
-import { API_URL, loadedSection, saveAllData } from '../firebase/api';
+import { API_URL } from '../firebase/api';
+import { setCommissionMonth, useCommissionMonths } from '../services/commissionMonths';
 
 const FIXED_ADDON = 148; // Fixed franchise fee per month (USD)
 // Franchise fees for these months were settled outside the system and are not charged.
@@ -242,7 +243,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   const [currency, setCurrency] = useState<'USD' | 'JOD'>('USD');
   const [activeTab, setActiveTab] = useState<'overview' | 'addons' | 'franchise'>('overview');
   // Months chosen by hand for single add-ons (Add-ons tab → Change month). Kept apart from the bookings.
-  const [monthOverrides, setMonthOverrides] = useState<CommissionMonthOverrides>(() => loadedSection<CommissionMonthOverrides>('commissionMonths') || {});
+  const monthOverrides = useCommissionMonths();
   const [entry, setEntry] = useState<{ month: string; fee: number; initial?: Partial<PaymentDraft> } | null>(null);
   const [cardDraft, setCardDraft] = useState<PaymentDraft | null>(null);
   const [pending, setPending] = useState<PaymentDraft | null>(null);
@@ -256,11 +257,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
   /** Moves one add-on (and its 7.5% commission) to another month, or back to automatic. */
   const moveAddOn = async (e: RevenueEvent, to: { year: number; month: number } | null) => {
-    const next = { ...monthOverrides };
-    if (to) next[e.id] = { ...to, by: currentUser?.fullName || currentUser?.username || 'Staff', at: new Date().toISOString() };
-    else delete next[e.id];
-    setMonthOverrides(next);
-    try { await saveAllData({ commissionMonths: next } as never); }
+    try { await setCommissionMonth(e.id, to ? { ...to, by: currentUser?.fullName || currentUser?.username || 'Staff', at: new Date().toISOString() } : null); }
     catch { window.alert('The change is shown here but could not be saved to the server yet. Please try again.'); }
   };
 

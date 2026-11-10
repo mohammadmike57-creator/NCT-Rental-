@@ -180,7 +180,7 @@ const CommissionAddOns: React.FC<{
   );
 };
 
-const MonthChip: React.FC<{ e: RevenueEvent }> = ({ e }) => (
+export const MonthChip: React.FC<{ e: RevenueEvent }> = ({ e }) => (
   <span className="inline-flex flex-col items-start">
     <span className="inline-flex items-center gap-1.5">
       <Badge tone={e.moved ? 'info' : 'default'}>{MONTHS[e.month].slice(0, 3)} {e.year}</Badge>
@@ -190,7 +190,7 @@ const MonthChip: React.FC<{ e: RevenueEvent }> = ({ e }) => (
   </span>
 );
 
-const MoveDialog: React.FC<{ e: RevenueEvent; money: (n: number) => string; rate: number; onClose: () => void; onSave: (to: { year: number; month: number } | null) => void }> = ({ e, money, rate, onClose, onSave }) => {
+export const MoveDialog: React.FC<{ e: RevenueEvent; money: (n: number) => string; rate: number; onClose: () => void; onSave: (to: { year: number; month: number } | null) => void }> = ({ e, money, rate, onClose, onSave }) => {
   // From the booking's month to twelve months after the month the add-on was added.
   const from = monthKey(e.bookingYear, e.bookingMonth), to = monthKey(e.autoYear, e.autoMonth) + 12;
   const options = Array.from({ length: to - from + 1 }, (_, i) => from + i).map(k => ({ year: Math.floor(k / 12), month: k % 12 }));
