@@ -185,7 +185,7 @@ const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ aggregator: channel, fl
         </Panel>
       )}
 
-      <CodeView code={xml} title={type === 'availrate' ? 'OTA_VehAvailRateRS.xml' : 'RateSheet.xml'} format={false} summary={type === 'availrate'} height="600px"
+      <CodeView code={xml} readable defaultView="readable" title={type === 'availrate' ? 'OTA_VehAvailRateRS.xml' : 'RateSheet.xml'} format={false} summary={type === 'availrate'} height="600px"
         download={`${aggregator.channelCode || aggregator.id}_${type === 'availrate' ? 'VehAvailRateRS' : 'RateSheet'}_${todayIso()}.xml`} />
     </div>
   );

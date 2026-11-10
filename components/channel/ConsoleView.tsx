@@ -199,12 +199,12 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
                 : flowOk ? <span className="text-[12px] font-semibold text-emerald-700">All {FLOW.length} steps passed · {flow.reduce((t, s) => t + s.ms, 0)} ms</span>
                 : flow.length ? <span className="text-[12px] font-semibold text-rose-700">Stopped at step {flow.length}</span> : null}
             </div>
-            <ol className="grid gap-2 sm:grid-cols-5">
+            <ol className="flex gap-2 overflow-x-auto snap-x pb-1 -mx-1 px-1 sm:grid sm:grid-cols-5 sm:overflow-visible">
               {FLOW.map((id, i) => {
                 const st = flow[i];
                 const t = list.find(x => x.id === id)!;
                 return (
-                  <li key={id}>
+                  <li key={id} className="snap-start shrink-0 w-[46%] sm:w-auto">
                     <button type="button" disabled={!st} onClick={() => st && restore(st)}
                       className={`w-full text-left rounded-lg px-3 py-2 ring-1 ring-inset transition-colors ${!st ? 'bg-slate-50 ring-slate-200 text-slate-400' : st.ok ? 'bg-emerald-50/60 ring-emerald-200 hover:ring-emerald-300' : 'bg-rose-50/60 ring-rose-200 hover:ring-rose-300'}`}>
                       <p className="text-[10.5px] font-semibold uppercase tracking-wider opacity-70">Step {i + 1}</p>
@@ -221,7 +221,7 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
 
       <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)] items-start">
         {/* Collection */}
-        <aside className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip xl:sticky xl:top-24">
+        <aside className="hidden xl:block rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip xl:sticky xl:top-24">
           <div className="p-3 border-b border-slate-100">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Messages</p>
             <input value={find} onChange={e => setFind(e.target.value)} placeholder="Filter messages" className={`${inputCls} h-8 text-[12px]`} aria-label="Filter messages" />
@@ -246,6 +246,12 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
           <div className="grid gap-4 min-[1750px]:grid-cols-2 items-start">
             {/* Request */}
             <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip min-w-0 flex flex-col">
+              <label className="xl:hidden block px-4 pt-3">
+                <span className="block mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">Message · tap to change</span>
+                <select value={tpl.id} onChange={e => choose(e.target.value)} className={`${selectCls} w-full h-10 text-[14px] font-semibold`} aria-label="Message (phone)">
+                  {(['OTA', 'SOAP', 'XML', 'REST'] as Format[]).map(f => <optgroup key={f} label={PROTOCOL_NAME[f]}>{list.filter(t => t.format === f).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</optgroup>)}
+                </select>
+              </label>
               <header className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-slate-100">
                 <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold ring-1 ring-inset ${PROTOCOL_TONE[tpl.format]}`}>{PROTOCOL_NAME[tpl.format]}</span>
                 <h3 className="text-[13.5px] font-semibold text-slate-900 truncate">{tpl.label.replace(/^[^·]+· /, '')}</h3>
@@ -274,7 +280,7 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
                 </div>
               )}
               <div className="relative flex bg-[#0b1020] min-h-[26rem]">
-                <div ref={gutter} aria-hidden className="select-none overflow-hidden py-3 pl-3 pr-3 text-right font-mono text-[11.5px] leading-[1.6] text-slate-600 tabular-nums" style={{ maxHeight: '26rem' }}>
+                <div ref={gutter} aria-hidden className="select-none overflow-hidden py-3 pl-3 pr-3 text-right font-mono text-[11.5px] leading-[1.6] text-slate-600 tabular-nums code-gutter" style={{ maxHeight: '26rem' }}>
                   {Array.from({ length: lines }, (_, i) => <div key={i}>{i + 1}</div>)}
                 </div>
                 <textarea value={body} onChange={e => setBody(e.target.value)} spellCheck={false} wrap="off"
@@ -300,7 +306,7 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
             {/* Response */}
             <div className="min-w-0 space-y-2">
               {error && <p className="rounded-lg bg-rose-50 ring-1 ring-inset ring-rose-200 px-3 py-2 text-[12px] text-rose-700">{error}</p>}
-              <CodeView code={res?.body} summary download={res ? `${res.label.replace(/\W+/g, '-').toLowerCase()}-${res.requestId}.${detectLang(res.body) === 'json' ? 'json' : 'xml'}` : undefined}
+              <CodeView code={res?.body} summary readable defaultView="readable" download={res ? `${res.label.replace(/\W+/g, '-').toLowerCase()}-${res.requestId}.${detectLang(res.body) === 'json' ? 'json' : 'xml'}` : undefined}
                 title={res ? 'Response' : 'Response'} height="30rem" empty="Send a message (Ctrl + Enter) to see the answer here."
                 meta={res && <>
                   <span className={`inline-flex items-center h-5 px-1.5 rounded text-[10.5px] font-bold tabular-nums ${res.status < 300 ? 'bg-emerald-500/20 text-emerald-300' : res.status < 500 ? 'bg-amber-500/20 text-amber-200' : 'bg-rose-500/20 text-rose-200'}`}>HTTP {res.status}</span>
@@ -316,8 +322,25 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
               <div><h3 className="text-[13.5px] font-semibold text-slate-900">This session</h3><p className="text-[12px] text-slate-500">Click a call to load its request and answer again.</p></div>
               {history.length > 0 && <Button size="sm" variant="ghost" onClick={() => setHistory([])}>Clear</Button>}
             </header>
-            {history.length === 0 ? <p className="px-4 py-6 text-center text-[12.5px] text-slate-400">No calls yet.</p> : (
-              <div className="overflow-x-auto">
+            {history.length === 0 ? <p className="px-4 py-6 text-center text-[12.5px] text-slate-400">No calls yet.</p> : (<>
+              <ul className="md:hidden divide-y divide-slate-100">
+                {history.map(h => {
+                  const c = checkMessage(h.body);
+                  return (
+                    <li key={h.id}>
+                      <button type="button" onClick={() => restore(h)} className={`w-full text-left px-4 py-2.5 ${res?.id === h.id ? 'bg-indigo-50/50' : 'active:bg-slate-50'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1 py-px rounded text-[9.5px] font-bold ring-1 ring-inset ${PROTOCOL_TONE[h.format]}`}>{h.format === 'REST' ? h.method : h.format}</span>
+                          <span className="flex-1 min-w-0 truncate text-[13px] font-medium text-slate-900">{h.label.replace(/^[^·]+· /, '')}</span>
+                          <span className={`text-[12px] font-semibold tabular-nums ${statusTone(h.status)}`}>{h.status}</span>
+                        </div>
+                        <p className="mt-0.5 text-[11.5px] text-slate-500 truncate">{h.at} · {h.ms} ms · {c?.errors.length ? <span className="text-rose-700">{c.errors[0].text}</span> : c?.success ? <span className="text-emerald-700">Success</span> : '—'}</p>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full min-w-[640px] text-[12.5px]">
                   <thead><tr className="bg-slate-50 border-b border-slate-200 text-left text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
                     <th className="px-4 py-2">Time</th><th className="px-3 py-2">Message</th><th className="px-3 py-2">Result</th><th className="px-3 py-2 text-right">HTTP</th><th className="px-3 py-2 text-right">Time</th><th className="px-4 py-2">Request ID</th></tr></thead>
@@ -338,7 +361,7 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
                   </tbody>
                 </table>
               </div>
-            )}
+            </>)}
           </section>
         </div>
       </div>

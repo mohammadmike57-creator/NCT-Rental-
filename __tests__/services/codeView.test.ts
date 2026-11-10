@@ -40,3 +40,32 @@ describe('vendor codes a broker may use', () => {
     expect(acceptedVendorCodes('urd', 'UR-Drive Jordan')).toEqual(['URD', 'NCT', 'UDJ']);
   });
 });
+
+import { friendlyTitle, humanize } from '../../components/channel/MessageReader';
+describe('readable message names', () => {
+  it('names OTA messages in plain words', () => {
+    expect(friendlyTitle('OTA_VehAvailRateRS')).toBe('Availability & rates · answer');
+    expect(friendlyTitle('OTA_VehResRQ')).toBe('Booking · request');
+    expect(friendlyTitle('OTA_VehRetResRS')).toBe('Booking look-up · answer');
+    expect(friendlyTitle('OTA_VehCancelRS')).toBe('Cancellation · answer');
+    expect(humanize('PickUpDateTime')).toBe('Pick-up date & time');
+  });
+});
+
+import { labelTables } from '../../services/responsiveTables';
+describe('phone cards for tables', () => {
+  it('labels each cell with its column name, keeping header parts apart', () => {
+    document.body.innerHTML = `<div id="r"><table><thead><tr><th>Booking</th><th><p>1–3 days</p><p>rate band</p></th><th></th></tr></thead>
+      <tbody><tr><td>RSV-1</td><td>36.00</td><td>x</td></tr><tr><td colspan="3">Note</td></tr></tbody></table>
+      <table data-no-cards><thead><tr><th>A</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table></div>`;
+    labelTables(document.getElementById('r')!);
+    const [t1, t2] = Array.from(document.querySelectorAll('table'));
+    expect(t1.classList.contains('rt-cards')).toBe(true);
+    const cells = t1.querySelectorAll('tbody tr:first-child td');
+    expect(cells[0].getAttribute('data-label')).toBe('Booking');
+    expect(cells[1].getAttribute('data-label')).toBe('1–3 days · rate band');
+    expect(cells[2].hasAttribute('data-label')).toBe(false);
+    expect(t1.querySelector('td[colspan]')!.hasAttribute('data-label')).toBe(false);
+    expect(t2.classList.contains('rt-cards')).toBe(false);
+  });
+});

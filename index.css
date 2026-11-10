@@ -441,6 +441,8 @@
   textarea {
     font-size: 16px !important;
   }
+  /* Line numbers next to a code editor follow the editor's text size. */
+  .code-gutter { font-size: 16px !important; }
 }
 
 /* No grey flash on tap; text size stays as designed when rotating the phone. */
@@ -468,3 +470,28 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .ota-console table tbody tr:hover { box-shadow: inset 3px 0 0 #6366f1; }
 .ota-console section.rounded-xl > div.border-b:first-child h3 { font-size: 13.5px; font-weight: 600; color: #0f172a; }
 .ota-console button:focus-visible, .ota-console input:focus-visible, .ota-console select:focus-visible { outline: 2px solid #6366f1; outline-offset: 1px; }
+
+/* OTA XML on phones: tables become cards, one per row, each value with its column name. */
+@media (max-width: 639px) {
+  table.rt-cards { min-width: 0 !important; width: 100% !important; border-collapse: separate; }
+  table.rt-cards thead { display: none !important; }
+  table.rt-cards tbody, table.rt-cards tfoot, table.rt-cards tr { display: block; width: 100%; }
+  table.rt-cards tr { padding: 10px 16px; border-bottom: 1px solid #eef2f7; background: #fff; }
+  table.rt-cards tfoot tr { background: #f8fafc; }
+  table.rt-cards td {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 3px 0 !important; border: 0 !important; text-align: right !important;
+    white-space: normal !important; position: static !important; min-width: 0 !important; width: auto !important; max-width: none !important;
+    background: transparent !important;
+  }
+  table.rt-cards td > * { min-width: 0; }
+  table.rt-cards td[data-label]::before {
+    content: attr(data-label); flex: 0 0 auto; max-width: 46%;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #64748b; text-align: left;
+  }
+  /* The first cell names the row: full width, no label. */
+  table.rt-cards td:first-child { justify-content: flex-start; text-align: left !important; font-weight: 600; padding-bottom: 6px !important; }
+  table.rt-cards td:first-child::before { display: none; }
+  table.rt-cards td:empty { display: none; }
+  .ota-console .overflow-x-auto:has(> table.rt-cards) { overflow-x: visible; }
+}

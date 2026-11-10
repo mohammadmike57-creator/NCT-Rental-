@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import MessageReader from './MessageReader';
 
 /**
  * Professional code viewer for XML and JSON messages: syntax colours, line numbers, search with
@@ -201,7 +202,11 @@ const CodeView: React.FC<{
   actions?: React.ReactNode;
   empty?: string;
   className?: string;
-}> = ({ code, title, meta, lang, theme = 'dark', height = '28rem', format = true, summary = false, download, actions, empty = 'Nothing to show yet.', className }) => {
+  /** Offer the readable (business document) view next to the code. */
+  readable?: boolean;
+  defaultView?: 'readable' | 'code';
+}> = ({ code, title, meta, lang, theme = 'dark', height = '28rem', format = true, summary = false, download, actions, empty = 'Nothing to show yet.', className, readable = false, defaultView = 'code' }) => {
+  const [view, setView] = useState<'readable' | 'code'>(readable ? defaultView : 'code');
   const [wrap, setWrap] = useState(false);
   const [raw, setRaw] = useState(false);
   const [q, setQ] = useState('');
@@ -245,6 +250,17 @@ const CodeView: React.FC<{
         {code && <span className={`text-[11px] tabular-nums ${dark ? 'text-slate-500' : 'text-slate-400'}`}>{lines.length} lines · {bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`}</span>}
         {meta}
         <span className="flex-1" />
+        {readable && language !== 'text' && (
+          <span role="tablist" aria-label="View" className={`inline-flex p-0.5 rounded-md ring-1 ring-inset ${dark ? 'ring-white/10 bg-white/5' : 'ring-slate-200 bg-slate-100'}`}>
+            {(['readable', 'code'] as const).map(v => (
+              <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)}
+                className={`h-6 px-2.5 rounded text-[11.5px] font-semibold transition-colors ${view === v ? (dark ? 'bg-white text-slate-900' : 'bg-white text-slate-900 shadow-sm') : (dark ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-900')}`}>
+                {v === 'readable' ? 'Readable' : language.toUpperCase()}
+              </button>
+            ))}
+          </span>
+        )}
+        {view === 'code' && <>
         <span className={`inline-flex items-center h-7 rounded-md ring-1 ring-inset ${dark ? 'ring-white/10 bg-white/5' : 'ring-slate-200 bg-white'}`}>
           <input value={q} onChange={e => { setQ(e.target.value); setHit(0); }} onKeyDown={e => { if (e.key === 'Enter') goto(hit + (e.shiftKey ? -1 : 1)); }}
             placeholder="Find" aria-label="Find in message" className={`w-24 sm:w-32 h-full px-2 bg-transparent text-[11.5px] outline-none ${dark ? 'text-slate-200 placeholder:text-slate-500' : 'text-slate-700 placeholder:text-slate-400'}`} />
@@ -252,12 +268,15 @@ const CodeView: React.FC<{
         </span>
         {format && language !== 'text' && <Tool dark={dark} on={!raw} onClick={() => setRaw(r => !r)} title="Indent the message">Pretty</Tool>}
         <Tool dark={dark} on={wrap} onClick={() => setWrap(w => !w)}>Wrap</Tool>
+        </>}
         <Tool dark={dark} onClick={copy} disabled={!code}>{copied ? 'Copied ✓' : 'Copy'}</Tool>
         {download !== undefined && <Tool dark={dark} onClick={save} disabled={!code}>Download</Tool>}
         {actions}
       </div>
-      {summary && <ResultStrip check={check} theme={theme} />}
-      <div ref={scroller} className="overflow-auto font-mono text-[11.5px] leading-[1.6]" style={{ maxHeight: height }}>
+      {summary && view === 'code' && <ResultStrip check={check} theme={theme} />}
+      {view === 'readable' ? (
+        <div className="overflow-auto bg-white" style={{ maxHeight: height }}><MessageReader code={code} /></div>
+      ) : <div ref={scroller} className="overflow-auto font-mono text-[11.5px] leading-[1.6]" style={{ maxHeight: height }}>
         {!lines.length ? <p className={`px-4 py-10 text-center font-sans text-[12.5px] ${dark ? 'text-slate-500' : 'text-slate-400'}`}>{empty}</p> : (
           <div className={`py-1.5 ${wrap ? '' : 'min-w-max'}`}>
             {lines.map((l, i) => {
@@ -271,7 +290,7 @@ const CodeView: React.FC<{
             })}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 };

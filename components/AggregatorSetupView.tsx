@@ -3,6 +3,7 @@ import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDet
 import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon,
   ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon } from './icons';
 import RateRulesView from './channel/RateRulesView';
+import { useResponsiveTables } from '../services/responsiveTables';
 import BookingApiView from './channel/BookingApiView';
 import ChannelBookingsView from './channel/ChannelBookingsView';
 import GoLiveView from './channel/GoLiveView';
@@ -248,6 +249,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
+  // Phones: tables become labelled cards (index.css .rt-cards).
+  useResponsiveTables('ota-console');
   const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates'>('channels');
   /** Opens a section; on a phone also scrolls to it, so the content is not hidden below the header. */
   const openModule = (key: typeof mode) => {

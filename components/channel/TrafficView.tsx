@@ -27,7 +27,7 @@ const RANGES: [number, string][] = [[1, 'Last hour'], [24, 'Last 24 hours'], [16
 const FORMAT_TONE: Record<string, 'info' | 'success' | 'warning' | 'muted'> = { OTA: 'info', SOAP: 'warning', XML: 'success', REST: 'muted' };
 
 const CodeBlock: React.FC<{ title: string; body?: string; meta?: string }> = ({ title, body, meta }) => (
-  <CodeView code={body} title={title} summary={/answer|response/i.test(title)} download={`${title.toLowerCase().replace(/\W+/g, '-')}.${detectLang(body) === 'json' ? 'json' : 'xml'}`}
+  <CodeView code={body} title={title} readable defaultView="readable" summary={/answer|response/i.test(title)} download={`${title.toLowerCase().replace(/\W+/g, '-')}.${detectLang(body) === 'json' ? 'json' : 'xml'}`}
     meta={meta ? <span className="text-[11px] text-slate-400 truncate">{meta}</span> : undefined} height="28rem" empty="—" />
 );
 

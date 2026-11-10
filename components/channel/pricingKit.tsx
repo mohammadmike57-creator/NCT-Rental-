@@ -174,8 +174,8 @@ export const Icons = {
 export const SectionHead: React.FC<{ icon: React.ReactNode; eyebrow?: string; title: string; description: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }> = ({ icon, eyebrow, title, description, actions, children }) => (
   <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip">
     <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-5 py-4">
-      <span className="grid place-items-center w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-100 [&>svg]:w-5 [&>svg]:h-5">{icon}</span>
-      <div className="min-w-[240px] flex-1">
+      <span className="hidden sm:grid place-items-center w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-100 [&>svg]:w-5 [&>svg]:h-5">{icon}</span>
+      <div className="min-w-0 sm:min-w-[240px] flex-1">
         {eyebrow && <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-600">{eyebrow}</p>}
         <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-slate-900">{title}</h2>
         <p className="text-[12.5px] text-slate-500 max-w-[80ch]">{description}</p>
