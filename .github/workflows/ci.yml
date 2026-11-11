@@ -35,7 +35,8 @@ jobs:
       - run: mvn -B test -Dexec.skip=true
 
   end-to-end:
-    runs-on: ubuntu-latest
+    # Playwright 1.56 installs its browser on Ubuntu 24.04, not yet on the newer default image.
+    runs-on: ubuntu-24.04
     needs: [website, server]
     steps:
       - uses: actions/checkout@v4
