@@ -16,6 +16,7 @@ class ServerSecretTest {
     void refusesToStartWithoutASecretOrWithAShortOne() {
         IllegalStateException missing = assertThrows(IllegalStateException.class, () -> new ServerSecret("", ""));
         assertTrue(missing.getMessage().contains("JWT_SECRET is not set"));
+        assertTrue(missing.getMessage().contains("What the server received: JWT_SECRET"), "says what reached the server");
         assertThrows(IllegalStateException.class, () -> new ServerSecret("short", ""));
     }
 

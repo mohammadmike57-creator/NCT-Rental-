@@ -147,7 +147,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         <canvas ref={canvasRef} />
         <div className="lg-brand lg-in lg-d1">
           <img src={NCT_LOGIN_LOGO_B64} alt="" />
-          <div><div className="lg-brand-name">NCT Rental</div><div className="lg-brand-sub">UR-Drive Jordan</div></div>
+          <div><div className="lg-brand-name">NCT Rental</div></div>
         </div>
         <div className="lg-hero">
           <h1 className="lg-in lg-d2">Every rental, <em>from counter to return.</em></h1>
@@ -216,7 +216,7 @@ const LOGIN_CSS = `
 .lg-scene { position:relative; overflow:hidden; background:var(--lg-night); min-height:100%; }
 .lg-scene canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
 .lg-brand { position:absolute; top:max(32px, env(safe-area-inset-top)); left:clamp(20px,5vw,64px); display:flex; align-items:center; gap:12px; }
-.lg-brand img { width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,.08); padding:5px; box-shadow:0 0 0 1px rgba(255,255,255,.12); }
+.lg-brand img { width:44px; height:44px; border-radius:11px; box-shadow:0 0 0 1px rgba(255,255,255,.14), 0 10px 24px -10px rgba(109,124,255,.6); }
 .lg-brand-name { font:700 18px/1.1 var(--lg-display); letter-spacing:.02em; }
 .lg-brand-sub { font-size:12px; color:var(--lg-muted); }
 .lg-hero { position:absolute; inset:auto 0 0 0; padding:90px clamp(20px,5vw,64px) 44px; background:linear-gradient(to top, rgba(7,11,22,.96) 0%, rgba(7,11,22,.88) 55%, rgba(7,11,22,0) 100%); }

@@ -1352,7 +1352,7 @@ ${currentUser?.fullName}
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   if (!authChecked || isLoading || (isAuthenticated && !firstLoadDone)) return <LoadingSpinner />;
-  if (!isAuthenticated && authChecked) return <Suspense fallback={<LoadingSpinner />}><LoginScreen users={users} /></Suspense>;
+  if (!isAuthenticated && authChecked) return <Suspense fallback={<LoadingSpinner message="Opening" />}><LoginScreen users={users} /></Suspense>;
   
   // Moves a booking to another car (from the reservations list or from the agreement at the counter).
   const handleUpgradeVehicle = (reservation: Reservation, newCarId: string, customRate?: number, details?: UpgradeDetails): Reservation | null => {
@@ -1846,7 +1846,7 @@ ${currentUser?.fullName}
       <aside className={`absolute md:relative z-40 md:z-auto w-60 ${sidebarCollapsed ? 'md:w-[68px]' : ''} bg-slate-900 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full border-r border-slate-800`}>
          <div className="flex items-center justify-between px-4 h-14 border-b border-white/5 flex-shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Logo" className="h-7 w-7 rounded bg-white/5 shrink-0" />
+                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Rental" className="h-8 w-8 rounded-lg shrink-0 shadow-sm" />
                 <div className={`min-w-0 leading-tight ${sidebarCollapsed ? 'md:hidden' : ''}`}>
                     <h1 className="text-[15px] font-semibold text-white tracking-tight">NCT Rental</h1>
                     <p className="text-[10.5px] text-slate-400 truncate">Rental management</p>
@@ -2011,7 +2011,7 @@ ${currentUser?.fullName}
 
         <main className="flex-1 p-4 pb-24 md:pb-6 overflow-y-auto sm:p-6 bg-slate-50 min-w-0">
             <div className="max-w-[1500px] mx-auto">
-            <Suspense fallback={<div className="flex items-center justify-center h-64"><LoadingSpinner /></div>}>
+            <Suspense fallback={<LoadingSpinner variant="inline" />}>
               {currentViewHasAccess 
                 ? <ErrorBoundary resetKey={mainView}>
                     {mainView === 'Reservations' && hasPermission(currentUser, UserPermission.ACTION_RESERVATIONS_EDIT) && (

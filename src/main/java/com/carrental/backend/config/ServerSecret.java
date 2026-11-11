@@ -29,6 +29,25 @@ public class ServerSecret {
 
     private static final Logger log = LoggerFactory.getLogger(ServerSecret.class);
     public static final int MIN_LENGTH = 32;
+    /**
+     * Which JWT settings reached the server, to find set-up mistakes on the hosting platform: names, lengths and stray
+     * spaces only, never the values.
+     */
+    static String envReport() {
+        StringBuilder b = new StringBuilder();
+        for (String name : new String[] {"JWT_SECRET", "JWT_SECRET_PREVIOUS"}) {
+            String v = System.getenv(name);
+            if (b.length() > 0) b.append("; ");
+            b.append(name).append(v == null ? " missing" : " present, length " + v.length() + (v.equals(v.trim()) ? "" : ", with spaces around it"));
+        }
+        List<String> similar = new ArrayList<>();
+        for (String k : System.getenv().keySet()) {
+            if (k.toUpperCase(java.util.Locale.ROOT).contains("JWT") && !k.equals("JWT_SECRET") && !k.equals("JWT_SECRET_PREVIOUS")) similar.add("\"" + k + "\"");
+        }
+        if (!similar.isEmpty()) b.append("; similar names: ").append(String.join(", ", similar));
+        return b.toString();
+    }
+
     /** SHA-256 of values that were written in the source code in the past (the values themselves are not kept). */
     private static final Set<String> PUBLISHED = Set.of(
         "3a6f8e5c67c49776f56f1df748ff73e621816a82bd3e83ee7f053bfab4a9ecbb",
@@ -42,7 +61,8 @@ public class ServerSecret {
         String c = current == null ? "" : current.trim();
         if (c.isEmpty()) {
             throw new IllegalStateException("JWT_SECRET is not set. Add it to the server's environment variables "
-                + "(a random value of at least " + MIN_LENGTH + " characters) and start the server again.");
+                + "(a random value of at least " + MIN_LENGTH + " characters) and start the server again. "
+                + "What the server received: " + envReport() + ".");
         }
         if (c.length() < MIN_LENGTH) {
             throw new IllegalStateException("JWT_SECRET is too short: use a random value of at least " + MIN_LENGTH + " characters.");
