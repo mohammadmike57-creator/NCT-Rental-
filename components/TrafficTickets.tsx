@@ -670,6 +670,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
       )}
       {isKeyModalOpen && (
         <SecurityKeyModal
+            securityKey="0000"
             onSuccess={handleKeySuccess}
             onClose={() => { setIsKeyModalOpen(false); setPendingAction(null); }}
         />

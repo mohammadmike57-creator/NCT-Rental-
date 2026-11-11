@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// Default key; a screen can ask for its own key with the securityKey prop.
 const SECURITY_KEY = '2024';
 
 interface SecurityKeyModalProps {
   onSuccess: () => void;
   onClose: () => void;
+  securityKey?: string;
 }
 
-const SecurityKeyModal: React.FC<SecurityKeyModalProps> = ({ onSuccess, onClose }) => {
+const SecurityKeyModal: React.FC<SecurityKeyModalProps> = ({ onSuccess, onClose, securityKey = SECURITY_KEY }) => {
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,7 +21,7 @@ const SecurityKeyModal: React.FC<SecurityKeyModalProps> = ({ onSuccess, onClose 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (key === SECURITY_KEY) {
+    if (key === securityKey) {
       setError('');
       onSuccess();
     } else {
