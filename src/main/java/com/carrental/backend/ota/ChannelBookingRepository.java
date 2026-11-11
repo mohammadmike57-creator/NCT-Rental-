@@ -15,6 +15,7 @@ import java.util.Optional;
 public interface ChannelBookingRepository extends JpaRepository<ChannelBooking, Long> {
     Optional<ChannelBooking> findByChannelIdAndIdempotencyKey(String channelId, String key);
     Optional<ChannelBooking> findFirstByChannelIdAndBrokerReference(String channelId, String ref);
+    Optional<ChannelBooking> findFirstByChannelIdAndBrokerReferenceAndSandbox(String channelId, String ref, boolean sandbox);
     Optional<ChannelBooking> findByReservationNumber(String number);
     Optional<ChannelBooking> findFirstByStateReservationId(String id);
     List<ChannelBooking> findByChannelIdOrderByCreatedAtDesc(String channelId, Pageable page);
@@ -31,4 +32,9 @@ public interface ChannelBookingRepository extends JpaRepository<ChannelBooking, 
 
     @Query("select max(b.id) from ChannelBooking b")
     Long maxId();
+
+    /** Retention: sandbox (test) bookings only; they are never in the reservations list. */
+    @org.springframework.data.jpa.repository.Modifying @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("delete from ChannelBooking b where b.sandbox = true and b.returnAt < :before")
+    int purgeSandbox(@org.springframework.data.repository.query.Param("before") java.time.LocalDateTime before);
 }

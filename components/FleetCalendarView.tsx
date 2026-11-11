@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { Fleet, Reservation } from '../types';
+import { Fleet } from '../types';
 import { DailyAssignments } from './FleetAvailability';
 import { MONTHS } from '../constants';
 

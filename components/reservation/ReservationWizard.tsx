@@ -4,7 +4,7 @@ import CarShowcase from '../CarShowcase';
 import CarPicture from '../CarPicture';
 import { AppData, AvailableExtra, Fleet, RentalLocation, RentalSource, Reservation, ReservationStatus } from '../../types';
 import { Badge, Button, Field, inputCls, selectCls, textareaCls, SectionLabel, EmptyState } from '../ui/Crm';
-import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
+import { vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
 import { extraDailyPrice } from '../../services/extras';
 import { bookingKey } from '../../services/duplicates';
 import PaymentChoice from '../PaymentChoice';

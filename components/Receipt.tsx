@@ -1,9 +1,9 @@
 
 import { isPrepaid as bookingIsPrepaid } from '../services/paymentType';
 import React from 'react';
-import { Reservation, CompanyDetails, RentalSource, PaymentType } from '../types';
+import { Reservation, CompanyDetails, RentalSource } from '../types';
 import { URDRIVE_LOGO_B64 } from '../constants';
-import { MailIcon, PhoneIcon, UserIcon, CarIcon, CalendarIcon, PdfIcon } from './icons';
+import { MailIcon, UserIcon, CarIcon, CalendarIcon, PdfIcon } from './icons';
 import { Button } from './ui/Crm';
 import { deliverCustomerEmail } from '../services/emailBrand';
 import { receiptEmailPayload } from '../services/receiptEmail';

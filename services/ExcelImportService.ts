@@ -140,15 +140,14 @@ export class ExcelImportService {
         reservation.baseAmount = reservation.amount;
       }
       // Conversely, if amount is zero but baseAmount is not, set amount to baseAmount
-      if (reservation.amount === 0 && reservation.baseAmount > 0) {
-        reservation.amount = reservation.baseAmount;
+      if (reservation.amount === 0 && (reservation.baseAmount ?? 0) > 0) {
+        reservation.amount = reservation.baseAmount ?? 0;
       }
 
       reservations.push(reservation);
       report.imported++;
     });
 
-    console.log(`[IMPORT LOG] Processed ${reservations.length} reservations for ${targetMonth} ${targetYear}`);
     return { reservations, report };
   }
 }

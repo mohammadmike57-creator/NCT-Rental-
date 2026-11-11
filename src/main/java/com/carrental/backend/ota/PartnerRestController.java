@@ -143,7 +143,7 @@ public class PartnerRestController {
 
     @GetMapping("/reservations/{id}")
     public ResponseEntity<String> get(@PathVariable String channel, @PathVariable String id, HttpServletRequest http) {
-        return run(channel, null, http, "REST retrieve", c -> envelope(c, "reservation", core.get(c.ctx(), id)));
+        return run(channel, null, http, "REST retrieve", c -> envelope(c, "reservation", core.retrieve(c.ctx(), id)));
     }
 
     @PatchMapping(value = "/reservations/{id}", consumes = MediaType.ALL_VALUE)
@@ -192,13 +192,13 @@ public class PartnerRestController {
         return write(n);
     }
 
-    private static JsonNode read(String body) {
+    static JsonNode read(String body) {
         if (body == null || body.isBlank()) throw ChannelError.INVALID_REQUEST.ex("Request body is empty");
         if (body.length() > OtaRequestParser.MAX_REQUEST_BYTES) throw ChannelError.INVALID_REQUEST.ex("Request body is too large");
         try { return JSON.readTree(body); } catch (Exception e) { throw ChannelError.INVALID_REQUEST.ex("Request is not valid JSON"); }
     }
 
-    private static Search search(JsonNode it, ChannelRules rules, boolean required) {
+    static Search search(JsonNode it, ChannelRules rules, boolean required) {
         String pick = text(it, "pickup_location"), ret = text(it, "return_location");
         if (required && pick == null) pick = rules.locations().get(0).code();
         if (required && ret == null) ret = pick;
@@ -222,22 +222,22 @@ public class PartnerRestController {
             text(it, "currency") == null ? null : text(it, "currency").toUpperCase());
     }
 
-    private static Customer customer(JsonNode c) {
+    static Customer customer(JsonNode c) {
         if (!c.isObject()) return null;
         return new Customer(text(c, "title"), text(c, "first_name"), text(c, "last_name"), text(c, "email"), text(c, "phone"), text(c, "country"));
     }
 
-    private static Driver driver(JsonNode d) {
+    static Driver driver(JsonNode d) {
         if (!d.isObject()) return null;
         return new Driver(text(d, "first_name"), text(d, "last_name"), text(d, "date_of_birth"), text(d, "licence_number"), text(d, "licence_country"));
     }
 
-    private static String text(JsonNode n, String f) {
+    static String text(JsonNode n, String f) {
         JsonNode v = n.path(f);
         return v.isMissingNode() || v.isNull() || v.asText().isBlank() ? null : v.asText().trim();
     }
 
-    private static BigDecimal decimal(JsonNode n, String f) {
+    static BigDecimal decimal(JsonNode n, String f) {
         JsonNode v = n.path(f);
         if (v.isMissingNode() || v.isNull()) return null;
         try { return new BigDecimal(v.asText()); } catch (Exception e) { throw ChannelError.INVALID_REQUEST.ex(f + " must be a number"); }

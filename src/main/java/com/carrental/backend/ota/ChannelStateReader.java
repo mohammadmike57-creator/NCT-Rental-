@@ -31,11 +31,11 @@ public class ChannelStateReader {
         for (JsonNode agg : aggregators) {
             String code = ChannelSnapshot.text(agg, "channelCode", "");
             if (!code.isBlank() && code.equalsIgnoreCase(codeOrId)) {
-                return Optional.of(new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales")));
+                return Optional.of(new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales"), state.path("companyDetails").path("name").asText("")));
             }
             if (codeOrId.equals(ChannelSnapshot.text(agg, "id", null))) byId = agg;
         }
-        return Optional.ofNullable(byId).map(agg -> new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales")));
+        return Optional.ofNullable(byId).map(agg -> new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales"), state.path("companyDetails").path("name").asText("")));
     }
 
     /** Every channel, for background jobs (no-shows, inventory push). */
@@ -44,7 +44,7 @@ public class ChannelStateReader {
         java.util.List<ChannelSnapshot> out = new java.util.ArrayList<>();
         JsonNode aggregators = state.get("aggregators");
         if (aggregators != null && aggregators.isArray()) {
-            for (JsonNode agg : aggregators) out.add(new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales")));
+            for (JsonNode agg : aggregators) out.add(new ChannelSnapshot(agg, state.get("fleet"), state.get("stopSales"), state.path("companyDetails").path("name").asText("")));
         }
         return out;
     }

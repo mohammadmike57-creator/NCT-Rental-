@@ -4,7 +4,7 @@ import CarPicture from './CarPicture';
 import * as XLSX from 'xlsx';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission, PaymentType } from '../types';
 import { MONTHS } from '../constants';
-import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
+import { vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
 import ReservationWizard from './reservation/ReservationWizard';
 import { clearDraft, loadDraft, saveDraft } from '../services/drafts';
@@ -23,32 +23,19 @@ import {
   CurrencyDollarIcon, 
   ClockIcon,
   PlusCircleIcon,
-  PhoneIcon,
-  CalendarIcon,
+    CalendarIcon,
   SearchIcon,
   PdfIcon,
   ExportIcon,
   CloseIcon,
-  AirplaneIcon,
-  AirplaneLandingIcon,
-  AirplaneTakeoffIcon,
-  DowntownIcon,
-  UserIcon,
-  MapPinIcon,
-  HashtagIcon,
-  GlobeAltIcon,
-  CarIcon,
-  IdentificationIcon,
-  CheckCircleIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
+                  CarIcon,
+        ChevronRightIcon,
   TrashIcon,
   EyeIcon,
   MailIcon,
   PlusIcon,
   DownloadIcon,
-  EditIcon,
-  ShieldExclamationIcon
+  EditIcon
 } from './icons';
 
 interface ReservationTableProps {
@@ -79,7 +66,6 @@ interface ReservationTableProps {
   onRequirePaymentConfirmation: (reservation: Reservation, year: number, month: string) => void;
   onEditReservation: (reservation: Reservation) => void;
   onUpgrade: (reservation: Reservation, newCarId: string, customRate?: number, details?: UpgradeDetails) => void;
-  onAssignCar?: (reservation: Reservation) => void;
   onAddExtras?: (reservation: Reservation) => void;
   currentUser: User | null;
   filters: any;
@@ -104,20 +90,16 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     rentalSources,
     duplicateBookingIds,
     rentalLocations,
-    onShowVoucher,
     onShowRentalVoucher,
     onShowReceipt,
     onExtend,
     onShare,
-    onRequirePaymentConfirmation,
     onEditReservation,
     onUpgrade,
-    onAssignCar,
     onAddExtras,
     currentUser,
     filters,
     setFilters,
-    isDesktopView,
     fleet,
     availableExtras,
     onSaveNew,
@@ -162,10 +144,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
 
-
-  // Ref to prevent closing modal on same tick
-  const modalOpenTime = useRef(0);
-
   useEffect(() => {
     setLocalBookingIdSearch(filters.bookingIdSearch || '');
   }, [filters.bookingIdSearch]);
@@ -174,37 +152,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     const value = e.target.value;
     setLocalBookingIdSearch(value);
     setFilters((prev: any) => ({ ...prev, bookingIdSearch: value }));
-  };
-
-  const getAgreementStatusFilter = (): 'all' | 'pending' | 'open' | 'closed' | 'submitted' => {
-    if (filters.dropOffCompleted === true) return 'closed';
-    if (filters.voucherSubmitted === true && filters.dropOffCompleted === false) return 'open';
-    if (filters.voucherSubmitted === true && filters.dropOffCompleted === undefined) return 'submitted';
-    if (filters.voucherSubmitted === false && filters.dropOffCompleted === false) return 'pending';
-    return 'all';
-  };
-
-  const handleAgreementStatusFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-
-    if (value === 'pending') {
-      setFilters((prev: any) => ({ ...prev, voucherSubmitted: false, dropOffCompleted: false }));
-      return;
-    }
-    if (value === 'open') {
-      setFilters((prev: any) => ({ ...prev, voucherSubmitted: true, dropOffCompleted: false }));
-      return;
-    }
-    if (value === 'closed') {
-      setFilters((prev: any) => ({ ...prev, voucherSubmitted: undefined, dropOffCompleted: true }));
-      return;
-    }
-    if (value === 'submitted') {
-      setFilters((prev: any) => ({ ...prev, voucherSubmitted: true, dropOffCompleted: undefined }));
-      return;
-    }
-
-    setFilters((prev: any) => ({ ...prev, voucherSubmitted: undefined, dropOffCompleted: undefined }));
   };
 
   // Reset form when modal closes
@@ -269,7 +216,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     const onNew = () => openAddModal();
     window.addEventListener('nct:new-reservation', onNew);
     return () => window.removeEventListener('nct:new-reservation', onNew);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const openUpgradeModal = (res: Reservation) => {
@@ -380,16 +327,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       ? <span className="inline-block px-1.5 py-px rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold whitespace-nowrap">Prepaid</span>
       : <span className="inline-block px-1.5 py-px rounded bg-amber-50 text-amber-700 text-[10px] font-semibold whitespace-nowrap">Pay on arrival</span>;
   };
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
-  const formatDateOnly = (dateStr: string) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  };
   const getDuration = (start: string, end: string) => {
     if (!start || !end) return '';
     const diff = new Date(end).getTime() - new Date(start).getTime();
@@ -451,17 +388,11 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  const getStatusColor = (status: ReservationStatus) => {
-    switch(status) {
-      case ReservationStatus.CONFIRMED: return 'bg-green-100 text-green-800';
-      case ReservationStatus.CANCELLED: return 'bg-red-100 text-red-800';
-      case 'NO_SHOW': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   const upgradePermission = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE);
   const canViewVoucherActions = isAgreementView || hasPermission(UserPermission.ACTION_VOUCHER_MANAGE);
+  // Deleting a whole month is limited to administrators and staff given that permission.
+  const canDeleteMonth = hasPermission(UserPermission.ACTION_ADMIN_DELETE_ALL_RESERVATIONS) || hasPermission(UserPermission.ACTION_ADMIN_MANAGE_USERS);
 
   // ---- Rental lifecycle -------------------------------------------------
   type Stage = 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled';
@@ -494,12 +425,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     return Math.max(1, Math.ceil((new Date(res.endDate).getTime() - new Date(res.startDate).getTime()) / 86400000));
   };
   const timeOf = (iso?: string) => (iso && iso.includes('T') ? iso.split('T')[1].slice(0, 5) : '');
-  const shortDate = (iso?: string) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-  };
-  const initials = (name?: string) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('');
   const money = (n?: number) => `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   // Filter tabs: the lifecycle stages, with cancelled and no-show apart, and records sharing a booking number.
@@ -551,8 +476,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredReservations, stageTab, sortKey, sortDir, sourceFilterLocal, branchFilterLocal, quick, duplicateBookingIds]);
 
-  const actionToday = filteredReservations.filter(r => alertOf(r) !== null).length;
-
   const TABS: { key: Tab; label: string }[] = [
     ...(isAgreementView
       ? [{ key: 'all', label: 'All' }, { key: 'ready', label: 'To check out' }, { key: 'onrent', label: 'On rent' }, { key: 'closed', label: 'Closed' }]
@@ -601,27 +524,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     }));
     return Array.from(map.values()).sort((a, b) => a.bookingId.localeCompare(b.bookingId, undefined, { numeric: true }));
   }, [allData, duplicateBookingIds]);
-  const canConfirm = hasPermission(UserPermission.ACTION_RESERVATIONS_EDIT);
-  const confirmUnlisted = (res: Reservation) => {
-    onEditReservation({ ...res, awaitingConfirmation: false, status: ReservationStatus.CONFIRMED, confirmedBy: currentUser?.fullName, confirmedAt: new Date().toISOString() });
-    recordActivity('UNLISTED_CONFIRMED', 'reservation', `Confirmed unlisted booking for ${res.personName}`, res.bookingId);
-  };
-  const rejectUnlisted = (res: Reservation) => {
-    const msg = res.voucherSubmitted && !res.dropOffCompleted
-      ? `${res.personName} currently has the car (${res.licensePlate || res.carModel}). Reject booking ${res.bookingId} anyway? It will be marked as cancelled.`
-      : `Reject booking ${res.bookingId} for ${res.personName}? It will be marked as cancelled.`;
-    if (!window.confirm(msg)) return;
-    onEditReservation({ ...res, awaitingConfirmation: false, status: ReservationStatus.CANCELLED, confirmedBy: currentUser?.fullName, confirmedAt: new Date().toISOString() });
-    recordActivity('UNLISTED_REJECTED', 'reservation', `Rejected unlisted booking for ${res.personName}`, res.bookingId);
-  };
-  const ago = (iso?: string) => {
-    if (!iso) return '';
-    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins} min ago`;
-    if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
-    return `${Math.round(mins / 1440)} d ago`;
-  };
 
   const printDoc = (res: Reservation, kind: 'agreement' | 'termination') => {
     const ctx = { company: props.companyDetails, sources: rentalSources, locations: rentalLocations, fleet };
@@ -748,16 +650,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
   };
-  const longDate = (iso?: string) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-  };
-  const stamp = (iso?: string) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : `${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
-  };
   const StatusBadge = ({ res, withAlert = true }: { res: Reservation; withAlert?: boolean }) => {
     const stage = stageOf(res);
     const alert = withAlert ? alertOf(res) : null;
@@ -838,7 +730,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
             <div className="col-span-2 order-last sm:order-none flex items-center rounded-lg border border-slate-200 bg-white divide-x divide-slate-200 overflow-hidden shadow-sm [&>button]:flex-1 sm:[&>button]:flex-none [&>button]:justify-center">
               <button onClick={handleExportCSV} disabled={filteredReservations.length === 0} className="h-9 px-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"><ExportIcon className="w-4 h-4" />CSV</button>
               <button onClick={handleExportExcel} disabled={filteredReservations.length === 0} className="h-9 px-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"><DownloadIcon className="w-4 h-4" />Excel</button>
-              {(currentUser?.email === 'nadeenalnahas@gmail.com' || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin') && (
+              {canDeleteMonth && (
                 <button onClick={() => onDeleteMonth(selectedYear, selectedMonth)} disabled={allDisplayReservations.length === 0} title={`Delete all reservations for ${selectedMonth} ${selectedYear}`} aria-label="Delete month"
                   className="h-9 px-3 text-rose-500 hover:bg-rose-50 disabled:opacity-40"><TrashIcon className="w-4 h-4" /></button>
               )}

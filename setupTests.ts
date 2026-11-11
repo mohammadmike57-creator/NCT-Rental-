@@ -1,19 +1,6 @@
 import '@testing-library/jest-dom';
 
-// Mock Firebase
-jest.mock('./firebase/config', () => ({
-  auth: {
-    currentUser: null,
-    signInWithEmailAndPassword: jest.fn(),
-    signOut: jest.fn(),
-  },
-  db: {
-    collection: jest.fn(),
-    doc: jest.fn(),
-  },
-}));
-
-// Mock Firebase API
+// The server client reads Vite's import.meta, which Jest cannot load.
 jest.mock('./firebase/api', () => ({
   fetchReservations: jest.fn(),
   createReservation: jest.fn(),

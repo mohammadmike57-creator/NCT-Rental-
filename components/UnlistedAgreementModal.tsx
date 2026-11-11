@@ -4,7 +4,7 @@ import { Bi } from './ui/Bi';
 import { Fleet, RentalLocation, RentalSource } from '../types';
 import PaymentChoice from './PaymentChoice';
 import { BookingPayment, sourceOf, sourceTakesBoth } from '../services/paymentType';
-import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
+import { vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { Panel, Badge, Plate, Button, DetailList, inputCls as kitInput, selectCls, textareaCls, labelCls } from './ui/Crm';
 
 export interface UnlistedBookingDraft {

@@ -1,4 +1,3 @@
-import { Reservation, ReservationStatus } from '../types';
 import { DateUtils } from './DateUtils';
 
 export class ReservationValidator {

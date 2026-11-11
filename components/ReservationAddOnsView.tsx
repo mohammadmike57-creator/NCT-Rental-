@@ -114,8 +114,9 @@ const CommissionCells: React.FC<{ ev?: RevenueEvent; canEdit: boolean; onChangeM
 const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sources, company, onOpenBooking, currentUser }) => {
   const overrides = useCommissionMonths();
   const [moving, setMoving] = useState<RevenueEvent | null>(null);
+  // Same rule as the server: the franchise-payments permission, or the administrator permission.
   const canEdit = !!currentUser?.permissions?.includes(UserPermission.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS)
-    || currentUser?.role === 'ADMIN' || currentUser?.username === 'admin';
+    || !!currentUser?.permissions?.includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);
   // Commission figures are for the same people who see the revenue breakdown in Yearly Summary.
   const canSee = canEdit || !!currentUser?.permissions?.includes(UserPermission.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN)
     || !!currentUser?.permissions?.includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);

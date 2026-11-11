@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import CarPicture from './CarPicture';
 import { AppData, Fleet, Reservation, ReservationStatus } from '../types';
-import { VehicleArt, vehicleKind, vehicleKindLabel } from './VehicleGraphics';
+import { vehicleKind, vehicleKindLabel } from './VehicleGraphics';
 import { Panel, SectionLabel, Toolbar, Segmented, Plate, Button, Field, EmptyState, DetailList, inputCls } from './ui/Crm';
 
 export interface UpgradeDetails {

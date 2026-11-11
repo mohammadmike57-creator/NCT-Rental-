@@ -7,7 +7,7 @@ import RatePeriodEditor, { RateMatrixView } from './channel/RatePeriodEditor';
 import { AdjustRatesDialog, RateBuilderDialog, RateGrid } from './channel/RateTools';
 import RateExcelDialog from './channel/RateExcel';
 import {
-  channelCurrency, diffPlans, fingerprint, formatMoney, generateRateSheetXml, hasUnpublishedChanges,
+  channelCurrency, diffPlans, fingerprint, generateRateSheetXml, hasUnpublishedChanges,
   nextVersion, todayIso, validateChannel,
 } from '../services/channelManager';
 

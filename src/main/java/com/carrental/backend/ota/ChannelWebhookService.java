@@ -54,9 +54,13 @@ public class ChannelWebhookService {
     private final ChannelBookingService core;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();
     private ScheduledExecutorService worker;
+    private final WebhookV2Service v2;
 
     public ChannelWebhookService(ChannelWebhookRepository deliveries, ChannelSecretRepository secrets, ChannelBookingRepository bookings,
-                                 ChannelStateReader channels, ChannelOfferRepository offers, @Lazy ChannelBookingService core) {
+                                 ChannelStateReader channels, ChannelOfferRepository offers, @Lazy ChannelBookingService core,
+                                 WebhookV2Service v2, @Lazy OutboundConnectorService connectors) {
+        this.v2 = v2;
+        this.connectors = connectors;
         this.deliveries = deliveries;
         this.secrets = secrets;
         this.bookings = bookings;
@@ -88,7 +92,17 @@ public class ChannelWebhookService {
     // ------------------------------------------------------------- events
 
     /** Queues an event for the channel's webhook, if it has one and subscribes to this event. */
+    private final OutboundConnectorService connectors;
+
     public void emit(ChannelBookingService.Ctx c, String event, Reservation r) {
+        // Outbound booking notifications to the broker's own system (live bookings only).
+        try { connectors.onEvent(c, event, r); } catch (Exception e) { log.warn("Connectors: could not queue {}: {}", event, e.getMessage()); }
+        // Webhooks v2 (REST/JSON v3 subscriptions), next to the channel's own webhook below.
+        try {
+            v2.fanOut(c.channel().id(), c.code(), c.sandbox(), event, r.reservationId(), r.brokerReference(), r.version(), ApiV3Controller.JSON.valueToTree(r));
+        } catch (Exception e) {
+            log.warn("Webhooks v2: could not queue {}: {}", event, e.getMessage());
+        }
         if (c.rules().webhookUrl().isBlank() || !c.rules().wantsEvent(event)) return;
         ObjectNode body = ChannelBookingService.JSON.createObjectNode();
         String eventId = "evt_" + UUID.randomUUID().toString().replace("-", "");
@@ -98,6 +112,7 @@ public class ChannelWebhookService {
         body.put("reservation_id", r.reservationId());
         body.put("broker_reference", r.brokerReference());
         body.put("status", r.status());
+        body.put("reservation_version", r.version());
         body.put("occurred_at", Instant.now().toString());
         body.put("sandbox", c.sandbox());
         body.set("data", ChannelBookingService.JSON.valueToTree(r));
@@ -117,7 +132,13 @@ public class ChannelWebhookService {
 
     /** Queues a non-reservation event (inventory.updated) with its own data. */
     public boolean emitData(ChannelBookingService.Ctx c, String event, JsonNode data) {
-        if (c.rules().webhookUrl().isBlank() || !c.rules().wantsEvent(event)) return false;
+        int v2Queued = 0;
+        try {
+            v2Queued = v2.fanOut(c.channel().id(), c.code(), c.sandbox(), event, null, null, null, data);
+        } catch (Exception e) {
+            log.warn("Webhooks v2: could not queue {}: {}", event, e.getMessage());
+        }
+        if (c.rules().webhookUrl().isBlank() || !c.rules().wantsEvent(event)) return v2Queued > 0;
         ObjectNode body = ChannelBookingService.JSON.createObjectNode();
         String eventId = "evt_" + UUID.randomUUID().toString().replace("-", "");
         body.put("event_id", eventId);
@@ -166,6 +187,7 @@ public class ChannelWebhookService {
             if (events.isEmpty()) return;
             ChannelBooking booking = b.get();
             booking.setStatus(ChannelBookingService.externalStatus(after));
+            booking.nextVersion();
             booking.setUpdatedAt(Instant.now());
             bookings.save(booking);
             Reservation view = core.view(c, booking, after);
@@ -178,12 +200,23 @@ public class ChannelWebhookService {
     // ------------------------------------------------------------- delivery
 
     void deliverDue() {
+        // One broker whose endpoint is down must not hold up the others: after a failure, that address's other
+        // events wait for the next round instead of each spending its own 15-second timeout now.
+        Set<String> down = new HashSet<>();
         for (ChannelWebhookDelivery d : deliveries.findTop50ByStatusAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(ChannelWebhookDelivery.Status.PENDING, Instant.now())) {
-            attempt(d);
+            if (down.contains(d.getUrl())) continue;
+            if (d.getSubscriptionId() != null && !v2.mayDeliverNow(d)) {
+                // Paused, or waiting for an earlier event of the same reservation: look again shortly, no attempt used.
+                d.setNextAttemptAt(Instant.now().plusSeconds(60));
+                deliveries.save(d);
+                continue;
+            }
+            if (attempt(d).getStatus() != ChannelWebhookDelivery.Status.DELIVERED) down.add(d.getUrl());
         }
     }
 
     public ChannelWebhookDelivery attempt(ChannelWebhookDelivery d) {
+        if (d.getSubscriptionId() != null) return v2.attempt(d);
         d.setAttempts(d.getAttempts() + 1);
         try {
             URI target = OutboundUrlGuard.check(d.getUrl());   // public HTTPS only (no SSRF)
@@ -199,7 +232,7 @@ public class ChannelWebhookService {
                 .header("X-NCT-Signature", "sha256=" + sign(secret, ts + "." + d.getPayload()))
                 .POST(HttpRequest.BodyPublishers.ofString(d.getPayload(), StandardCharsets.UTF_8))
                 .build();
-            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> res = http.send(req, OutboundUrlGuard.boundedReply());
             d.setLastHttpStatus(res.statusCode());
             if (res.statusCode() >= 200 && res.statusCode() < 300) {
                 d.setStatus(ChannelWebhookDelivery.Status.DELIVERED);
@@ -225,6 +258,7 @@ public class ChannelWebhookService {
     public ChannelWebhookDelivery replay(String channelId, long id) {
         ChannelWebhookDelivery d = deliveries.findById(id).filter(x -> x.getChannelId().equals(channelId))
             .orElseThrow(() -> new NoSuchElementException("Delivery not found"));
+        if (d.getSubscriptionId() != null) return v2.replay(d);
         d.setStatus(ChannelWebhookDelivery.Status.PENDING);
         d.setCreatedAt(Instant.now());
         return attempt(d);

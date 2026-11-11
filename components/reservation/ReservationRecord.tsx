@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import CarPicture from '../CarPicture';
 import CarShowcase from '../CarShowcase';
 import { Fleet, Reservation } from '../../types';
 import { Badge, Tabs, SectionLabel } from '../ui/Crm';
-import { VehicleArt, vehicleKind, vehicleKindLabel } from '../VehicleGraphics';
 import { lateFeeOf } from '../../services/lateReturn';
 
 /*
@@ -83,8 +81,6 @@ type TabKey = 'overview' | 'charges' | 'agreement' | 'documents' | 'history';
 
 const ReservationRecord: React.FC<ReservationRecordProps> = ({ res, stage, statusBadge, alert, primaryAction, showPrimary, actions, sourceName, paymentTag, fleet, onClose }) => {
   const [tab, setTab] = useState<TabKey>('overview');
-
-  const kind = vehicleKind(res.carModel, fleet);
   const days = res.startDate && res.endDate ? Math.max(1, Math.ceil((new Date(res.endDate).getTime() - new Date(res.startDate).getTime()) / 86400000)) : 0;
   const quickActs = actions.filter(a => a.section === 'booking');
   const docActs = actions.filter(a => a.section === 'documents');

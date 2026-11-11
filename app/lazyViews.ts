@@ -1,0 +1,38 @@
+// Screens, loaded only when first opened so the app starts fast.
+import React from 'react';
+
+export const ReservationTable = React.lazy(() => import('../components/ReservationTable'));
+export const SummaryTable = React.lazy(() => import('../components/SummaryTable'));
+export const ManageSourcesView = React.lazy(() => import('../components/ManageSourcesModal'));
+export const Invoice = React.lazy(() => import('../components/Invoice'));
+export const ManageFleetView = React.lazy(() => import('../components/ManageFleetView'));
+export const FleetAvailability = React.lazy(() => import('../components/FleetAvailability'));
+export const Voucher = React.lazy(() => import('../components/Voucher'));
+export const Receipt = React.lazy(() => import('../components/Receipt'));
+export const SourcePerformanceReport = React.lazy(() => import('../components/SourcePerformanceReport'));
+export const ReservationAddOnsView = React.lazy(() => import('../components/ReservationAddOnsView'));
+export const TrafficTickets = React.lazy(() => import('../components/TrafficTickets'));
+export const VehicleDamages = React.lazy(() => import('../components/VehicleDamages'));
+export const LoginScreen = React.lazy(() => import('../components/LoginScreen'));
+export const ExtendRentalModal = React.lazy(() => import('../components/ExtendRentalModal'));
+export const ExtrasManagerModal = React.lazy(() => import('../components/ExtrasManagerModal'));
+export const UnlistedAgreementModal = React.lazy(() => import('../components/UnlistedAgreementModal'));
+export const UnlistedAgreementsView = React.lazy(() => import('../components/UnlistedAgreementsView'));
+export const ManageCompanyDetailsView = React.lazy(() => import('../components/ManageCompanyDetailsView'));
+export const AgreementTermsView = React.lazy(() => import('../components/AgreementTermsView'));
+export const ManageYearsView = React.lazy(() => import('../components/ManageYearsView'));
+export const UserManagement = React.lazy(() => import('../components/UserManagement'));
+export const AccountingDashboard = React.lazy(() => import('../components/AccountingDashboard'));
+export const InternalMessages = React.lazy(() => import('../components/InternalMessages'));
+export const TodaysReservations = React.lazy(() => import('../components/TodaysReservations'));
+export const NeedsAttentionView = React.lazy(() => import('../components/NeedsAttentionView'));
+export const HomePage = React.lazy(() => import('../components/HomePage'));
+export const ManageLocationsView = React.lazy(() => import('../components/ManageLocationsView'));
+export const DeferredPayments = React.lazy(() => import('../components/DeferredPayments'));
+export const PaymentApprovals = React.lazy(() => import('../components/PaymentApprovals'));
+export const ManageExtrasView = React.lazy(() => import('../components/ManageExtrasView'));
+export const ProfileView = React.lazy(() => import('../components/ProfileView'));
+export const AggregatorSetupView = React.lazy(() => import('../components/AggregatorSetupView'));
+export const StaffActivityView = React.lazy(() => import('../components/StaffActivityView'));
+export const EmailSettingsView = React.lazy(() => import('../components/EmailSettingsView'));
+export const ExcelUpload = React.lazy(() => import('../components/ExcelUpload'));

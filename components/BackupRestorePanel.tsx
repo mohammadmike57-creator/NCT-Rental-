@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Panel, Button, Badge } from './ui/Crm';
-import { DataBackup, listBackups, restoreBackup } from '../firebase/api';
+import { DataBackup, downloadBackupFile, listBackups, restoreBackup } from '../firebase/api';
 
 /** Turns "auto-2026-10-22T09-15-02.123Z" into a readable local date and time. */
 const whenOf = (id: string) => {
@@ -19,6 +19,14 @@ const BackupRestorePanel: React.FC<{ onRestored: () => Promise<void> }> = ({ onR
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState<string | null>(null);
+  const download = async () => {
+    setBusy('download');
+    setError(null);
+    try { setDownloaded(await downloadBackupFile()); }
+    catch { setError('The backup could not be downloaded.'); }
+    finally { setBusy(null); }
+  };
 
   const load = () => listBackups().then(setList).catch(e => setError(e?.response?.data?.error || 'Backups could not be loaded.'));
   useEffect(() => { load(); }, []);
@@ -40,7 +48,11 @@ const BackupRestorePanel: React.FC<{ onRestored: () => Promise<void> }> = ({ onR
       <div className="p-4 space-y-3">
         <div>
           <p className="text-[13px] font-semibold text-slate-900">Restore a backup</p>
-          <p className="text-[13px] text-slate-500">The server keeps a full copy of all data every hour while it changes, and before every clean-up or restore. Restoring puts that copy back; today's data is kept as a backup first, so nothing is lost.</p>
+          <p className="text-[13px] text-slate-500">The server keeps a full copy of all data every hour while it changes, before every update, clean-up or restore. Restoring puts that copy back; today's data is kept as a backup first, so nothing is lost.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={download} disabled={!!busy}>{busy === 'download' ? 'Preparing…' : 'Download a copy'}</Button>
+          <span className="text-xs text-slate-500">{downloaded ? `Saved as ${downloaded}. Keep it somewhere safe: it holds customer details.` : 'All data as one file, to keep on your own computer.'}</span>
         </div>
         {error && <p className="text-xs font-medium text-rose-600">{error}</p>}
         {list === null && !error && <p className="text-xs text-slate-500">Loading backups…</p>}
@@ -50,7 +62,7 @@ const BackupRestorePanel: React.FC<{ onRestored: () => Promise<void> }> = ({ onR
             {list.map(b => (
               <li key={b.id} className="px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium text-slate-900 tabular-nums">{whenOf(b.id)} <Badge tone={b.kind === 'automatic' ? 'muted' : 'info'} className="ml-1">{b.kind === 'automatic' ? 'Hourly' : b.id.includes('before-restore') ? 'Before restore' : 'Before clean-up'}</Badge></p>
+                  <p className="text-[13px] font-medium text-slate-900 tabular-nums">{whenOf(b.id)} <Badge tone={b.kind === 'automatic' ? 'muted' : 'info'} className="ml-1">{b.kind === 'automatic' ? 'Hourly' : b.id.includes('before-update') ? 'Before update' : b.id.includes('before-restore') ? 'Before restore' : 'Before clean-up'}</Badge></p>
                   <p className="text-xs text-slate-500 tabular-nums">{b.bookings ?? 0} bookings · {b.fleet ?? 0} cars · {b.sources ?? 0} sources{b.company ? ` · ${b.company}` : ''}</p>
                 </div>
                 {confirm === b.id ? (

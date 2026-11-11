@@ -26,7 +26,14 @@ public record CustomerEmailRequest(
         String companyWebsite,
         String supportEmail,          // "Customer support" box; also the reply-to address when settings name none
         String supportPhone,
-        String supportHours
+        String supportHours,
+        String layout,                // "letter": the elegant letter design (thank-you emails); otherwise the document design
+        String arabic,                // optional Arabic paragraph, shown right-to-left
+        String ctaLabel,              // optional button, e.g. "Book your next rental"
+        String ctaUrl,
+        String signature,             // signer under "With warm regards", e.g. "Customer Experience Team"
+        String rateTitle,             // letter layout: review panel title, e.g. "Don't forget to rate us on Booking.com" (button = ctaLabel / ctaUrl)
+        String rateText
 ) {
     public record Attachment(String fileName, String contentType, String base64) {}
 }

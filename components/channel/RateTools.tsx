@@ -88,7 +88,7 @@ export const RateBuilderDialog: React.FC<{
     if (next.length) next[next.length - 1] = { ...next[next.length - 1], toDay: null };
     return next;
   });
-  const usePreset = (k: 'jordan' | 'year') => setSeasons(k === 'jordan' ? jordanSeasons(year) : allYearSeason(year));
+  const applyPreset = (k: 'jordan' | 'year') => setSeasons(k === 'jordan' ? jordanSeasons(year) : allYearSeason(year));
   const addSeason = () => setSeasons(prev => {
     const last = [...prev].sort((a, b) => a.endDate.localeCompare(b.endDate)).pop();
     const start = last ? new Date(new Date(`${last.endDate}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10) : `${year}-01-01`;
@@ -147,8 +147,8 @@ export const RateBuilderDialog: React.FC<{
                 <select className={`${selectCls} !h-8`} value={year} onChange={e => setYear(Number(e.target.value))} aria-label="Year">
                   {[nextYear - 1, nextYear, nextYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
-                <Button size="sm" onClick={() => usePreset('jordan')}>Jordan seasons</Button>
-                <Button size="sm" onClick={() => usePreset('year')}>One price all year</Button>
+                <Button size="sm" onClick={() => applyPreset('jordan')}>Jordan seasons</Button>
+                <Button size="sm" onClick={() => applyPreset('year')}>One price all year</Button>
               </div>
             </div>
             <div className="rounded-lg border border-slate-200 overflow-x-auto">

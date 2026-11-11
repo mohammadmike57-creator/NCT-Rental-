@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CompanyDetails } from '../types';
-import { TrashIcon, SaveIcon } from './icons';
-import { Page, PageHeader, Panel, Button, Field, inputCls, textareaCls } from './ui/Crm';
+import { SaveIcon } from './icons';
+import { Page, PageHeader, Panel, Button, Field, inputCls } from './ui/Crm';
 import { parseTerms } from '../services/agreementTerms';
 import DataCleanupPanel, { CleanupSection } from './DataCleanupPanel';
 import BackupRestorePanel from './BackupRestorePanel';
@@ -31,13 +31,21 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
   cleanup,
 }) => {
   const [formData, setFormData] = useState<CompanyDetails>(details);
+  // Until the person edits something, the form follows the saved details (they may still be loading,
+  // or someone else may change them), so saving can never write an old copy back.
+  const [edited, setEdited] = useState(false);
+  useEffect(() => { if (!edited) setFormData(details); }, [details, edited]);
 
   const handleChange = (field: keyof CompanyDetails, value: any) => {
+    setEdited(true);
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {
-    onUpdate(formData);
+    // Only the fields changed here are applied on top of the latest saved details.
+    const changes = Object.fromEntries(Object.entries(formData).filter(([k, v]) => v !== (details as any)[k]));
+    onUpdate({ ...details, ...changes });
+    setEdited(false);
   };
 
   const field = (label: string, key: keyof CompanyDetails, opts: { type?: string; placeholder?: string; full?: boolean } = {}) => (

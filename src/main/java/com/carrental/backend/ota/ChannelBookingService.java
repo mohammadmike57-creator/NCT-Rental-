@@ -39,6 +39,13 @@ public class ChannelBookingService {
         public String code() { return channel.urlCode().toUpperCase(Locale.ROOT); }
     }
 
+    /**
+     * The context with the reservations as they are now. Every check that ends in a write runs on it,
+     * inside the booking lock, so a booking confirmed a moment earlier by another broker (or by staff)
+     * is always counted: two requests can never both take the last car.
+     */
+    private Ctx latest(Ctx c) { return new Ctx(c.channel(), c.rules(), readState(), c.sandbox()); }
+
     static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())
         .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private static final DateTimeFormatter LOCAL_MIN = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
@@ -74,9 +81,30 @@ public class ChannelBookingService {
         return c.rules().locations().stream().map(l -> {
             List<OpeningHours> hours = new ArrayList<>();
             l.hours().forEach((d, h) -> hours.add(new OpeningHours(d.name().substring(0, 3), h.open().toString(), h.close().toString())));
-            return new Location(l.code(), l.name(), l.address(), l.pickup(), l.dropOff(), l.type(), l.phone(), l.latitude(), l.longitude(),
-                hours, l.afterHoursPickup(), l.afterHoursReturn(), l.afterHoursFee());
+            ChannelRules.Location t = l;
+            String name = l.name(), address = l.address();
+            if (ChannelLanguage.arabic()) {
+                for (JsonNode raw : c.channel().raw().path("bookingRules").path("locations")) {
+                    if (!t.code().equalsIgnoreCase(raw.path("code").asText("").trim())) continue;
+                    name = ChannelLanguage.pick(name, raw.path("nameAr").asText(""));
+                    address = ChannelLanguage.pick(address, raw.path("addressAr").asText(""));
+                }
+            }
+            return new Location(l.code(), name, address, l.pickup(), l.dropOff(), l.type(), l.phone(), l.latitude(), l.longitude(),
+                hours, l.afterHoursPickup(), l.afterHoursReturn(), l.afterHoursFee(), specialDays(c, l));
         }).toList();
+    }
+
+    /** Holidays and special hours from today up to a year ahead. */
+    private static List<SpecialDay> specialDays(Ctx c, ChannelRules.Location l) {
+        LocalDate today = c.rules().now().toLocalDate();
+        List<SpecialDay> out = new ArrayList<>();
+        l.specialDays().forEach((d, sd) -> {
+            if (d.isBefore(today) || d.isAfter(today.plusDays(366))) return;
+            out.add(new SpecialDay(d.toString(), sd.closed(), sd.closed() ? null : sd.open().toString(), sd.closed() ? null : sd.close().toString(),
+                sd.note().isEmpty() ? null : sd.note()));
+        });
+        return out;
     }
 
     public List<Coverage> coverages(Ctx c) {
@@ -126,6 +154,7 @@ public class ChannelBookingService {
     public Offer quote(Ctx c, String offerId) {
         bookingLock.lock();
         try {
+            c = latest(c);
             ChannelOffer stored = offerFor(c, offerId);
             Search s = searchOf(stored);
             Offer fresh = single(c, s, stored.getSippCode(), stored.getId(), null);
@@ -164,7 +193,7 @@ public class ChannelBookingService {
         List<Extra> extras = extras(c).stream().map(e -> new Extra(e.code(), e.name(), cv(e.dailyPrice(), fx), cv(e.maxPerRental(), fx))).toList();
         return new RateRule(s, o, extras, location(c, s.pickupLocation()), location(c, s.returnLocation()),
             c.rules().minDriverAge(), c.rules().maxDriverAge(), c.rules().minLeadHours(), c.rules().maxRentalDays(),
-            cv(c.rules().modificationFee(), fx), c.channel().terms());
+            cv(c.rules().modificationFee(), fx), ChannelLanguage.pick(c.channel().terms(), c.channel().raw().path("termsAndConditionsAr").asText("")));
     }
 
     public Location location(Ctx c, String code) {
@@ -202,10 +231,13 @@ public class ChannelBookingService {
         if (key.isEmpty() && ref.isEmpty()) throw ChannelError.INVALID_REQUEST.ex("An Idempotency-Key or a broker reference is required");
         if (key.isEmpty()) key = "REF:" + ref;
         if (key.length() > 150 || ref.length() > 100) throw ChannelError.INVALID_REQUEST.ex("Idempotency key or broker reference is too long");
+        // Test and live bookings never share keys: a key used in the sandbox must not return that test booking after go-live.
+        if (c.sandbox()) key = "SBX:" + key;
         String hash = sha256(canonical(req));
 
         bookingLock.lock();
         try {
+            c = latest(c);
             Optional<ChannelBooking> same = bookings.findByChannelIdAndIdempotencyKey(c.channel().id(), key);
             if (same.isPresent()) {
                 if (!same.get().getRequestHash().equals(hash)) {
@@ -214,7 +246,7 @@ public class ChannelBookingService {
                 return replay(same.get());
             }
             if (!ref.isEmpty()) {
-                Optional<ChannelBooking> byRef = bookings.findFirstByChannelIdAndBrokerReference(c.channel().id(), ref);
+                Optional<ChannelBooking> byRef = bookings.findFirstByChannelIdAndBrokerReferenceAndSandbox(c.channel().id(), ref, c.sandbox());
                 if (byRef.isPresent()) throw ChannelError.DUPLICATE_REFERENCE.ex("Broker reference " + ref + " is already booked as " + byRef.get().getReservationNumber());
             }
 
@@ -258,6 +290,7 @@ public class ChannelBookingService {
             b.setCustomerName(req.customer().fullName());
             b.setPromoCode(fresh.promoCode());
             b.setStatus("PENDING");
+            b.setVersion(1);
             b.setSandbox(c.sandbox());
             b.setCreatedAt(Instant.now());
             b = bookings.save(b);
@@ -288,14 +321,22 @@ public class ChannelBookingService {
         }
     }
 
+    /** A broker's retrieve request: only when retrieving is part of the channel's agreement. */
+    public Reservation retrieve(Ctx c, String reference) {
+        if (!c.rules().allowRetrieve()) throw ChannelError.PERMISSION_DENIED.ex("Retrieving bookings is not part of this channel's agreement");
+        return get(c, reference);
+    }
+
     public Reservation get(Ctx c, String reference) {
         ChannelBooking b = find(c, reference);
         return view(c, b, load(c, b));
     }
 
     public Reservation modify(Ctx c, ModifyRequest req) {
+        if (!c.rules().allowModify()) throw ChannelError.MODIFICATION_NOT_ALLOWED.ex("Modifications are not part of this channel's agreement: cancel and book again");
         bookingLock.lock();
         try {
+            c = latest(c);
             ChannelBooking b = find(c, req.reservation());
             ObjectNode res = load(c, b);
             String status = externalStatus(res);
@@ -339,6 +380,7 @@ public class ChannelBookingService {
             b.setTotal(fresh.totalAmount());
             b.setCustomerName(customer.fullName());
             b.setPromoCode(fresh.promoCode());
+            b.nextVersion();
             b.setUpdatedAt(Instant.now());
             bookings.save(b);
             Reservation view = view(c, b, updated);
@@ -352,6 +394,7 @@ public class ChannelBookingService {
     }
 
     public Reservation cancel(Ctx c, String reference, String reason) {
+        if (!c.rules().allowCancel()) throw ChannelError.CANCELLATION_NOT_ALLOWED.ex("Cancellations are not part of this channel's agreement: contact the supplier");
         bookingLock.lock();
         try {
             ChannelBooking b = find(c, reference);
@@ -362,10 +405,10 @@ public class ChannelBookingService {
                 throw ChannelError.CANCELLATION_NOT_ALLOWED.ex("Reservation " + b.getReservationNumber() + " is " + status);
             }
             BigDecimal total = b.getTotal() == null ? BigDecimal.ZERO : b.getTotal();
-            long hoursBefore = Duration.between(LocalDateTime.now(), b.getPickupAt()).toHours();
+            long hoursBefore = Duration.between(c.rules().now(), b.getPickupAt()).toHours();
             // The schedule agreed when the booking was made applies, even if the channel's rules changed since.
             List<Penalty> agreed = readPenalties(res.path("channelPrice").get("penalties"));
-            BigDecimal pct = agreed != null ? percentAt(agreed, LocalDateTime.now()) : c.rules().cancellationPercent(hoursBefore);
+            BigDecimal pct = agreed != null ? percentAt(agreed, c.rules().now()) : c.rules().cancellationPercent(hoursBefore);
             BigDecimal fee = total.multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             BigDecimal refund = c.rules().prepaid() ? total.subtract(fee).max(BigDecimal.ZERO) : BigDecimal.ZERO;
             res.put("status", "CANCELLED");
@@ -379,6 +422,7 @@ public class ChannelBookingService {
             store(c, b, res);
             b.setStatus("CANCELLED");
             b.setFeeAmount(fee);
+            b.nextVersion();
             b.setUpdatedAt(Instant.now());
             bookings.save(b);
             Reservation view = view(c, b, res);
@@ -400,7 +444,7 @@ public class ChannelBookingService {
         if (hours <= 0 || c.sandbox()) return 0;
         int marked = 0;
         for (ChannelBooking b : bookings.findByChannelIdAndSandboxFalseAndStatusInAndPickupAtBefore(c.channel().id(),
-                List.of("CONFIRMED", "PENDING"), LocalDateTime.now().minusHours(hours))) {
+                List.of("CONFIRMED", "PENDING"), c.rules().now().minusHours(hours))) {
             bookingLock.lock();
             try {
                 ObjectNode res = load(c, b);
@@ -423,6 +467,7 @@ public class ChannelBookingService {
                 store(c, b, res);
                 b.setStatus("NO_SHOW");
                 b.setFeeAmount(fee);
+                b.nextVersion();
                 b.setUpdatedAt(Instant.now());
                 bookings.save(b);
                 audit(c, "CHANNEL_BOOKING_NO_SHOW", "Booking " + b.getReservationNumber() + " marked no-show " + hours
@@ -442,7 +487,7 @@ public class ChannelBookingService {
     public ObjectNode inventory(Ctx c, int days) {
         ObjectNode out = JSON.createObjectNode();
         out.put("channel_code", c.code()).put("currency", c.channel().currency());
-        LocalDate start = LocalDate.now();
+        LocalDate start = c.rules().now().toLocalDate();
         out.put("from", start.toString()).put("to", start.plusDays(days - 1).toString());
         ArrayNode groups = out.putArray("groups");
         for (VehicleGroup g : vehicleGroups(c)) {
@@ -497,6 +542,27 @@ public class ChannelBookingService {
         return out;
     }
 
+    /**
+     * The statement converted to the settlement currency (e.g. USD) at the channel's rate: every amount
+     * is converted on its own and the totals are the sums of the converted rows, so the sheet adds up.
+     */
+    static ObjectNode settleIn(ObjectNode st, String currency, BigDecimal rate) {
+        ObjectNode out = st.deepCopy();
+        String[] fields = {"total", "fee", "commissionable", "commission", "net"};
+        BigDecimal gross = BigDecimal.ZERO, fees = BigDecimal.ZERO, commission = BigDecimal.ZERO;
+        for (JsonNode r : out.path("rows")) {
+            ObjectNode row = (ObjectNode) r;
+            for (String f : fields) row.put(f, row.path(f).decimalValue().multiply(rate).setScale(2, RoundingMode.HALF_UP));
+            gross = gross.add(row.path("commissionable").decimalValue());
+            commission = commission.add(row.path("commission").decimalValue());
+            String stt = row.path("status").asText("");
+            if ("CANCELLED".equals(stt) || "NO_SHOW".equals(stt)) fees = fees.add(row.path("fee").decimalValue());
+        }
+        out.put("channelCurrency", st.path("currency").asText()).put("currency", currency).put("exchangeRate", rate)
+           .put("gross", gross).put("fees", fees).put("commission", commission).put("net", gross.subtract(commission));
+        return out;
+    }
+
     // =========================================================== pricing
 
     /**
@@ -510,7 +576,7 @@ public class ChannelBookingService {
         String sell = rate == null ? c.channel().currency() : s.currency().trim().toUpperCase(Locale.ROOT);
         List<String> codes = new ArrayList<>();
         for (ExtraRequest e : s.extras()) codes.add(e.code());
-        List<OtaXml.QuoteLine> lines = OtaXml.quote(c.channel(), new OtaXml.QuoteRequest(s.pickupAt(), s.returnAt(), codes));
+        List<OtaXml.QuoteLine> lines = OtaXml.quote(c.channel(), new OtaXml.QuoteRequest(s.pickupAt(), s.returnAt(), codes), rules.graceMinutes());
         if (lines.isEmpty()) throw ChannelError.NO_AVAILABILITY.ex("No rates are published for " + s.pickupAt().toLocalDate());
         Map<String, OtaXml.Extra> extraByCode = new HashMap<>();
         for (OtaXml.Extra e : OtaXml.extras(c.channel())) { extraByCode.put(e.code().toUpperCase(Locale.ROOT), e); extraByCode.put(e.id().toUpperCase(Locale.ROOT), e); }
@@ -529,13 +595,49 @@ public class ChannelBookingService {
         boolean afterPick = pl != null && !pl.openAt(s.pickupAt());
         boolean afterReturn = rl != null && !rl.openAt(s.returnAt());
 
+        ChannelCommercial com = ChannelCommercial.of(c.channel().raw().path("bookingRules"));
+        // Rate & price rules (OTA XML → Rate rules): only for channels switched to "dynamic" or "restricted".
+        String rateMode = ChannelDynamicPricing.mode(c.channel().raw());
+        JsonNode pricing = "net".equals(rateMode) ? null : ChannelDynamicPricing.published(c.state());
+        String channelType = ChannelDynamicPricing.channelType(c.channel().raw());
+        boolean skipBrokerLeadTerms = ChannelDynamicPricing.leadTimeActive(pricing, channelType, rateMode);
         List<Offer> out = new ArrayList<>();
         for (OtaXml.QuoteLine l : lines) {
             if (!rules.groupAllowed(l.sippCode())) continue;
             int days = l.days();
+            BigDecimal daily = l.dailyRate(), baseTotal = l.baseTotal();
+            ChannelDynamicPricing.Result dyn = null;
+            if (pricing != null && !"Closed".equals(l.status())) {
+                BigDecimal fallback = l.dailyRate();
+                dyn = ChannelDynamicPricing.price(pricing, l.sippCode(), s.pickupLocation(), channelType, s.pickupAt(), s.returnAt(), rules.now(),
+                    (date, n) -> publishedDaily(c, l.sippCode(), date, n, fallback), rules.graceMinutes(), rateMode);
+                if (dyn.bookable()) {
+                    baseTotal = BigDecimal.valueOf(dyn.total()).setScale(2, RoundingMode.HALF_UP);
+                    daily = baseTotal.divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
+                } else {
+                    dyn = null;
+                }
+            }
+            boolean termsChangedRate = false;
+            if (!com.neutral()) {
+                // The broker's own terms are built into the daily rate (a net rate), never shown as a separate line.
+                // When the last-minute rule prices this channel, the broker's early / last-minute percent is not added again.
+                BigDecimal pct = com.percentFor(l.sippCode(), s.pickupAt(), rules.now(), skipBrokerLeadTerms);
+                if (pct.signum() != 0 || com.markupPerDay().signum() != 0 || com.roundTo() > 0) {
+                    BigDecimal adjusted = com.adjustDaily(daily, pct);
+                    BigDecimal plain = daily.multiply(BigDecimal.valueOf(days));
+                    baseTotal = baseTotal.compareTo(plain) == 0 || daily.signum() == 0
+                        ? adjusted.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
+                        : baseTotal.multiply(adjusted).divide(daily, 2, RoundingMode.HALF_UP);
+                    daily = adjusted;
+                    termsChangedRate = true;
+                }
+            }
             List<PriceLine> breakdown = new ArrayList<>();
-            breakdown.add(new PriceLine("BASE", l.sippCode(), days + " day" + (days == 1 ? "" : "s") + " × " + l.dailyRate(), l.dailyRate(), days, l.baseTotal()));
-            BigDecimal base = l.baseTotal();
+            String baseText = dyn != null && !termsChangedRate ? ChannelDynamicPricing.summary(dyn.perDay())
+                : days + " day" + (days == 1 ? "" : "s") + " × " + daily;
+            breakdown.add(new PriceLine("BASE", l.sippCode(), baseText, daily, days, baseTotal));
+            BigDecimal base = baseTotal;
             String appliedPromo = null;
             if (promo != null && promo.appliesTo(l.sippCode(), s.pickupAt().toLocalDate()) && promo.percentOff().signum() > 0) {
                 BigDecimal off = base.multiply(promo.percentOff()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
@@ -573,7 +675,11 @@ public class ChannelBookingService {
                     cv.excess() == null ? excess : cv.excess(), cv.deposit() == null ? deposit : cv.deposit()));
             }
             BigDecimal fees = BigDecimal.ZERO;
-            if (oneWay && rules.oneWayFee().signum() > 0) fees = fees.add(fee(breakdown, "ONE_WAY", "One-way fee", rules.oneWayFee(), 1));
+            BigDecimal oneWayFee = oneWay ? rules.oneWayFeeFor(s.pickupLocation(), s.returnLocation()) : BigDecimal.ZERO;
+            if (oneWayFee.signum() > 0) fees = fees.add(fee(breakdown, "ONE_WAY", "One-way fee", oneWayFee, 1));
+            // Airport fee: once per rental that starts or ends at an airport with a fee (the higher one if both).
+            BigDecimal airportFee = (pl == null ? BigDecimal.ZERO : pl.airportFee()).max(rl == null ? BigDecimal.ZERO : rl.airportFee());
+            if (airportFee.signum() > 0) fees = fees.add(fee(breakdown, "AIRPORT", "Airport fee", airportFee, 1));
             if (afterPick && pl.afterHoursFee().signum() > 0) fees = fees.add(fee(breakdown, "AFTER_HOURS", "After-hours pick-up", pl.afterHoursFee(), 1));
             if (afterReturn && rl.afterHoursFee().signum() > 0) fees = fees.add(fee(breakdown, "AFTER_HOURS", "After-hours return", rl.afterHoursFee(), 1));
             Integer age = s.driverAge();
@@ -586,6 +692,12 @@ public class ChannelBookingService {
             String status = l.status();
             String reason = l.closedReason();
             int available = 0;
+            if (!"Closed".equals(status) && !com.neutral()) {
+                ChannelCommercial.Blackout stop = com.blackoutFor(l.sippCode(), s.pickupAt().toLocalDate(), s.returnAt().toLocalDate());
+                int minDays = com.minDaysFor(l.sippCode());
+                if (stop != null) { status = "Closed"; reason = stop.note().isEmpty() ? "Not sold for these dates" : stop.note(); }
+                else if (days < minDays) { status = "Closed"; reason = "Minimum rental " + minDays + " days for this group"; }
+            }
             if (!"Closed".equals(status)) {
                 Avail av = check(c, l.sippCode(), s.pickupAt(), s.returnAt(), excludeOffer, excludeReservation);
                 available = av.count();
@@ -612,6 +724,20 @@ public class ChannelBookingService {
             out.add(rate == null ? o : convert(o, sell, rate));
         }
         return out;
+    }
+
+    /** The published daily rate of one group for one day: the period that covers that day, the tier for the whole rental's length. */
+    private static Double publishedDaily(Ctx c, String sipp, LocalDate date, int days, BigDecimal fallback) {
+        JsonNode plan = OtaXml.findPlan(c.channel().publishedRatePlans(), date);
+        if (plan != null) {
+            for (JsonNode rate : plan.path("sippRates")) {
+                if (!sipp.equalsIgnoreCase(rate.path("sippCode").asText(""))) continue;
+                JsonNode tier = OtaXml.findTier(rate, days);
+                double v = tier == null ? 0 : tier.path("dailyPrice").asDouble(0);
+                if (v > 0) return v;
+            }
+        }
+        return fallback.doubleValue();
     }
 
     /** The cancellation schedule for a booking of this total: one step per tier that costs something. */
@@ -730,7 +856,7 @@ public class ChannelBookingService {
     }
 
     /** Free cars for the period and, when there are none, why. */
-    record Avail(int count, String reason) {}
+    public record Avail(int count, String reason) {}
 
     int available(Ctx c, String sipp, LocalDateTime from, LocalDateTime to, String excludeOffer, String excludeReservation) {
         return check(c, sipp, from, to, excludeOffer, excludeReservation).count();
@@ -741,7 +867,7 @@ public class ChannelBookingService {
      * out of registration, minus overlapping bookings and agreements, live holds and the
      * operational buffer kept back from this channel; then capped by the broker's allotment.
      */
-    Avail check(Ctx c, String sipp, LocalDateTime from, LocalDateTime to, String excludeOffer, String excludeReservation) {
+    public Avail check(Ctx c, String sipp, LocalDateTime from, LocalDateTime to, String excludeOffer, String excludeReservation) {
         LocalDate pickupDay = from.toLocalDate();
         List<ChannelRules.Allotment> allots = c.rules().allotmentsFor(sipp, pickupDay);
         for (ChannelRules.Allotment a : allots) if (a.stopSell()) return new Avail(0, "Stop sell for this channel");
@@ -750,8 +876,8 @@ public class ChannelBookingService {
         Set<String> models = new HashSet<>();
         int usable = 0;
         for (JsonNode car : cars) {
-            String reg = car.path("registrationExpiry").asText("");
-            boolean expired = reg.length() >= 10 && LocalDate.parse(reg.substring(0, 10)).isBefore(to.toLocalDate());
+            LocalDate reg = day(car.path("registrationExpiry").asText(""));
+            boolean expired = reg != null && reg.isBefore(to.toLocalDate());
             if (expired || vehicleStopped(c.channel().stopSales(), car.path("id").asText(), from.toLocalDate(), to.toLocalDate())) continue;
             usable++;
             if (!car.path("licensePlate").asText("").isBlank()) plates.add(car.path("licensePlate").asText().trim().toUpperCase(Locale.ROOT));
@@ -759,18 +885,27 @@ public class ChannelBookingService {
         }
         if (usable == 0) return new Avail(0, null);
         int busy = 0;
+        LocalDateTime now = c.rules().now();
+        int turn = c.rules().turnaroundMinutes();
         for (JsonNode r : allReservations(c.state())) {
             if (excludeReservation != null && excludeReservation.equals(r.path("id").asText())) continue;
             String st = r.path("status").asText("");
             if ("CANCELLED".equals(st) || "NO_SHOW".equals(st) || r.path("dropOffCompleted").asBoolean(false)) continue;
             LocalDateTime s = parseLocal(r.path("startDate").asText(r.path("pickupDate").asText("")));
             LocalDateTime e = parseLocal(r.path("endDate").asText(r.path("dropoffDate").asText("")));
-            if (s == null || e == null || !s.isBefore(to) || !e.isAfter(from)) continue;
+            if (s == null || e == null) continue;
+            // A car that went out and is not back by its return time stays busy: until it is checked in,
+            // it is treated as returning overdueHoldHours from now.
+            if (r.path("voucherSubmitted").asBoolean(false) && e.isBefore(now)) e = now.plusHours(c.rules().overdueHoldHours());
+            // Cleaning / preparation time is kept free before and after every rental.
+            s = s.minusMinutes(turn);
+            e = e.plusMinutes(turn);
+            if (!s.isBefore(to) || !e.isAfter(from)) continue;
             if (inGroup(r, sipp, plates, models)) busy++;
         }
         long holds = offers.countHolds(sipp, from, to, Instant.now(), excludeOffer == null ? "" : excludeOffer);
         int free = (int) Math.max(0, usable - busy - holds - c.rules().operationalBuffer());
-        long daysAhead = ChronoUnit.DAYS.between(LocalDate.now(), pickupDay);
+        long daysAhead = ChronoUnit.DAYS.between(c.rules().now().toLocalDate(), pickupDay);
         for (ChannelRules.Allotment a : allots) {
             if (daysAhead <= a.releaseDays()) continue;     // released: free sale
             long used = bookings.countOverlapping(c.channel().id(), c.sandbox(), sipp.toUpperCase(Locale.ROOT), from, to,
@@ -797,9 +932,9 @@ public class ChannelBookingService {
     private static boolean vehicleStopped(JsonNode stops, String carId, LocalDate from, LocalDate to) {
         for (JsonNode s : stops) {
             if (!"vehicle".equals(s.path("type").asText()) || !carId.equals(s.path("target").asText())) continue;
-            String a = s.path("startDate").asText(""), b = s.path("endDate").asText("");
-            if (a.length() < 10 || b.length() < 10) continue;
-            if (!LocalDate.parse(a.substring(0, 10)).isAfter(to) && !LocalDate.parse(b.substring(0, 10)).isBefore(from)) return true;
+            LocalDate a = day(s.path("startDate").asText("")), b = day(s.path("endDate").asText(""));
+            if (a == null || b == null) continue;
+            if (!a.isAfter(to) && !b.isBefore(from)) return true;
         }
         return false;
     }
@@ -809,21 +944,27 @@ public class ChannelBookingService {
     void validate(Ctx c, Search s) {
         if (s.pickupAt() == null || s.returnAt() == null) throw ChannelError.INVALID_DATE.ex("Pick-up and return date and time are required");
         if (!s.returnAt().isAfter(s.pickupAt())) throw ChannelError.INVALID_DATE.ex("Return must be after pick-up");
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = c.rules().now();
         if (s.pickupAt().isBefore(now.plusHours(c.rules().minLeadHours()))) {
             throw ChannelError.INVALID_DATE.ex("Pick-up must be at least " + c.rules().minLeadHours() + " hours from now");
         }
         if (s.pickupAt().isAfter(now.plusDays(c.rules().maxHorizonDays()))) {
             throw ChannelError.INVALID_DATE.ex("Bookings are accepted up to " + c.rules().maxHorizonDays() + " days ahead");
         }
-        int days = OtaXml.rentalDays(s.pickupAt(), s.returnAt());
+        int days = OtaXml.rentalDays(s.pickupAt(), s.returnAt(), c.rules().graceMinutes());
         if (days > c.rules().maxRentalDays()) throw ChannelError.INVALID_DATE.ex("The longest rental is " + c.rules().maxRentalDays() + " days");
+        ChannelCommercial com = ChannelCommercial.of(c.channel().raw().path("bookingRules"));
+        if (days < com.minRentalDays()) throw ChannelError.INVALID_DATE.ex("The shortest rental is " + com.minRentalDays() + " days");
+        if (com.closedToArrival().contains(s.pickupAt().toLocalDate())) throw ChannelError.INVALID_DATE.ex("No pick-ups on " + s.pickupAt().toLocalDate());
+        if (com.closedToDeparture().contains(s.returnAt().toLocalDate())) throw ChannelError.INVALID_DATE.ex("No returns on " + s.returnAt().toLocalDate());
         ChannelRules.Location p = c.rules().location(s.pickupLocation());
         ChannelRules.Location r = c.rules().location(s.returnLocation());
         if (p == null) throw ChannelError.INVALID_LOCATION.ex("Unknown pick-up location " + s.pickupLocation());
         if (r == null) throw ChannelError.INVALID_LOCATION.ex("Unknown return location " + s.returnLocation());
         if (!p.pickup()) throw ChannelError.INVALID_LOCATION.ex(p.code() + " does not allow pick-ups");
         if (!r.dropOff()) throw ChannelError.INVALID_LOCATION.ex(r.code() + " does not allow returns");
+        closedDay(p, s.pickupAt(), "pick-up");
+        closedDay(r, s.returnAt(), "return");
         if (!p.openAt(s.pickupAt()) && !p.afterHoursPickup()) {
             throw ChannelError.INVALID_DATE.ex(p.code() + " is closed at " + s.pickupAt().toLocalTime() + " on " + s.pickupAt().getDayOfWeek() + hoursText(p, s.pickupAt()));
         }
@@ -833,7 +974,17 @@ public class ChannelBookingService {
         if (s.driverAge() != null) checkAge(c, s.driverAge());
     }
 
+    /** A branch closed for a holiday takes no pick-ups or returns that day, not even after hours. */
+    private static void closedDay(ChannelRules.Location l, LocalDateTime t, String what) {
+        ChannelRules.SpecialDay sd = l.specialDays().get(t.toLocalDate());
+        if (sd != null && sd.closed()) {
+            throw ChannelError.INVALID_DATE.ex(l.code() + " is closed on " + t.toLocalDate() + (sd.note().isEmpty() ? "" : " (" + sd.note() + ")") + ": no " + what + " that day");
+        }
+    }
+
     private static String hoursText(ChannelRules.Location l, LocalDateTime t) {
+        ChannelRules.SpecialDay sd = l.specialDays().get(t.toLocalDate());
+        if (sd != null) return " (" + (sd.note().isEmpty() ? "special hours" : sd.note()) + ": open " + sd.open() + "-" + sd.close() + ")";
         ChannelRules.Hours h = l.hours().get(t.getDayOfWeek());
         return h == null ? " (closed all day)" : " (open " + h.open() + "-" + h.close() + ")";
     }
@@ -895,7 +1046,7 @@ public class ChannelBookingService {
         if (!trim(cu.email()).isEmpty()) r.put("customerEmail", cu.email().trim()); else r.remove("customerEmail");
         r.put("startDate", start).put("pickupDate", start).put("endDate", end).put("dropoffDate", end);
         r.put("storageYear", s.pickupAt().getYear()).put("storageMonth", MONTHS[s.pickupAt().getMonthValue() - 1]);
-        r.put("bookingDate", existing != null ? existing.path("bookingDate").asText(LocalDate.now().toString()) : LocalDate.now().toString());
+        r.put("bookingDate", existing != null ? existing.path("bookingDate").asText(c.rules().now().toLocalDate().toString()) : c.rules().now().toLocalDate().toString());
         r.put("source", sourceName(c));
         r.put("paymentType", c.rules().prepaid() ? "Prepaid" : "Pay on Arrival");
         r.put("sippCode", o.vehicleGroup());
@@ -992,6 +1143,8 @@ public class ChannelBookingService {
         if (ref.isEmpty()) throw ChannelError.INVALID_REQUEST.ex("A reservation number or broker reference is required");
         Optional<ChannelBooking> b = bookings.findByReservationNumber(ref.toUpperCase(Locale.ROOT))
             .filter(x -> x.getChannelId().equals(c.channel().id()));
+        // A broker reference is looked up in the caller's environment first (the same reference may exist as a test booking).
+        if (b.isEmpty()) b = bookings.findFirstByChannelIdAndBrokerReferenceAndSandbox(c.channel().id(), ref, c.sandbox());
         if (b.isEmpty()) b = bookings.findFirstByChannelIdAndBrokerReference(c.channel().id(), ref);
         return b.orElseThrow(() -> ChannelError.RESERVATION_NOT_FOUND.ex("No reservation " + ref + " for this channel"));
     }
@@ -1045,7 +1198,9 @@ public class ChannelBookingService {
         if (o.getExtras() != null) for (String p : o.getExtras().split(",")) {
             if (p.isBlank()) continue;
             String[] kv = p.split(":");
-            extras.add(new ExtraRequest(kv[0], kv.length > 1 ? Integer.parseInt(kv[1]) : 1));
+            int qty = 1;
+            try { if (kv.length > 1) qty = Integer.parseInt(kv[1]); } catch (NumberFormatException ignored) { /* keep 1 */ }
+            extras.add(new ExtraRequest(kv[0], qty));
         }
         List<String> covers = new ArrayList<>();
         if (o.getCoverages() != null) for (String cv : o.getCoverages().split(",")) if (!cv.isBlank()) covers.add(cv);
@@ -1102,7 +1257,7 @@ public class ChannelBookingService {
             cancelled ? res.path("refundStatus").asText(null) : null, b.isSandbox(),
             p.has("tax") ? p.path("tax").decimalValue() : BigDecimal.ZERO.setScale(2), p.path("taxIncluded").asBoolean(true),
             read(p.get("mileage"), Mileage.class), readList(p.get("coverages")), read(p.get("vehicle"), VehicleInfo.class),
-            p.path("promoCode").asText(null), readPenalties(p.get("penalties")));
+            p.path("promoCode").asText(null), readPenalties(p.get("penalties")), b.currentVersion());
     }
 
     private static <T> T read(JsonNode n, Class<T> type) {
@@ -1192,6 +1347,12 @@ public class ChannelBookingService {
         return out;
     }
 
+    /** A YYYY-MM-DD date at the start of a value, or null when it is missing or not a date (staff data is not trusted to be clean). */
+    static LocalDate day(String s) {
+        if (s == null || s.length() < 10) return null;
+        try { return LocalDate.parse(s.substring(0, 10)); } catch (Exception e) { return null; }
+    }
+
     static LocalDateTime parseLocal(String s) {
         if (s == null || s.length() < 10) return null;
         try {
@@ -1217,7 +1378,7 @@ public class ChannelBookingService {
         Driver d = r.driver();
         return String.join("|", trim(r.offerId()), trim(r.brokerReference()),
             s == null ? "" : s.pickupLocation() + "," + s.returnLocation() + "," + s.pickupAt() + "," + s.returnAt() + "," + s.vehicleGroup() + "," + s.extras()
-                + "," + s.coverageCodes() + "," + trim(s.promoCode()) + "," + s.driverAge(),
+                + "," + s.coverageCodes() + "," + trim(s.promoCode()) + "," + s.driverAge() + "," + trim(s.currency()),
             cu == null ? "" : trim(cu.firstName()) + "," + trim(cu.lastName()) + "," + trim(cu.email()) + "," + trim(cu.phone()),
             d == null ? "" : trim(d.dateOfBirth()) + "," + trim(d.licenceNumber()),
             r.expectedTotal() == null ? "" : r.expectedTotal().stripTrailingZeros().toPlainString());

@@ -16,7 +16,7 @@ const DataCleanupPanel: React.FC<Props> = ({ sections, onClear }) => {
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(sections.filter(s => s.defaultOn).map(s => s.key)));
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
-  const toggle = (k: string) => setChosen(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const toggle = (k: string) => setChosen(prev => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const total = sections.filter(s => chosen.has(s.key)).reduce((n, s) => n + s.count, 0);
   const ready = chosen.size > 0 && typed.trim().toUpperCase() === 'DELETE' && !busy;
 

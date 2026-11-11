@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>__BRAND__ · Distribution API</title>
+<style>
+:root{--ink:#0f172a;--ink2:#334155;--mut:#64748b;--line:#e2e8f0;--bg:#f8fafc;--card:#fff;--acc:#4f46e5;--acc2:#eef2ff;--ok:#059669;--warn:#d97706;--bad:#e11d48;--code:#0b1220;--codeink:#e2e8f0}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:-apple-system,'Segoe UI',Inter,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:15px;line-height:1.6}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+code,pre,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+header.top{position:sticky;top:0;z-index:5;height:60px;display:flex;align-items:center;gap:16px;padding:0 24px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+.logo i{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#0b1f3a,#334155 60%,#f59e0b);display:inline-block}
+.logo small{font-weight:500;color:var(--mut);margin-left:4px}
+.spacer{flex:1}
+.logo,.pill{white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:#f1f5f9;color:var(--ink2)}
+.pill b{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+.pill.up b{background:var(--ok)}.pill.down b{background:var(--bad)}
+.wrap{display:grid;grid-template-columns:240px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav.side{position:sticky;top:60px;height:calc(100vh - 60px);overflow:auto;padding:24px 12px 24px 24px;border-right:1px solid var(--line)}
+nav.side p{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:18px 0 6px 10px}
+nav.side p:first-child{margin-top:0}
+nav.side a{display:block;padding:5px 10px;border-radius:6px;color:var(--ink2);font-size:14px}
+nav.side a:hover{background:#f1f5f9;text-decoration:none}
+main{padding:32px 40px 80px;min-width:0}
+section{padding:28px 0;border-bottom:1px solid var(--line)}
+section:last-child{border-bottom:0}
+h1{font-size:34px;letter-spacing:-.02em;line-height:1.2}
+h2{font-size:22px;letter-spacing:-.01em;margin-bottom:6px}
+h3{font-size:16px;margin:20px 0 6px}
+p.lead{font-size:17px;color:var(--ink2);margin-top:10px;max-width:760px}
+p.sub{color:var(--mut);margin-bottom:14px;max-width:780px}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:9px;font-size:14px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn:hover{text-decoration:none;filter:brightness(.97)}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h4{font-size:15px;margin-bottom:4px}
+.card p{font-size:13.5px;color:var(--mut)}
+.card .tag{display:inline-block;margin-top:10px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--acc2);color:var(--acc)}
+.card .tag.grey{background:#f1f5f9;color:var(--mut)}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13.5px}
+th,td{text-align:left;padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+thead th{border-top:0;background:#f8fafc;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+td code{font-size:12.5px;background:#f1f5f9;padding:1px 5px;border-radius:4px}
+p code,li code,td code{overflow-wrap:anywhere}
+#errtable td:first-child code{white-space:nowrap;overflow-wrap:normal}
+.tw{overflow-x:auto;border-radius:12px}
+pre{background:var(--code);color:var(--codeink);padding:16px;border-radius:0 0 12px 12px;overflow:auto;font-size:12.5px;line-height:1.55;white-space:pre}
+.tabs{display:flex;flex-wrap:wrap;gap:2px;background:#111a2e;border-radius:12px 12px 0 0;padding:6px 6px 0}
+.tabs button{all:unset;cursor:pointer;color:#94a3b8;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:8px 8px 0 0}
+.tabs button[aria-selected=true]{background:var(--code);color:#fff}
+.tabs .copy{margin-left:auto;color:#cbd5e1}
+.codebox{margin:12px 0 4px}
+.codebox pre{display:none}.codebox pre.on{display:block}
+.steps{counter-reset:s;display:grid;gap:10px;margin-top:6px}
+.steps li{list-style:none;counter-increment:s;position:relative;padding:12px 14px 12px 52px;background:#fff;border:1px solid var(--line);border-radius:10px;font-size:14px}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:12px;width:26px;height:26px;border-radius:50%;background:var(--acc2);color:var(--acc);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.note{border-left:3px solid var(--warn);background:#fffbeb;padding:10px 14px;border-radius:6px;font-size:13.5px;color:#78350f;margin:12px 0}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.flow span{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600}
+.flow em{color:var(--mut);font-style:normal}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px}
+.b-ok{background:#ecfdf5;color:var(--ok)}.b-warn{background:#fffbeb;color:var(--warn)}.b-grey{background:#f1f5f9;color:var(--mut)}
+footer{max-width:1240px;margin:0 auto;padding:24px 40px 40px;color:var(--mut);font-size:13px}
+@media (max-width:980px){.wrap{grid-template-columns:1fr}nav.side{display:none}main{padding:24px 16px 60px}.g4,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.g4,.g3,.g2{grid-template-columns:1fr}h1{font-size:27px}header.top{padding:0 16px;gap:10px}.logo small{display:none}.logo{font-size:15px}.pill{font-size:11px;padding:4px 8px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><i></i>__BRAND__ <small>Distribution API</small></div>
+  <div class="spacer"></div>
+  <span class="pill" id="status"><b></b><span>Checking status…</span></span>
+</header>
+<div class="wrap">
+<nav class="side">
+  <p>Start</p>
+  <a href="#overview">Overview</a><a href="#choose">Choose an API</a><a href="#environments">Sandbox and production</a><a href="#auth">Authentication</a>
+  <p>REST / JSON v3</p>
+  <a href="#quickstart">Quick start</a><a href="#rest">Endpoints</a><a href="#conventions">Conventions</a>
+  <p>OTA XML</p>
+  <a href="#xml">Messages</a><a href="#xml-sample">Sample request</a><a href="#signing">Signed requests</a>
+  <p>Events</p>
+  <a href="#webhooks">Webhooks v2</a><a href="#verify">Verify a webhook</a>
+  <p>Reference</p>
+  <a href="#errors">Errors</a><a href="#certification">Certification</a><a href="#versions">Versions and changes</a><a href="#downloads">Downloads</a>
+</nav>
+<main>
+
+<section id="overview">
+  <h1>Car rental distribution for brokers and travel partners</h1>
+  <p class="lead">Live availability, net rates and instant confirmation for __BRAND__'s fleet in Jordan. Connect with OpenTravel XML (2024A, 2018A, SOAP) or with REST/JSON and OAuth 2.0: the same inventory, prices and rules behind every version.</p>
+  <div class="btns">
+    <a class="btn primary" href="#quickstart">Quick start</a>
+    <a class="btn" href="__BASE__/api/v3/openapi.yaml" download>OpenAPI 3.1</a>
+    <a class="btn" href="__BASE__/api/v3/postman.json" download="urdrive-postman.json">Postman collection</a>
+    <a class="btn" href="#errors">Error catalogue</a>
+  </div>
+  <div class="grid g4" style="margin-top:28px">
+    <div class="card"><h4>Instant confirmation</h4><p>Bookings are confirmed in the response, with our reservation number.</p></div>
+    <div class="card"><h4>Guaranteed quotes</h4><p>A quote keeps its price until it expires; booking it never re-prices.</p></div>
+    <div class="card"><h4>Safe retries</h4><p>Idempotency keys and broker references: a retry never books twice.</p></div>
+    <div class="card"><h4>Signed events</h4><p>HMAC-signed webhooks, retried for 72 hours, with replay.</p></div>
+  </div>
+</section>
+
+<section id="choose">
+  <h2>Choose an API</h2>
+  <p class="sub">All versions run side by side. Pick the one your platform already speaks; nothing else changes.</p>
+  <div class="grid g4">
+    <div class="card"><h4>OTA XML 2024A</h4><p>OpenTravel messages over HTTPS POST.</p><span class="tag">Recommended for XML</span></div>
+    <div class="card"><h4>OTA XML 2018A</h4><p>For platforms on the older OpenTravel release.</p><span class="tag grey">Supported</span></div>
+    <div class="card"><h4>SOAP 1.1 / 1.2</h4><p>The same messages in a SOAP envelope, with WSDL.</p><span class="tag grey">Supported</span></div>
+    <div class="card"><h4>REST / JSON v3</h4><p>Resource API with OAuth 2.0 and OpenAPI 3.1.</p><span class="tag">Recommended for new builds</span></div>
+  </div>
+  <div class="tw" style="margin-top:16px"><table>
+    <thead><tr><th>API</th><th>Address</th><th>Login</th></tr></thead>
+    <tbody>
+      <tr><td>OTA XML 2024A</td><td><code>__BASE__/ota/2024A/{CODE}/{Message}</code></td><td>API key</td></tr>
+      <tr><td>OTA XML 2018A</td><td><code>__BASE__/ota/2018A/{CODE}/{Message}</code></td><td>API key</td></tr>
+      <tr><td>SOAP</td><td><code>__BASE__/ota/{CODE}/soap</code> · WSDL at <code>?wsdl</code></td><td>API key or MessagePassword</td></tr>
+      <tr><td>REST / JSON v3</td><td><code>__BASE__/api/v3</code></td><td>OAuth 2.0 client credentials</td></tr>
+    </tbody>
+  </table></div>
+  <p class="sub" style="margin-top:10px"><code>{CODE}</code> is the channel code we create for you, for example <code>AUE</code>. Use HTTPS only.</p>
+</section>
+
+<section id="environments">
+  <h2>Sandbox and production</h2>
+  <p class="sub">The same addresses serve both. Your credentials decide the environment, so test code goes live by changing credentials only.</p>
+  <div class="grid g2">
+    <div class="card"><h4>Sandbox <span class="badge b-warn">tests</span></h4><p>Real availability and prices, but bookings are kept apart: they never reach our branches and never hold a car. Use the test API key, or an OAuth client marked sandbox.</p></div>
+    <div class="card"><h4>Production <span class="badge b-ok">live</span></h4><p>Confirmed bookings go straight to the branch. Production credentials are issued after certification.</p></div>
+  </div>
+  <p class="note">Credentials are sent on request, and never in the same email as this documentation. Keep them on your server only, never in a browser or mobile app.</p>
+</section>
+
+<section id="auth">
+  <h2>Authentication</h2>
+  <h3>XML and SOAP: API key</h3>
+  <p class="sub">Send the key in the <code>X-Api-Key</code> header, or as <code>Authorization: Bearer &lt;key&gt;</code>, or inside the message as <code>POS/Source/RequestorID@MessagePassword</code>. Ten failed attempts from one address within 10 minutes lock it out for 15 minutes.</p>
+  <h3>REST v3: OAuth 2.0 client credentials</h3>
+  <p class="sub">Exchange your client ID and secret for a 30-minute bearer token at <code>__BASE__/oauth/token</code>. Each client has scopes: <code>locations:read</code>, <code>fleet:read</code>, <code>availability:read</code>, <code>quotes:read</code>, <code>reservations:read</code>, <code>reservations:write</code>, <code>inventory:read</code>, <code>webhooks:manage</code>.</p>
+  <div class="codebox" data-group="token">
+    <div class="tabs"><button>cURL</button><button class="copy">Copy</button></div>
+<pre class="on">curl -s -X POST __BASE__/oauth/token \
+  -u "$CLIENT_ID:$CLIENT_SECRET" \
+  -d grant_type=client_credentials
+
+{"access_token":"eyJhbGciOi…","token_type":"Bearer","expires_in":1800,"scope":"locations:read availability:read …"}</pre>
+  </div>
+</section>
+
+<section id="quickstart">
+  <h2>Quick start: search, book, retrieve, cancel</h2>
+  <p class="sub">The whole booking flow in REST v3. Times are local time at the branch (Asia/Amman), without an offset.</p>
+  <div class="flow"><span>Token</span><em>→</em><span>Search</span><em>→</em><span>quoteId</span><em>→</em><span>Book (Idempotency-Key)</span><em>→</em><span>RSV number</span><em>→</em><span>Retrieve · Modify · Cancel</span></div>
+  <div class="codebox" data-group="quick">
+    <div class="tabs"><button>cURL</button><button>Node.js</button><button>Python</button><button>Java</button><button>PHP</button><button>C#</button><button class="copy">Copy</button></div>
+<pre>TOKEN=$(curl -s -X POST __BASE__/oauth/token -u "$CLIENT_ID:$CLIENT_SECRET" \
+  -d grant_type=client_credentials | jq -r .access_token)
+
+# 1. Search
+curl -s -X POST __BASE__/api/v3/availability/search \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"pickUp":{"location":"AMM","local":"2027-03-10T10:00"},
+       "return":{"location":"AMM","local":"2027-03-14T10:00"},"driverAge":35}'
+
+# 2. Book the quoteId from the search (the same Idempotency-Key never books twice)
+curl -s -X POST __BASE__/api/v3/reservations \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 7c4f1d9e-0a7b-4b58-9d1a-3f2e6c8b5a10" \
+  -d '{"quoteId":"OFF-…","brokerReference":"YOUR-REF-1001",
+       "customer":{"firstName":"John","lastName":"Doe","email":"john.doe@example.com"}}'
+
+# 3. Retrieve and cancel
+curl -s __BASE__/api/v3/reservations/RSV-… -H "Authorization: Bearer $TOKEN"
+curl -s -X POST __BASE__/api/v3/reservations/RSV-…/cancellations \
+  -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $(uuidgen)" \
+  -H "Content-Type: application/json" -d '{"reason":"Customer request"}'</pre>
+<pre>// Node.js 18+
+const BASE = '__BASE__';
+const basic = Buffer.from(`${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`).toString('base64');
+const { access_token } = await (await fetch(`${BASE}/oauth/token`, {
+  method: 'POST', headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: 'grant_type=client_credentials',
+})).json();
+const api = (path, body, extra = {}) => fetch(`${BASE}/api/v3${path}`, {
+  method: body ? 'POST' : 'GET',
+  headers: { Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json', ...extra },
+  body: body && JSON.stringify(body),
+}).then(r => r.json());
+
+const search = await api('/availability/search', {
+  pickUp: { location: 'AMM', local: '2027-03-10T10:00' }, return: { location: 'AMM', local: '2027-03-14T10:00' }, driverAge: 35,
+});
+const quote = search.data.offers.find(o => o.status === 'Available');
+const booking = await api('/reservations', {
+  quoteId: quote.quoteId, brokerReference: 'YOUR-REF-1001',
+  customer: { firstName: 'John', lastName: 'Doe', email: 'john.doe@example.com' },
+}, { 'Idempotency-Key': crypto.randomUUID() });
+console.log(booking.data.reservationId, booking.data.status);</pre>
+<pre># Python 3 (requests)
+import uuid, requests
+BASE = "__BASE__"
+token = requests.post(f"{BASE}/oauth/token", auth=(CLIENT_ID, CLIENT_SECRET),
+                      data={"grant_type": "client_credentials"}, timeout=30).json()["access_token"]
+s = requests.Session()
+s.headers["Authorization"] = f"Bearer {token}"
+
+search = s.post(f"{BASE}/api/v3/availability/search", json={
+    "pickUp": {"location": "AMM", "local": "2027-03-10T10:00"},
+    "return": {"location": "AMM", "local": "2027-03-14T10:00"}, "driverAge": 35}, timeout=30).json()
+quote = next(o for o in search["data"]["offers"] if o["status"] == "Available")
+
+booking = s.post(f"{BASE}/api/v3/reservations", headers={"Idempotency-Key": str(uuid.uuid4())}, json={
+    "quoteId": quote["quoteId"], "brokerReference": "YOUR-REF-1001",
+    "customer": {"firstName": "John", "lastName": "Doe", "email": "john.doe@example.com"}}, timeout=30).json()
+print(booking["data"]["reservationId"])</pre>
+<pre>// Java 17 (java.net.http)
+var http = HttpClient.newHttpClient();
+String basic = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8));
+var tokenRes = http.send(HttpRequest.newBuilder(URI.create("__BASE__/oauth/token"))
+    .header("Authorization", "Basic " + basic).header("Content-Type", "application/x-www-form-urlencoded")
+    .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials")).build(), HttpResponse.BodyHandlers.ofString());
+String token = new ObjectMapper().readTree(tokenRes.body()).path("access_token").asText();
+
+String search = """
+    {"pickUp":{"location":"AMM","local":"2027-03-10T10:00"},"return":{"location":"AMM","local":"2027-03-14T10:00"},"driverAge":35}""";
+var res = http.send(HttpRequest.newBuilder(URI.create("__BASE__/api/v3/availability/search"))
+    .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(search)).build(), HttpResponse.BodyHandlers.ofString());
+// Book: POST /api/v3/reservations with "Idempotency-Key: " + UUID.randomUUID()</pre>
+<pre>&lt;?php
+$base = '__BASE__';
+$ch = curl_init("$base/oauth/token");
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_USERPWD => "$clientId:$clientSecret", CURLOPT_POSTFIELDS => 'grant_type=client_credentials']);
+$token = json_decode(curl_exec($ch), true)['access_token'];
+
+function api($method, $url, $token, $body = null, $headers = []) {
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HTTPHEADER => array_merge(["Authorization: Bearer $token", 'Content-Type: application/json'], $headers),
+    CURLOPT_POSTFIELDS => $body ? json_encode($body) : null]);
+  return json_decode(curl_exec($ch), true);
+}
+$search = api('POST', "$base/api/v3/availability/search", $token, [
+  'pickUp' => ['location' => 'AMM', 'local' => '2027-03-10T10:00'],
+  'return' => ['location' => 'AMM', 'local' => '2027-03-14T10:00'], 'driverAge' => 35]);
+$quote = array_values(array_filter($search['data']['offers'], fn($o) => $o['status'] === 'Available'))[0];
+$booking = api('POST', "$base/api/v3/reservations", $token, ['quoteId' => $quote['quoteId'],
+  'brokerReference' => 'YOUR-REF-1001', 'customer' => ['firstName' => 'John', 'lastName' => 'Doe']],
+  ['Idempotency-Key: ' . bin2hex(random_bytes(16))]);</pre>
+<pre>// C# (.NET 6+)
+using var http = new HttpClient { BaseAddress = new Uri("__BASE__") };
+var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+var tokenReq = new HttpRequestMessage(HttpMethod.Post, "/oauth/token") {
+    Content = new FormUrlEncodedContent(new Dictionary&lt;string, string&gt; { ["grant_type"] = "client_credentials" }) };
+tokenReq.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+var token = (await (await http.SendAsync(tokenReq)).Content.ReadFromJsonAsync&lt;JsonElement&gt;()).GetProperty("access_token").GetString();
+http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+var search = await (await http.PostAsJsonAsync("/api/v3/availability/search", new {
+    pickUp = new { location = "AMM", local = "2027-03-10T10:00" },
+    @return = new { location = "AMM", local = "2027-03-14T10:00" }, driverAge = 35 })).Content.ReadFromJsonAsync&lt;JsonElement&gt;();
+var book = new HttpRequestMessage(HttpMethod.Post, "/api/v3/reservations") { Content = JsonContent.Create(new {
+    quoteId = "OFF-…", brokerReference = "YOUR-REF-1001", customer = new { firstName = "John", lastName = "Doe" } }) };
+book.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());</pre>
+  </div>
+</section>
+
+<section id="rest">
+  <h2>REST v3 endpoints</h2>
+  <p class="sub">Full schemas in the <a href="__BASE__/api/v3/openapi.yaml">OpenAPI 3.1 file</a>; every request is also in the Postman collection.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Method and path</th><th>What it does</th><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /locations</code>, <code>/locations/{code}</code></td><td>Branches with address, hours, holidays and after-hours rules</td><td><code>locations:read</code></td></tr>
+      <tr><td><code>GET /fleet-groups</code>, <code>/extras</code>, <code>/insurance-covers</code></td><td>ACRISS groups with seats, bags and pictures; extras; covers with excess (ETag cached)</td><td><code>fleet:read</code></td></tr>
+      <tr><td><code>POST /availability/search</code></td><td>Available groups with total price, breakdown and a <code>quoteId</code></td><td><code>availability:read</code></td></tr>
+      <tr><td><code>GET /quotes/{id}</code>, <code>/quotes/{id}/rules</code></td><td>The quote again, and its terms: deposit, excess, cancellation, driver ages</td><td><code>quotes:read</code></td></tr>
+      <tr><td><code>POST /reservations</code></td><td>Book a quote (201). Requires <code>Idempotency-Key</code></td><td><code>reservations:write</code></td></tr>
+      <tr><td><code>GET /reservations/{id}</code>, <code>GET /reservations</code></td><td>By RSV number or your reference; list by pick-up date with a cursor</td><td><code>reservations:read</code></td></tr>
+      <tr><td><code>PATCH /reservations/{id}</code></td><td>Change dates, places, group, extras or driver; re-priced</td><td><code>reservations:write</code></td></tr>
+      <tr><td><code>POST /reservations/{id}/cancellations</code></td><td>Cancel; the answer gives the fee and the refund</td><td><code>reservations:write</code></td></tr>
+      <tr><td><code>GET /inventory</code></td><td>Free cars per group per day</td><td><code>inventory:read</code></td></tr>
+      <tr><td><code>/webhooks/…</code></td><td>Subscriptions, test events, secret rotation, deliveries and replay</td><td><code>webhooks:manage</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="conventions">
+  <h2>Conventions</h2>
+  <div class="grid g2">
+    <div class="card"><h4>Envelope</h4><p>Every JSON answer has <code>status</code>, <code>requestId</code>, <code>correlationId</code>, <code>apiVersion</code>, <code>timestamp</code>, <code>environment</code>, then <code>data</code> or <code>error</code>.</p></div>
+    <div class="card"><h4>Correlation</h4><p>Send <code>X-Correlation-ID</code> and we use it in our logs and in the answer; every answer carries <code>X-Correlation-ID</code> and <code>X-API-Version</code>.</p></div>
+    <div class="card"><h4>Idempotency</h4><p>Bookings, changes and cancellations need <code>Idempotency-Key</code> (up to 100 characters). The same key returns the first result.</p></div>
+    <div class="card"><h4>Time and money</h4><p>Times are branch local time (Asia/Amman). Amounts are decimals in the currency shown; the breakdown always adds up to the total.</p></div>
+  </div>
+</section>
+
+<section id="xml">
+  <h2>OTA XML messages</h2>
+  <p class="sub">POST the message to <code>__BASE__/ota/2024A/{CODE}/{Message}</code> with <code>Content-Type: application/xml</code>. Namespace <code>http://www.opentravel.org/OTA/2003/05</code>.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Message</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td><code>OTA_PingRQ</code></td><td>Connectivity check</td></tr>
+      <tr><td><code>OTA_VehLocSearchRQ</code> · <code>OTA_VehLocDetailRQ</code></td><td>Branches and their details</td></tr>
+      <tr><td><code>OTA_VehAvailRateRQ</code></td><td>Availability and rates; each offer has a <code>Reference Type="16"</code> offer ID</td></tr>
+      <tr><td><code>OTA_VehRateRuleRQ</code></td><td>Terms of an offer</td></tr>
+      <tr><td><code>OTA_VehResRQ</code></td><td>Book an offer; confirmation <code>ConfID Type="14"</code></td></tr>
+      <tr><td><code>OTA_VehRetResRQ</code> · <code>OTA_VehModifyRQ</code> · <code>OTA_VehCancelRQ</code></td><td>Retrieve, change and cancel by <code>UniqueID</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="xml-sample">
+  <h2>Sample: availability and booking</h2>
+  <div class="codebox" data-group="xml">
+    <div class="tabs"><button>OTA_VehAvailRateRQ</button><button>OTA_VehResRQ</button><button class="copy">Copy</button></div>
+<pre>&lt;OTA_VehAvailRateRQ xmlns="http://www.opentravel.org/OTA/2003/05" Version="2024.1" EchoToken="a1"&gt;
+  &lt;VehAvailRQCore&gt;
+    &lt;VehRentalCore PickUpDateTime="2027-03-10T10:00:00" ReturnDateTime="2027-03-14T10:00:00"&gt;
+      &lt;PickUpLocation LocationCode="AMM"/&gt;&lt;ReturnLocation LocationCode="AMM"/&gt;
+    &lt;/VehRentalCore&gt;
+    &lt;DriverType Age="35"/&gt;
+  &lt;/VehAvailRQCore&gt;
+&lt;/OTA_VehAvailRateRQ&gt;</pre>
+<pre>&lt;OTA_VehResRQ xmlns="http://www.opentravel.org/OTA/2003/05" Version="2024.1"&gt;
+  &lt;VehResRQCore&gt;
+    &lt;Customer&gt;&lt;Primary&gt;
+      &lt;PersonName&gt;&lt;GivenName&gt;John&lt;/GivenName&gt;&lt;Surname&gt;Doe&lt;/Surname&gt;&lt;/PersonName&gt;
+      &lt;Email&gt;john.doe@example.com&lt;/Email&gt;
+    &lt;/Primary&gt;&lt;/Customer&gt;
+  &lt;/VehResRQCore&gt;
+  &lt;VehResRQInfo&gt;
+    &lt;Reference Type="16" ID="OFF-…"/&gt;
+    &lt;TPA_Extensions&gt;&lt;BrokerReference&gt;YOUR-REF-1001&lt;/BrokerReference&gt;&lt;/TPA_Extensions&gt;
+  &lt;/VehResRQInfo&gt;
+&lt;/OTA_VehResRQ&gt;</pre>
+  </div>
+  <p class="sub">Sending the same <code>BrokerReference</code> again returns the first booking instead of a second one.</p>
+</section>
+
+<section id="signing">
+  <h2>Signed requests (optional)</h2>
+  <p class="sub">When signing is agreed for your channel, add two headers to every XML request: <code>X-URD-Timestamp</code> (Unix seconds) and <code>X-URD-Signature: sha256=&lt;hex HMAC-SHA256(secret, timestamp + "." + body)&gt;</code>. The body is the exact bytes you send. Requests older than 5 minutes, or seen before, are refused.</p>
+</section>
+
+<section id="webhooks">
+  <h2>Webhooks v2</h2>
+  <p class="sub">Subscribe an HTTPS address with <code>POST /api/v3/webhooks/subscriptions</code>. Events: <code>reservation.created</code>, <code>.confirmed</code>, <code>.modified</code>, <code>.cancelled</code>, <code>.no_show</code>, <code>.picked_up</code>, <code>agreement.created</code>, <code>agreement.closed</code>, <code>inventory.updated</code>. Send <code>POST …/{id}/test</code> for a <code>webhook.test</code> event.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Header</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>URD-Webhook-Id</code></td><td>Unique per event; store it and ignore repeats</td></tr>
+      <tr><td><code>URD-Webhook-Event</code></td><td>Event name</td></tr>
+      <tr><td><code>URD-Webhook-Timestamp</code> · <code>URD-Webhook-Nonce</code></td><td>Unix seconds and a random value</td></tr>
+      <tr><td><code>URD-Webhook-Signature</code></td><td><code>v1=&lt;hex HMAC-SHA256(secret, id.timestamp.nonce.body)&gt;</code>; two values, comma separated, for 72 hours after a secret rotation</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Delivery and retries</h3>
+  <p class="sub">Answer with any 2xx within 10 seconds. Otherwise we retry after 1, 5, 15, 60, 180 and 360 minutes, then every 12 hours, for 72 hours. Events about the same reservation arrive in order. After 72 hours the event moves to the dead-letter list, where <code>POST /webhooks/deliveries/{id}/replay</code> sends it again.</p>
+</section>
+
+<section id="verify">
+  <h2>Verify a webhook</h2>
+  <div class="codebox" data-group="verify">
+    <div class="tabs"><button>Node.js</button><button>Python</button><button>PHP</button><button>C#</button><button class="copy">Copy</button></div>
+<pre>const crypto = require('crypto');
+function verify(req, secret) {             // req.rawBody: the body exactly as received
+  const id = req.get('URD-Webhook-Id'), ts = req.get('URD-Webhook-Timestamp'), nonce = req.get('URD-Webhook-Nonce');
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  const expected = 'v1=' + crypto.createHmac('sha256', secret).update(`${id}.${ts}.${nonce}.${req.rawBody}`).digest('hex');
+  return req.get('URD-Webhook-Signature').split(',').some(s =>
+    s.trim().length === expected.length && crypto.timingSafeEqual(Buffer.from(s.trim()), Buffer.from(expected)));
+}</pre>
+<pre>import hmac, hashlib, time
+def verify(headers, raw_body: bytes, secret: str) -> bool:
+    i, ts, nonce = headers["URD-Webhook-Id"], headers["URD-Webhook-Timestamp"], headers["URD-Webhook-Nonce"]
+    if abs(time.time() - int(ts)) > 300:
+        return False
+    msg = f"{i}.{ts}.{nonce}.".encode() + raw_body
+    expected = "v1=" + hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(s.strip(), expected) for s in headers["URD-Webhook-Signature"].split(","))</pre>
+<pre>function verify(array $h, string $raw, string $secret): bool {
+  $id = $h['URD-Webhook-Id']; $ts = $h['URD-Webhook-Timestamp']; $nonce = $h['URD-Webhook-Nonce'];
+  if (abs(time() - (int)$ts) > 300) return false;
+  $expected = 'v1=' . hash_hmac('sha256', "$id.$ts.$nonce.$raw", $secret);
+  foreach (explode(',', $h['URD-Webhook-Signature']) as $s) if (hash_equals($expected, trim($s))) return true;
+  return false;
+}</pre>
+<pre>static bool Verify(IHeaderDictionary h, string raw, string secret) {
+    string id = h["URD-Webhook-Id"], ts = h["URD-Webhook-Timestamp"], nonce = h["URD-Webhook-Nonce"];
+    if (Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - long.Parse(ts)) > 300) return false;
+    using var mac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+    var expected = "v1=" + Convert.ToHexString(mac.ComputeHash(Encoding.UTF8.GetBytes($"{id}.{ts}.{nonce}.{raw}"))).ToLowerInvariant();
+    return h["URD-Webhook-Signature"].ToString().Split(',').Any(s =>
+        CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(s.Trim()), Encoding.UTF8.GetBytes(expected)));
+}</pre>
+  </div>
+</section>
+
+<section id="errors">
+  <h2>Errors</h2>
+  <p class="sub">The same codes in every version: REST gives the HTTP status and <code>error.code</code>; XML gives an OTA <code>Error</code> with the OTA code. Live from <a href="__BASE__/ota/errors">__BASE__/ota/errors</a>.</p>
+  <div class="tw"><table id="errtable">
+    <thead><tr><th>Code</th><th>HTTP</th><th>OTA</th><th>Meaning</th><th>What to do</th><th>Retry</th></tr></thead>
+    <tbody><tr><td colspan="6" style="color:var(--mut)">Loading…</td></tr></tbody>
+  </table></div>
+</section>
+
+<section id="certification">
+  <h2>Certification and go-live</h2>
+  <ol class="steps">
+    <li>We create your channel and code, and send sandbox credentials on request.</li>
+    <li>You connect in the sandbox: search, book, retrieve, modify and cancel; webhooks if you use them.</li>
+    <li>You send us the references of your test bookings; we check them on our side.</li>
+    <li>We agree rates, cancellation terms and the payment model, and issue production credentials.</li>
+    <li>First live bookings are monitored together; then you are live.</li>
+  </ol>
+</section>
+
+<section id="versions">
+  <h2>Versions and changes</h2>
+  <p class="sub">Older versions keep working. Additions (new fields, events, messages) can arrive at any time, so ignore fields you do not know. Breaking changes come only in a new major version, announced at least 12 months ahead.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Version</th><th>Status</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>REST v3 (3.0.0)</td><td><span class="badge b-ok">Current</span></td><td>OAuth 2.0, quotes, idempotency, webhooks v2</td></tr>
+      <tr><td>OTA XML 2024A · 2018A</td><td><span class="badge b-ok">Current</span></td><td>Strict schema checks; same core as v1</td></tr>
+      <tr><td>OTA XML v1</td><td><span class="badge b-grey">Maintained</span></td><td>For existing connections</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="downloads">
+  <h2>Downloads</h2>
+  <div class="grid g3">
+    <a class="card" href="__BASE__/api/v3/openapi.yaml" download><h4>OpenAPI 3.1</h4><p>For Swagger, Postman, Insomnia or code generators.</p></a>
+    <a class="card" href="__BASE__/api/v3/postman.json" download="urdrive-postman.json"><h4>Postman collection</h4><p>Every REST and XML request, with tests that carry IDs from step to step.</p></a>
+    <a class="card" href="__BASE__/ota/errors"><h4>Error catalogue (JSON)</h4><p>All codes with HTTP status, OTA code and action.</p></a>
+  </div>
+</section>
+</main>
+</div>
+<footer>© __YEAR__ __BRAND__ · Distribution API · Times in Asia/Amman local time · This page contains no credentials.</footer>
+<script>
+(function () {
+  document.querySelectorAll('.codebox').forEach(function (box) {
+    var tabs = [].slice.call(box.querySelectorAll('.tabs button:not(.copy)')), pres = [].slice.call(box.querySelectorAll('pre'));
+    function show(i) { tabs.forEach(function (t, j) { t.setAttribute('aria-selected', i === j); }); pres.forEach(function (p, j) { p.classList.toggle('on', i === j); }); }
+    tabs.forEach(function (t, i) { t.addEventListener('click', function () { show(i); }); });
+    show(0);
+    var copy = box.querySelector('.copy');
+    if (copy) copy.addEventListener('click', function () {
+      var p = box.querySelector('pre.on');
+      if (navigator.clipboard && p) navigator.clipboard.writeText(p.textContent).then(function () { copy.textContent = 'Copied'; setTimeout(function () { copy.textContent = 'Copy'; }, 1500); });
+    });
+  });
+  var pill = document.getElementById('status');
+  fetch('/ota/health').then(function (r) { return r.json(); }).then(function (h) {
+    var up = h.status === 'UP';
+    pill.className = 'pill ' + (up ? 'up' : 'down');
+    pill.lastChild.textContent = up ? 'All systems operational' : 'Degraded service';
+  }).catch(function () { pill.lastChild.textContent = 'Status unavailable'; });
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  fetch('/ota/errors').then(function (r) { return r.json(); }).then(function (d) {
+    document.querySelector('#errtable tbody').innerHTML = (d.errors || []).map(function (e) {
+      return '<tr><td><code>' + esc(e.code) + '</code></td><td>' + esc(e.httpStatus) + '</td><td>' + esc(e.otaCode) + '</td><td>' + esc(e.meaning) + '</td><td>' + esc(e.brokerAction) + '</td><td>' + (e.retryable ? 'Yes' : 'No') + '</td></tr>';
+    }).join('');
+  }).catch(function () { document.querySelector('#errtable tbody').innerHTML = '<tr><td colspan="6">See __BASE__/ota/errors</td></tr>'; });
+})();
+</script>
+</body>
+</html>

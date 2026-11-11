@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RentalLocation } from '../types';
 import { PlusIcon, TrashIcon, SaveIcon, MapPinIcon } from './icons';
 import SecurityKeyModal from './SecurityKeyModal';
@@ -21,7 +21,12 @@ const SettingsSection: React.FC<{ title: string; description: React.ReactNode; c
 );
 
 const ManageLocationsView: React.FC<ManageLocationsViewProps> = ({ locations, onUpdate }) => {
-  const [localLocations, setLocalLocations] = useState<RentalLocation[]>(locations);
+  const [localLocations, setLocalLocationsRaw] = useState<RentalLocation[]>(locations);
+  // Until the person edits the list, it follows the saved branches (they may still be loading,
+  // or someone else may change them), so saving can never write an old copy back.
+  const [edited, setEdited] = useState(false);
+  useEffect(() => { if (!edited) setLocalLocationsRaw(locations); }, [locations, edited]);
+  const setLocalLocations = (next: React.SetStateAction<RentalLocation[]>) => { setEdited(true); setLocalLocationsRaw(next); };
   const [newLocationName, setNewLocationName] = useState('');
   const [newLocationAddress, setNewLocationAddress] = useState('');
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
@@ -51,6 +56,7 @@ const ManageLocationsView: React.FC<ManageLocationsViewProps> = ({ locations, on
 
   const handleKeySuccess = () => {
     onUpdate(localLocations);
+    setEdited(false);
     setIsKeyModalOpen(false);
   };
 
@@ -117,7 +123,7 @@ const ManageLocationsView: React.FC<ManageLocationsViewProps> = ({ locations, on
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span>{isDirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
                 <div className="flex gap-2 [&>*]:max-sm:flex-1">
-                  <Button size="sm" onClick={() => setLocalLocations(locations)}>Cancel</Button>
+                  <Button size="sm" onClick={() => { setLocalLocationsRaw(locations); setEdited(false); }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleSaveAttempt} icon={<SaveIcon className="w-4 h-4" />}>Save changes</Button>
                 </div>
               </div>

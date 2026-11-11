@@ -27,13 +27,22 @@ public class ActivityService {
 
     /** Records an event; never throws, so logging can't break the action being logged. */
     public void record(String userEmail, String action, String category, String summary, String bookingId, String details) {
+        save(userEmail, action, CATEGORIES.contains(nz(category)) ? category : "other", summary, bookingId, details);
+    }
+
+    /** Server-detected errors (category "system"). Only the server writes these; browsers cannot. */
+    public void recordSystem(String userEmail, String action, String summary, String details) {
+        save(userEmail, action, "system", summary, null, details);
+    }
+
+    private void save(String userEmail, String action, String category, String summary, String bookingId, String details) {
         try {
             StaffActivity a = new StaffActivity();
             a.setOccurredAt(Instant.now());
             a.setUserEmail(clip(userEmail == null || userEmail.isBlank() ? "unknown" : userEmail, 255));
             a.setUserName(users.findByEmail(a.getUserEmail()).map(u -> u.getFullName()).orElse(null));
             a.setAction(ACTION.matcher(nz(action)).matches() ? action : "OTHER");
-            a.setCategory(CATEGORIES.contains(nz(category)) ? category : "other");
+            a.setCategory(category);
             a.setSummary(clip(nz(summary), 500));
             a.setBookingId(bookingId == null || bookingId.isBlank() ? null : clip(bookingId, 64));
             a.setDetails(details == null || details.isBlank() ? null : clip(details, 4000));

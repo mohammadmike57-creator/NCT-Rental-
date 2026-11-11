@@ -189,8 +189,6 @@ const MultiChannelEditor: React.FC<Props> = ({ aggregators, fleet, availableExtr
     setModules(m => m.filter(x => x !== 'stopSales'));
     setBusy(false);
   };
-
-  const chip = (on: boolean) => `h-8 px-3 rounded-lg border text-xs font-semibold transition-colors ${on ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`;
   const pol = draft.policies;
   const virtual: Aggregator = { id: 'multi-channel', name: 'the selected channels', connectionDetails: { apiUrl: '', username: '', apiKey: '' }, currentRatePlans: [], ratePlanHistory: [], extras: draft.extras, termsAndConditions: draft.terms };
 

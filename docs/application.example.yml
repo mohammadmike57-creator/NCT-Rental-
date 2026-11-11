@@ -88,7 +88,7 @@ spring:
 # Security Configuration
 security:
   jwt:
-    secret: ${JWT_SECRET:nct-rental-dev-secret-key-change-in-production-minimum-512-bits}
+    secret: ${JWT_SECRET}
     expiration: 86400000  # 24 hours
     refresh-expiration: 604800000  # 7 days
   oauth2:

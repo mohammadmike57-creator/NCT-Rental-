@@ -295,7 +295,7 @@ const MessageReader: React.FC<{ code?: string }> = ({ code }) => {
       {(kind === 'avail' || kind === 'book' || kind === 'modify') && <Trip root={root} />}
       {kind === 'avail' && isRS && <Availability root={root} />}
       {['book', 'retrieve', 'modify', 'cancel'].includes(kind) && (isRS ? <Booking root={root} kind={kind} /> : (
-        <Card title={{ book: 'Booking request', retrieve: 'Look-up request', modify: 'Change request', cancel: 'Cancellation request' }[kind] || 'Request'}>
+        <Card title={({ book: 'Booking request', retrieve: 'Look-up request', modify: 'Change request', cancel: 'Cancellation request' } as Record<string, string>)[kind] || 'Request'}>
           <Facts rows={[
             ['Customer', [txt(find(root, 'GivenName')), txt(find(root, 'Surname'))].filter(Boolean).join(' ')],
             ['Booking', attr(findAll(root, 'UniqueID')[0], 'ID')], ['Offer', attr(findAll(root, 'Reference').find(r => attr(r, 'Type') === '16'), 'ID')],

@@ -1,0 +1,1312 @@
+{
+  "info": {
+    "name": "UR-Drive Jordan Distribution API",
+    "_postman_id": "5b1f8c2e-4d7a-4f3e-9a21-7e0d0f3a1c55",
+    "description": "REST/JSON v3 (OAuth 2.0) and OTA XML 2024A. Start in the sandbox: set clientId and clientSecret (REST) or apiKey and channel (XML), run 'Get access token', then the folders in order. Times are local time at the branch (Asia/Amman).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Get access token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oauth/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ]
+            },
+            "description": "Client credentials (RFC 6749). Tokens last 30 minutes; ask for a new one when you get 401.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token issued', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', t.access_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Reference data",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "locations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Location detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/locations/{{pickUpLocation}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "locations",
+                "{{pickUpLocation}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vehicle groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/fleet-groups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "fleet-groups"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Extras",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/extras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "extras"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Insurance covers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/insurance-covers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "insurance-covers"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Availability and quotes",
+      "item": [
+        {
+          "name": "Search availability",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/availability/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "availability",
+                "search"
+              ]
+            },
+            "description": "Times are local time at the branch (Asia/Amman). The first available quoteId is saved for the next requests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickUp\": {\n    \"location\": \"{{pickUpLocation}}\",\n    \"local\": \"{{pickUpAt}}\"\n  },\n  \"return\": {\n    \"location\": \"{{pickUpLocation}}\",\n    \"local\": \"{{returnAt}}\"\n  },\n  \"driverAge\": 35\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));",
+                  "const offers = pm.response.json().data.offers.filter(o => o.status === 'Available');",
+                  "if (offers.length) pm.collectionVariables.set('quoteId', offers[0].quoteId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/quotes/{{quoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "quotes",
+                "{{quoteId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quote rules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/quotes/{{quoteId}}/rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "quotes",
+                "{{quoteId}}",
+                "rules"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Reservations",
+      "item": [
+        {
+          "name": "Book the quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "reservations"
+              ]
+            },
+            "description": "Send the same Idempotency-Key again and you get the same booking back, never a second one.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quoteId\": \"{{quoteId}}\",\n  \"brokerReference\": \"TEST-{{$timestamp}}\",\n  \"customer\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+962790000000\",\n    \"country\": \"JO\"\n  },\n  \"driver\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"dateOfBirth\": \"1988-04-12\"\n  },\n  \"flightNumber\": \"RJ111\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('reservationId', pm.response.json().data.reservationId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/reservations/{{reservationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "reservations",
+                "{{reservationId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List by pick-up date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/reservations?from={{listFrom}}&to={{listTo}}&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "reservations"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{listFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{listTo}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modify",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/reservations/{{reservationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "reservations",
+                "{{reservationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itinerary\": {\n    \"return\": {\n      \"location\": \"{{pickUpLocation}}\",\n      \"local\": \"{{returnAt}}\"\n    }\n  },\n  \"comments\": \"Late flight\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/reservations/{{reservationId}}/cancellations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "reservations",
+                "{{reservationId}}",
+                "cancellations"
+              ]
+            },
+            "description": "The response gives the cancellation fee and the refund.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer request\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Inventory",
+      "item": [
+        {
+          "name": "Inventory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/inventory?days=30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "inventory"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Webhooks v2",
+      "item": [
+        {
+          "name": "List subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "subscriptions"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Subscribe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "subscriptions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/urdrive/webhooks\",\n  \"events\": [\n    \"reservation.created\",\n    \"reservation.modified\",\n    \"reservation.cancelled\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));",
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('subscriptionId', d.subscriptionId);",
+                  "console.log('Signing secret (shown once):', d.secret);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send a test event",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/subscriptions/{{subscriptionId}}/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "subscriptions",
+                "{{subscriptionId}}",
+                "test"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate the signing secret",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/subscriptions/{{subscriptionId}}/rotate-secret",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "subscriptions",
+                "{{subscriptionId}}",
+                "rotate-secret"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deliveries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/deliveries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "deliveries"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dead-letter list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/deliveries?status=dead_letter",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "deliveries"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "dead_letter"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pause",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/subscriptions/{{subscriptionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "subscriptions",
+                "{{subscriptionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PAUSED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v3/webhooks/subscriptions/{{subscriptionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v3",
+                "webhooks",
+                "subscriptions",
+                "{{subscriptionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('success envelope', () => pm.expect(pm.response.json().status).to.eql('success'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. OTA XML 2024A",
+      "description": "Uses the channel's API key (X-Api-Key), not OAuth.",
+      "item": [
+        {
+          "name": "Ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ota/2024A/{{channel}}/OTA_Ping",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ota",
+                "2024A",
+                "{{channel}}",
+                "OTA_Ping"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<OTA_PingRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" EchoToken=\"1\" Version=\"2024.1\"><EchoData>Hello</EchoData></OTA_PingRQ>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OTA Success', () => pm.expect(pm.response.text()).to.include('<Success/>'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Locations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ota/2024A/{{channel}}/OTA_VehLocSearch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ota",
+                "2024A",
+                "{{channel}}",
+                "OTA_VehLocSearch"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<OTA_VehLocSearchRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"/>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OTA Success', () => pm.expect(pm.response.text()).to.include('<Success/>'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Availability and rates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ota/2024A/{{channel}}/OTA_VehAvailRate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ota",
+                "2024A",
+                "{{channel}}",
+                "OTA_VehAvailRate"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<OTA_VehAvailRateRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehAvailRQCore><VehRentalCore PickUpDateTime=\"{{pickUpAt}}:00\" ReturnDateTime=\"{{returnAt}}:00\"><PickUpLocation LocationCode=\"{{pickUpLocation}}\"/><ReturnLocation LocationCode=\"{{pickUpLocation}}\"/></VehRentalCore><DriverType Age=\"35\"/></VehAvailRQCore></OTA_VehAvailRateRQ>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OTA Success', () => pm.expect(pm.response.text()).to.include('<Success/>'));",
+                  "const m = pm.response.text().match(/Type=\"16\" ID=\"(OFF-[^\"]+)\"/);",
+                  "if (m) pm.collectionVariables.set('offerId', m[1]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Book",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ota/2024A/{{channel}}/OTA_VehRes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ota",
+                "2024A",
+                "{{channel}}",
+                "OTA_VehRes"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<OTA_VehResRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehResRQCore><Customer><Primary><PersonName><GivenName>John</GivenName><Surname>Doe</Surname></PersonName><Email>john.doe@example.com</Email></Primary></Customer></VehResRQCore><VehResRQInfo><Reference Type=\"16\" ID=\"{{offerId}}\"/><TPA_Extensions><BrokerReference>XML-{{$timestamp}}</BrokerReference></TPA_Extensions></VehResRQInfo></OTA_VehResRQ>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OTA Success', () => pm.expect(pm.response.text()).to.include('<Success/>'));",
+                  "const m = pm.response.text().match(/ID=\"(RSV-[^\"]+)\"/);",
+                  "if (m) pm.collectionVariables.set('reservationId', m[1]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ota/2024A/{{channel}}/OTA_VehRetRes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ota",
+                "2024A",
+                "{{channel}}",
+                "OTA_VehRetRes"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<OTA_VehRetResRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehRetResRQCore><UniqueID Type=\"14\" ID=\"{{reservationId}}\"/></VehRetResRQCore></OTA_VehRetResRQ>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OTA Success', () => pm.expect(pm.response.text()).to.include('<Success/>'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ota/2024A/{{channel}}/OTA_VehCancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ota",
+                "2024A",
+                "{{channel}}",
+                "OTA_VehCancel"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<OTA_VehCancelRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehCancelRQCore CancelType=\"Book\"><UniqueID Type=\"14\" ID=\"{{reservationId}}\"/></VehCancelRQCore></OTA_VehCancelRQ>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OTA Success', () => pm.expect(pm.response.text()).to.include('<Success/>'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://www.nctrental.com"
+    },
+    {
+      "key": "clientId",
+      "value": ""
+    },
+    {
+      "key": "clientSecret",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "channel",
+      "value": "XXX"
+    },
+    {
+      "key": "pickUpLocation",
+      "value": "AMM"
+    },
+    {
+      "key": "pickUpAt",
+      "value": "2027-03-10T10:00"
+    },
+    {
+      "key": "returnAt",
+      "value": "2027-03-14T10:00"
+    },
+    {
+      "key": "listFrom",
+      "value": "2027-03-01"
+    },
+    {
+      "key": "listTo",
+      "value": "2027-03-31"
+    },
+    {
+      "key": "quoteId",
+      "value": ""
+    },
+    {
+      "key": "reservationId",
+      "value": ""
+    },
+    {
+      "key": "offerId",
+      "value": ""
+    },
+    {
+      "key": "subscriptionId",
+      "value": ""
+    }
+  ]
+}

@@ -78,6 +78,17 @@ public class DatabaseMigrationConfig {
                             "  INSERT INTO app_migrations (id) VALUES ('permissions-per-section-v1');\n" +
                             "END $$;");
                     logger.info("Per-section permissions migration checked.");
+                    // One-time: the new Needs Attention page goes to everyone who can already see reservations.
+                    jdbcTemplate.execute("DO $$\n" +
+                            "BEGIN\n" +
+                            "  IF EXISTS (SELECT 1 FROM app_migrations WHERE id = 'needs-attention-v1') THEN RETURN; END IF;\n" +
+                            "  IF to_regclass('user_permissions') IS NOT NULL THEN\n" +
+                            "    INSERT INTO user_permissions (user_id, permissions) SELECT DISTINCT user_id, 'VIEW_NEEDS_ATTENTION' FROM user_permissions WHERE permissions = 'VIEW_RESERVATIONS'\n" +
+                            "      AND user_id NOT IN (SELECT user_id FROM user_permissions WHERE permissions = 'VIEW_NEEDS_ATTENTION');\n" +
+                            "  END IF;\n" +
+                            "  INSERT INTO app_migrations (id) VALUES ('needs-attention-v1');\n" +
+                            "END $$;");
+                    logger.info("Needs Attention permission migration checked.");
                 }
             } catch (Exception e) {
                 logger.error("Database migration failed", e);

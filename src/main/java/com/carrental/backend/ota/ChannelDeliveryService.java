@@ -57,7 +57,7 @@ public class ChannelDeliveryService {
             String auth = authorizationHeader(ch);
             if (auth != null) req.header("Authorization", auth);
 
-            HttpResponse<String> res = http.send(req.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> res = http.send(req.build(), OutboundUrlGuard.boundedReply());
             entry.setHttpStatus(res.statusCode());
             entry.setResponseSnippet(res.body());
             entry.setSuccess(res.statusCode() >= 200 && res.statusCode() < 300);

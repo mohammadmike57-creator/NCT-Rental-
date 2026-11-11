@@ -53,8 +53,8 @@ const useNarrow = () => {
     const mq = window.matchMedia(q);
     const fn = () => setNarrow(mq.matches);
     fn();
-    mq.addEventListener ? mq.addEventListener('change', fn) : mq.addListener(fn);
-    return () => { mq.removeEventListener ? mq.removeEventListener('change', fn) : mq.removeListener(fn); };
+    if (mq.addEventListener) mq.addEventListener('change', fn); else mq.addListener(fn);
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', fn); else mq.removeListener(fn); };
   }, []);
   return narrow;
 };
@@ -229,7 +229,7 @@ const FleetTimelineView: React.FC<FleetTimelineViewProps> = ({ year, month, flee
 
   const toggleGroup = (key: string) => setCollapsed(prev => {
     const next = new Set(prev);
-    next.has(key) ? next.delete(key) : next.add(key);
+    if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
 

@@ -140,7 +140,6 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
   const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const expiringCount = (fleet as FleetVehicle[]).filter(v => v.registrationExpiry && v.registrationExpiry >= today && v.registrationExpiry <= in30).length;
   const categoryOptions = Array.from(new Set([...CAR_CATEGORIES, ...(fleet as FleetVehicle[]).map(v => (v.category || '').trim()).filter(Boolean)]));
-  const categoryCount = new Set((fleet as FleetVehicle[]).map(v => v.category).filter(Boolean)).size;
   const withPhoto = (fleet as FleetVehicle[]).filter(v => v.imageUrl).length;
   const sameModelWithout = formData.modelName
     ? (fleet as FleetVehicle[]).filter(v => v.id !== editingVehicle?.id && !v.imageUrl && (v.modelName || '').toLowerCase() === formData.modelName!.trim().toLowerCase()).length

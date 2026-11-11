@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AppData, TrafficTicket, VehicleDamage, User, Expense, ExpenseCategory, ReservationStatus, TrafficTicketStatus, VehicleDamageStatus, UserStatus, Reservation, YearData } from '../types';
+import { AppData, TrafficTicket, VehicleDamage, User, Expense, ExpenseCategory, TrafficTicketStatus, VehicleDamageStatus, UserStatus, Reservation, YearData } from '../types';
 import { MONTHS, USD_TO_JOD_RATE } from '../constants';
 import { countsInSummary } from '../services/revenue';
 import BarChart from './BarChart';

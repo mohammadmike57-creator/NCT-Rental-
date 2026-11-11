@@ -15,4 +15,11 @@ import java.util.Optional;
 public interface ChannelWebhookRepository extends JpaRepository<ChannelWebhookDelivery, Long> {
     List<ChannelWebhookDelivery> findTop50ByStatusAndNextAttemptAtBeforeOrderByNextAttemptAtAsc(ChannelWebhookDelivery.Status status, Instant now);
     List<ChannelWebhookDelivery> findByChannelIdOrderByCreatedAtDesc(String channelId, Pageable page);
+    boolean existsBySubscriptionIdAndReservationNumberAndStatusAndIdLessThan(Long subscriptionId, String reservationNumber, ChannelWebhookDelivery.Status status, Long id);
+    List<ChannelWebhookDelivery> findBySubscriptionIdInOrderByCreatedAtDesc(java.util.Collection<Long> subscriptionIds, Pageable page);
+
+    /** Retention: finished deliveries of one status created before the cut-off. */
+    @Modifying @Transactional
+    @Query("delete from ChannelWebhookDelivery d where d.status = :status and d.createdAt < :before")
+    int purge(@Param("status") ChannelWebhookDelivery.Status status, @Param("before") java.time.Instant before);
 }

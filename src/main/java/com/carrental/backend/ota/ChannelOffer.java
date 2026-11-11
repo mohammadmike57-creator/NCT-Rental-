@@ -34,7 +34,7 @@ public class ChannelOffer {
     private Integer driverAge;
     @Column(nullable = false, length = 3) private String currency;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal total;
-    @Lob @Column(columnDefinition = "TEXT") private String breakdown;   // JSON price breakdown at quote time
+    @Column(columnDefinition = "TEXT") private String breakdown;   // JSON price breakdown at quote time
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 12) private Status status;
     @Column(nullable = false) private Instant expiresAt;
     @Column(nullable = false) private Instant createdAt;

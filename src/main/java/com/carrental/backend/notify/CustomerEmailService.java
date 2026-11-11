@@ -96,7 +96,8 @@ public class CustomerEmailService {
         }
     }
 
-    private static Properties smtpProps(MailSettingsService.MailConfig cfg) {
+    /** SMTP connection settings for the configured mail server (SSL or STARTTLS). */
+    public static Properties smtpProps(MailSettingsService.MailConfig cfg) {
         Properties p = new Properties();
         p.put("mail.smtp.auth", "true");
         p.put("mail.smtp.host", cfg.host());
@@ -120,6 +121,7 @@ public class CustomerEmailService {
     private static final String FONT = "-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
     static String renderHtml(CustomerEmailRequest r, boolean sendOnly) {
+        if ("letter".equals(r.layout())) return renderLetter(r, sendOnly);
         String[] tone = switch (blank(r.tone()) ? "info" : r.tone()) {
             case "success" -> new String[]{"#047857", "#ecfdf5", "#a7f3d0"};
             case "warning" -> new String[]{"#b45309", "#fffbeb", "#fde68a"};
@@ -213,6 +215,101 @@ public class CustomerEmailService {
             + "</table></td></tr></table></body></html>";
     }
 
+    private static final String SERIF = "Georgia,'Times New Roman',serif";
+    private static final String NAVY = "#0b1f3a";
+    private static final String GOLD = "#b8912f";
+
+    /** The letter design (thank-you emails): centred brand header, serif heading, summary card, button, Arabic paragraph, signature. */
+    static String renderLetter(CustomerEmailRequest r, boolean sendOnly) {
+        String company = blank(r.companyName()) ? "NCT Rental" : r.companyName();
+        StringBuilder rows = new StringBuilder();
+        if (r.rows() != null) {
+            boolean first = true;
+            for (List<String> row : r.rows()) {
+                if (row == null || row.size() < 2) continue;
+                String line = first ? "" : "border-top:1px solid #edf0f4;";
+                rows.append("<tr><td style=\"padding:12px 20px;").append(line).append("color:#6b7280;font-size:13px;vertical-align:top;width:40%\">").append(esc(row.get(0)))
+                    .append("</td><td style=\"padding:12px 20px;").append(line).append("color:#111827;font-size:13px;font-weight:600;text-align:right\">").append(esc(row.get(1))).append("</td></tr>");
+                first = false;
+            }
+        }
+        String website = nz(r.companyWebsite()).trim();
+        String websiteHref = website.isEmpty() ? "" : (website.matches("(?i)^https?://.*") ? website : "https://" + website);
+        String cta = nz(r.ctaUrl()).trim();
+        String ctaHref = cta.isEmpty() ? "" : (cta.matches("(?i)^https?://.*") ? cta : "https://" + cta);
+        String phone = blank(r.supportPhone()) ? nz(r.companyPhone()) : r.supportPhone();
+        String mail = blank(r.supportEmail()) ? nz(r.companyEmail()) : r.supportEmail();
+        StringBuilder contact = new StringBuilder();
+        if (!blank(phone)) contact.append("<a href=\"tel:").append(esc(phone.replaceAll("[^0-9+]", ""))).append("\" style=\"color:").append(NAVY).append(";text-decoration:none;font-weight:600\">").append(esc(phone)).append("</a>");
+        if (!blank(mail)) contact.append(contact.length() > 0 ? "<span style=\"color:#cbd5e1\">&nbsp;&nbsp;|&nbsp;&nbsp;</span>" : "")
+            .append("<a href=\"mailto:").append(esc(mail)).append("\" style=\"color:").append(NAVY).append(";text-decoration:none;font-weight:600\">").append(esc(mail)).append("</a>");
+        String footerLine = String.join(" &nbsp;&middot;&nbsp; ", java.util.stream.Stream.of(r.companyAddress(), r.companyPhone(), r.companyEmail())
+            .filter(x -> !blank(x)).map(CustomerEmailService::esc).toList());
+        int year = java.time.Year.now().getValue();
+        String para = "margin:0 0 18px;font-size:15px;line-height:1.75;color:#374151;white-space:pre-line";
+
+        return "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + esc(r.subject()) + "</title></head>"
+            + "<body style=\"margin:0;padding:0;background:#eef1f5;font-family:" + FONT + ";-webkit-font-smoothing:antialiased\">"
+            + (blank(r.heading()) ? "" : "<div style=\"display:none;max-height:0;overflow:hidden;opacity:0\">" + esc(r.heading()) + "</div>")
+            + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#eef1f5;padding:36px 12px\"><tr><td align=\"center\">"
+            + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:620px\">"
+
+            // Header: centred brand on navy with a gold rule
+            + "<tr><td align=\"center\" style=\"background:" + NAVY + ";border-radius:10px 10px 0 0;padding:30px 32px 26px;border-bottom:3px solid " + GOLD + "\">"
+            + "<div style=\"color:#ffffff;font-family:" + SERIF + ";font-size:24px;letter-spacing:.02em\">" + esc(company) + "</div>"
+            + "<div style=\"color:#d6c08a;font-size:10px;font-weight:600;letter-spacing:.32em;text-transform:uppercase;margin-top:8px\">Car Rental Services</div>"
+            + "</td></tr>"
+
+            // Letter body
+            + "<tr><td style=\"background:#ffffff;padding:44px 48px 16px;border-left:1px solid #e3e7ed;border-right:1px solid #e3e7ed\">"
+            + (blank(r.badge()) ? "" : "<div style=\"text-align:center;font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:" + GOLD + ";margin:0 0 14px\">" + esc(r.badge()) + "</div>")
+            + "<h1 style=\"margin:0;text-align:center;font-family:" + SERIF + ";font-size:28px;line-height:1.3;font-weight:normal;color:" + NAVY + "\">" + esc(r.heading()) + "</h1>"
+            + "<div style=\"width:56px;height:2px;background:" + GOLD + ";margin:20px auto 32px\"></div>"
+            + "<p style=\"" + para + "\">" + esc(r.intro()) + "</p>"
+            + (rows.length() == 0 ? "" : "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:10px 0 28px;border:1px solid #e3e7ed;border-radius:8px;border-collapse:separate\">"
+                + "<tr><td colspan=\"2\" style=\"padding:12px 20px;background:#f7f8fa;border-bottom:1px solid #e3e7ed;border-radius:8px 8px 0 0;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:" + NAVY + "\">Rental summary</td></tr>"
+                + rows + "</table>")
+            + (blank(r.closing()) ? "" : "<p style=\"" + para + "\">" + esc(r.closing()) + "</p>")
+            + (blank(r.rateTitle())
+                ? (ctaHref.isEmpty() || blank(r.ctaLabel()) ? "" : button(ctaHref, r.ctaLabel(), "8px auto 30px"))
+                // Review panel: gold stars, title, one line, and the button to the review page
+                : "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:12px 0 32px;background:#fbf8f1;border:1px solid #eadfc4;border-radius:10px\"><tr><td align=\"center\" style=\"padding:28px 24px 26px\">"
+                    + "<div style=\"font-size:22px;letter-spacing:6px;color:" + GOLD + ";line-height:1\">&#9733;&#9733;&#9733;&#9733;&#9733;</div>"
+                    + "<div style=\"margin:14px 0 0;font-family:" + SERIF + ";font-size:21px;line-height:1.35;color:" + NAVY + "\">" + esc(r.rateTitle()) + "</div>"
+                    + (blank(r.rateText()) ? "" : "<div style=\"margin:8px auto 0;max-width:420px;font-size:14px;line-height:1.65;color:#4b5563\">" + esc(r.rateText()) + "</div>")
+                    + (ctaHref.isEmpty() || blank(r.ctaLabel()) ? "" : button(ctaHref, r.ctaLabel(), "20px auto 0"))
+                    + "</td></tr></table>")
+            + "<p style=\"margin:8px 0 0;font-size:15px;line-height:1.7;color:#374151\">With warm regards,</p>"
+            + "<p style=\"margin:6px 0 0;font-family:" + SERIF + ";font-size:18px;color:" + NAVY + "\">" + esc(blank(r.signature()) ? "Customer Experience Team" : r.signature()) + "</p>"
+            + "<p style=\"margin:2px 0 0;font-size:13px;color:#6b7280\">" + esc(company) + "</p>"
+            + (blank(r.arabic()) ? "" : "<div dir=\"rtl\" lang=\"ar\" style=\"margin:30px 0 0;padding:20px 0 0;border-top:1px solid #edf0f4;text-align:right;font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.9;color:#374151;white-space:pre-line\">" + esc(r.arabic()) + "</div>")
+            + "</td></tr>"
+
+            // Contact strip
+            + (contact.length() == 0 ? "" : "<tr><td style=\"background:#ffffff;padding:18px 48px 40px;border-left:1px solid #e3e7ed;border-right:1px solid #e3e7ed\">"
+                + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f7f8fa;border-radius:8px\"><tr><td align=\"center\" style=\"padding:18px 20px\">"
+                + "<div style=\"font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6b7280;margin-bottom:8px\">We are here to help</div>"
+                + "<div style=\"font-size:14px\">" + contact + "</div>"
+                + (blank(r.supportHours()) ? "" : "<div style=\"font-size:12px;color:#6b7280;margin-top:6px\">" + esc(r.supportHours()) + "</div>")
+                + "</td></tr></table></td></tr>")
+
+            // Footer
+            + "<tr><td align=\"center\" style=\"background:" + NAVY + ";border-radius:0 0 10px 10px;padding:24px 32px;color:#9fb0c8;font-size:12px;line-height:1.7\">"
+            + "<div style=\"color:#ffffff;font-weight:600;letter-spacing:.02em\">" + esc(company) + "</div>"
+            + (footerLine.isEmpty() ? "" : "<div>" + footerLine + "</div>")
+            + (websiteHref.isEmpty() ? "" : "<div><a href=\"" + esc(websiteHref) + "\" style=\"color:#d6c08a;text-decoration:none\">" + esc(website.replaceFirst("(?i)^https?://", "")) + "</a></div>")
+            + "<div style=\"margin-top:12px;color:#7d8da6;font-size:11px\">"
+            + (sendOnly ? "This is an automated message; please do not reply to this email. Contact us using the details above." : "You can reply directly to this email to reach our team.")
+            + " &copy; " + year + " " + esc(company) + ". All rights reserved.</div>"
+            + "</td></tr>"
+            + "</table></td></tr></table></body></html>";
+    }
+
+    private static String button(String href, String label, String margin) {
+        return "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" align=\"center\" style=\"margin:" + margin + "\"><tr><td style=\"background:" + NAVY + ";border-radius:6px\">"
+            + "<a href=\"" + esc(href) + "\" style=\"display:inline-block;padding:13px 30px;font-size:14px;font-weight:600;letter-spacing:.02em;color:#ffffff;text-decoration:none\">" + esc(label) + "</a></td></tr></table>";
+    }
+
     private static String supportRow(String label, String value) {
         return "<tr><td style=\"padding:3px 16px 3px 0;font-size:13px;color:#6b7280;width:56px\">" + label + "</td><td style=\"padding:3px 0;font-size:13px;color:#111827\">" + value + "</td></tr>";
     }
@@ -235,7 +332,11 @@ public class CustomerEmailService {
             r.attachments().stream().filter(a -> a != null && !blank(a.fileName())).forEach(a -> sb.append("- ").append(a.fileName()).append('\n'));
         }
         if (!blank(r.closing())) sb.append('\n').append(r.closing()).append('\n');
-        sb.append("\nKind regards,\nCustomer Service Team\n").append(company).append('\n');
+        if (!blank(r.rateTitle())) sb.append('\n').append(r.rateTitle()).append(blank(r.rateText()) ? "" : "\n" + r.rateText()).append('\n');
+        if (!blank(r.ctaLabel()) && !blank(r.ctaUrl())) sb.append(blank(r.rateTitle()) ? "\n" : "").append(r.ctaLabel()).append(": ").append(r.ctaUrl()).append('\n');
+        boolean letter = "letter".equals(r.layout());
+        sb.append(letter ? "\nWith warm regards,\n" : "\nKind regards,\n").append(blank(r.signature()) ? (letter ? "Customer Experience Team" : "Customer Service Team") : r.signature()).append('\n').append(company).append('\n');
+        if (!blank(r.arabic())) sb.append('\n').append(r.arabic()).append('\n');
         if (!blank(phone) || !blank(mail) || !blank(r.supportHours())) {
             sb.append("\nNEED ASSISTANCE?\nOur customer support team is here to help. Please have your booking reference ready when you contact us.\n");
             if (!blank(phone)) sb.append("Phone: ").append(phone).append('\n');

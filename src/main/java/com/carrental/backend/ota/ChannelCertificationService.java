@@ -209,7 +209,7 @@ public class ChannelCertificationService {
         step(out, "cancel", "Cancellation applies the policy and releases the car", () -> {
             Reservation x = core.cancel(c, res[0].reservationId(), "Certification test");
             if (!"CANCELLED".equals(x.status())) throw new AssertionError("Status " + x.status());
-            BigDecimal pct = ChannelBookingService.percentAt(ChannelBookingService.penalties(r, from, x.totalAmount()), LocalDateTime.now());
+            BigDecimal pct = ChannelBookingService.percentAt(ChannelBookingService.penalties(r, from, x.totalAmount()), c.rules().now());
             BigDecimal expectedFee = x.totalAmount().multiply(pct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             if (x.cancellationFee().compareTo(expectedFee) != 0) throw new AssertionError("Fee " + x.cancellationFee() + ", expected " + expectedFee);
             Reservation twice = core.cancel(c, res[0].reservationId(), null);
@@ -252,7 +252,7 @@ public class ChannelCertificationService {
     }
 
     private static LocalDateTime firstRateDate(ChannelBookingService.Ctx c) {
-        LocalDate earliest = LocalDateTime.now().plusHours(c.rules().minLeadHours()).toLocalDate().plusDays(2);
+        LocalDate earliest = c.rules().now().plusHours(c.rules().minLeadHours()).toLocalDate().plusDays(2);
         for (var plan : c.channel().publishedRatePlans()) {
             try {
                 LocalDate s = LocalDate.parse(plan.path("startDate").asText());

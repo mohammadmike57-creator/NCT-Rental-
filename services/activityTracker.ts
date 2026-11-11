@@ -8,7 +8,7 @@ import { ActivityCategory, ActivityEvent, recordActivityBatch } from '../firebas
  * Mark an element with data-no-track to leave it out.
  */
 
-let queue: ActivityEvent[] = [];
+const queue: ActivityEvent[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let lastKey = '';
 let lastAt = 0;

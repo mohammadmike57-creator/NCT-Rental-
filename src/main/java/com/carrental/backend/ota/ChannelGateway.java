@@ -35,15 +35,26 @@ public class ChannelGateway {
     private final ChannelDeliveryService log2;
     private final ChannelBookingService core;
     private final ChannelTrafficService traffic;
+    private final ChannelSecurityGuard guard;
+    private final ChannelSecretRepository secrets;
     private final Map<String, long[]> windows = new ConcurrentHashMap<>();
+    /** Proxies in front of the server that append to X-Forwarded-For (the host's load balancer = 1). */
+    private static volatile int trustedProxyHops = 1;
     /** Request attribute the staff console sets (server side only) to call a channel without its key, always in sandbox. */
     static final String CONSOLE_ATTR = "nct.channel.console";
+    /** Request attribute the v3 API sets (server side only) after verifying an OAuth access token: the channel and environment it is for. */
+    static final String OAUTH_ATTR = "urd.oauth.principal";
 
-    public ChannelGateway(ChannelStateReader channels, ChannelDeliveryService deliveries, ChannelBookingService core, ChannelTrafficService traffic) {
+    public ChannelGateway(ChannelStateReader channels, ChannelDeliveryService deliveries, ChannelBookingService core, ChannelTrafficService traffic,
+                          ChannelSecurityGuard guard, ChannelSecretRepository secrets,
+                          @org.springframework.beans.factory.annotation.Value("${channel.trusted-proxy-hops:1}") int hops) {
         this.channels = channels;
         this.log2 = deliveries;
         this.core = core;
         this.traffic = traffic;
+        this.guard = guard;
+        this.secrets = secrets;
+        trustedProxyHops = Math.max(0, Math.min(5, hops));
     }
 
     /**
@@ -61,6 +72,7 @@ public class ChannelGateway {
             : requestId.length() > 80 ? requestId.substring(0, 80) : requestId;
         String remote = clientIp(http);
         ChannelSnapshot ch = null;
+        ChannelLanguage.set(ChannelLanguage.detect(http, body));
         try {
             if (channelCode == null || channelCode.isBlank()) throw ChannelError.AUTH_FAILED.ex("Channel code is required");
             Optional<ChannelSnapshot> found = channels.find(channelCode);
@@ -69,14 +81,34 @@ public class ChannelGateway {
                 throw ChannelError.RATE_LIMIT_EXCEEDED.ex("Rate limit of " + rateLimit(ch) + " requests a minute exceeded; retry with back-off");
             }
             boolean consoleOk = console && found.isPresent() && found.get().id().equals(http.getAttribute(CONSOLE_ATTR));
-            if (found.isEmpty() || (!consoleOk && !PartnerKeyVerifier.matches(found.get(), key))) {
+            OAuthService.Principal oauth = http.getAttribute(OAUTH_ATTR) instanceof OAuthService.Principal p
+                && found.isPresent() && found.get().id().equals(p.channelId()) ? p : null;
+            java.time.Instant lock = consoleOk ? null : guard.lockedUntil(remote);
+            if (lock != null) {
                 ch = found.orElse(null);
+                throw ChannelError.AUTH_FAILED.ex("Too many failed attempts from " + remote + "; try again after " + lock.truncatedTo(java.time.temporal.ChronoUnit.SECONDS) + " (UTC)");
+            }
+            if (found.isEmpty() || (!consoleOk && oauth == null && !PartnerKeyVerifier.matches(found.get(), key))) {
+                ch = found.orElse(null);
+                if (guard.failed(remote)) log.warn("Broker gateway: {} locked out after repeated failed authentication", remote);
                 throw ChannelError.AUTH_FAILED.ex("Invalid or missing feed key");
             }
             ch = found.get();
+            if (!consoleOk) {
+                guard.succeeded(remote);
+                if (ch.raw().path("bookingRules").path("requireSignature").asBoolean(false)) {
+                    String secret = secrets.findById(ch.id()).map(ChannelSecret::getWebhookSecret).orElse(null);
+                    // The signature covers the raw body as sent: for SOAP that is the whole envelope, not the OTA message inside it.
+                    Object raw = http.getAttribute(ChannelTrafficService.RAW_BODY_ATTR);
+                    // X-URD-* is the documented name; X-NCT-* stays accepted for the brokers that already sign with it.
+                    guard.verifySignature(secret, header(http, "X-URD-Timestamp", "X-NCT-Timestamp"), header(http, "X-URD-Signature", "X-NCT-Signature"),
+                        raw instanceof String r ? r : body, System.currentTimeMillis() / 1000);
+                }
+            }
             if ("paused".equalsIgnoreCase(ch.status())) throw ChannelError.PERMISSION_DENIED.ex("Distribution to this channel is paused");
             if (!ipAllowed(ch, remote)) throw ChannelError.PERMISSION_DENIED.ex("Requests from " + remote + " are not allowed for this channel");
-            boolean sandboxHeader = console || "sandbox".equalsIgnoreCase(http.getHeader("X-Environment"));
+            boolean testKey = !consoleOk && oauth == null && PartnerKeyVerifier.kind(ch, key) == PartnerKeyVerifier.KeyKind.TEST;
+            boolean sandboxHeader = console || testKey || (oauth != null && oauth.sandbox()) || "sandbox".equalsIgnoreCase(http.getHeader("X-Environment"));
             ChannelBookingService.Ctx ctx = core.context(ch, sandboxHeader);
             sandbox = ctx.sandbox();
             Rendered ok = action.apply(new Call(ctx, rid));
@@ -91,6 +123,8 @@ public class ChannelGateway {
             log.error("Channel {} {} failed ({})", channelCode, messageType, rid, e);
             // No stack traces or internal details to partners.
             return failed(ch, http, messageType, body, rid, 500, ChannelError.SYSTEM_ERROR.ex("Internal error, reference " + rid), error, start, remote, sandbox);
+        } finally {
+            ChannelLanguage.clear();
         }
     }
 
@@ -105,7 +139,9 @@ public class ChannelGateway {
     }
 
     private static ResponseEntity<String> respond(int status, Rendered r, String rid) {
-        return ResponseEntity.status(status).contentType(r.type()).header("Cache-Control", "no-store").header("X-Request-ID", rid).body(r.body());
+        var rs = ResponseEntity.status(status).contentType(r.type()).header("Cache-Control", "no-store").header("X-Request-ID", rid);
+        if (ChannelLanguage.arabic()) rs = rs.header("Content-Language", "ar");    // only when asked: other answers are unchanged
+        return rs.body(r.body());
     }
 
     private boolean allow(ChannelSnapshot ch, String remote) {
@@ -120,21 +156,34 @@ public class ChannelGateway {
         return Math.max(10, Math.min(5000, v));
     }
 
-    private static boolean ipAllowed(ChannelSnapshot ch, String remote) {
+    static boolean ipAllowed(ChannelSnapshot ch, String remote) {
         var list = ch.raw().path("bookingRules").path("ipAllowlist");
         if (!list.isArray() || list.isEmpty()) return true;
         for (var ip : list) if (ip.asText("").trim().equals(remote)) return true;
         return false;
     }
 
-    /** The partner's address: the first X-Forwarded-For entry behind the hosting proxy. */
+    /**
+     * The partner's address. Each proxy appends the address it received the request from, so the entry added by our own
+     * load balancer is trustworthy and anything to its left may have been written by the caller (and would let anyone pass
+     * an IP allow-list or dodge the lockout). We take the entry trustedProxyHops from the right.
+     */
     static String clientIp(HttpServletRequest http) {
         Object console = http.getAttribute(CONSOLE_ATTR + ".user");
         if (console != null) return "console:" + console;
         String fwd = http.getHeader("X-Forwarded-For");
-        if (fwd != null && !fwd.isBlank()) return fwd.split(",")[0].trim();
+        if (trustedProxyHops > 0 && fwd != null && !fwd.isBlank()) {
+            String[] parts = fwd.split(",");
+            String ip = parts[Math.max(0, parts.length - trustedProxyHops)].trim();
+            if (!ip.isEmpty()) return ip;
+        }
         return http.getRemoteAddr();
     }
 
     private static long ms(long start) { return (System.nanoTime() - start) / 1_000_000; }
+
+    private static String header(HttpServletRequest http, String name, String legacy) {
+        String v = http.getHeader(name);
+        return v != null && !v.isBlank() ? v : http.getHeader(legacy);
+    }
 }

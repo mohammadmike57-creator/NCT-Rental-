@@ -212,7 +212,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
   const handleUpdateChange = (id: string, field: keyof VehicleDamage, value: any) => {
       const damageToUpdate = damages.find(d => d.id === id);
       if (damageToUpdate) {
-        let updatedDamage = { ...damageToUpdate, [field]: value };
+        const updatedDamage = { ...damageToUpdate, [field]: value };
 
         // FIX: If police report number is removed, also clear the associated amount.
         if (field === 'policeReportNumber') {

@@ -4,8 +4,6 @@ import { API_BASE } from '../services/apiBase';
 
 export const API_URL = API_BASE;
 
-let token: string | null = localStorage.getItem('token');
-
 // When the server rejects our login token (expired, or the user was removed),
 // clear the session and return to the login screen instead of failing silently.
 let sessionExpiredHandled = false;
@@ -30,10 +28,9 @@ const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('toke
 export const signInUser = async (email: string, password: string) => {
   try {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });
-    console.log('Login response:', response.data);
-    token = response.data.token;
+    const issued: string = response.data.token;
     const user = response.data.user;
-    localStorage.setItem('token', token);
+    localStorage.setItem('token', issued);
     localStorage.setItem('user', JSON.stringify(user));
     return { user: { uid: user.id, email: user.email } };
   } catch (error: any) {
@@ -45,7 +42,9 @@ export const signInUser = async (email: string, password: string) => {
 export const signOutUser = async () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
-  token = null;
+  // The next person to sign in here starts from a fresh copy of the server's data.
+  lastStateText = null;
+  serverState = null;
 };
 
 export const onAuthStateChangedListener = (callback: (user: any) => void) => {
@@ -170,6 +169,23 @@ const guardOps = (ops: PatchOp[], opts: SaveOptions): PatchOp[] => {
   });
 };
 
+/** Plain names for the data sections, used when a save is refused for lack of permission. */
+const SECTION_LABEL: Record<string, string> = {
+  franchisePayments: 'Franchise payments', commissionMonths: 'Commission months', companyDetails: 'Company details',
+  fleet: 'Fleet', availableExtras: 'Extras', rentalLocations: 'Locations', sources: 'Sources', expenses: 'Expenses',
+  aggregators: 'OTA XML channels', stopSales: 'Stop sales', channelPricing: 'OTA XML price rules', users: 'Staff list',
+};
+
+/**
+ * The server refused some sections of a save (the account lacks the permission for them).
+ * Nothing is lost silently: the app is told which, so it can say so on screen.
+ */
+const reportSkipped = (sections: string[]) => {
+  if (!sections.length) return;
+  const names = Array.from(new Set(sections)).map(s => SECTION_LABEL[s] || s);
+  try { window.dispatchEvent(new CustomEvent('nct:save-refused', { detail: names })); } catch { /* no window in tests */ }
+};
+
 const sendAll = async (data: Partial<AllData>, opts: SaveOptions = {}) => {
   const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
   // Never save before this screen has loaded the server's data: the screen would still hold
@@ -177,21 +193,26 @@ const sendAll = async (data: Partial<AllData>, opts: SaveOptions = {}) => {
   if (!serverState) { console.warn('Save skipped: server data not loaded yet'); return; }
   const ops = guardOps(diffOps(data), opts);
   if (!ops.length) return;
+  const skipped: string[] = [];
   try {
     for (let i = 0; i < ops.length; i += 200) {
-      await axios.post(`${API_URL}/api/state/patch`, { ops: ops.slice(i, i + 200), ...(opts.allowBulkDelete ? { allowBulkDelete: true } : {}) }, { headers });
+      const res = await axios.post(`${API_URL}/api/state/patch`, { ops: ops.slice(i, i + 200), ...(opts.allowBulkDelete ? { allowBulkDelete: true } : {}) }, { headers });
+      if (Array.isArray(res?.data?.skipped)) skipped.push(...res.data.skipped);
     }
   } catch (error: any) {
     // Server not updated yet: fall back to the older whole-section save.
     if (error?.response?.status === 404 || error?.response?.status === 405) {
-      await axios.post(`${API_URL}/api/state`, data, { headers });
+      const res = await axios.post(`${API_URL}/api/state`, data, { headers });
+      if (Array.isArray(res?.data?.skipped)) skipped.push(...res.data.skipped);
     } else {
       throw error;
     }
   }
   const next = { ...(serverState || {}) };
-  Object.entries(data).forEach(([k, v]) => { if (v !== undefined) next[k] = clone(v); });
+  // Refused sections keep the server's copy: they are not counted as saved.
+  Object.entries(data).forEach(([k, v]) => { if (v !== undefined && !skipped.includes(k)) next[k] = clone(v); });
   serverState = next;
+  reportSkipped(skipped);
 };
 
 export const saveAllData = (data: Partial<AllData>, opts: SaveOptions = {}): Promise<void> => {
@@ -203,6 +224,19 @@ export const saveAllData = (data: Partial<AllData>, opts: SaveOptions = {}): Pro
     if (error?.response) console.error('Response:', error.response.status, error.response.data);
     throw error;
   });
+};
+
+/** Downloads all the data as a JSON file to keep on this computer (administrators only). */
+export const downloadBackupFile = async (): Promise<string> => {
+  const res = await axios.get(`${API_URL}/api/state/backup-file`, { headers: authHeaders(), responseType: 'blob' });
+  const name = /filename="([^"]+)"/.exec(String(res.headers['content-disposition'] || ''))?.[1] || `nct-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return name;
 };
 
 export interface DataBackup { id: string; kind: 'automatic' | 'manual'; bookings?: number; fleet?: number; sources?: number; company?: string; size: number }
@@ -220,8 +254,6 @@ export const clearDataSections = async (sections: string[]): Promise<{ backupId:
   return response.data;
 };
 
-export const registerUser = async (email: string, password: string) => { console.error('registerUser not implemented'); return null; };
-export const sendPasswordReset = async (email: string) => { console.error('sendPasswordReset not implemented'); return null; };
 
 // --- Channel manager (OTA XML) ----------------------------------------------
 
@@ -508,6 +540,33 @@ export const recordActivityBatch = (events: ActivityEvent[], keepalive = false) 
   try { token = localStorage.getItem('token'); } catch { return; }
   if (!token || !events.length) return;
   fetch(`${API_URL}/api/activity/batch`, { method: 'POST', keepalive, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(events) }).catch(() => { /* offline: skip */ });
+};
+
+/**
+ * Reports a screen that crashed, so it shows in Activity Log → System errors (and in the error
+ * alert email when one is set up). Returns the reference shown to the person, or undefined.
+ */
+export const reportScreenError = async (error: Error, componentStack: string): Promise<string | undefined> => {
+  let token: string | null = null;
+  try { token = localStorage.getItem('token'); } catch { return undefined; }
+  if (!token) return undefined;
+  let screen = '';
+  try { screen = localStorage.getItem('nct.mainView') || ''; } catch { /* storage unavailable */ }
+  try {
+    const res = await fetch(`${API_URL}/api/client-errors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        message: String(error?.message || error).slice(0, 500),
+        stack: `${error?.stack || ''}\n\nComponents:${componentStack}`.slice(0, 4000),
+        screen,
+        url: window.location.pathname,
+        userAgent: navigator.userAgent,
+      }),
+    });
+    if (!res.ok) return undefined;
+    return (await res.json()).reference as string | undefined;
+  } catch { return undefined; }
 };
 
 /** "Still here": keeps the signed-in user's Last seen current on the server. */

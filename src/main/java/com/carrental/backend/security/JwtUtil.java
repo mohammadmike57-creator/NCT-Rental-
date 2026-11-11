@@ -3,6 +3,8 @@ package com.carrental.backend.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import com.carrental.backend.config.ServerSecret;
+import io.jsonwebtoken.JwtException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -16,14 +18,21 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private final ServerSecret secret;
 
     @Value("${jwt.expiration}")
     private Long expiration;
 
+    public JwtUtil(ServerSecret secret) {
+        this.secret = secret;
+    }
+
+    private static Key keyFor(String value) {
+        return Keys.hmacShaKeyFor(value.getBytes());
+    }
+
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return keyFor(secret.current());
     }
 
     public String extractEmail(String token) {
@@ -43,8 +52,17 @@ public class JwtUtil {
         return claimsResolver.apply(claims);
     }
 
+    /** Checked with the current secret, then with JWT_SECRET_PREVIOUS (so a secret change logs nobody out). */
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody();
+        JwtException last = null;
+        for (String value : secret.all()) {
+            try {
+                return Jwts.parserBuilder().setSigningKey(keyFor(value)).build().parseClaimsJws(token).getBody();
+            } catch (io.jsonwebtoken.security.SignatureException e) {
+                last = e;   // signed with another secret: try the next one
+            }
+        }
+        throw last;
     }
 
     private Boolean isTokenExpired(String token) {

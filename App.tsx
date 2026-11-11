@@ -2,16 +2,16 @@ import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } fr
 import type { UpgradeDetails } from './components/UpgradeVehicleModal';
 import { effectivePermissions } from './services/permissionCatalog';
 import { v4 as uuidv4 } from 'uuid';
-import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, PaymentType, UserPermission, Message, UserStatus, ReservationFilters, DateFilter, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
+import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, UserPermission, Message, UserStatus, ReservationFilters, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
 import { mergeAgreementInto } from './services/agreementLink';
 import { duplicateKeys, findBooking, describeBooking, flatten } from './services/duplicates';
 import { withPriceChange } from './services/addOns';
+import { normalizeSources } from './services/paymentType';
 import { ReservationSyncService } from './services/ReservationSyncService';
-import { INITIAL_YEARS, MONTHS, RENTAL_SOURCES, INITIAL_FLEET, MASTER_USER, RENTAL_LOCATIONS, NCT_LOGIN_LOGO_B64, VAPID_PUBLIC_KEY, INITIAL_AVAILABLE_EXTRAS, INITIAL_AGGREGATORS, INITIAL_STOP_SALES } from './constants';
-import Tabs from './components/Tabs';
+import { INITIAL_YEARS, MONTHS, INITIAL_FLEET, NCT_LOGIN_LOGO_B64 } from './constants';
 import { attentionCount as countAttention, findIssues } from './services/reservationIssues';
-import { AlertIcon, CogIcon, CarIcon, BuildingOfficeIcon, CloseIcon, CalendarIcon, ChartBarIcon, DocumentReportIcon, MenuIcon, ShieldExclamationIcon, ChartPieIcon, WrenchScrewdriverIcon, LogoutIcon, AccountingIcon, UsersIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, BellIcon, BellSlashIcon, CurrencyDollarIcon, ClockIcon, PlusCircleIcon, UserCircleIcon, GlobeAltIcon, CheckCircleIcon, UploadIcon, UserIcon, MailIcon, PdfIcon, ExportIcon, PlusIcon, SaveIcon, EditIcon, PaperAirplaneIcon, CancelIcon, DesktopComputerIcon, DevicePhoneMobileIcon, KeyIcon, LockClosedIcon, StopIcon, CodeBracketIcon, ReceiptIcon } from './components/icons';
+import { CloseIcon, CalendarIcon, DocumentReportIcon, MenuIcon, LogoutIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, UserCircleIcon, PlusIcon, SaveIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Notifications from './components/Notifications';
@@ -19,169 +19,18 @@ import { OnlineNowButton } from './components/OnlinePresence';
 import { pickupMonthOf } from './services/pickupMonth';
 import MisfiledNotice from './components/MisfiledNotice';
 import DeleteAgreementDialog from './components/DeleteAgreementDialog';
-import { startActivityTracking, track, flushActivity, lastInteractionAt } from './services/activityTracker';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, sendHeartbeat, markSignedOut, rememberServerState, clearDataSections } from './firebase/api';
+import { flushActivity } from './services/activityTracker';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, markSignedOut, rememberServerState, clearDataSections } from './firebase/api';
 
-// Lazy load components
-const ReservationTable = React.lazy(() => import('./components/ReservationTable'));
-const SummaryTable = React.lazy(() => import('./components/SummaryTable'));
-const ManageSourcesView = React.lazy(() => import('./components/ManageSourcesModal'));
-const Invoice = React.lazy(() => import('./components/Invoice'));
-const ManageFleetView = React.lazy(() => import('./components/ManageFleetView'));
-const FleetAvailability = React.lazy(() => import('./components/FleetAvailability'));
-const Voucher = React.lazy(() => import('./components/Voucher'));
-const Receipt = React.lazy(() => import('./components/Receipt'));
-const SourcePerformanceReport = React.lazy(() => import('./components/SourcePerformanceReport'));
-const ReservationAddOnsView = React.lazy(() => import('./components/ReservationAddOnsView'));
-const TrafficTickets = React.lazy(() => import('./components/TrafficTickets'));
-const VehicleDamages = React.lazy(() => import('./components/VehicleDamages'));
-const LoginScreen = React.lazy(() => import('./components/LoginScreen'));
-const ExtendRentalModal = React.lazy(() => import('./components/ExtendRentalModal'));
-const ExtrasManagerModal = React.lazy(() => import('./components/ExtrasManagerModal'));
-const UnlistedAgreementModal = React.lazy(() => import('./components/UnlistedAgreementModal'));
-const UnlistedAgreementsView = React.lazy(() => import('./components/UnlistedAgreementsView'));
-const ManageCompanyDetailsView = React.lazy(() => import('./components/ManageCompanyDetailsView'));
-const AgreementTermsView = React.lazy(() => import('./components/AgreementTermsView'));
-const ManageYearsView = React.lazy(() => import('./components/ManageYearsView'));
-const UserManagement = React.lazy(() => import('./components/UserManagement'));
-const AccountingDashboard = React.lazy(() => import('./components/AccountingDashboard'));
-const InternalMessages = React.lazy(() => import('./components/InternalMessages'));
-const TodaysReservations = React.lazy(() => import('./components/TodaysReservations'));
-const NeedsAttentionView = React.lazy(() => import('./components/NeedsAttentionView'));
-const HomePage = React.lazy(() => import('./components/HomePage'));
-const ManageLocationsView = React.lazy(() => import('./components/ManageLocationsView'));
-const DeferredPayments = React.lazy(() => import('./components/DeferredPayments'));
-const PaymentApprovals = React.lazy(() => import('./components/PaymentApprovals'));
-const ManageExtrasView = React.lazy(() => import('./components/ManageExtrasView'));
-const ProfileView = React.lazy(() => import('./components/ProfileView'));
-const AggregatorSetupView = React.lazy(() => import('./components/AggregatorSetupView'));
-const StaffActivityView = React.lazy(() => import('./components/StaffActivityView'));
-const EmailSettingsView = React.lazy(() => import('./components/EmailSettingsView'));
-const ExcelUpload = React.lazy(() => import('./components/ExcelUpload'));
-const FleetExcelUpload = React.lazy(() => import('./components/FleetExcelUpload'));
+import { ReservationTable, SummaryTable, ManageSourcesView, Invoice, ManageFleetView, FleetAvailability, Voucher, Receipt, SourcePerformanceReport, ReservationAddOnsView, TrafficTickets, VehicleDamages, LoginScreen, ExtendRentalModal, ExtrasManagerModal, UnlistedAgreementModal, UnlistedAgreementsView, ManageCompanyDetailsView, AgreementTermsView, ManageYearsView, UserManagement, AccountingDashboard, InternalMessages, TodaysReservations, NeedsAttentionView, HomePage, ManageLocationsView, DeferredPayments, PaymentApprovals, ManageExtrasView, ProfileView, AggregatorSetupView, StaffActivityView, EmailSettingsView, ExcelUpload } from './app/lazyViews';
+import AnimatedModal from './components/ui/AnimatedModal';
+import ConfirmationMessage from './components/ui/ConfirmationMessage';
+import { cleanUndefined, getInitialState } from './app/initialState';
+import { usePresence, useLeaveWarning } from './app/usePresence';
+import { sidebarLinks } from './app/navigation';
 
 const USERS_CACHE_KEY = 'NCT_USERS_CACHE';
 
-// Utility to remove undefined values recursively
-const cleanUndefined = (obj: any): any => {
-  if (Array.isArray(obj)) {
-    return obj
-      .map(v => cleanUndefined(v))
-      .filter(v => v !== undefined);
-  } else if (obj !== null && typeof obj === 'object') {
-    return Object.keys(obj).reduce((acc, key) => {
-      const value = obj[key];
-      if (value !== undefined) {
-        acc[key] = cleanUndefined(value);
-      }
-      return acc;
-    }, {} as any);
-  }
-  return obj;
-};
-
-// Animated Modal Wrapper
-const AnimatedModal: React.FC<{ 
-  isOpen: boolean; 
-  onClose: () => void; 
-  children: React.ReactNode;
-  className?: string;
-}> = ({ isOpen, onClose, children, className = "" }) => {
-  const [shouldRender, setShouldRender] = useState(isOpen);
-  const [animationClass, setAnimationClass] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-      setShouldRender(true);
-      setAnimationClass("animate-modal-enter");
-    } else {
-      setAnimationClass("animate-modal-exit");
-      const timer = setTimeout(() => {
-        setShouldRender(false);
-      }, 300); // match duration of animate-modal-exit
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  if (!shouldRender) return null;
-
-  return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto ${className}`}>
-      <div 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`} 
-        onClick={onClose}
-      />
-      <div className={`relative w-full max-w-5xl z-10 ${animationClass}`}>
-        {children}
-      </div>
-    </div>
-  );
-};
-
-const generateInitialData = (years: number[]): AppData => {
-  const data: AppData = {};
-  for (const year of years) {
-    const yearData: YearData = {};
-    for (const month of MONTHS) {
-      yearData[month] = [];
-    }
-    data[year] = yearData;
-  }
-  return data;
-};
-
-const getInitialState = (): AllData => ({
-    reservations: generateInitialData(INITIAL_YEARS),
-    sources: RENTAL_SOURCES,
-    fleet: INITIAL_FLEET,
-    companyDetails: {
-        name: 'UR-Drive Jordan',
-        subName: 'NCT Car Rental LLC',
-        address: 'Amman, Jordan',
-        phone: '+962 7 9999 9999',
-        email: 'contact@urdrive.com',
-        taxNumber: '123456789',
-        requirePaymentApproval: false,
-    },
-    trafficTickets: [],
-    vehicleDamages: [],
-    users: [],
-    expenses: [],
-    rentalLocations: RENTAL_LOCATIONS,
-    messages: [],
-    invoices: [],
-    availableExtras: INITIAL_AVAILABLE_EXTRAS,
-    franchisePayments: [],
-    activityLog: [],
-    aggregators: INITIAL_AGGREGATORS,
-    stopSales: INITIAL_STOP_SALES,
-    years: INITIAL_YEARS,
-});
-
-const urlBase64ToUint8Array = (base64String: string) => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-};
-
-const ConfirmationMessage: React.FC<{ message: string; onClose: () => void; }> = ({ message, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-  return (
-    <div className="fixed bottom-5 right-5 bg-green-500 text-white py-3 px-6 rounded-lg shadow-lg z-50 animate-in slide-in-from-bottom-2 fade-in">
-      <p>{message}</p>
-    </div>
-  );
-};
 
 interface Notification {
   id: string;
@@ -191,16 +40,6 @@ interface Notification {
   vehicleInfo?: { modelName: string; licensePlate: string };
 }
 
-interface SidebarLink {
-    name: string;
-    icon: React.FC<any>;
-    permission: UserPermission;
-    badge?: number;
-    /** Text badge (e.g. "3 new") shown instead of the number. */
-    badgeText?: string;
-    /** Runs instead of opening a page (e.g. opens a form). */
-    action?: () => void;
-}
 
 const SidebarSection: React.FC<{ title: string, children: React.ReactNode, collapsed?: boolean }> = ({ title, children, collapsed }) => {
     const [isOpen, setIsOpen] = useState(true);
@@ -241,7 +80,7 @@ export const App: React.FC = () => {
     Object.entries(reservations).forEach(([y, months]) => {
       const ym: YearData = {} as YearData;
       Object.entries(months as YearData).forEach(([m, list]) => { (ym as Record<string, Reservation[]>)[m] = (list as Reservation[]).filter(r => !r.channelId); });
-      out[y] = ym;
+      out[Number(y)] = ym;
     });
     return out;
   }, [reservations]);
@@ -311,13 +150,16 @@ export const App: React.FC = () => {
   const [confirmation, setConfirmation] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [messageToCompose, setMessageToCompose] = useState<{ subject: string; body: string } | null>(null);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-  const [isPushSubscribed, setIsPushSubscribed] = useState(false);
+  const [, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [, setIsPushSubscribed] = useState(false);
 
   // Force table remount when data changes or year/month changes (now only used for logging)
-  const [tableKey, setTableKey] = useState(0);
+  const [, setTableKey] = useState(0);
   /** True once data from the server has been applied; saving is blocked until then. */
   const serverLoadedRef = useRef(false);
+  // Screens open only once the server's data is on screen (or loading it failed), so nobody
+  // can edit or save the built-in starting values by mistake.
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
   // The agreement being worked on is reopened after a reload (its unfinished entries come back as a draft).
   const OPEN_AGREEMENT_KEY = 'nct.openAgreement';
   const agreementRestoredRef = useRef(false);
@@ -339,13 +181,11 @@ export const App: React.FC = () => {
       if (found && !found.dropOffCompleted) setModals(m => ({ ...m, viewRentalVoucher: { reservation: found, year: saved.year, month: saved.month } }));
       else localStorage.removeItem(OPEN_AGREEMENT_KEY);
     } catch { /* ignore */ }
-  }, [reservations]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reservations]);  
 
   const isInitialDataLoad = useRef(true);
   const skipAutoSaveRef = useRef(false);
-  const recurringAlertsTrackerRef = useRef<Record<string, number>>({});
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const blockPollingUntilRef = useRef<number>(0); // Timestamp to block polling until
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null); // Timestamp to block polling until
 
   // Auto-save logic
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -356,14 +196,13 @@ export const App: React.FC = () => {
     setNotifications(prev => [...prev, { id, message, type, title }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
+    }, type === 'error' ? 12000 : 5000);
   }, []);
   
   const handleDataUpdate = (data: AllData, fromServer = true) => {
       if (!data) return;
-      if (fromServer) { rememberServerState(data); serverLoadedRef.current = true; }
+      if (fromServer) { rememberServerState(data); serverLoadedRef.current = true; setFirstLoadDone(true); }
 
-      console.log('🔄 DATA UPDATE STARTED - Initializing Reservation Engine');
 
       skipAutoSaveRef.current = true;
       const initialState = getInitialState();
@@ -413,7 +252,7 @@ export const App: React.FC = () => {
       }
 
       setReservations(migratedReservations);
-      setSources(data.sources || initialState.sources);
+      setSources(normalizeSources(data.sources || initialState.sources));
       setFleet(data.fleet || initialState.fleet);
       setCompanyDetails({
         ...initialState.companyDetails,
@@ -434,12 +273,10 @@ export const App: React.FC = () => {
       setStopSales(data.stopSales || initialState.stopSales);
 
       setTableKey(prev => prev + 1);
-      console.log('Reservation Engine Initialized with', Object.keys(rawReservations).length, 'years of data');
   };
 
   // Polling function to fetch full state from /api/state – now uses fetchInitialData
   const fetchAllData = useCallback(async () => {
-    console.log('[SYNC LOG] Polling for updates...');
 
     try {
       // Never replace what is on screen while it is being saved or has unsaved changes.
@@ -449,6 +286,7 @@ export const App: React.FC = () => {
       if (fullState && ReservationSyncService.canSync()) handleDataUpdate(fullState);
     } catch (error) {
       console.error('[SYNC LOG] Polling fetch failed', error);
+      setFirstLoadDone(true); // server unreachable: open anyway (saving stays blocked until it answers)
     }
   }, [reservations, handleDataUpdate]);
 
@@ -564,32 +402,8 @@ export const App: React.FC = () => {
 
   }, [users, currentUser]);
 
-  // Last seen: a heartbeat to the server every minute while the person is actually using the app
-  // (the tab is open and they touched something in the last 5 minutes).
   const signedInEmail = currentUser?.email;
-  const mainViewRef = useRef(mainView);
-  mainViewRef.current = mainView;
-  useEffect(() => {
-      if (!signedInEmail || isLoading) return;
-      const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
-      const beat = () => { if (document.visibilityState === 'visible' && Date.now() - lastInteractionAt() < 5 * 60000) sendHeartbeat(deviceType, mainViewRef.current); };
-      sendHeartbeat(deviceType, mainViewRef.current);
-      const interval = setInterval(beat, 60000);
-      const onVisible = () => { if (document.visibilityState === 'visible') beat(); };
-      document.addEventListener('visibilitychange', onVisible);
-      return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
-  }, [signedInEmail, isLoading]);
-
-  // Activity log: every screen opened and every button, tab, row and field the person touches.
-  useEffect(() => {
-      if (!signedInEmail) return;
-      return startActivityTracking(() => mainViewRef.current);
-  }, [signedInEmail]);
-  useEffect(() => {
-      if (!signedInEmail) return;
-      track('UI_VIEW', `Opened screen “${mainView}”`);
-      sendHeartbeat(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop', mainView);
-  }, [mainView, signedInEmail]);
+  usePresence(signedInEmail, isLoading, mainView);
 
   const showConfirmation = (message: string) => {
     setConfirmation(message);
@@ -635,13 +449,7 @@ export const App: React.FC = () => {
   useEffect(() => { executeAutoSaveRef.current = executeAutoSave; }, [executeAutoSave]);
 
   // Warn before closing the page while changes are still being saved.
-  useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (saveStatus === 'saving' || saveStatus === 'error') { e.preventDefault(); e.returnValue = ''; }
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [saveStatus]);
+  useLeaveWarning(saveStatus === 'saving' || saveStatus === 'error');
 
   useEffect(() => {
     if (isLoading || isInitialDataLoad.current) {
@@ -652,7 +460,6 @@ export const App: React.FC = () => {
     if (!serverLoadedRef.current) return;
 
     if (skipAutoSaveRef.current) {
-        console.log("Skipping auto-save because data was just updated from backend or manual save.");
         skipAutoSaveRef.current = false;
         return;
     }
@@ -666,7 +473,6 @@ export const App: React.FC = () => {
     ReservationSyncService.setLocalChanges(true);
 
     timeoutRef.current = setTimeout(() => {
-        console.log("Auto-saving data after 2 seconds of inactivity...");
         executeAutoSave();
     }, 2000);
 
@@ -683,80 +489,6 @@ export const App: React.FC = () => {
         showConfirmation('Your user profile was restored.');
     }
   }, [authChecked, isLoading, currentUser, users]);
-  
-    const handleBatchUpdateReservations = useCallback((updatedReservations: Reservation[]) => {
-        setReservations(prev => {
-            const newReservationsData = JSON.parse(JSON.stringify(prev)) as AppData;
-            updatedReservations.forEach(updatedRes => {
-                const dateObj = new Date(updatedRes.startDate);
-                const year = dateObj.getFullYear();
-                const month = MONTHS[dateObj.getMonth()];
-                if (newReservationsData[year]?.[month]) {
-                    const resIndex = newReservationsData[year][month].findIndex((r: Reservation) => r.id === updatedRes.id);
-                    if (resIndex > -1) {
-                        newReservationsData[year][month][resIndex] = { ...updatedRes, lastEditedBy: 'System Automation' };
-                    }
-                }
-            });
-            return newReservationsData;
-        });
-    }, []);
-
-    // Automatic pickup / overdue pop-ups and browser notifications were removed on request:
-    // the dashboard, Reservations and the planning board show the same information without interrupting staff.
-  
-  const handleEnableNotifications = async () => {
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-        addNotification('Push notifications are not supported by your browser.', 'error');
-        return;
-    }
-    try {
-        const permission = await Notification.requestPermission();
-        setNotificationPermission(permission);
-        if (permission === 'granted') {
-            const registration = await navigator.serviceWorker.ready;
-            const existingSubscription = await registration.pushManager.getSubscription();
-            if (existingSubscription) {
-                setIsPushSubscribed(true);
-                return;
-            }
-            await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-            });
-            setIsPushSubscribed(true);
-            showConfirmation('Notifications enabled successfully!');
-        } else {
-            addNotification('Notifications permission denied.', 'warning');
-        }
-    } catch (error) {
-        console.error('Error enabling notifications:', error);
-        addNotification('Failed to enable notifications.', 'error');
-    }
-  };
-
-  const handleDisableNotifications = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        addNotification('Push notifications are not supported.', 'error');
-        return;
-    }
-    try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-            const unsubscribed = await subscription.unsubscribe();
-            if (unsubscribed) {
-                setIsPushSubscribed(false);
-                showConfirmation('Notifications disabled successfully.');
-            }
-        } else {
-             setIsPushSubscribed(false);
-        }
-    } catch (error) {
-        console.error('Error disabling notifications:', error);
-        addNotification('Failed to disable notifications.', 'error');
-    }
-  };
 
   const handleLogout = async () => {
     recordActivity('LOGOUT', 'auth', 'Signed out');
@@ -769,6 +501,7 @@ export const App: React.FC = () => {
       localStorage.removeItem('nct.mainView');
       localStorage.removeItem('nct.openAgreement');
       setCurrentUser(null);
+      setFirstLoadDone(false);
     } catch (error) {
       console.error("Error signing out:", error);
     }
@@ -1187,7 +920,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleRequirePaymentConfirmation = (reservation: Reservation, year: number, month: string) => {
+  const handleRequirePaymentConfirmation = (reservation: Reservation, _year: number, _month: string) => {
     if (!currentUser) return;
 
     const updatedReservation = {
@@ -1292,38 +1025,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // FINAL FIX: delete all reservations – fetches state, builds empty structure, and overwrites backend
-  const handleDeleteAllReservations = useCallback(async () => {
-    if (!window.confirm("CRITICAL: This will permanently delete ALL reservations from the system. This cannot be undone. Proceed?")) {
-      return;
-    }
-
-    try {
-      setSaveStatus('saving');
-
-      const cleanReservations: AppData = {};
-      Object.keys(reservations).forEach(year => {
-        const y = parseInt(year);
-        cleanReservations[y] = {};
-        MONTHS.forEach(month => {
-          cleanReservations[y][month] = [];
-        });
-      });
-
-      skipAutoSaveRef.current = true;
-      await saveAllData({ reservations: cleanReservations }, { allowBulkDelete: true });
-
-      setReservations(cleanReservations);
-      setNewReservations([]);
-      setSaveStatus('saved');
-      showConfirmation("All reservations have been deleted.");
-    } catch (err) {
-      console.error("Failed to delete all reservations:", err);
-      setSaveStatus('error');
-      addNotification("Failed to delete reservations. Check connection.", 'error');
-    }
-  }, [reservations, showConfirmation, addNotification]);
-
   const handleSaveExtras = (reservation: Reservation, extras: ReservationExtra[], newAmount: number) => {
     handleUpdateSingleReservation({ ...reservation, extras, amount: newAmount, lastEditedBy: currentUser?.fullName });
     setReservationToAddExtras(null);
@@ -1358,7 +1059,6 @@ export const App: React.FC = () => {
         senderId: currentUser.id,
         senderName: currentUser.fullName,
         timestamp: new Date().toISOString(),
-        isRead: false,
         ...message
     };
     setMessages(prev => {
@@ -1462,7 +1162,6 @@ ${currentUser?.fullName}
   };
 
   const handleReservationsImport = useCallback(async (data: AppData, report: ImportReport, touchedYears: number[] = []) => {
-    console.log('[IMPORT LOG] Received imported data:', report);
     setReservations(data);
     // Bookings in a new year (e.g. returns in 2027) make that year selectable straight away.
     const dataYears = Object.keys(data).map(Number).filter(n => !isNaN(n));
@@ -1538,6 +1237,16 @@ ${currentUser?.fullName}
   const unlistedNewCount = useMemo(() => allReservationsFlat.filter(r => r.awaitingConfirmation && r.status !== ReservationStatus.CANCELLED
     && !(r.unlistedSeenBy || []).includes(myEmail)).length, [allReservationsFlat, myEmail]);
 
+  // A save the server refused for lack of permission is said out loud, never lost silently.
+  useEffect(() => {
+    const onRefused = (e: Event) => {
+      const names = (e as CustomEvent<string[]>).detail || [];
+      addNotification(`Not saved: ${names.join(', ')}. Your account does not have permission to change this. Ask an administrator to give you the permission, then do it again.`, 'error', 'Change not saved');
+    };
+    window.addEventListener('nct:save-refused', onRefused);
+    return () => window.removeEventListener('nct:save-refused', onRefused);
+  }, [addNotification]);
+
   // Other screens (reservations banner, dashboard) can ask to open a view.
   useEffect(() => {
     const onNav = (e: Event) => { const v = (e as CustomEvent<string>).detail; if (v) handleNavigation(v); };
@@ -1609,16 +1318,16 @@ ${currentUser?.fullName}
   // LocalStorage sync for availableExtras (workaround until backend supports it)
   useEffect(() => {
     const stored = localStorage.getItem('availableExtras');
-    if (stored && availableExtras.length === 0) {
+    // Only someone allowed to manage extras may put a saved copy back on the server.
+    if (stored && availableExtras.length === 0 && hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_EXTRAS)) {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setAvailableExtras(parsed);
-          console.log('Loaded extras from localStorage:', parsed.length);
         }
-      } catch (e) {}
+      } catch { /* a damaged saved copy is ignored; the server copy is used */ }
     }
-  }, [availableExtras.length]);
+  }, [availableExtras.length, currentUser]);
 
   useEffect(() => {
     if (availableExtras.length > 0) {
@@ -1642,7 +1351,7 @@ ${currentUser?.fullName}
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-  if (!authChecked || isLoading) return <LoadingSpinner />;
+  if (!authChecked || isLoading || (isAuthenticated && !firstLoadDone)) return <LoadingSpinner />;
   if (!isAuthenticated && authChecked) return <Suspense fallback={<LoadingSpinner />}><LoginScreen users={users} /></Suspense>;
   
   // Moves a booking to another car (from the reservations list or from the agreement at the counter).
@@ -1707,9 +1416,6 @@ ${currentUser?.fullName}
       onRequirePaymentConfirmation={handleRequirePaymentConfirmation}
       onEditReservation={handleUpdateSingleReservation}
       onUpgrade={handleUpgradeVehicle}
-      onAssignCar={(reservation) => {
-        console.log('Assign car for', reservation.id);
-      }}
       onAddExtras={(reservation) => setReservationToAddExtras(reservation)}
       onOpenUnlistedAgreement={hasPermission(currentUser, UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION) ? () => setShowUnlistedAgreement(true) : undefined}
       currentUser={currentUser}
@@ -1887,7 +1593,6 @@ ${currentUser?.fullName}
         <ManageSourcesView 
             sources={sources} 
             onAdd={async (s) => {
-                console.log("Adding source:", s);
                 const newSources = [...sources, s];
                 setSources(newSources);
                 const allData: AllData = {
@@ -1989,7 +1694,6 @@ ${currentUser?.fullName}
         };
         try {
             await saveAllData(cleanUndefined(allData));
-            console.log('Extras saved to backend successfully');
             showConfirmation("Extras updated.");
             await fetchAllData();
         } catch (err) {
@@ -2078,50 +1782,10 @@ ${currentUser?.fullName}
     ), permission: UserPermission.VIEW_IMPORT_RESERVATIONS },
   };
 
-  const sidebarLinks: Record<string, SidebarLink[]> = {
-    "Core Operations": [
-        { name: 'Home', icon: HomeIcon, permission: UserPermission.VIEW_HOME_DASHBOARD },
-        { name: 'Reservations', icon: CalendarIcon, permission: UserPermission.VIEW_RESERVATIONS },
-        { name: 'Agreement', icon: DocumentReportIcon, permission: UserPermission.VIEW_AGREEMENTS },
-        { name: 'Agreement for Unlisted Reservation', icon: PlusCircleIcon, permission: UserPermission.ACTION_AGREEMENT_WITHOUT_RESERVATION, action: () => setShowUnlistedAgreement(true) },
-        { name: 'Unlisted Agreements', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_UNLISTED_AGREEMENTS, badge: unlistedWaitingCount, badgeText: unlistedNewCount ? `${unlistedNewCount} new` : undefined },
-        { name: 'Reservation Add-ons', icon: ReceiptIcon, permission: UserPermission.VIEW_RESERVATION_ADDONS },
-        { name: 'Today\'s Reservations', icon: CalendarCheckIcon, permission: UserPermission.VIEW_TODAYS_RESERVATIONS },
-        { name: 'Needs Attention', icon: AlertIcon, permission: UserPermission.VIEW_NEEDS_ATTENTION, badge: attentionCount },
-        { name: 'Internal Messages', icon: InboxIcon, permission: UserPermission.VIEW_INTERNAL_MESSAGES, badge: unreadCount },
-        { name: 'Fleet Availability', icon: CarIcon, permission: UserPermission.VIEW_FLEET_AVAILABILITY },
-    ],
-    "Reports": [
-        { name: 'Yearly Summary', icon: ChartBarIcon, permission: UserPermission.VIEW_REPORTS_YEARLY_SUMMARY },
-        { name: 'Source Performance', icon: ChartPieIcon, permission: UserPermission.VIEW_REPORTS_SOURCE_PERFORMANCE },
-        { name: 'Invoice Generation', icon: DocumentReportIcon, permission: UserPermission.VIEW_REPORTS_INVOICE_GENERATION },
-    ],
-    "Financials & Incidents": [
-        { name: 'Accounting', icon: AccountingIcon, permission: UserPermission.VIEW_FINANCIALS_ACCOUNTING },
-        { name: 'Payment Approvals', icon: CurrencyDollarIcon, permission: UserPermission.VIEW_FINANCIALS_PAYMENT_APPROVALS, badge: pendingApprovalsCount },
-        { name: 'Deferred Payments', icon: CurrencyDollarIcon, permission: UserPermission.VIEW_FINANCIALS_DEFERRED_PAYMENTS },
-        { name: 'Traffic Tickets', icon: ShieldExclamationIcon, permission: UserPermission.VIEW_TRAFFIC_TICKETS },
-        { name: 'Vehicle Damages', icon: WrenchScrewdriverIcon, permission: UserPermission.VIEW_VEHICLE_DAMAGES },
-    ],
-    "Data Management": [
-        { name: 'Import Reservations', icon: UploadIcon, permission: UserPermission.VIEW_IMPORT_RESERVATIONS },
-    ],
-    "OTA XML": [
-        { name: 'OTA XML', icon: GlobeAltIcon, permission: UserPermission.VIEW_AGGREGATOR_SETUP },
-    ],
-    "Administration": [
-        { name: 'User & Staff Management', icon: UsersIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_USERS },
-        { name: 'Fleet Management', icon: CarIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_FLEET },
-        { name: 'Website Sources', icon: CogIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_SOURCES },
-        { name: 'Manage Extras', icon: PlusCircleIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EXTRAS },
-        { name: 'Manage Locations', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_LOCATIONS },
-        { name: 'Company Details', icon: BuildingOfficeIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
-        { name: 'Agreement Terms', icon: DocumentReportIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
-        { name: 'Email Settings', icon: MailIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS },
-        { name: 'Manage Years', icon: CogIcon, permission: UserPermission.ACTION_ADMIN_MANAGE_YEARS },
-        { name: 'Activity Log', icon: ClockIcon, permission: UserPermission.VIEW_SYSTEM_ACTIVITY_LOG },
-    ]
-  };
+  const sidebarGroups = sidebarLinks({
+    unlistedWaitingCount, unlistedNewCount, attentionCount, unreadCount, pendingApprovalsCount,
+    openUnlistedAgreement: () => setShowUnlistedAgreement(true),
+  });
 
   const currentViewHasAccess = hasPermission(currentUser, mainViews[mainView]?.permission);
   const showDateSelectors = ['Reservations', 'Agreement', 'Invoice Generation', 'Fleet Availability', 'Yearly Summary'].includes(mainView);
@@ -2193,7 +1857,7 @@ ${currentUser?.fullName}
 
          <div className="flex-1 overflow-y-auto flex flex-col">
             <nav className="px-2.5 py-3 space-y-3 flex-1 [&_svg]:w-[18px] [&_svg]:h-[18px]">
-                {Object.entries(sidebarLinks).map(([sectionTitle, links]) => {
+                {Object.entries(sidebarGroups).map(([sectionTitle, links]) => {
                     const visibleLinks = links.filter(link => {
                         if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) {
                             return false;

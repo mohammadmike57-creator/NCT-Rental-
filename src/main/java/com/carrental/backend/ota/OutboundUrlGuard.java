@@ -16,6 +16,20 @@ public final class OutboundUrlGuard {
         public BlockedUrlException(String message) { super(message); }
     }
 
+    /** The most of a partner's reply we read: enough for any error message, never enough to exhaust memory. */
+    public static final int MAX_REPLY_BYTES = 64 * 1024;
+
+    /** Reads at most MAX_REPLY_BYTES of a reply as UTF-8 and discards the rest. */
+    public static java.net.http.HttpResponse.BodyHandler<String> boundedReply() {
+        return info -> java.net.http.HttpResponse.BodySubscribers.mapping(java.net.http.HttpResponse.BodySubscribers.ofInputStream(), in -> {
+            try (in) {
+                return new String(in.readNBytes(MAX_REPLY_BYTES), java.nio.charset.StandardCharsets.UTF_8);
+            } catch (java.io.IOException e) {
+                return "";
+            }
+        });
+    }
+
     public static URI check(String url) {
         URI uri;
         try {

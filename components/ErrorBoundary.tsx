@@ -1,4 +1,5 @@
 import React from 'react';
+import { reportScreenError } from '../firebase/api';
 
 /**
  * Keeps one failing screen from blanking the whole system: the error is shown in place of
@@ -6,18 +7,20 @@ import React from 'react';
  * When the cause is an outdated copy of the app (its files were replaced by a new release),
  * the page reloads itself once to pick up the new version.
  */
-export class ErrorBoundary extends React.Component<{ children: React.ReactNode; fullPage?: boolean; resetKey?: string }, { error: Error | null }> {
-  state = { error: null as Error | null };
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode; fullPage?: boolean; resetKey?: string }, { error: Error | null; reference?: string }> {
+  state = { error: null as Error | null, reference: undefined as string | undefined };
 
   static getDerivedStateFromError(error: Error) { return { error }; }
 
-  componentDidCatch(error: Error) {
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('Screen failed to render', error);
-    if (isOutdatedBuild(error)) reloadOnce();
+    if (isOutdatedBuild(error)) { reloadOnce(); return; }
+    // Reported to the server (Activity Log → System errors); the person sees the reference.
+    reportScreenError(error, info.componentStack || '').then(reference => { if (reference && this.state.error === error) this.setState({ reference }); });
   }
 
   componentDidUpdate(prev: { resetKey?: string }) {
-    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null, reference: undefined });
   }
 
   render() {
@@ -30,9 +33,10 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode; 
           <h2 className="mt-1 text-lg font-semibold text-slate-900">This screen could not be shown</h2>
           <p className="mt-2 text-sm text-slate-600">Your data is safe. Reload the page to try again. If it happens again, send the message below to your administrator.</p>
           <pre className="mt-3 max-h-32 overflow-auto rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-700 whitespace-pre-wrap break-words">{error.message || String(error)}</pre>
+          {this.state.reference && <p className="mt-2 text-xs text-slate-500">Reported to your administrator. Reference: <span className="font-mono font-semibold text-slate-700">{this.state.reference}</span></p>}
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => window.location.reload()} className="h-9 px-4 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">Reload</button>
-            {!this.props.fullPage && <button type="button" onClick={() => this.setState({ error: null })} className="h-9 px-4 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50">Try again</button>}
+            {!this.props.fullPage && <button type="button" onClick={() => this.setState({ error: null, reference: undefined })} className="h-9 px-4 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50">Try again</button>}
           </div>
         </div>
       </div>

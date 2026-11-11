@@ -38,7 +38,7 @@ describe('multi-channel editor', () => {
   it('a cancellation schedule replaces the free-cancellation window and is not reported twice', () => {
     const draft = { ...emptyDraft(), policies: { freeCancellationHours: 48, cancellationTiers: [{ hoursBefore: 24, feePercent: 100 }] } };
     const { next, changes } = applyDraft(channel(), draft, all);
-    expect(next.bookingRules.freeCancellationHours).toBeUndefined();
+    expect(next.bookingRules?.freeCancellationHours).toBeUndefined();
     expect(changes).toEqual(['Policies: cancellation schedule — → <24h 100%']);
     expect(applyDraft(next, draft, all).changes).toEqual([]);
   });

@@ -1,6 +1,7 @@
 package com.carrental.backend.controller;
 
 import com.carrental.backend.service.StateService;
+import com.carrental.backend.service.StateSectionGuard;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,26 +23,48 @@ public class StateController {
 
     @GetMapping
     public ResponseEntity<String> getState() {
-        return ResponseEntity.ok(stateService.getFullState());
+        return ResponseEntity.ok(stateService.getStateForClient());
     }
 
     @PostMapping
-    public ResponseEntity<?> updateState(@RequestBody String updates) {
+    public ResponseEntity<?> updateState(@RequestBody String updates, Authentication auth) {
         logger.info("Received state update payload length: {}", updates.length());
         logger.debug("Payload: {}", updates);
-        stateService.mergeState(updates);
-        return ResponseEntity.ok().build();
+        return answer(stateService.mergeState(updates, writer(auth)));
     }
 
     /** Precise changes (one booking, one section) applied in order on the latest saved data. */
     @PostMapping("/patch")
-    public ResponseEntity<?> patch(@RequestBody String patch) {
-        stateService.applyPatch(patch);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> patch(@RequestBody String patch, Authentication auth) {
+        return answer(stateService.applyPatch(patch, writer(auth)));
+    }
+
+    /** The signed-in person and their permissions, for the section checks. */
+    private static StateSectionGuard.Writer writer(Authentication auth) {
+        if (auth == null) return StateSectionGuard.Writer.of(null, java.util.Set.of());
+        return StateSectionGuard.Writer.of(auth.getName(), auth.getAuthorities().stream().map(a -> a.getAuthority()).toList());
+    }
+
+    /** 200 always (the allowed part is saved); lists sections that were not changed for lack of permission. */
+    private static ResponseEntity<?> answer(java.util.List<String> skipped) {
+        return skipped.isEmpty() ? ResponseEntity.ok().build() : ResponseEntity.ok(Map.of("skipped", skipped));
     }
 
     private static boolean isAdmin(Authentication auth) {
         return auth != null && auth.getAuthorities().stream().anyMatch(a -> "ACTION_ADMIN_MANAGE_USERS".equals(a.getAuthority()));
+    }
+
+    /** All the data as a file an administrator keeps on their own computer (passwords removed). */
+    @GetMapping("/backup-file")
+    public ResponseEntity<?> backupFile(Authentication auth) {
+        if (!isAdmin(auth)) return ResponseEntity.status(403).body(Map.of("error", "Only an administrator can download a backup."));
+        String name = "nct-backup-" + java.time.LocalDate.now(java.time.ZoneId.of("Asia/Amman")) + ".json";
+        logger.warn("Data backup downloaded by {}", auth.getName());
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "\"")
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "no-store")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(stateService.backupFileContent());
     }
 
     /** Backup copies of the data that an administrator can restore. */

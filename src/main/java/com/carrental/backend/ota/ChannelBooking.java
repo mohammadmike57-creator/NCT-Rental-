@@ -40,9 +40,17 @@ public class ChannelBooking {
     @Column(length = 40) private String promoCode;
     @Column(length = 20) private String status;                                // last status told to the broker
     @Column(length = 200) private String customerName;
-    @Lob @Column(columnDefinition = "TEXT") private String createResponse;    // JSON view replayed on retries
-    @Lob @Column(columnDefinition = "TEXT") private String sandboxReservation; // sandbox only: the booking itself
+    @Column(columnDefinition = "TEXT") private String createResponse;    // JSON view replayed on retries
+    @Column(columnDefinition = "TEXT") private String sandboxReservation; // sandbox only: the booking itself
     private boolean sandbox;
     @Column(nullable = false) private Instant createdAt;
     private Instant updatedAt;
+    /** Goes up by one on every change told to the broker, so it can ignore an update older than the one it has. */
+    private Integer version;
+
+    /** The current version (bookings made before versions existed count as version 1). */
+    public int currentVersion() { return version == null ? 1 : version; }
+
+    /** A new version for a change; returns it. */
+    public int nextVersion() { version = currentVersion() + 1; return version; }
 }

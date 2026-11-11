@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AppData, Fleet, ImportReport, PaymentType, RentalSource, Reservation } from '../types';
 import { MONTHS, INITIAL_YEARS } from '../constants';
-import { reservationService, ReservationService, pickupMonthOf } from '../services/reservationService';
+import { reservationService, ReservationService } from '../services/reservationService';
 import {
   FIELDS, FieldKey, ColumnMap, DateOrder, SheetTable, PreparedRow,
   readTables, detectColumns, detectDateOrder, prepareRows, matchSource, matchCar, toReservations,

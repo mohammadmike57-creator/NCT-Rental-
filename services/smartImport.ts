@@ -106,7 +106,7 @@ export function parseTime(v: unknown): string | undefined {
 /** True when a written date can only be month/day/year (e.g. 10/25/2026). */
 export const looksMonthFirst = (v: unknown): boolean => {
   if (typeof v !== 'string') return false;
-  const m = v.trim().match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})/);
+  const m = v.trim().match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
   return !!m && +m[1] <= 12 && +m[2] > 12;
 };
 
@@ -125,7 +125,7 @@ export function parseDate(v: unknown, order: DateOrder = 'DMY'): ParsedDate | nu
     const t = v.getHours() || v.getMinutes() ? `${pad(v.getHours())}:${pad(v.getMinutes())}` : undefined;
     return { date: `${v.getFullYear()}-${pad(v.getMonth() + 1)}-${pad(v.getDate())}`, time: t };
   }
-  let s = String(v).trim().toLowerCase()
+  const s = String(v).trim().toLowerCase()
     .replace(/\b(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(day|nesday|sday|urday)?\b,?/g, ' ')
     .replace(/(\d)(st|nd|rd|th)\b/g, '$1')
     .replace(/\bat\b/g, ' ')
@@ -134,9 +134,9 @@ export function parseDate(v: unknown, order: DateOrder = 'DMY'): ParsedDate | nu
   if (!s) return null;
   const time = parseTime(s.replace(/^\S+/, '')) || parseTime(s.match(/[t ]\d{1,2}[:.]\d{2}.*$/)?.[0]);
   let y = 0, mo = 0, d = 0, m: RegExpMatchArray | null;
-  if ((m = s.match(/^(\d{4})[/.\-](\d{1,2})[/.\-](\d{1,2})/))) {
+  if ((m = s.match(/^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})/))) {
     y = +m[1]; mo = +m[2]; d = +m[3];
-  } else if ((m = s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/))) {
+  } else if ((m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b/))) {
     const a = +m[1], b = +m[2];
     y = fullYear(+m[3]);
     if (order === 'MDY') { mo = a; d = b; } else { d = a; mo = b; }
@@ -146,7 +146,7 @@ export function parseDate(v: unknown, order: DateOrder = 'DMY'): ParsedDate | nu
     d = +m[1]; mo = MONTHS[m[2]]; y = fullYear(+m[3]);
   } else if ((m = s.match(/^([a-z]{3,9})[\s/.\-,]*(\d{1,2})[\s/.\-,]+(\d{2,4})\b/)) && MONTHS[m[1]]) {
     mo = MONTHS[m[1]]; d = +m[2]; y = fullYear(+m[3]);
-  } else if ((m = s.match(/^(\d{1,2})[/\-](\d{1,2})(?=\s|$)/))) {
+  } else if ((m = s.match(/^(\d{1,2})[/-](\d{1,2})(?=\s|$)/))) {
     // No year written: 05/01 or 05-01 10:30 (not 10.30, which is a time). 2024 stands in (a leap year, so 29/02 is accepted).
     const a = +m[1], b = +m[2];
     if (order === 'MDY') { mo = a; d = b; } else { d = a; mo = b; }
@@ -272,8 +272,8 @@ export function matchCar(raw: string, fleet: Fleet): CarMatch {
     if (v && compact(text) === compact(code)) return { raw: text, match: v.modelName, via: 'sipp' };
   }
 
-  const brandIn = (s: string) => BRANDS.find(b => t.includes(carNorm(b))) || Object.entries(BRAND_ALIASES).find(([a]) => t.includes(` ${a} `) || tc.includes(a))?.[1];
-  const writtenBrand = brandIn(text);
+  // The brand written in the text (t and tc are the normalised forms of it).
+  const writtenBrand = BRANDS.find(b => t.includes(carNorm(b))) || Object.entries(BRAND_ALIASES).find(([a]) => t.includes(` ${a} `) || tc.includes(a))?.[1];
 
   // Candidate names: fleet models, then "Brand Model" from the catalogue.
   type Cand = { name: string; brand?: string; model: string; fleet: boolean };

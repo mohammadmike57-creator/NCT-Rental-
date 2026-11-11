@@ -16,11 +16,29 @@ public class ChannelSnapshot {
     private final JsonNode channel;
     private final JsonNode fleet;
     private final JsonNode stopSales;
+    private final String companyName;
 
-    public ChannelSnapshot(JsonNode channel, JsonNode fleet, JsonNode stopSales) {
+    public ChannelSnapshot(JsonNode channel, JsonNode fleet, JsonNode stopSales) { this(channel, fleet, stopSales, null); }
+
+    public ChannelSnapshot(JsonNode channel, JsonNode fleet, JsonNode stopSales, String companyName) {
         this.channel = channel;
+        this.companyName = companyName;
         this.fleet = fleet == null || !fleet.isArray() ? com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.arrayNode() : fleet;
-        this.stopSales = stopSales == null || !stopSales.isArray() ? com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.arrayNode() : stopSales;
+        this.stopSales = forChannel(stopSales, text(channel, "id", ""));
+    }
+
+    /** Stop sales for every channel, plus those that name this channel in channelIds. */
+    static JsonNode forChannel(JsonNode stopSales, String channelId) {
+        var out = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.arrayNode();
+        if (stopSales == null || !stopSales.isArray()) return out;
+        for (JsonNode s : stopSales) {
+            JsonNode ids = s.get("channelIds");
+            boolean all = ids == null || !ids.isArray() || ids.isEmpty();
+            boolean named = false;
+            if (!all) for (JsonNode id : ids) if (channelId.equals(id.asText())) { named = true; break; }
+            if (all || named) out.add(s);
+        }
+        return out;
     }
 
     public JsonNode raw() { return channel; }
@@ -30,12 +48,62 @@ public class ChannelSnapshot {
     public String id() { return text(channel, "id", ""); }
     public String name() { return text(channel, "name", id()); }
     public String channelCode() { return text(channel, "channelCode", ""); }
+    /** Supplier name used when a channel has none of its own; brokers never see the NCT name. */
+    public static final String DEFAULT_SUPPLIER = "UR-Drive Jordan";
+
+    /** The supplier name brokers see (Vendor): the channel's own, else the company name, else UR-Drive Jordan. */
+    public String vendorName() {
+        String own = text(channel, "vendorName", "");
+        if (!own.isBlank()) return own;
+        String company = companyName == null ? "" : companyName.trim();
+        return company.isBlank() || company.toUpperCase(Locale.ROOT).contains("NCT") ? DEFAULT_SUPPLIER : company;
+    }
     public String vendorCode() { return text(channel, "vendorCode", "NCT").toUpperCase(Locale.ROOT); }
+
+    /** First three letters or digits of a name: "UR-Drive Jordan" gives URD. */
+    public static String codeFromName(String name) {
+        String c = (name == null ? "" : name).toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        return c.length() > 3 ? c.substring(0, 3) : c;
+    }
+
+    /** First letter of each word: "UR-Drive Jordan" gives UDJ. */
+    public static String initials(String name) {
+        StringBuilder b = new StringBuilder();
+        for (String w : (name == null ? "" : name).toUpperCase(Locale.ROOT).split("[^A-Z0-9]+")) if (!w.isEmpty()) b.append(w.charAt(0));
+        return b.toString();
+    }
+
+    /**
+     * Vendor codes a broker may use for this supplier: the channel's code (NCT when none is set), NCT,
+     * and the codes made from the supplier name (URD and UDJ for UR-Drive Jordan).
+     */
+    public java.util.Set<String> acceptedVendorCodes() {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        out.add(vendorCode());
+        out.add("NCT");
+        String name = vendorName();
+        if (codeFromName(name).length() >= 2) out.add(codeFromName(name));
+        if (initials(name).length() >= 2) out.add(initials(name));
+        return out;
+    }
+
+    /** The code to answer with: the one the broker used when it is one of ours, else the channel's code. */
+    public String vendorCodeFor(String requested) {
+        String r = requested == null ? "" : requested.trim().toUpperCase(Locale.ROOT);
+        return !r.isEmpty() && acceptedVendorCodes().contains(r) ? r : vendorCode();
+    }
     public String locationCode() { return text(channel, "locationCode", "AMM").toUpperCase(Locale.ROOT); }
     public String currency() { return text(channel, "currency", "USD"); }
     public String status() { return text(channel, "status", "active"); }
     public String terms() { return text(channel, "termsAndConditions", ""); }
     public String feedKeyHash() { return text(channel, "feedKeyHash", ""); }
+    /** A second key that only ever works in the sandbox, for the broker's test system. */
+    public String testKeyHash() { return text(channel, "testKeyHash", ""); }
+    /** The key that was replaced, still accepted until previousKeyExpiresAt so the broker can switch without downtime. */
+    public String previousKeyHash() { return text(channel, "previousKeyHash", ""); }
+    public java.time.Instant previousKeyExpiresAt() {
+        try { return java.time.Instant.parse(text(channel, "previousKeyExpiresAt", "")); } catch (Exception e) { return null; }
+    }
 
     public JsonNode connection() {
         JsonNode c = channel.get("connectionDetails");

@@ -4,6 +4,21 @@ export type BookingPayment = PaymentType.PREPAID | PaymentType.PAY_ON_ARRIVAL;
 type PayFields = Partial<Pick<Reservation, 'source' | 'paymentType'>>;
 
 /** The booking's source, matched by name (or by id on older bookings). */
+/**
+ * Reads a source's payment type whatever way it was written ("Prepaid", "PREPAID", "pay on arrival"...).
+ * Unknown or missing values count as pay on arrival, the normal case at the counter.
+ */
+export const normalizePaymentType = (v: unknown): PaymentType => {
+  const k = String(v ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (k === 'PREPAID') return PaymentType.PREPAID;
+  if (k === 'BOTH') return PaymentType.BOTH;
+  return PaymentType.PAY_ON_ARRIVAL;
+};
+
+/** Sources as loaded from the server, with every payment type in the form the app uses. */
+export const normalizeSources = (list: RentalSource[]): RentalSource[] =>
+  list.map(s => (Object.values(PaymentType).includes(s.paymentType) ? s : { ...s, paymentType: normalizePaymentType(s.paymentType) }));
+
 export const sourceOf = (r: { source?: string }, sources: RentalSource[] = []) =>
   r.source ? sources.find(s => s.name === r.source || s.id === r.source) : undefined;
 

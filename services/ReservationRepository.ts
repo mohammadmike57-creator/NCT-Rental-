@@ -1,4 +1,4 @@
-import { AppData, Reservation, ImportReport } from '../types';
+import { AppData, Reservation } from '../types';
 import { ReservationStore } from './ReservationStore';
 import { fetchInitialData, saveAllData } from '../firebase/api';
 

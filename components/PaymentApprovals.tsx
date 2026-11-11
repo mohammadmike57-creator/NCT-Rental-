@@ -57,8 +57,6 @@ const PaymentApprovals: React.FC<PaymentApprovalsProps> = ({ allData, onUpdateRe
     };
     
     const getAmountDue = (reservation: Reservation) => {
-        const rentalDays = 1; 
-        const extrasTotal = (reservation.extras || []).reduce((sum, extra) => extra.isComplementary ? sum : sum + (extra.dailyPrice * rentalDays), 0);
         const unpaidExtensionAmount = reservation.unpaidExtensionAmount || 0;
         return (reservation.amount || 0) + unpaidExtensionAmount;
     };

@@ -3,6 +3,7 @@ package com.carrental.backend.ota;
 import com.carrental.backend.ota.ChannelError.ChannelException;
 import com.carrental.backend.ota.ChannelModels.*;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -103,7 +104,7 @@ public class OtaBookingController {
         Function<ChannelGateway.Call, String> action = switch (rq) {
             case "OTA_VehLocSearchRQ" -> c -> {
                 OtaBookingXml.Parsed p = body == null || body.isBlank() ? null : OtaBookingXml.parse(body, rq);
-                return OtaBookingXml.locations(p == null ? null : p.echoToken(), prod(c), core.locations(c.ctx()), c.ctx().channel().vendorCode());
+                return OtaBookingXml.locations(p == null ? null : p.echoToken(), prod(c), core.locations(c.ctx()), c.ctx().channel().vendorCodeFor(requestedVendor(body)));
             };
             case "OTA_VehAvailRateRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
@@ -118,30 +119,30 @@ public class OtaBookingController {
                     offers = List.of();
                     warning = e.getMessage();
                 }
-                return OtaBookingXml.availability(p.echoToken(), prod(c), s, offers, c.ctx().channel().vendorCode(), warning);
+                return OtaBookingXml.availability(p.echoToken(), prod(c), s, offers, c.ctx().channel().vendorCodeFor(requestedVendor(body)), warning);
             };
             case "OTA_VehResRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 Reservation r = core.create(c.ctx(), OtaBookingXml.booking(p.root(), c.ctx().rules(), idem));
-                return OtaBookingXml.reservation("OTA_VehResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+                return OtaBookingXml.reservation("OTA_VehResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
             };
             case "OTA_VehRetResRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
-                Reservation r = core.get(c.ctx(), OtaBookingXml.uniqueId(p.root()));
+                Reservation r = core.retrieve(c.ctx(), OtaBookingXml.uniqueId(p.root()));
                 checkSurname(p, r);
-                return OtaBookingXml.reservation("OTA_VehRetResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+                return OtaBookingXml.reservation("OTA_VehRetResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
             };
             case "OTA_VehModifyRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 Reservation r = core.modify(c.ctx(), OtaBookingXml.modify(p.root(), c.ctx().rules()));
-                return OtaBookingXml.reservation("OTA_VehModifyRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+                return OtaBookingXml.reservation("OTA_VehModifyRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
             };
             case "OTA_VehCancelRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 String id = OtaBookingXml.uniqueId(p.root());
                 checkSurname(p, core.get(c.ctx(), id));
                 Reservation r = core.cancel(c.ctx(), id, OtaBookingXml.text(OtaBookingXml.first(OtaBookingXml.first(p.root(), "TPA_Extensions"), "Reason")));
-                return OtaBookingXml.reservation("OTA_VehCancelRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCode());
+                return OtaBookingXml.reservation("OTA_VehCancelRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
             };
             case "OTA_VehRateRuleRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
@@ -149,14 +150,14 @@ public class OtaBookingController {
                 Search s = OtaBookingXml.first(p.root(), "VehRentalCore") == null ? null : OtaBookingXml.search(p.root(), c.ctx().rules());
                 if (offer == null && s == null) throw ChannelError.INVALID_REQUEST.ex("Send Reference Type=\"16\" with the offer id, or VehRentalCore and VehPref");
                 RateRule rr = core.rateRule(c.ctx(), offer, s);
-                return OtaBookingXml.rateRule(p.echoToken(), prod(c), rr.search(), rr, c.ctx().channel().vendorCode());
+                return OtaBookingXml.rateRule(p.echoToken(), prod(c), rr.search(), rr, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
             };
             case "OTA_VehLocDetailRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 String code = OtaBookingXml.attr(OtaBookingXml.first(p.root(), "Location"), "LocationCode");
                 if (code.isEmpty()) code = OtaBookingXml.attr(OtaBookingXml.first(p.root(), "LocationDetail"), "Code");
                 if (code.isEmpty()) throw ChannelError.INVALID_REQUEST.ex("Location LocationCode is required");
-                return OtaBookingXml.locationDetail(p.echoToken(), prod(c), core.location(c.ctx(), code), c.ctx().channel().vendorCode());
+                return OtaBookingXml.locationDetail(p.echoToken(), prod(c), core.location(c.ctx(), code), c.ctx().channel().vendorCodeFor(requestedVendor(body)));
             };
             case "OTA_PingRQ" -> c -> {
                 OtaBookingXml.Parsed p = body == null || body.isBlank() ? null : OtaBookingXml.parse(body, rq);
@@ -165,6 +166,21 @@ public class OtaBookingController {
             default -> throw new IllegalArgumentException(rq);
         };
         return run(channel, body, key, http, type, errorRoot, action);
+    }
+
+    /** Any other message name (or a GET on a message) still gets an OTA error the broker's parser can read, not a web error page. */
+    @RequestMapping("/{message:OTA_[A-Za-z]+}")
+    public ResponseEntity<String> unknownMessage(@PathVariable String channel, @PathVariable String message, HttpServletRequest http) {
+        boolean known = java.util.Set.of("OTA_VehLocSearch", "OTA_VehAvailRate", "OTA_VehRes", "OTA_VehRetRes", "OTA_VehResRetrieve", "OTA_VehModify",
+            "OTA_VehCancel", "OTA_VehRateRule", "OTA_VehLocDetail", "OTA_Ping").contains(message);
+        ChannelError.ChannelException e = ChannelError.INVALID_REQUEST.ex(known
+            ? message + " must be sent with HTTP POST"
+            : "Unknown message " + message + ". Supported: OTA_VehLocSearch, OTA_VehLocDetail, OTA_VehAvailRate, OTA_VehRateRule, OTA_VehRes, "
+                + "OTA_VehRetRes, OTA_VehModify, OTA_VehCancel, OTA_Ping");
+        String rid = http.getHeader("X-Request-ID");
+        if (rid == null || rid.isBlank()) rid = java.util.UUID.randomUUID().toString();
+        return ResponseEntity.status(known ? HttpStatus.METHOD_NOT_ALLOWED : HttpStatus.NOT_FOUND).contentType(XML).header("X-Request-ID", rid)
+            .body(OtaBookingXml.error(message + "RS", null, true, e, rid));
     }
 
     /** When the partner sends the surname (as OTA does), it must match the booking. */
@@ -179,7 +195,10 @@ public class OtaBookingController {
                                        Function<ChannelGateway.Call, String> action) {
         String echo = echo(body);
         return gateway.handle(channel, key, http, type, body, http.getHeader("X-Request-ID"),
-            c -> new ChannelGateway.Rendered(action.apply(c), XML),
+            c -> {
+                OtaBookingXml.VENDOR_NAME.set(c.ctx().channel().vendorName());
+                try { return new ChannelGateway.Rendered(action.apply(c), XML); } finally { OtaBookingXml.VENDOR_NAME.remove(); }
+            },
             (e, rid) -> new ChannelGateway.Rendered(OtaBookingXml.error(errorRoot, echo, true, e, rid), XML));
     }
 
@@ -204,6 +223,16 @@ public class OtaBookingController {
     private static boolean prod(ChannelGateway.Call c) { return !c.ctx().sandbox(); }
 
     /** EchoToken from a body that may not even parse, so errors still echo it. */
+    private static final java.util.regex.Pattern VENDOR_PREF = java.util.regex.Pattern.compile(
+        "<(?:[\\w-]+:)?(?:VendorPref|Vendor)\\b[^>]*?\\b(?:Code|CompanyShortName)\\s*=\\s*[\"']([A-Za-z0-9]{1,8})[\"']");
+
+    /** The supplier code the broker asked for (VendorPrefs/VendorPref or Vendor Code), if any. */
+    static String requestedVendor(String body) {
+        if (body == null) return null;
+        java.util.regex.Matcher m = VENDOR_PREF.matcher(body);
+        return m.find() ? m.group(1) : null;
+    }
+
     private static String echo(String body) {
         if (body == null) return null;
         int i = body.indexOf("EchoToken=\"");

@@ -89,6 +89,9 @@ public class SecurityConfig {
                     // Booking gateway, native XML and REST/JSON: same per-channel key (see ChannelGateway)
                     "/xml/**",
                     "/partner/**",
+                    // REST/JSON v3: authenticated per request with an OAuth access token (see ApiV3Controller)
+                    "/api/v3/**",
+                    "/oauth/token",
                     "/api/voucher/**",
                     // Static resources
                     "/favicon.ico",

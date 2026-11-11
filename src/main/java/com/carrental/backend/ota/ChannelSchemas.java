@@ -11,7 +11,7 @@ final class ChannelSchemas {
 
     private static final String NATIVE_XSD = """
         <?xml version="1.0" encoding="UTF-8"?>
-        <!-- NCT Rental native XML booking API, version 1. Messages are POSTed to /xml/v1/{Operation}. -->
+        <!-- UR-Drive Jordan native XML booking API, version 1. Messages are POSTed to /xml/v1/{Operation}. -->
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified" version="1.0">
 
           <!-- ============================================================ common -->
@@ -393,6 +393,21 @@ final class ChannelSchemas {
                   <xs:attribute name="Fee" type="Money"/>
                 </xs:complexType>
               </xs:element>
+              <xs:element name="SpecialDays" minOccurs="0">
+                <xs:annotation><xs:documentation>Holidays and special hours for the next year. Closed="true": no pick-ups or returns that day.
+                  Otherwise Open/Close replace the usual hours for that date.</xs:documentation></xs:annotation>
+                <xs:complexType><xs:sequence>
+                  <xs:element name="SpecialDay" maxOccurs="unbounded">
+                    <xs:complexType>
+                      <xs:attribute name="Date" type="xs:date" use="required"/>
+                      <xs:attribute name="Closed" type="xs:boolean" use="required"/>
+                      <xs:attribute name="Open" type="xs:string"/>
+                      <xs:attribute name="Close" type="xs:string"/>
+                      <xs:attribute name="Note" type="xs:string"/>
+                    </xs:complexType>
+                  </xs:element>
+                </xs:sequence></xs:complexType>
+              </xs:element>
             </xs:sequence>
           </xs:complexType>
           <xs:complexType name="Penalties">
@@ -642,7 +657,7 @@ final class ChannelSchemas {
                 xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
                 xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <wsdl:documentation>
-                NCT Rental OpenTravel (OTA 2003/05) car rental booking service. Message bodies follow the OpenTravel
+                UR-Drive Jordan OpenTravel (OTA 2003/05) car rental booking service. Message bodies follow the OpenTravel
                 schemas for each RQ/RS pair. Authenticate with WS-Security UsernameToken (Username = channel code,
                 Password = API key), POS/Source/RequestorID MessagePassword, or the X-Api-Key HTTP header.
               </wsdl:documentation>

@@ -26,7 +26,7 @@ const PaymentChoice: React.FC<{
     const prepaid = source.paymentType === PaymentType.PREPAID;
     return (
       <p className={cx('rounded-lg border px-3 py-2 text-xs', prepaid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800')}>
-        <b className="font-semibold">{source.name}</b> bookings are <b className="font-semibold">{PAYMENT_LABEL[source.paymentType].toLowerCase()}</b>
+        <b className="font-semibold">{source.name}</b> bookings are <b className="font-semibold">{(PAYMENT_LABEL[source.paymentType] ?? PAYMENT_LABEL[PaymentType.PAY_ON_ARRIVAL]).toLowerCase()}</b>
         {prepaid ? ': nothing to collect for the rental at the counter.' : ': the customer pays the rental at the counter.'}
       </p>
     );

@@ -40,6 +40,7 @@ public class OtaPartnerController {
 
     private final ChannelStateReader channels;
     private final ChannelDeliveryService deliveries;
+    private final ChannelSecurityGuard guard;
 
     private final Map<String, long[]> rateWindows = new ConcurrentHashMap<>();
 
@@ -83,19 +84,29 @@ public class OtaPartnerController {
                                           String errorRoot, String messageType, long requestBytes,
                                           Function<ChannelSnapshot, String> action) {
         long start = System.nanoTime();
-        String remote = request.getRemoteAddr();
+        // The same address, lockout and allow-list rules as the booking gateway.
+        String remote = ChannelGateway.clientIp(request);
         if (!allow(code + "|" + remote)) {
             return xml(HttpStatus.TOO_MANY_REQUESTS, OtaXml.errorRS(errorRoot, "429", "Rate limit exceeded, retry in a minute", null));
+        }
+        if (guard.lockedUntil(remote) != null) {
+            return xml(HttpStatus.UNAUTHORIZED, OtaXml.errorRS(errorRoot, "401", "Too many failed attempts from this address; try again later", null));
         }
         Optional<ChannelSnapshot> found = channels.find(code);
         String key = PartnerKeyVerifier.extractKey(authorization, apiKey);
         // Same answer for unknown channel and wrong key, so channel codes cannot be probed.
         if (found.isEmpty() || !PartnerKeyVerifier.matches(found.get(), key)) {
+            guard.failed(remote);
             found.ifPresent(ch -> deliveries.recordInbound(ch, messageType, 401, false, "Invalid or missing feed key",
                 requestBytes, elapsed(start), remote));
             return xml(HttpStatus.UNAUTHORIZED, OtaXml.errorRS(errorRoot, "401", "Invalid or missing feed key", null));
         }
         ChannelSnapshot ch = found.get();
+        guard.succeeded(remote);
+        if (!ChannelGateway.ipAllowed(ch, remote)) {
+            deliveries.recordInbound(ch, messageType, 403, false, "Address not on the allow-list", requestBytes, elapsed(start), remote);
+            return xml(HttpStatus.FORBIDDEN, OtaXml.errorRS(errorRoot, "403", "Requests from " + remote + " are not allowed for this channel", null));
+        }
         if ("paused".equalsIgnoreCase(ch.status())) {
             deliveries.recordInbound(ch, messageType, 403, false, "Channel is paused", requestBytes, elapsed(start), remote);
             return xml(HttpStatus.FORBIDDEN, OtaXml.errorRS(errorRoot, "403", "Distribution to this channel is paused", null));

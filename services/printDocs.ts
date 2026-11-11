@@ -1,5 +1,5 @@
 import { waitForFonts } from './docFonts';
-import { CompanyDetails, Fleet, RentalLocation, RentalSource, PaymentType, Reservation } from '../types';
+import { CompanyDetails, Fleet, RentalLocation, RentalSource, Reservation } from '../types';
 import { carPhotoFor } from './carPhoto';
 import { isPrepaid } from './paymentType';
 import { URDRIVE_LOGO_B64 } from '../constants';

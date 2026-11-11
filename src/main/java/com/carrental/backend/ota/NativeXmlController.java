@@ -191,7 +191,7 @@ public class NativeXmlController {
                 return ok(responseRoot, c, x -> reservation(x, res));
             };
             case "ReservationStatus" -> c -> {
-                Reservation res = core.get(c.ctx(), reference(r));
+                Reservation res = core.retrieve(c.ctx(), reference(r));
                 return ok(responseRoot, c, x -> reservation(x, res));
             };
             case "ReservationModify" -> c -> {
@@ -253,7 +253,7 @@ public class NativeXmlController {
         Search s = OtaBookingXml.first(r, "Itinerary") == null ? null : search(r, rules);
         String expected = OtaBookingXml.text(OtaBookingXml.first(r, "ExpectedTotalAmount"));
         return new BookingRequest(offer.isEmpty() ? null : offer, emptyNull(OtaBookingXml.text(OtaBookingXml.first(r, "BrokerReference"))), idem, s, c, driver,
-            expected.isEmpty() ? null : new BigDecimal(expected), emptyNull(OtaBookingXml.text(OtaBookingXml.first(r, "Comments"))),
+            amount(expected), emptyNull(OtaBookingXml.text(OtaBookingXml.first(r, "Comments"))),
             emptyNull(OtaBookingXml.text(OtaBookingXml.first(r, "FlightNumber"))));
     }
 
@@ -273,7 +273,7 @@ public class NativeXmlController {
         Element d = OtaBookingXml.first(r, "Driver");
         Driver driver = d == null ? null : new Driver(val(d, "FirstName"), val(d, "LastName"), val(d, "DateOfBirth"), val(d, "LicenceNumber"), val(d, "LicenceCountry"));
         String expected = OtaBookingXml.text(OtaBookingXml.first(r, "ExpectedTotalAmount"));
-        return new ModifyRequest(reference(r), s, c, driver, expected.isEmpty() ? null : new BigDecimal(expected), emptyNull(OtaBookingXml.text(OtaBookingXml.first(r, "Comments"))));
+        return new ModifyRequest(reference(r), s, c, driver, amount(expected), emptyNull(OtaBookingXml.text(OtaBookingXml.first(r, "Comments"))));
     }
 
     private static String reference(Element r) {
@@ -398,6 +398,16 @@ public class NativeXmlController {
         for (OpeningHours oh : l.openingHours()) x.el("Day", null, "Name", oh.day(), "Open", oh.open(), "Close", oh.close());
         x.close();
         x.el("AfterHours", null, "Pickup", l.afterHoursPickup(), "Return", l.afterHoursReturn(), "Fee", l.afterHoursFee().signum() > 0 ? l.afterHoursFee() : null);
+        if (l.specialDays() != null && !l.specialDays().isEmpty()) {
+            x.open("SpecialDays");
+            for (SpecialDay d : l.specialDays()) x.el("SpecialDay", null, "Date", d.date(), "Closed", d.closed(), "Open", d.open(), "Close", d.close(), "Note", d.note());
+            x.close();
+        }
+    }
+
+    private static BigDecimal amount(String v) {
+        if (v == null || v.isBlank()) return null;
+        try { return new BigDecimal(v.trim()); } catch (NumberFormatException e) { throw ChannelError.INVALID_REQUEST.ex("ExpectedTotalAmount must be a number"); }
     }
 
     private static java.time.LocalDate date(String v, String field) {

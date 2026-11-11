@@ -57,7 +57,7 @@ export class DateUtils {
       try {
         const date = new Date((value - 25569) * 86400 * 1000);
         return date.toISOString().split('.')[0].substring(0, 16);
-      } catch (e) {}
+      } catch { /* not this format; try the next one */ }
     }
 
     const s = String(value).trim();
@@ -66,8 +66,8 @@ export class DateUtils {
     // 4. Handle MM/DD/YYYY or M/D/YY
     const slashParts = s.split('/');
     if (slashParts.length === 3) {
-      let month = slashParts[0].padStart(2, '0');
-      let day = slashParts[1].padStart(2, '0');
+      const month = slashParts[0].padStart(2, '0');
+      const day = slashParts[1].padStart(2, '0');
       let year = slashParts[2];
       if (year.length === 2) year = '20' + year;
       return `${year}-${month}-${day}T12:00`;
@@ -83,7 +83,7 @@ export class DateUtils {
     if (!isNaN(parsed.getTime())) {
       try {
         return parsed.toISOString().split('.')[0].substring(0, 16);
-      } catch (e) {}
+      } catch { /* not this format; try the next one */ }
     }
 
     return s;

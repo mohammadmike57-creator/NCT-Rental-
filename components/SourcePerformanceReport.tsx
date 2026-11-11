@@ -2,6 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Reservation, ReservationStatus } from '../types';
 import { MONTHS } from '../constants';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { amountOf } from '../services/revenue';
 import { PdfIcon, CalendarIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Button, EmptyState, inputCls, table } from './ui/Crm';
@@ -107,19 +109,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
       return;
     }
 
-    // @ts-ignore
-    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
-        alert('The PDF generation library is not available. Please check your connection or try again later.');
-        return;
-    }
-    // @ts-ignore
-    const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-
-    if (typeof (doc as any).autoTable !== 'function') {
-        alert('The PDF table generation library is not available. Please check your connection or try again later.');
-        return;
-    }
 
     const tableHead = [['Source', 'Bookings', 'Cancelled', 'No Show', 'Total Amount']];
     const tableBody = reportData.map(row => [
@@ -143,7 +133,7 @@ const SourcePerformanceReport: React.FC<SourcePerformanceReportProps> = ({ reser
     doc.setTextColor(100);
     doc.text(`Period: ${startDate} to ${endDate}`, 14, 28);
     
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: 35,
       head: tableHead,
       body: tableBody,

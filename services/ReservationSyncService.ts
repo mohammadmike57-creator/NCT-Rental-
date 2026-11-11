@@ -1,4 +1,4 @@
-import { AppData, Reservation } from '../types';
+import { AppData } from '../types';
 import { fetchInitialData, saveAllData } from '../firebase/api';
 
 export class ReservationSyncService {
@@ -17,14 +17,12 @@ export class ReservationSyncService {
   /** False while a save is running or there are changes not saved yet. */
   static canSync() { return !this.isSaving && !this.hasLocalChanges; }
 
-  static async syncWithBackend(currentData: AppData): Promise<AppData | null> {
+  static async syncWithBackend(_currentData: AppData): Promise<AppData | null> {
     if (this.isSaving) {
-      console.log('[SYNC LOG] Skipping sync: Saving in progress');
       return null;
     }
 
     if (this.hasLocalChanges) {
-      console.log('[SYNC LOG] Skipping sync: Unsaved local changes exist');
       return null;
     }
 
@@ -33,7 +31,6 @@ export class ReservationSyncService {
       if (!backendData) return null;
       // In a real scenario, we would check timestamps at a more granular level.
       // For this overhaul, we'll assume the backend is the source of truth if we have no local changes.
-      console.log('[SYNC LOG] Sync successful');
       this.lastSyncTimestamp = new Date().toISOString();
       return backendData.reservations;
     } catch (error) {
@@ -48,7 +45,6 @@ export class ReservationSyncService {
       await saveAllData({ reservations: data } as any);
       this.hasLocalChanges = false;
       this.lastSyncTimestamp = new Date().toISOString();
-      console.log('[SAVE LOG] Data saved to backend successfully');
       return true;
     } catch (error) {
       console.error('[SAVE LOG] Failed to save data', error);

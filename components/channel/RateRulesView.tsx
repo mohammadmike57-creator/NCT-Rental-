@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, RatePlan } from '../../types';
-import { Panel, Badge, Button, EmptyState, Dialog, Field, inputCls, selectCls, textareaCls, table } from '../ui/Crm';
+import { Badge, Button, EmptyState, Dialog, Field, inputCls, selectCls, textareaCls } from '../ui/Crm';
 import { saveAllData, loadedSection } from '../../firebase/api';
 import {
   AdjustType, ChannelRateMode, LengthBand, lengthLabel, DynamicPricingConfig, DynamicPricingState,
@@ -51,14 +51,6 @@ const PRESETS: { label: string; rule: Partial<SeasonRule> }[] = [
   { label: 'Ramadan', rule: { name: 'Ramadan 2027', kind: 'ramadan', from: '2027-02-08', to: '2027-03-08', priority: 3, adjust: { type: 'percent', value: -10 } } },
   { label: 'Christmas / New Year +35%', rule: { name: 'Christmas & New Year', kind: 'christmas', from: '2027-12-20', to: '2028-01-03', priority: 2, adjust: { type: 'percent', value: 35 } } },
   { label: 'Custom event +25%', rule: { name: '', kind: 'custom', priority: 2, adjust: { type: 'percent', value: 25 } } },
-];
-
-const EXAMPLE_LEAD: LeadTier[] = [
-  { id: 'lt-24', fromHours: 0, toHours: 24, adjust: { type: 'percent', value: 20 } },
-  { id: 'lt-48', fromHours: 24, toHours: 48, adjust: { type: 'percent', value: 10 } },
-  { id: 'lt-7d', fromHours: 48, toHours: 168, adjust: { type: 'none', value: 0 } },
-  { id: 'lt-30d', fromHours: 168, toHours: 720, adjust: { type: 'none', value: 0 } },
-  { id: 'lt-early', fromHours: 720, toHours: null, adjust: { type: 'percent', value: -5 } },
 ];
 
 // ---------------------------------------------------------------- small inputs
@@ -113,10 +105,6 @@ const NumOpt: React.FC<{ value?: number | null; onChange: (n?: number) => void; 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 /** One rate after one change, for the examples. */
 const exRate = (base: number, a: PriceAdjust) => Math.max(0, r2(applyAdjust(base, a)));
-const leadText = (t: { fromHours: number; toHours: number | null }) => {
-  const h = (n: number) => (n % 24 === 0 && n >= 48 ? `${n / 24} days` : `${n} hours`);
-  return t.toHours == null ? `Booked more than ${h(t.fromHours)} before pick-up` : t.fromHours === 0 ? `Booked less than ${h(t.toHours)} before pick-up` : `Booked ${h(t.fromHours)} – ${h(t.toHours)} before pick-up`;
-};
 
 /** "How it works" box: plain words on the left, a worked example on the right. Can be folded away. */
 const Explainer: React.FC<{ title: string; children: React.ReactNode; example?: React.ReactNode; exampleTitle?: string }> = ({ title, children, example, exampleTitle = 'Example' }) => (
@@ -808,7 +796,7 @@ const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg
   const none: PriceAdjust = { type: 'none', value: 0 };
   const setTier = (i: number, p: Partial<LeadTier>) => setLt(x => ({ ...x, tiers: x.tiers.map((t, j) => (j === i ? { ...t, ...p } : t)) }));
   const setCell = (i: number, k: number, a: PriceAdjust) => setLt(x => ({ ...x, tiers: x.tiers.map((t, j) => (j === i ? { ...t, byLength: bands.map((_, m) => (m === k ? a : (t.byLength?.[m] || t.adjust))) } : t)) }));
-  const useBands = (next: LengthBand[]) => setLt(x => ({
+  const applyBands = (next: LengthBand[]) => setLt(x => ({
     ...x, lengthBands: next.length ? next : undefined,
     tiers: x.tiers.map(t => (next.length ? { ...t, byLength: next.map((_, m) => t.byLength?.[m] || t.adjust) } : { ...t, byLength: undefined })),
   }));
@@ -873,7 +861,7 @@ const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg
         <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-x-5 gap-y-2.5">
           <div className="flex items-center gap-2.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Rental length</span>
-            <Seg label="Rental length" size="sm" value={byLength ? 'bands' : 'all'} onChange={v => useBands(v === 'bands' ? (bands.length ? bands : (rateBands.length ? rateBands : DEFAULT_BANDS)) : [])}
+            <Seg label="Rental length" size="sm" value={byLength ? 'bands' : 'all'} onChange={v => applyBands(v === 'bands' ? (bands.length ? bands : (rateBands.length ? rateBands : DEFAULT_BANDS)) : [])}
               options={[['all', 'Same for all'], ['bands', 'By rate band']]} />
           </div>
           <div className="flex items-center gap-2.5">
@@ -901,7 +889,7 @@ const LeadTimeEditor: React.FC<{ base: number; setBase: (n: number) => void; cfg
         {bandsChanged && (
           <div className="px-5 py-2 border-b border-amber-200 bg-amber-50 flex items-center justify-between gap-3 text-[12px] text-amber-900">
             Your rate bands on the Rates tab changed ({rateBands.map(lengthLabel).join(', ')}).
-            <button type="button" onClick={() => useBands(rateBands)} className="font-semibold underline underline-offset-2">Update columns</button>
+            <button type="button" onClick={() => applyBands(rateBands)} className="font-semibold underline underline-offset-2">Update columns</button>
           </div>
         )}
 

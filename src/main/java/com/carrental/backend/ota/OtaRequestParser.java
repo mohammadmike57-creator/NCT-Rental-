@@ -19,6 +19,8 @@ import java.util.List;
 public final class OtaRequestParser {
 
     public static final int MAX_REQUEST_BYTES = 64 * 1024;
+    /** Deepest element nesting accepted; real OTA messages stay well under 20 levels. */
+    public static final int MAX_ELEMENT_DEPTH = 64;
 
     private OtaRequestParser() {}
 
@@ -39,6 +41,7 @@ public final class OtaRequestParser {
         f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         f.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
         f.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        f.setAttribute("http://www.oracle.com/xml/jaxp/properties/maxElementDepth", MAX_ELEMENT_DEPTH);   // JDK default: unlimited
         f.setXIncludeAware(false);
         f.setExpandEntityReferences(false);
         return f.newDocumentBuilder();
@@ -86,7 +89,8 @@ public final class OtaRequestParser {
     public static LocalDateTime parseDateTime(String value, String field) {
         if (value == null || value.isBlank()) throw new InvalidRequestException(field + " is required");
         try {
-            return OffsetDateTime.parse(value).toLocalDateTime(); // with offset / Z
+            // With an offset (or Z): the same instant in the stations' time zone, so 10:00Z is 13:00 in Amman, never 10:00.
+            return OffsetDateTime.parse(value).atZoneSameInstant(ChannelRules.DEFAULT_ZONE).toLocalDateTime();
         } catch (DateTimeParseException ignored) {
             // fall through to local date-time
         }

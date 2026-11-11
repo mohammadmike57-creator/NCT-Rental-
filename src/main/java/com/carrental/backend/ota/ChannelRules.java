@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
@@ -40,16 +42,51 @@ public record ChannelRules(
     BigDecimal noShowFeePercent,
     int inventoryPushDays,        // days ahead sent in inventory.updated
     List<CancelTier> cancellationTiers,  // sorted by hoursBefore, largest first
-    Map<String, BigDecimal> currencies   // sell currency -> units per 1 channel currency
+    Map<String, BigDecimal> currencies,  // sell currency -> units per 1 channel currency
+    ZoneId zone,                  // the branches' local time: lead time, deadlines and no-shows are counted in it
+    int turnaroundMinutes,        // cleaning / preparation time kept free before and after every rental
+    int overdueHoldHours,         // a car not back by its return time is treated as returning this many hours from now
+    boolean allowRetrieve,        // operations agreed with this broker (search and book are always on while bookings are enabled)
+    boolean allowModify,
+    boolean allowCancel,
+    int graceMinutes,             // a return up to this many minutes after a full day does not start another day (0 = none)
+    List<OneWayRoute> oneWayRoutes  // one-way fee per route; routes not listed use oneWayFee
 ) {
+
+    /** One-way fee for a route between two branch codes; bothWays = also from `to` back to `from`. */
+    public record OneWayRoute(String from, String to, BigDecimal fee, boolean bothWays) {
+        boolean matches(String a, String b) {
+            return (from.equalsIgnoreCase(a) && to.equalsIgnoreCase(b)) || (bothWays && from.equalsIgnoreCase(b) && to.equalsIgnoreCase(a));
+        }
+    }
+
+    /** The one-way fee for pick-up at `from` and return at `to`: the route's own fee, else the general one. Same branch = 0. */
+    public BigDecimal oneWayFeeFor(String from, String to) {
+        if (from == null || to == null || from.equalsIgnoreCase(to)) return BigDecimal.ZERO;
+        for (OneWayRoute r : oneWayRoutes) if (r.matches(from.trim(), to.trim())) return r.fee();
+        return oneWayFee;
+    }
+    /** Default time zone of the branches when none is set on the channel. */
+    public static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Amman");
+
+    /** The current local time at the branches (the server itself runs in UTC). */
+    public LocalDateTime now() { return LocalDateTime.now(zone); }
+
     /** Cancelling less than hoursBefore hours before pick-up costs feePercent of the booking. */
     public record CancelTier(int hoursBefore, BigDecimal feePercent) {}
 
     /** A station: code the broker uses, our branch, contact, position, hours and after-hours rules. */
     public record Location(String code, String name, String address, boolean pickup, boolean dropOff,
                            String type, String phone, Double latitude, Double longitude,
-                           Map<DayOfWeek, Hours> hours, boolean afterHoursPickup, boolean afterHoursReturn, BigDecimal afterHoursFee) {
+                           Map<DayOfWeek, Hours> hours, boolean afterHoursPickup, boolean afterHoursReturn, BigDecimal afterHoursFee,
+                           Map<LocalDate, SpecialDay> specialDays, BigDecimal airportFee) {
         public boolean openAt(java.time.LocalDateTime t) {
+            SpecialDay sd = specialDays.get(t.toLocalDate());
+            if (sd != null) {
+                if (sd.closed()) return false;
+                LocalTime at = t.toLocalTime();
+                return !at.isBefore(sd.open()) && !at.isAfter(sd.close());
+            }
             if (hours.isEmpty()) return true;              // no hours set: always open
             Hours h = hours.get(t.getDayOfWeek());
             if (h == null) return false;
@@ -58,6 +95,8 @@ public record ChannelRules(
         }
     }
     public record Hours(LocalTime open, LocalTime close) {}
+    /** A public holiday or special day: closed, or open at other hours than usual. */
+    public record SpecialDay(LocalDate date, boolean closed, LocalTime open, LocalTime close, String note) {}
 
     /** Tax, mileage, insurance covers, promotions and driver-age fees. */
     public record Pricing(BigDecimal taxPercent, boolean taxIncluded, String taxName,
@@ -147,7 +186,7 @@ public record ChannelRules(
         r.path("groupDetails").fields().forEachRemaining(e -> {
             JsonNode d = e.getValue();
             details.put(e.getKey().toUpperCase(Locale.ROOT), new GroupDetail(intOrNull(d, "seats"), intOrNull(d, "doors"), intOrNull(d, "largeBags"),
-                intOrNull(d, "smallBags"), text(d, "fuel"), text(d, "pictureUrl"), text(d, "description")));
+                intOrNull(d, "smallBags"), text(d, "fuel"), text(d, "pictureUrl"), ChannelLanguage.pick(text(d, "description"), d.path("descriptionAr").asText(""))));
         });
         List<Allotment> allots = new ArrayList<>();
         for (JsonNode a : r.path("allotments")) {
@@ -178,7 +217,28 @@ public record ChannelRules(
             clamp(r.path("noShowAfterHours").asInt(0), 0, 24 * 7),
             money(r.path("noShowFeePercent"), BigDecimal.valueOf(100)).min(BigDecimal.valueOf(100)),
             clamp(r.path("inventoryPushDays").asInt(60), 7, 365),
-            tiers(r), currencies(r, ch.currency()));
+            tiers(r), currencies(r, ch.currency()), zone(r.path("timeZone").asText("")),
+            clamp(r.path("turnaroundMinutes").asInt(0), 0, 24 * 60),
+            clamp(r.path("overdueHoldHours").asInt(24), 1, 24 * 14),
+            r.path("operations").path("retrieve").asBoolean(true),
+            r.path("operations").path("modify").asBoolean(true),
+            r.path("operations").path("cancel").asBoolean(true),
+            clamp(r.path("graceMinutes").asInt(0), 0, 180),
+            routes(r));
+    }
+
+    private static List<OneWayRoute> routes(JsonNode r) {
+        List<OneWayRoute> out = new ArrayList<>();
+        for (JsonNode x : r.path("oneWayRoutes")) {
+            String from = x.path("from").asText("").trim().toUpperCase(Locale.ROOT), to = x.path("to").asText("").trim().toUpperCase(Locale.ROOT);
+            if (from.isEmpty() || to.isEmpty() || from.equals(to) || !x.path("fee").isNumber()) continue;
+            out.add(new OneWayRoute(from, to, money(x.path("fee"), BigDecimal.ZERO), x.path("bothWays").asBoolean(true)));
+        }
+        return List.copyOf(out);
+    }
+
+    private static ZoneId zone(String id) {
+        try { return id.isBlank() ? DEFAULT_ZONE : ZoneId.of(id.trim()); } catch (Exception e) { return DEFAULT_ZONE; }
     }
 
     /**
@@ -227,6 +287,14 @@ public record ChannelRules(
             LocalTime open = time(day.path("open")), close = time(day.path("close"));
             if (open != null && close != null) hours.put(d, new Hours(open, close));
         }
+        Map<LocalDate, SpecialDay> special = new java.util.TreeMap<>();
+        for (JsonNode d : l.path("specialDays")) {
+            LocalDate date;
+            try { date = LocalDate.parse(d.path("date").asText("")); } catch (Exception e) { continue; }
+            LocalTime open = time(d.path("open")), close = time(d.path("close"));
+            boolean closed = d.path("closed").asBoolean(false) || open == null || close == null;
+            special.put(date, new SpecialDay(date, closed, open, close, d.path("note").asText("").trim()));
+        }
         // If some days are set and others are not, the missing ones are closed; if none are set, always open.
         Double lat = l.path("latitude").isNumber() ? l.path("latitude").asDouble() : null;
         Double lng = l.path("longitude").isNumber() ? l.path("longitude").asDouble() : null;
@@ -234,7 +302,9 @@ public record ChannelRules(
         if (!LOCATION_TYPES.contains(type)) type = "CITY";
         return new Location(code, name, address, l.path("pickup").asBoolean(true), l.path("dropOff").asBoolean(true), type,
             l.path("phone").asText("").trim(), lat, lng, hours, l.path("afterHoursPickup").asBoolean(false), l.path("afterHoursReturn").asBoolean(false),
-            money(l.path("afterHoursFee"), BigDecimal.ZERO));
+            money(l.path("afterHoursFee"), BigDecimal.ZERO), special,
+            // Airport branches only; free of charge when the supplier chose so (or no amount is set).
+            "AIRPORT".equals(type) && l.path("airportFeeCharged").asBoolean(true) ? money(l.path("stationFee"), BigDecimal.ZERO) : BigDecimal.ZERO);
     }
 
     public Location location(String code) {
@@ -285,7 +355,8 @@ public record ChannelRules(
     public ChannelRules forCertification(int buffer) {
         return new ChannelRules(true, paymentModel, freeCancellationHours, lateCancellationFeePercent, modificationFee, minLeadHours, maxRentalDays,
             maxHorizonDays, minDriverAge, maxDriverAge, offerValidityMinutes, holdMinutes, buffer, oneWayFee, allowedGroups, locations, "",
-            webhookEvents, pricing, groupDetails, allotments, 0, noShowFeePercent, inventoryPushDays, cancellationTiers, currencies);
+            webhookEvents, pricing, groupDetails, allotments, 0, noShowFeePercent, inventoryPushDays, cancellationTiers, currencies,
+            zone, turnaroundMinutes, overdueHoldHours, true, true, true, graceMinutes, oneWayRoutes);
     }
 
     private static String addressOf(JsonNode rentalLocations, String name, String fallback) {

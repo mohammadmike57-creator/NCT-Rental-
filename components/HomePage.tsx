@@ -23,7 +23,6 @@ const shortDate = (iso?: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 };
-const money = (n: number) => `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const num = (v: unknown) => { const n = typeof v === 'number' ? v : parseFloat(String(v ?? '')); return Number.isFinite(n) ? n : 0; };
 
 const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, onOpenAgreement, onOpenUnlistedAgreement }) => {

@@ -7,4 +7,8 @@ import java.util.List;
 
 public interface ChannelDeliveryLogRepository extends JpaRepository<ChannelDeliveryLog, Long> {
     List<ChannelDeliveryLog> findByChannelIdOrderByCreatedAtDesc(String channelId, Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Modifying @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("delete from ChannelDeliveryLog l where l.createdAt < :before")
+    int purge(@org.springframework.data.repository.query.Param("before") java.time.Instant before);
 }

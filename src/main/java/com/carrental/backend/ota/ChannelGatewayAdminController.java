@@ -37,10 +37,17 @@ public class ChannelGatewayAdminController {
     private final ChannelBookingService core;
     private final ChannelJobs jobs;
     private final ChannelTrafficService traffic;
+    private final ChannelSecurityGuard guard;
+    private final com.carrental.backend.service.StateService state;
+    private final com.carrental.backend.audit.ActivityService activity;
 
     public ChannelGatewayAdminController(ChannelStateReader channels, ChannelBookingRepository bookings, ChannelWebhookService webhooks,
                                          ChannelWebhookRepository deliveries, ChannelCertificationService certification,
-                                         ChannelBookingService core, ChannelJobs jobs, ChannelTrafficService traffic) {
+                                         ChannelBookingService core, ChannelJobs jobs, ChannelTrafficService traffic, ChannelSecurityGuard guard,
+                                         com.carrental.backend.service.StateService state, com.carrental.backend.audit.ActivityService activity) {
+        this.state = state;
+        this.activity = activity;
+        this.guard = guard;
         this.traffic = traffic;
         this.core = core;
         this.jobs = jobs;
@@ -76,6 +83,23 @@ public class ChannelGatewayAdminController {
         return ResponseEntity.ok(out);
     }
 
+    /**
+     * Deletes a broker booking from our records (OTA XML bookings list, and its copy in the reservations list if it
+     * has one). The broker is not told: a confirmed booking should be cancelled first.
+     */
+    @DeleteMapping("/bookings/{reservationNumber}")
+    public ResponseEntity<?> deleteBooking(@PathVariable String channelId, @PathVariable String reservationNumber, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        var found = bookings.findByReservationNumber(reservationNumber).filter(b -> channelId.equals(b.getChannelId()));
+        if (found.isEmpty()) return ResponseEntity.status(404).body(Map.of("error", "No booking " + reservationNumber + " on this channel."));
+        ChannelBooking b = found.get();
+        if (!b.isSandbox()) state.removeBrokerReservation(b.getStateReservationId());
+        bookings.delete(b);
+        activity.record(auth == null ? "staff" : auth.getName(), "DELETE", "reservation",
+            (b.isSandbox() ? "[Sandbox] " : "") + "Deleted broker booking " + reservationNumber + " (" + b.getStatus() + ") from OTA XML", reservationNumber, null);
+        return ResponseEntity.ok(Map.of("deleted", reservationNumber));
+    }
+
     @GetMapping("/webhooks")
     public ResponseEntity<?> webhooks(@PathVariable String channelId, @RequestParam(defaultValue = "50") int limit, Authentication auth) {
         if (!allowed(auth)) return forbidden();
@@ -106,7 +130,7 @@ public class ChannelGatewayAdminController {
         d.setEventType("webhook.test");
         d.setUrl(rules.webhookUrl());
         d.setPayload("{\"event_id\":\"" + id + "\",\"event_type\":\"webhook.test\",\"channel_code\":\"" + OtaXml.escape(ch.get().urlCode())
-            + "\",\"occurred_at\":\"" + Instant.now() + "\",\"data\":{\"message\":\"Test event from NCT Rental\"}}");
+            + "\",\"occurred_at\":\"" + Instant.now() + "\",\"data\":{\"message\":\"Test event from UR-Drive Jordan\"}}");
         d.setStatus(ChannelWebhookDelivery.Status.PENDING);
         d.setCreatedAt(Instant.now());
         d.setNextAttemptAt(Instant.now());
@@ -131,11 +155,20 @@ public class ChannelGatewayAdminController {
     }
 
     @GetMapping("/statement")
-    public ResponseEntity<?> statement(@PathVariable String channelId, @RequestParam String month, Authentication auth) {
+    public ResponseEntity<?> statement(@PathVariable String channelId, @RequestParam String month,
+                                       @RequestParam(required = false) String currency, Authentication auth) {
         if (!allowed(auth)) return forbidden();
         java.time.YearMonth ym;
         try { ym = java.time.YearMonth.parse(month); } catch (Exception e) { return ResponseEntity.badRequest().body(Map.of("error", "month must be YYYY-MM")); }
-        return channels.find(channelId).<ResponseEntity<?>>map(ch -> ResponseEntity.ok(core.statement(ch, ym))).orElseGet(this::notFound);
+        return channels.find(channelId).<ResponseEntity<?>>map(ch -> {
+            var st = core.statement(ch, ym);
+            if (currency == null || currency.isBlank() || currency.trim().equalsIgnoreCase(ch.currency())) return ResponseEntity.ok(st);
+            String cur = currency.trim().toUpperCase(java.util.Locale.ROOT);
+            java.math.BigDecimal rate = core.context(ch, false).rules().currencies().get(cur);
+            if (rate == null) return ResponseEntity.badRequest().body(Map.of("error",
+                "No " + cur + " rate for this channel. Add it under Booking API → Currencies (" + cur + " per 1 " + ch.currency() + ")."));
+            return ResponseEntity.ok(ChannelBookingService.settleIn(st, cur, rate));
+        }).orElseGet(this::notFound);
     }
 
     @GetMapping("/inventory")
@@ -182,6 +215,47 @@ public class ChannelGatewayAdminController {
             r.put("reservationNumber", m.getReservationNumber());
             return r;
         }).toList());
+    }
+
+    /** Who has been calling with this channel's code over the last week, failed sign-ins, and the addresses locked out now. */
+    @GetMapping("/security")
+    public ResponseEntity<?> security(@PathVariable String channelId, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        java.time.Instant dayAgo = java.time.Instant.now().minus(java.time.Duration.ofHours(24));
+        Map<String, Map<String, Object>> byIp = new LinkedHashMap<>();
+        int failed24 = 0, failed7d = 0;
+        for (ChannelMessage m : traffic.search(channelId, 24 * 7, null, null, null, 5000)) {
+            boolean authFail = "AUTH_FAILED".equals(m.getErrorCode());
+            if (authFail) { failed7d++; if (m.getCreatedAt().isAfter(dayAgo)) failed24++; }
+            String ip = m.getRemoteIp() == null ? "unknown" : m.getRemoteIp();
+            if (ip.startsWith("console:")) continue;
+            Map<String, Object> e = byIp.computeIfAbsent(ip, k -> {
+                Map<String, Object> n = new LinkedHashMap<>();
+                n.put("ip", k); n.put("requests", 0); n.put("authFailures", 0); n.put("lastSeen", null);
+                return n;
+            });
+            e.put("requests", (int) e.get("requests") + 1);
+            if (authFail) e.put("authFailures", (int) e.get("authFailures") + 1);
+            if (e.get("lastSeen") == null || m.getCreatedAt().isAfter((java.time.Instant) e.get("lastSeen"))) e.put("lastSeen", m.getCreatedAt());
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("authFailures24h", failed24);
+        out.put("authFailures7d", failed7d);
+        out.put("addresses", byIp.values().stream()
+            .sorted((a, b) -> ((java.time.Instant) b.get("lastSeen")).compareTo((java.time.Instant) a.get("lastSeen"))).limit(50).toList());
+        out.put("locked", guard.locks());
+        out.put("signingSecretCreatedAt", webhooks.secretCreatedAt(channelId).map(Object::toString).orElse(null));
+        out.put("lockoutPolicy", Map.of("maxFailures", ChannelSecurityGuard.MAX_FAILURES, "windowMinutes", ChannelSecurityGuard.WINDOW_MINUTES,
+            "lockMinutes", ChannelSecurityGuard.LOCK_MINUTES));
+        return ResponseEntity.ok(out);
+    }
+
+    @PostMapping("/security/unlock")
+    public ResponseEntity<?> unlock(@PathVariable String channelId, @RequestBody Map<String, String> body, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        String ip = body == null ? null : body.get("ip");
+        if (ip == null || ip.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "ip is required"));
+        return ResponseEntity.ok(Map.of("unlocked", guard.unlock(ip.trim())));
     }
 
     @GetMapping("/traffic/stats")

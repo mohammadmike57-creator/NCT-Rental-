@@ -80,13 +80,16 @@ public final class ChannelModels {
                               Customer customer, Driver driver, String assignedVehicle, Instant createdAt,
                               BigDecimal cancellationFee, BigDecimal refundAmount, String refundStatus, boolean sandbox,
                               BigDecimal taxAmount, boolean taxIncluded, Mileage mileage, List<CoverageOffer> coverages,
-                              VehicleInfo vehicle, String promoCode, List<Penalty> penalties) {}
+                              VehicleInfo vehicle, String promoCode, List<Penalty> penalties, int version) {}
 
     public record OpeningHours(String day, String open, String close) {}
 
+    /** A holiday or special day at a station: closed, or open at other hours. */
+    public record SpecialDay(String date, boolean closed, String open, String close, String note) {}
+
     public record Location(String code, String name, String address, boolean pickup, boolean dropOff, String type, String phone,
                            Double latitude, Double longitude, List<OpeningHours> openingHours, boolean afterHoursPickup,
-                           boolean afterHoursReturn, BigDecimal afterHoursFee) {}
+                           boolean afterHoursReturn, BigDecimal afterHoursFee, List<SpecialDay> specialDays) {}
 
     public record VehicleGroup(String code, String name, String category, String modelExample, String transmission,
                                boolean airCon, int fleetSize, BigDecimal depositAmount, BigDecimal excessAmount, VehicleInfo vehicle) {}

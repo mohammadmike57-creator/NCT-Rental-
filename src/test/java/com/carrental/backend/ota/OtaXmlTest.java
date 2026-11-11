@@ -61,6 +61,15 @@ class OtaXmlTest {
     }
 
     @Test
+    void gracePeriodOnlyWhenSet() {
+        assertEquals(4, OtaXml.rentalDays(at("03-01T10:00"), at("03-04T11:00"), 0));
+        assertEquals(3, OtaXml.rentalDays(at("03-01T10:00"), at("03-04T11:00"), 60));
+        assertEquals(4, OtaXml.rentalDays(at("03-01T10:00"), at("03-04T11:01"), 60));
+        assertEquals(1, OtaXml.rentalDays(at("03-01T10:00"), at("03-01T10:30"), 60), "under a day is always 1 day");
+        assertEquals(OtaXml.rentalDays(at("03-01T10:00"), at("03-04T10:01")), OtaXml.rentalDays(at("03-01T10:00"), at("03-04T10:01"), 0));
+    }
+
+    @Test
     void quoteUsesPublishedTiersAndCapsExtras() throws Exception {
         List<OtaXml.QuoteLine> q = OtaXml.quote(channel(), new OtaXml.QuoteRequest(at("05-01T10:00"), at("05-06T10:00"), List.of("13")));
         OtaXml.QuoteLine sdar = q.stream().filter(l -> l.sippCode().equals("SDAR")).findFirst().orElseThrow();
@@ -69,6 +78,30 @@ class OtaXmlTest {
         assertEquals("200.00", sdar.baseTotal().toPlainString());
         assertEquals("225.00", sdar.total().toPlainString()); // GPS 5 x 10 capped at 25
         assertEquals("Available", sdar.status());
+    }
+
+    /** A rate period saved from the price grid: one band left empty for a group is not sold, the others are. */
+    @Test
+    void priceGridWithAnEmptyCellClosesOnlyThatRentalLength() throws Exception {
+        JsonNode s = state(PartnerKeyVerifier.sha256Hex("secret-key"));
+        JsonNode agg = s.get("aggregators").get(0);
+        JsonNode grid = M.readTree("""
+            {"id":"r1","sippCode":"SDAR","tiers":[
+              {"id":"a","fromDay":1,"toDay":2,"dailyPrice":55},
+              {"id":"b","fromDay":3,"toDay":6,"dailyPrice":50},
+              {"id":"d","fromDay":14,"toDay":29,"dailyPrice":42},
+              {"id":"e","fromDay":30,"toDay":null,"dailyPrice":38}]}
+            """);
+        ((com.fasterxml.jackson.databind.node.ArrayNode) agg.path("ratePlanHistory").get(0).path("ratePlans").get(0).path("sippRates")).set(0, grid);
+        ChannelSnapshot ch = new ChannelSnapshot(agg, s.get("fleet"), s.get("stopSales"));
+        java.util.function.Function<Integer, OtaXml.QuoteLine> q = d -> OtaXml.quote(ch,
+                new OtaXml.QuoteRequest(at("05-01T10:00"), at("05-01T10:00").plusDays(d), List.of()))
+            .stream().filter(l -> l.sippCode().equals("SDAR")).findFirst().orElseThrow();
+        assertEquals("55.00", q.apply(2).dailyRate().toPlainString());
+        assertEquals("250.00", q.apply(5).baseTotal().toPlainString());
+        assertEquals("Closed", q.apply(9).status());                       // 7–13 days left empty
+        assertEquals("Available", q.apply(20).status());
+        assertEquals("1520.00", q.apply(40).baseTotal().toPlainString());  // 40 × 38, open-ended band
     }
 
     @Test

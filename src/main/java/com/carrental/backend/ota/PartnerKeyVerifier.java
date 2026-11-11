@@ -31,12 +31,27 @@ public final class PartnerKeyVerifier {
         return apiKeyHeader == null ? null : apiKeyHeader.trim();
     }
 
-    /** Constant-time comparison against the stored hash; channels without a key are always denied. */
-    public static boolean matches(ChannelSnapshot channel, String presentedKey) {
-        String stored = channel.feedKeyHash();
-        if (stored == null || stored.isBlank() || presentedKey == null || presentedKey.isBlank()) return false;
-        byte[] expected = stored.toLowerCase().getBytes(StandardCharsets.US_ASCII);
+    /** Which of the channel's keys was presented. */
+    public enum KeyKind { NONE, LIVE, TEST }
+
+    /** Constant-time comparison against the stored hashes; channels without a key are always denied. */
+    public static KeyKind kind(ChannelSnapshot channel, String presentedKey) {
+        if (presentedKey == null || presentedKey.isBlank()) return KeyKind.NONE;
         byte[] actual = sha256Hex(presentedKey).getBytes(StandardCharsets.US_ASCII);
-        return MessageDigest.isEqual(expected, actual);
+        if (same(channel.feedKeyHash(), actual)) return KeyKind.LIVE;
+        if (same(channel.testKeyHash(), actual)) return KeyKind.TEST;
+        java.time.Instant until = channel.previousKeyExpiresAt();
+        if (until != null && java.time.Instant.now().isBefore(until) && same(channel.previousKeyHash(), actual)) return KeyKind.LIVE;
+        return KeyKind.NONE;
+    }
+
+    /** True for the live key or the test key (the test key is held to the sandbox by the gateway). */
+    public static boolean matches(ChannelSnapshot channel, String presentedKey) {
+        return kind(channel, presentedKey) != KeyKind.NONE;
+    }
+
+    private static boolean same(String stored, byte[] actual) {
+        if (stored == null || stored.isBlank()) return false;
+        return MessageDigest.isEqual(stored.toLowerCase().getBytes(StandardCharsets.US_ASCII), actual);
     }
 }

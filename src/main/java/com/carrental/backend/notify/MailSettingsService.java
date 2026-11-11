@@ -41,7 +41,7 @@ public class MailSettingsService {
     @Value("${mail.smtp.from:noreply@nctrental.com}") String envFrom;
     @Value("${mail.smtp.from.name:NCT Rental}") String envFromName;
     @Value("${mail.smtp.reply-to:}") String envReplyTo;
-    @Value("${jwt.secret}") String secret;
+    @org.springframework.beans.factory.annotation.Autowired com.carrental.backend.config.ServerSecret serverSecret;
 
     public MailConfig effective() {
         return repo.findById(1L)
@@ -113,7 +113,9 @@ public class MailSettingsService {
 
     // ------------------------------------------------------------- encryption
 
-    private SecretKeySpec key() throws Exception {
+    private SecretKeySpec key() throws Exception { return keyFor(serverSecret.current()); }
+
+    private static SecretKeySpec keyFor(String secret) throws Exception {
         byte[] k = MessageDigest.getInstance("SHA-256").digest(("mail-settings:" + secret).getBytes(StandardCharsets.UTF_8));
         return new SecretKeySpec(k, "AES");
     }
@@ -136,14 +138,16 @@ public class MailSettingsService {
 
     String decrypt(String stored) {
         if (!notBlank(stored)) return "";
-        try {
-            byte[] all = Base64.getDecoder().decode(stored);
-            Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
-            c.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(128, all, 0, 12));
-            return new String(c.doFinal(all, 12, all.length - 12), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return ""; // secret changed or value corrupted: treat as not set
+        byte[] all;
+        try { all = Base64.getDecoder().decode(stored); } catch (Exception e) { return ""; }
+        for (String secret : serverSecret.all()) {   // current secret first, then JWT_SECRET_PREVIOUS
+            try {
+                Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+                c.init(Cipher.DECRYPT_MODE, keyFor(secret), new GCMParameterSpec(128, all, 0, 12));
+                return new String(c.doFinal(all, 12, all.length - 12), StandardCharsets.UTF_8);
+            } catch (Exception e) { /* try the next secret */ }
         }
+        return ""; // no secret opens it (secret changed without JWT_SECRET_PREVIOUS, or corrupted): treat as not set
     }
 
     private static int parsePort(String p) { try { return Integer.parseInt(p.trim()); } catch (Exception e) { return 587; } }

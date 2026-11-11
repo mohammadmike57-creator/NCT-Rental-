@@ -22,7 +22,7 @@ public class ChannelWebhookDelivery {
     @Column(length = 30) private String reservationNumber;
     @Column(length = 100) private String brokerReference;
     @Column(length = 500) private String url;
-    @Lob @Column(columnDefinition = "TEXT", nullable = false) private String payload;
+    @Column(columnDefinition = "TEXT", nullable = false) private String payload;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 12) private Status status;
     private int attempts;
     private Instant nextAttemptAt;
@@ -30,4 +30,8 @@ public class ChannelWebhookDelivery {
     @Column(length = 500) private String lastError;
     @Column(nullable = false) private Instant createdAt;
     private Instant deliveredAt;
+    /** Set for v3 subscriptions (webhooks v2); null for the channel's own webhook (v1, unchanged). */
+    private Long subscriptionId;
+    /** Order of events for one reservation (its version); v2 delivers them in this order. */
+    private Integer sequence;
 }

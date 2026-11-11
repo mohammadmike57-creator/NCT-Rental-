@@ -10,7 +10,7 @@ interface ProfileViewProps {
   onUserUpdate: (user: User) => void;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, firebaseUser, onUserUpdate }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, }) => {
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');

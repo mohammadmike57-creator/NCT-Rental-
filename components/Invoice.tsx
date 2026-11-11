@@ -189,7 +189,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
 
   const sel = `${selectCls} w-full`;
   const stateTone: Record<InvoiceState, 'info' | 'danger' | 'success' | 'muted'> = { unpaid: 'info', overdue: 'danger', paid: 'success', void: 'muted' };
-  const toggleLine = (id: string) => setExcluded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleLine = (id: string) => setExcluded(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   return (
     <Page>

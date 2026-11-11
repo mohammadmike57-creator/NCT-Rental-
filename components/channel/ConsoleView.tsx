@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Aggregator, Fleet } from '../../types';
-import { sendChannelConsole, ChannelConsoleResult } from '../../firebase/api';
+import { sendChannelConsole } from '../../firebase/api';
 import { Button, selectCls, inputCls } from '../ui/Crm';
 import CodeView, { checkMessage, detectLang, formatCode } from './CodeView';
 

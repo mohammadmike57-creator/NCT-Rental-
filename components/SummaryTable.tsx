@@ -1,11 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
 import { countsInSummary } from '../services/revenue';
 import { allRevenueEvents, applyMonthOverrides, monthlyBreakdown, RevenueEvent } from '../services/revenueByMonth';
 import CommissionAddOns from './CommissionAddOns';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
+import { addLogo } from '../services/pdfImage';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
 import SecurityKeyModal from './SecurityKeyModal';
@@ -251,9 +252,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
   const rate = currency === 'JOD' ? USD_TO_JOD_RATE : 1;
   const money = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n || 0);
+  // Same rule as the server: the franchise-payments permission, or the administrator permission.
   const canManage =
     !!currentUser?.permissions?.includes(UserPermission.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS) ||
-    currentUser?.role === 'ADMIN' || currentUser?.username === 'admin' || currentUser?.email === 'nadeenalnahas@gmail.com';
+    !!currentUser?.permissions?.includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);
 
   /** Moves one add-on (and its 7.5% commission) to another month, or back to automatic. */
   const moveAddOn = async (e: RevenueEvent, to: { year: number; month: number } | null) => {
@@ -358,8 +360,8 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
   };
 
   // ---- PDF -------------------------------------------------------------
-  const pdfHeader = (doc: jsPDF, title: string) => {
-    doc.addImage(NCT_LOGO_B64, 'PNG', 14, 12, 18, 18);
+  const pdfHeader = async (doc: jsPDF, title: string) => {
+    await addLogo(doc, NCT_LOGO_B64, 14, 12, 18, 18);
     doc.setFontSize(15);
     doc.setTextColor(15, 23, 42);
     doc.text(companyDetails.name, 36, 19);
@@ -376,10 +378,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     doc.line(14, 33, doc.internal.pageSize.getWidth() - 14, 33);
   };
 
-  const exportSummaryPDF = () => {
+  const exportSummaryPDF = async () => {
     const doc = new jsPDF();
-    pdfHeader(doc, `Yearly summary ${year} (${currency})`);
-    (doc as any).autoTable({
+    await pdfHeader(doc, `Yearly summary ${year} (${currency})`);
+    autoTable(doc, {
       startY: 39,
       head: [['Month', 'Bookings', 'Cancelled / no-show', `Revenue`, 'Avg booking', `Commission ${(COMMISSION_RATE * 100).toFixed(1)}%`]],
       body: months.map(m => [m.month, m.total, m.cancelled, money(m.revenueUSD * rate), m.confirmed ? money((m.revenueUSD / m.confirmed) * rate) : '—', money(m.commissionUSD * rate)]),
@@ -393,13 +395,13 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     doc.save(`summary_${year}_${currency}.pdf`);
   };
 
-  const exportStatementPDF = () => {
+  const exportStatementPDF = async () => {
     const doc = new jsPDF({ orientation: 'landscape' });
-    pdfHeader(doc, `Franchise fee statement ${year}`);
+    await pdfHeader(doc, `Franchise fee statement ${year}`);
     doc.setFontSize(9);
     doc.setTextColor(51, 65, 85);
     doc.text(`Fee = ${(COMMISSION_RATE * 100).toFixed(1)}% of revenue (all bookings except cancelled and no-show) + ${usd(FIXED_ADDON)} per month, due on the ${DEADLINE_DAY}th of the following month. Amounts in USD.`, 14, 40);
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: 45,
       head: [['Month', 'Revenue', 'Commission', 'Fixed fee', 'Fee due', 'Deadline', 'Status', 'Paid', 'Date', 'Method', 'Reference']],
       body: months.map(m => [

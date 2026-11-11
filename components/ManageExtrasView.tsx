@@ -26,7 +26,6 @@ const ManageExtrasView: React.FC<ManageExtrasViewProps> = ({ extras, onUpdate })
   const [extraToDelete, setExtraToDelete] = useState<AvailableExtra | null>(null);
 
   useEffect(() => {
-    console.log('ManageExtrasView: extras prop changed', extras);
     setLocalExtras(JSON.parse(JSON.stringify(extras)));
   }, [extras]);
 
@@ -63,7 +62,6 @@ const ManageExtrasView: React.FC<ManageExtrasViewProps> = ({ extras, onUpdate })
   };
 
   const handleSave = () => {
-    console.log('ManageExtrasView: handleSave called, localExtras:', localExtras);
     onUpdate(localExtras);
   };
 

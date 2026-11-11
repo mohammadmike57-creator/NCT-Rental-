@@ -3,6 +3,9 @@
 # ---- Stage 1: build the website (React/Vite) ----
 FROM node:22-slim AS frontend
 WORKDIR /web
+# Render passes its environment variables as build args; the commit is shown in the app's version label.
+ARG RENDER_GIT_COMMIT=
+ENV RENDER_GIT_COMMIT=$RENDER_GIT_COMMIT
 COPY package.json package-lock.json .node-version ./
 RUN npm ci --no-audit --no-fund
 COPY . .

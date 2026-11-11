@@ -38,9 +38,16 @@ public final class OtaXml {
     public record QuoteRequest(LocalDateTime pickUp, LocalDateTime dropOff, List<String> equipCodes) {}
 
     public static int rentalDays(LocalDateTime pickUp, LocalDateTime dropOff) {
+        return rentalDays(pickUp, dropOff, 0);
+    }
+
+    /** Every started 24h block counts, except that up to graceMinutes past a full day is free. */
+    public static int rentalDays(LocalDateTime pickUp, LocalDateTime dropOff, int graceMinutes) {
         long minutes = Duration.between(pickUp, dropOff).toMinutes();
         if (minutes <= 0) return 1;
-        return (int) Math.max(1, (minutes + 1439) / 1440); // every started 24h block counts
+        long full = minutes / 1440, over = minutes % 1440;
+        if (over > 0 && (full == 0 || over > Math.max(0, graceMinutes))) full++;
+        return (int) Math.max(1, full);
     }
 
     static boolean isOpenEnded(JsonNode tier) {
@@ -146,14 +153,19 @@ public final class OtaXml {
             String id = e.path("id").asText("");
             String code = e.path("otaEquipType").asText("");
             double cap = e.path("maxPerRental").asDouble(0);
-            out.add(new Extra(id, code.isBlank() ? id : code, e.path("name").asText(id),
+            out.add(new Extra(id, code.isBlank() ? id : code, ChannelLanguage.text(e, "name", id),
                 money(e.path("price").asDouble(0)), cap > 0 ? money(cap) : null));
         }
         return out;
     }
 
     public static List<QuoteLine> quote(ChannelSnapshot ch, QuoteRequest req) {
-        int days = rentalDays(req.pickUp(), req.dropOff());
+        return quote(ch, req, 0);
+    }
+
+    /** graceMinutes: the booking API's grace period; the /ota/v1 search always uses 0 (unchanged). */
+    public static List<QuoteLine> quote(ChannelSnapshot ch, QuoteRequest req, int graceMinutes) {
+        int days = rentalDays(req.pickUp(), req.dropOff(), graceMinutes);
         LocalDate pickUpDate = req.pickUp().toLocalDate();
         LocalDate returnDate = req.dropOff().toLocalDate();
         JsonNode plan = findPlan(ch.publishedRatePlans(), pickUpDate);
@@ -268,7 +280,7 @@ public final class OtaXml {
         x.append("      <ReturnLocation").append(attrs("LocationCode", ch.locationCode())).append("/>\n");
         x.append("    </VehRentalCore>\n");
         x.append("    <VehVendorAvails>\n      <VehVendorAvail>\n");
-        x.append("        <Vendor").append(attrs("Code", ch.vendorCode())).append(">NCT Rental</Vendor>\n");
+        x.append("        <Vendor").append(attrs("Code", ch.vendorCode())).append(">").append(escape(ch.vendorName())).append("</Vendor>\n");
         x.append("        <VehAvails>\n");
         for (QuoteLine l : lines) {
             x.append("          <VehAvail>\n");
@@ -314,6 +326,11 @@ public final class OtaXml {
 
     /** Full published rate sheet (seasons × SIPP × length of rental) with extras, stop sales and terms. */
     public static String rateSheet(ChannelSnapshot ch) {
+        return rateSheet(ch, (group, daily) -> daily);
+    }
+
+    /** The rate sheet with every daily amount passed through `daily` (group, published amount) - used for broker terms. */
+    public static String rateSheet(ChannelSnapshot ch, java.util.function.BiFunction<String, BigDecimal, BigDecimal> daily) {
         StringBuilder x = new StringBuilder();
         int version = ch.publishedVersion();
         x.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -343,7 +360,7 @@ public final class OtaXml {
                         x.append("        <Rate").append(attrs("MinDays", t.path("fromDay").asInt(1),
                             "MaxDays", open ? null : t.get("toDay").asInt(),
                             "OpenEnded", open ? "true" : null,
-                            "DailyAmount", money(t.path("dailyPrice").asDouble(0)).toPlainString())).append("/>\n");
+                            "DailyAmount", daily.apply(code, money(t.path("dailyPrice").asDouble(0))).toPlainString())).append("/>\n");
                     }
                     x.append("      </VehicleGroup>\n");
                 }
