@@ -34,15 +34,9 @@ jobs:
           cache: maven
       - run: mvn -B test -Dexec.skip=true
 
-  end-to-end:
-    # Runs inside Playwright's own image, which already contains the browser and everything it needs,
-    # so the job never depends on downloading system packages (that failed on GitHub's machines).
-    runs-on: ubuntu-24.04
-    container:
-      image: mcr.microsoft.com/playwright:v1.56.1-noble
-    env:
-      HOME: /root
-    needs: [website, server]
+  package:
+    # The complete server with the website inside, built on GitHub's normal machine (it has Maven).
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,6 +51,36 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run build
       - run: mvn -B package -DskipTests -Dexec.skip=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-jar
+          path: target/backend-0.0.1-SNAPSHOT.jar
+          retention-days: 1
+
+  end-to-end:
+    # Runs inside Playwright's own image, which already contains the browser and everything it needs,
+    # so the job never depends on downloading system packages. It tests the server built above.
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    env:
+      HOME: /root
+    needs: [website, server, package]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          name: server-jar
+          path: target
+      - run: npm ci --no-audit --no-fund
       - run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()

@@ -103,8 +103,8 @@ Data storage (`STORAGE_MODE`, default `document`): see `docs/database-plan.md`.
 | `tables-only` | Bookings and records only in tables; the document keeps settings | `tables` or `dual` (the document is rebuilt) |
 
 In every mode except `document`, each change or deletion of a booking keeps the previous version.
-Administrators can check the storage at `/api/admin/storage/check`, see a booking's earlier versions at
-`/api/admin/storage/history?bookingId=…` and recently deleted bookings at `/api/admin/storage/deleted`.
+Administrators see this in **Company Details → Data storage**: whether the tables and the document match (per
+section and per month), a booking's earlier versions, and recently deleted bookings (server: `/api/admin/storage/…`).
 
 Never commit secret values. `docs/application.example.yml` lists the settings without values.
 

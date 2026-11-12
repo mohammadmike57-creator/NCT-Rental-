@@ -1,14 +1,27 @@
 import { test, expect, Page, Locator } from '@playwright/test';
 import { ADMIN, day, login, openScreen, tokenOf } from './helpers';
 
-/** Draws a short line on a signature pad, like a finger or mouse would. */
+/**
+ * Draws a short line on a signature pad, like a finger or mouse would. The screen can redraw a pad while a step
+ * opens or a signature is saved; then the pad is found again and the line drawn once more (at most three tries).
+ */
 async function sign(page: Page, pad: Locator) {
-  await pad.scrollIntoViewIfNeeded();
-  const box = (await pad.boundingBox())!;
-  await page.mouse.move(box.x + 30, box.y + box.height / 2);
-  await page.mouse.down();
-  for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + 30 + i * 15, box.y + box.height / 2 + (i % 2 ? 12 : -12));
-  await page.mouse.up();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await expect(pad).toBeVisible();
+      await pad.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);   // let scrolling and any redraw finish
+      const box = await pad.boundingBox();
+      if (!box) throw new Error('signature pad is not attached');
+      await page.mouse.move(box.x + 30, box.y + box.height / 2);
+      await page.mouse.down();
+      for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + 30 + i * 15, box.y + box.height / 2 + (i % 2 ? 12 : -12));
+      await page.mouse.up();
+      return;
+    } catch (e) {
+      if (attempt >= 3 || !/not attached|detached/i.test(String(e))) throw e;
+    }
+  }
 }
 
 const agreement = (page: Page) => page.getByRole('dialog').filter({ hasText: 'Rental agreement' }).last();

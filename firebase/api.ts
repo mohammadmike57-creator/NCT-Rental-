@@ -267,6 +267,15 @@ export const downloadBackupFile = async (): Promise<string> => {
   return name;
 };
 
+export interface StorageSection { section: string; status: string; items?: number; inTables?: number;
+  months?: { month: string; bookings: number; bookingsInTables: number; amount: number; amountInTables: number }[] }
+export interface StorageCheck { mode: string; tablesReady: boolean; documentComplete?: boolean; allMatch: boolean; sections?: StorageSection[]; deletedBookingsKept?: number; error?: string }
+export interface StoredVersion { bookingId: string; action: string; changedAt: string; previous: string }
+export const getStorageCheck = async (): Promise<StorageCheck> => (await axios.get(`${API_URL}/api/admin/storage/check`, { headers: authHeaders() })).data;
+export const getBookingHistory = async (bookingId: string): Promise<StoredVersion[]> =>
+  (await axios.get(`${API_URL}/api/admin/storage/history`, { params: { bookingId }, headers: authHeaders() })).data;
+export const getDeletedBookings = async (): Promise<StoredVersion[]> => (await axios.get(`${API_URL}/api/admin/storage/deleted`, { headers: authHeaders() })).data;
+
 export interface DataBackup { id: string; kind: 'automatic' | 'manual'; bookings?: number; fleet?: number; sources?: number; company?: string; size: number }
 export const listBackups = async (): Promise<DataBackup[]> => (await axios.get(`${API_URL}/api/state/backups`, { headers: authHeaders() })).data;
 export const restoreBackup = async (id: string): Promise<{ restored: string; previousDataBackup: string }> => {

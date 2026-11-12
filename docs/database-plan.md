@@ -47,8 +47,9 @@ save only changes the sections it touched, and staff permissions are checked per
 ### How to switch, step by step
 
 1. Render → car-rental-db → Recovery → **Create export**, download it.
-2. Render → NCT backend-java → Environment → `STORAGE_MODE` = `dual` → deploy. Open
-   `/api/admin/storage/check` as an administrator: every section must say "identical".
+2. Render → NCT backend-java → Environment → `STORAGE_MODE` = `dual` → deploy. As an
+   administrator, open **Company Details → Data storage → Data storage check**: it must say "Everything
+   matches" and every line "Identical".
 3. After 1–2 weeks with "identical" every day: `STORAGE_MODE` = `tables`, deploy, check again.
 4. After another quiet week: `STORAGE_MODE` = `tables-only`.
 5. Any problem at any step: set the previous value back and deploy. Nothing is lost.

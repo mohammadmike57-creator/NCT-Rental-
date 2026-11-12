@@ -39,6 +39,12 @@ public class ServerErrorHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> unexpected(Exception e, HttpServletRequest req, Principal who) throws Exception {
         if (expected(e)) throw e; // Spring answers these with the right status (400, 401, 403, 404...)
+        if (clientWentAway(e)) {
+            // The browser closed or reloaded the page, or lost its connection, while the answer was being sent.
+            // Nothing failed on the server and there is nobody left to answer: not reported as an error.
+            log.debug("Client went away during {} {}: {}", req.getMethod(), req.getRequestURI(), e.toString());
+            return null;
+        }
         String where = req.getMethod() + " " + req.getRequestURI();
         String ref = monitor.report("server", e.getClass().getSimpleName() + " at " + where + ": " + e.getMessage(),
                 stackOf(e), who == null ? null : who.getName());
@@ -54,6 +60,18 @@ public class ServerErrorHandler {
                 || e instanceof HttpMessageNotReadableException || e instanceof TypeMismatchException
                 || e instanceof MultipartException || e instanceof RequestRejectedException
                 || AnnotatedElementUtils.hasAnnotation(e.getClass(), ResponseStatus.class);
+    }
+
+    /** The connection was closed by the other side (page closed or reloaded, phone lost signal). */
+    static boolean clientWentAway(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            String type = t.getClass().getSimpleName();
+            if (type.equals("AsyncRequestNotUsableException") || type.equals("ClientAbortException")) return true;
+            String msg = t.getMessage() == null ? "" : t.getMessage().toLowerCase(java.util.Locale.ROOT);
+            if (t instanceof java.io.IOException && (msg.contains("broken pipe") || msg.contains("connection reset by peer")
+                    || msg.contains("connection was aborted") || msg.contains("an established connection was aborted"))) return true;
+        }
+        return false;
     }
 
     private static String stackOf(Throwable e) {

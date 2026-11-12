@@ -5,6 +5,7 @@ import { Page, PageHeader, Panel, Button, Field, inputCls } from './ui/Crm';
 import { parseTerms } from '../services/agreementTerms';
 import DataCleanupPanel, { CleanupSection } from './DataCleanupPanel';
 import BackupRestorePanel from './BackupRestorePanel';
+import StorageCheckPanel from './StorageCheckPanel';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
@@ -136,6 +137,12 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
           </div>
         </Panel>
       </SettingsSection>
+
+      {cleanup && (
+        <SettingsSection title="Data storage" description="How bookings and records are stored, and whether every copy matches. Read only, for administrators.">
+          <StorageCheckPanel />
+        </SettingsSection>
+      )}
 
       <SettingsSection title="Danger zone" description="Irreversible actions, for administrators only. A backup is always taken first." danger>
         {cleanup ? <div className="space-y-4"><BackupRestorePanel onRestored={cleanup.onRestored} /><DataCleanupPanel sections={cleanup.sections} onClear={cleanup.onClear} /></div> : (
