@@ -307,8 +307,8 @@ public class StateService {
     private void upsertReservation(ObjectNode root, String year, String month, JsonNode reservation) {
         String id = reservation.path("id").asText("");
         if (id.isEmpty() || year.isEmpty() || month.isEmpty()) return;
-        ObjectNode reservations = root.with("reservations");
-        ObjectNode yearNode = reservations.with(year);
+        ObjectNode reservations = objectAt(root, "reservations");
+        ObjectNode yearNode = objectAt(reservations, year);
         JsonNode bucket = yearNode.get(month);
         ArrayNode target = bucket instanceof ArrayNode ? (ArrayNode) bucket : yearNode.putArray(month);
         // Replace in place when it is already in this month, otherwise move it here.
@@ -433,5 +433,13 @@ public class StateService {
             return merged;
         }
         return target;
+    }
+
+    /** The object under {@code key}, created when missing (what ObjectNode.with did); refuses to replace a non-object. */
+    private static ObjectNode objectAt(ObjectNode parent, String key) {
+        JsonNode existing = parent.get(key);
+        if (existing == null || existing.isNull()) return parent.putObject(key);
+        if (existing instanceof ObjectNode o) return o;
+        throw new IllegalStateException("\"" + key + "\" is not an object");
     }
 }

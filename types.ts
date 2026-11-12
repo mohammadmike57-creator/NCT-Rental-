@@ -660,7 +660,9 @@ export interface Aggregator {
     termsAndConditionsAr?: string;
     // Channel manager settings (optional for backward compatibility)
     channelCode?: string;        // Short partner code, e.g. BKG
-    vendorCode?: string;         // Our supplier code at the partner, e.g. NCT
+    vendorCode?: string;         // Our supplier code at the partner, e.g. URD
+    /** XML layout: 'standard' = valid against the official OpenTravel 2017B schemas; otherwise the layout the broker was connected with. */
+    otaProfile?: 'standard' | 'compatible';
     vendorName?: string;         // Supplier name brokers see in every response (Vendor), e.g. UR-Drive Jordan
     locationCode?: string;       // Pick-up location code sent in XML, e.g. AMM
     currency?: string;           // ISO 4217, defaults to USD
@@ -812,6 +814,8 @@ export interface ChannelCommercialVersion {
 }
 
 export interface ChannelBookingRules {
+    /** OpenTravel codes the broker gave for our covers (our code → OTA coverage type). */
+    otaCodes?: { coverages?: Record<string, string> };
     bookingsEnabled?: boolean;
     paymentModel?: ChannelPaymentModel;
     freeCancellationHours?: number;

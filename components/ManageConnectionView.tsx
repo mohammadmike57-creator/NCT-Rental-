@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Aggregator, AggregatorConnectionDetails, ChannelStatus } from '../types';
 import { SaveIcon, LockClosedIcon, EyeIcon, CheckCircleIcon, AlertIcon } from './icons';
 import { SUPPORTED_CURRENCIES, acceptedVendorCodes, validateChannel, generateFeedKey, sha256Hex, partnerEndpoints } from '../services/channelManager';
 import { API_URL } from '../firebase/api';
 import { Panel, Button, inputCls, selectCls, labelCls } from './ui/Crm';
 import { keyMessage } from './channel/ApiKeysView';
+import { KNOWN_COVERAGE_TYPES, coverageTypeFor, isOtaCode } from '../services/otaCodes';
 
 interface ManageConnectionViewProps {
   aggregator: Aggregator;
@@ -22,6 +23,8 @@ type Draft = {
   status: ChannelStatus;
   commissionPercent: string;
   contactEmail: string;
+  otaProfile: 'standard' | 'compatible';
+  coverageCodes: Record<string, string>;
 };
 
 const toDraft = (agg: Aggregator): Draft => ({
@@ -33,16 +36,22 @@ const toDraft = (agg: Aggregator): Draft => ({
     timeoutSeconds: agg.connectionDetails?.timeoutSeconds ?? 30,
   },
   channelCode: agg.channelCode || '',
-  vendorCode: agg.vendorCode || 'NCT',
+  vendorCode: agg.vendorCode || 'URD',
   vendorName: agg.vendorName || 'UR-Drive Jordan',
   locationCode: agg.locationCode || 'AMM',
   currency: agg.currency || 'USD',
   status: agg.status || 'active',
   commissionPercent: agg.commissionPercent != null ? String(agg.commissionPercent) : '',
   contactEmail: agg.contactEmail || '',
+  otaProfile: agg.otaProfile === 'standard' ? 'standard' : 'compatible',
+  coverageCodes: { ...(agg.bookingRules?.otaCodes?.coverages || {}) },
 });
 
 const selCls = `${selectCls} w-full`;
+
+/** Only filled-in coverage codes are kept, in capitals. */
+const cleanCodes = (codes: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.entries(codes).map(([k, v]) => [k.toUpperCase(), v.trim().toUpperCase()]).filter(([, v]) => v));
 const Label: React.FC<{ children: React.ReactNode; hint?: string }> = ({ children, hint }) => (
   <label className={labelCls}>
     {children}
@@ -61,8 +70,11 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Start again from the saved settings only when another connection is opened (not on every save).
+  const current = useRef(aggregator);
+  current.current = aggregator;
   useEffect(() => {
-    setDraft(toDraft(aggregator));
+    setDraft(toDraft(current.current));
     setCheckResult(null);
     setNewKey(null);
   }, [aggregator.id]);
@@ -84,8 +96,14 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
       status: draft.status,
       commissionPercent: Number.isFinite(commission) ? commission : undefined,
       contactEmail: draft.contactEmail.trim() || undefined,
+      otaProfile: draft.otaProfile,
+      bookingRules: { ...aggregator.bookingRules, otaCodes: { ...aggregator.bookingRules?.otaCodes, coverages: cleanCodes(draft.coverageCodes) } },
     };
   };
+
+  const coverCodes = (aggregator.bookingRules?.pricing?.coverages || [])
+    .map(c => ({ code: (c.code || '').trim().toUpperCase(), name: c.name }))
+    .filter(c => c.code);
 
   const dirty = JSON.stringify(toDraft(build())) !== JSON.stringify(toDraft(aggregator));
 
@@ -267,6 +285,54 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
         )}
       </Section>
 
+      <Section title="OpenTravel XML layout" subtitle="How this broker's XML answers are laid out. Prices, availability and bookings are the same in both.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="XML layout">
+          {([
+            ['standard', 'OpenTravel standard', 'Every answer is valid against the official OpenTravel 2017B schemas: official day names and times, codes from the OpenTravel code lists, booking details in their standard place. Recommended for every new connection.'],
+            ['compatible', 'As connected', 'The layout this broker was built and certified against. Keep it until the broker confirms they read the standard layout, then switch.'],
+          ] as const).map(([value, title, text]) => (
+            <label key={value} className={`flex gap-3 rounded-lg p-3 cursor-pointer ring-1 ring-inset ${draft.otaProfile === value ? 'ring-indigo-500 bg-indigo-50/60' : 'ring-slate-200 hover:bg-slate-50'}`}>
+              <input type="radio" name="otaProfile" className="mt-1" checked={draft.otaProfile === value} onChange={() => set('otaProfile', value)} />
+              <span><span className="block text-[13px] font-semibold text-slate-900">{title}</span><span className="block text-xs text-slate-600 mt-0.5">{text}</span></span>
+            </label>
+          ))}
+        </div>
+        {coverCodes.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[13px] font-semibold text-slate-900">Coverage codes <span className="font-normal text-slate-500">(OpenTravel coverage type, from the broker's specification)</span></p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead className="text-[11px] uppercase tracking-wider text-slate-500 text-left border-b border-slate-200">
+                  <tr><th className="py-2 pr-3">Cover</th><th className="py-2 pr-3">OpenTravel code</th><th className="py-2">Sent as</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {coverCodes.map(c => {
+                    const own = draft.coverageCodes[c.code] || '';
+                    const sent = coverageTypeFor(c.code, draft.coverageCodes);
+                    const bad = own !== '' && !isOtaCode(own);
+                    return (
+                      <tr key={c.code}>
+                        <td className="py-2 pr-3"><span className="font-mono font-semibold">{c.code}</span> <span className="text-slate-500">{c.name}</span></td>
+                        <td className="py-2 pr-3">
+                          <input value={own} aria-label={`OpenTravel code for ${c.code}`} placeholder={KNOWN_COVERAGE_TYPES[c.code] || 'e.g. 38'}
+                            onChange={e => set('coverageCodes', { ...draft.coverageCodes, [c.code]: e.target.value.toUpperCase().slice(0, 12) })}
+                            className={`${inputCls} w-28 font-mono ${bad ? 'border-rose-400' : ''}`} />
+                        </td>
+                        <td className="py-2 text-xs">
+                          {bad ? <span className="text-rose-600">Not an OpenTravel code (digits, e.g. 7)</span>
+                            : sent ? <span className="text-emerald-700">CoverageType {sent}</span>
+                            : <span className="text-amber-700">In the extensions until a code is set</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Section>
+
       <Section title="XML identifiers & commercial terms" subtitle="Values written into every XML message for this channel.">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-3">
@@ -275,12 +341,12 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
           </div>
           <div>
             <Label hint="(Vendor Code)">Supplier code</Label>
-            <input value={draft.vendorCode} onChange={e => set('vendorCode', e.target.value.toUpperCase().slice(0, 8))} className={`${inputCls} font-mono`} placeholder="NCT" />
+            <input value={draft.vendorCode} onChange={e => set('vendorCode', e.target.value.toUpperCase().slice(0, 8))} className={`${inputCls} font-mono`} placeholder="URD" />
           </div>
           <div className="sm:col-span-3 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 px-3 py-2 text-xs text-slate-600">
             <span className="font-semibold text-slate-700">Codes the broker may use:</span>{' '}
             {acceptedVendorCodes(draft.vendorCode, draft.vendorName).map(c => <span key={c} className="inline-block mx-0.5 px-1.5 py-px rounded bg-white ring-1 ring-inset ring-slate-200 font-mono font-semibold text-slate-800">{c}</span>)}
-            <span className="block mt-1 text-slate-500">Each answer uses the code the broker sent in VendorPref. A broker that sends none gets {(draft.vendorCode || 'NCT').toUpperCase()}.</span>
+            <span className="block mt-1 text-slate-500">Each answer uses the code the broker sent in VendorPref. A broker that sends none gets {(draft.vendorCode || 'URD').toUpperCase()}.</span>
           </div>
           <div>
             <Label hint="(IATA / partner)">Location code</Label>

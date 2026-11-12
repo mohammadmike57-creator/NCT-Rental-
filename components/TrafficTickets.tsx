@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { TrafficTicket, TrafficTicketStatus, AppData, Reservation, User, UserPermission, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, CancelIcon, ExportIcon, PaperAirplaneIcon, UploadIcon, DocumentTextIcon, ShareIcon } from './icons';
 import ConfirmationDialog from './ConfirmationDialog';
@@ -125,7 +125,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
   
   const hasManagePermission = currentUser?.permissions.includes(UserPermission.ACTION_TRAFFIC_TICKETS_MANAGE);
 
-  const findReservationByBookingId = (bookingId: string): Reservation | null => {
+  const findReservationByBookingId = useCallback((bookingId: string): Reservation | null => {
     if (!bookingId) return null;
     const trimmedId = bookingId.trim().toLowerCase();
     for (const year in allData) {
@@ -137,7 +137,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
       }
     }
     return null;
-  };
+  }, [allData]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -149,7 +149,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
       }
     }, 300); // Debounce search
     return () => clearTimeout(handler);
-  }, [newTicketData.bookingId, allData]);
+  }, [newTicketData.bookingId, findReservationByBookingId]);
   
   const filteredTickets = useMemo(() => {
     if (!statusFilter) {

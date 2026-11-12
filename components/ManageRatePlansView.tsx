@@ -28,6 +28,15 @@ const periodState = (plan: RatePlan, today: string) => {
   return { label: 'Upcoming', tone: 'info' as const };
 };
 
+/** Per car group: the daily price for short rentals and, when it falls with length, the longest-band price ("32 → 24"). */
+const priceSummary = (plan: RatePlan) =>
+  (plan.sippRates || []).filter(r => r.sippCode && r.tiers?.length).slice(0, 6).map(r => {
+    const prices = (r.tiers || []).map(t => Number(t.dailyPrice)).filter(n => Number.isFinite(n) && n > 0);
+    const first = prices[0], last = prices[prices.length - 1];
+    const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+    return { group: r.sippCode, text: prices.length === 0 ? '—' : first === last ? fmt(first) : `${fmt(first)} → ${fmt(last)}` };
+  });
+
 const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
   aggregator, onUpdateAggregator, fleet, stopSales = [], showConfirmation, currentUserName, onPublished,
 }) => {
@@ -182,6 +191,12 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                         <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
                           <span className="font-mono text-[11px] px-1.5 py-px bg-slate-50 rounded border border-slate-200">{plan.startDate} → {plan.endDate}</span>
                           <span className="tabular-nums">{plan.sippRates?.length ?? 0} vehicle group{plan.sippRates?.length === 1 ? '' : 's'}</span>
+                          {priceSummary(plan).map(p => (
+                            <span key={p.group} className="inline-flex items-baseline gap-1 px-1.5 py-px rounded bg-white ring-1 ring-inset ring-slate-200 text-[11px] tabular-nums">
+                              <span className="font-mono font-semibold text-slate-700">{p.group}</span>
+                              <span className="text-slate-600">{p.text} {currency}/day</span>
+                            </span>
+                          ))}
                           {planIssues.length > 0 && <span className="text-rose-600 font-semibold">{planIssues.length} issue{planIssues.length > 1 ? 's' : ''}</span>}
                         </div>
                       </div>

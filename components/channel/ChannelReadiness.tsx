@@ -17,7 +17,7 @@ export function readinessSteps(a: Aggregator, fleet: Fleet, validation: Validati
   const cp = a.connectionProfile?.state || 'not_connected';
   const locDetail = locs.filter(l => l.phone && l.latitude != null && l.longitude != null);
   return [
-    { id: 'identity', label: 'Codes and currency', detail: `Channel ${a.channelCode || '—'}, supplier ${a.vendorCode || 'NCT'}, ${a.currency || 'USD'}${a.commissionPercent != null ? `, ${a.commissionPercent}% commission` : ''}`,
+    { id: 'identity', label: 'Codes and currency', detail: `Channel ${a.channelCode || '—'}, supplier ${a.vendorCode || 'URD'}, ${a.currency || 'USD'}${a.commissionPercent != null ? `, ${a.commissionPercent}% commission` : ''}`,
       done: !!a.channelCode && !!a.currency, required: true, tab: 'Connection' },
     { id: 'contact', label: 'Broker contact and connection profile', detail: a.contactEmail ? `${a.contactEmail} · ${cp.replace(/_/g, ' ')}` : 'Add the broker\'s connectivity email and fill the connection profile',
       done: !!a.contactEmail && !!a.connectionProfile?.format, required: false, tab: 'Connection' },

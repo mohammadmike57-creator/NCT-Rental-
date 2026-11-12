@@ -125,6 +125,21 @@ the same page; they sign in with the password and set it up again.
 3. Re-save the SMTP and connector settings once so they are protected with the new secret, then
    remove `JWT_SECRET_PREVIOUS` after the login lifetime has passed.
 
+## Broker XML (OpenTravel)
+
+Each broker channel has an XML layout (OTA XML → channel → **OpenTravel XML layout**):
+
+- **OpenTravel standard** (all new channels): every answer is valid against the official OpenTravel 2017B
+  schemas, which the tests check message by message (`src/test/resources/ota-xsd/2017B`, published by the OpenTravel
+  Alliance). Codes come from the OpenTravel code lists as used in the Alliance's own sample messages
+  (`OtaCodes.java`): vehicle rental 1, surcharge 5, tax 7, extra distance 8; covers CDW 7, PDW 31, PAI 32, PEP 35,
+  SLI 42, ALI 1. Covers without an official code get the broker's code on the same screen; until then they are
+  sent in `TPA_Extensions/AdditionalCoverages`.
+- **As connected**: the layout a broker was built and certified against. Existing channels keep it until the broker
+  confirms the standard layout; then switch it on the same screen.
+
+Prices, availability and bookings are identical in both layouts.
+
 ## Rules for changes
 
 - Permissions are enforced by the server. Hiding a button in the website is only a convenience.

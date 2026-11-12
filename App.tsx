@@ -258,6 +258,9 @@ export const App: React.FC = () => {
   };
 
   // Polling function to fetch full state from /api/state – now uses fetchInitialData
+  // Polling always applies data with the current handler, without re-creating the poller on every render.
+  const handleDataUpdateRef = useRef(handleDataUpdate);
+  handleDataUpdateRef.current = handleDataUpdate;
   const fetchAllData = useCallback(async () => {
 
     try {
@@ -265,12 +268,12 @@ export const App: React.FC = () => {
       if (!ReservationSyncService.canSync()) return;
       // One request; the screen is redrawn only when someone actually changed something.
       const fullState = await fetchStateIfChanged();
-      if (fullState && ReservationSyncService.canSync()) handleDataUpdate(fullState);
+      if (fullState && ReservationSyncService.canSync()) handleDataUpdateRef.current(fullState);
     } catch (error) {
       console.error('[SYNC LOG] Polling fetch failed', error);
       setFirstLoadDone(true); // server unreachable: open anyway (saving stays blocked until it answers)
     }
-  }, [reservations, handleDataUpdate]);
+  }, []);
 
   // Compute flat list of reservations for auto‑selection
   const allReservationsFlat = useMemo(() => {
@@ -301,6 +304,10 @@ export const App: React.FC = () => {
 
   const isAuthenticated = !!currentUser;
 
+  // The sign-in listener below is set up once; it reaches the current loaders through this ref.
+  const latest = useRef({ fetchAllData, handleDataUpdate });
+  latest.current = { fetchAllData, handleDataUpdate };
+
   useEffect(() => {
     // On mount, if token exists, fetch data (for page refresh)
     const unsubscribe = onAuthStateChangedListener((user) => {
@@ -317,15 +324,15 @@ export const App: React.FC = () => {
           })
           .catch(() => { /* offline or older backend: keep the cached profile */ });
         setIsLoading(false);
-        fetchAllData(); // Fetch immediately after login
+        latest.current.fetchAllData(); // Fetch immediately after login
         pollingIntervalRef.current = setInterval(() => {
             if (saveStatusRef.current !== 'saving') {
-                fetchAllData();
+                latest.current.fetchAllData();
             }
         }, 15000);
       } else {
         // Load initial state from constants
-        handleDataUpdate(getInitialState(), false);
+        latest.current.handleDataUpdate(getInitialState(), false);
         setIsLoading(false);
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);

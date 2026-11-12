@@ -297,6 +297,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       channelCode: code,
       vendorCode: 'URD',
       vendorName: companyDetails?.name || 'UR-Drive Jordan',
+      otaProfile: 'standard',
       locationCode: 'AMM',
       currency: 'USD',
       status: 'testing',
@@ -451,7 +452,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       {/* Console header: identity, live system status and the module menu */}
       <header className="rounded-xl bg-slate-900 text-white shadow-sm overflow-hidden relative"
         style={{ backgroundImage: 'radial-gradient(1200px 260px at 85% -40%, rgba(99,102,241,0.35), transparent 60%), radial-gradient(600px 200px at 0% 120%, rgba(14,165,233,0.18), transparent 60%), linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)', backgroundSize: 'auto, auto, 28px 28px, 28px 28px' }}>
-        <div className="px-5 pt-4 pb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-10 h-10 rounded-lg bg-indigo-500/15 ring-1 ring-inset ring-indigo-400/30 inline-flex items-center justify-center shrink-0">
               <GlobeAltIcon className="w-5 h-5 text-indigo-300" />
@@ -459,7 +460,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-300">OTA XML · Distribution</p>
               <h2 className="text-lg font-semibold leading-tight">Channel Manager</h2>
-              <p className="text-[12px] text-slate-400 truncate">{companyDetails?.name || 'UR-Drive Jordan'} · rates, availability and bookings for every broker</p>
+              <p className="hidden sm:block text-[12px] text-slate-400 truncate">{companyDetails?.name || 'UR-Drive Jordan'} · rates, availability and bookings for every broker</p>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -482,7 +483,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         </div>
         <dl className="grid grid-cols-3 xl:grid-cols-6 border-t border-white/10 divide-x divide-white/10">
           {statusCells.map(c => (
-            <div key={c.label} className="px-2.5 py-2 sm:px-5 sm:py-2.5 min-w-0 max-xl:border-b max-xl:border-white/10">
+            <div key={c.label} className="px-2.5 py-2 sm:px-5 min-w-0 max-xl:border-b max-xl:border-white/10">
               <dt className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400 truncate">{c.label}</dt>
               <dd className="mt-0.5 flex items-center gap-1.5 sm:gap-2 text-[12px] sm:text-[14px] font-semibold tabular-nums truncate">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cellDot[c.tone]}`} />{c.value}
@@ -523,9 +524,10 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
 
       <div id="ota-module-top" className="scroll-mt-20" />
       {mode !== 'channels' && mode !== 'rates' && MODULE_INFO[mode] && (() => { const m = MODULE_INFO[mode]; const I = m.icon; return (
-        <section className="flex items-center gap-3 px-1">
-          <span className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm inline-flex items-center justify-center text-indigo-600"><I className="w-5 h-5" /></span>
-          <div className="min-w-0"><h3 className="text-[18px] font-semibold text-slate-900 leading-tight">{m.title}</h3><p className="text-[13px] text-slate-500">{m.text}</p></div>
+        <section className="flex items-center gap-2.5 px-1">
+          <I className="w-5 h-5 text-indigo-600 shrink-0" />
+          <h3 className="text-[16px] font-semibold text-slate-900">{m.title}</h3>
+          <p className="text-[12.5px] text-slate-500 min-w-0 truncate">{m.text}</p>
         </section>
       ); })()}
 
@@ -650,7 +652,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                     {sel.name}
                     {sel.channelCode && <Plate value={sel.channelCode} />}
                     <Badge tone={statusTone(sel)}>{STATUS_STYLE[channelStatus(sel)].label}</Badge>
-                    {(() => { const cs = connectionStateOf(sel); return <Badge tone={cs.tone} dot={false}>{cs.label}</Badge>; })()}
+                    {(() => { const cs = connectionStateOf(sel); return <span title={cs.hint}><Badge tone={cs.tone} dot={false}>Broker connection: {cs.label.toLowerCase()}</Badge></span>; })()}
                   </h3>
                 </div>
                 <dl className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
@@ -670,26 +672,15 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                   )}
                 </dl>
               </div>
-              <div className="px-4 py-2 border-t border-slate-100 flex flex-wrap items-center gap-2 bg-slate-50/60">
-                <nav className="flex items-center gap-1.5 text-[12px] text-slate-500 min-w-0 flex-1 basis-full sm:basis-auto overflow-hidden whitespace-nowrap" aria-label="Breadcrumb">
-                  <button type="button" className="hover:text-indigo-700" onClick={() => setMode('channels')}>Channels</button><span className="text-slate-300">›</span>
-                  <button type="button" className="hover:text-indigo-700 truncate" onClick={() => setActiveTab('Overview')}>{sel.name}</button><span className="text-slate-300">›</span>
-                  <span>{groupOf(activeTab).label}</span>{groupOf(activeTab).label !== activeTab && <><span className="text-slate-300">›</span><span className="font-semibold text-slate-800">{TAB_LABEL[activeTab] || activeTab}</span></>}
-                </nav>
-                {([['Rates', 'Rates'], ['Test console', 'Test console'], ['Traffic', 'Traffic'], ['Go-live', 'Go-live']] as [ChannelTab, string][]).filter(([t]) => t !== activeTab).map(([t, l]) => {
-                  const I = SECTION_INFO[t].icon;
-                  return <button key={t} type="button" onClick={() => setActiveTab(t)} className="h-7 px-2.5 rounded-md border border-slate-200 bg-white text-[12px] font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-700 inline-flex items-center gap-1.5"><I className="w-3.5 h-3.5" />{l}</button>;
-                })}
-              </div>
               <ChannelKpis a={sel} />
               </section>
 
-              {(() => { const info = SECTION_INFO[activeTab]; const I = info.icon; return (
-                <div className="flex items-center gap-3 px-1">
-                  <span className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 inline-flex items-center justify-center"><I className="w-5 h-5" /></span>
-                  <div className="min-w-0"><p className="text-[16px] font-semibold text-slate-900 leading-tight">{TAB_LABEL[activeTab] || activeTab}</p><p className="text-[12px] text-slate-500">{info.text}</p></div>
-                </div>
-              ); })()}
+              <div className="px-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                <h4 className="text-[15px] font-semibold text-slate-900">
+                  <span className="text-slate-400 font-medium">{groupOf(activeTab).label !== activeTab ? `${groupOf(activeTab).label} / ` : ''}</span>{TAB_LABEL[activeTab] || activeTab}
+                </h4>
+                <p className="text-[12.5px] text-slate-500">{SECTION_INFO[activeTab].text}</p>
+              </div>
 
               <div className="space-y-4">
                 {activeTab === 'Overview' && (

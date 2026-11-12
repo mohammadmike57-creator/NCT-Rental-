@@ -389,7 +389,7 @@ public class ApiV3Controller {
         ResponseEntity<String> rs = gateway.handle(code, null, http, type, body, http.getHeader("X-Request-ID"),
             c -> new ChannelGateway.Rendered(write(envelope("success", c.requestId(), http, action.apply(c))
                 .put("environment", c.ctx().sandbox() ? "sandbox" : "production")), JSON_UTF8),
-            (e, rid) -> new ChannelGateway.Rendered(write(errorBody(rid, http, e)), JSON_UTF8));
+            (e, rid, sandbox) -> new ChannelGateway.Rendered(write(errorBody(rid, http, e)), JSON_UTF8));
         if (okStatus != HttpStatus.OK && rs.getStatusCode().value() == 200) return ResponseEntity.status(okStatus).headers(rs.getHeaders()).body(rs.getBody());
         return rs;
     }

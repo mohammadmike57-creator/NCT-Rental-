@@ -58,7 +58,8 @@ public class ChannelSnapshot {
         String company = companyName == null ? "" : companyName.trim();
         return company.isBlank() || company.toUpperCase(Locale.ROOT).contains("NCT") ? DEFAULT_SUPPLIER : company;
     }
-    public String vendorCode() { return text(channel, "vendorCode", "NCT").toUpperCase(Locale.ROOT); }
+    /** Supplier code brokers see (OTA Vendor@Code); URD when the channel has none of its own, never the system name. */
+    public String vendorCode() { return text(channel, "vendorCode", "URD").toUpperCase(Locale.ROOT); }
 
     /** First three letters or digits of a name: "UR-Drive Jordan" gives URD. */
     public static String codeFromName(String name) {
@@ -74,8 +75,8 @@ public class ChannelSnapshot {
     }
 
     /**
-     * Vendor codes a broker may use for this supplier: the channel's code (NCT when none is set), NCT,
-     * and the codes made from the supplier name (URD and UDJ for UR-Drive Jordan).
+     * Vendor codes a broker may use for this supplier: the channel's code (URD when none is set), NCT (still accepted
+     * from brokers set up with it earlier), and the codes made from the supplier name (URD and UDJ for UR-Drive Jordan).
      */
     public java.util.Set<String> acceptedVendorCodes() {
         java.util.Set<String> out = new java.util.LinkedHashSet<>();
@@ -92,6 +93,19 @@ public class ChannelSnapshot {
         String r = requested == null ? "" : requested.trim().toUpperCase(Locale.ROOT);
         return !r.isEmpty() && acceptedVendorCodes().contains(r) ? r : vendorCode();
     }
+    /**
+     * True when the channel receives the strict OpenTravel layout, valid against the official 2017B schemas
+     * (otaProfile = "standard"; the default for channels set up from now on). Channels connected before keep the
+     * layout their broker was built against ("compatible") until it is switched in the console.
+     */
+    /** Coverage codes the broker gave for our covers (our code -> OTA coverage type), set in the console. */
+    public java.util.Map<String, String> otaCoverageCodes() {
+        java.util.Map<String, String> out = new java.util.HashMap<>();
+        channel.path("bookingRules").path("otaCodes").path("coverages").fields()
+            .forEachRemaining(e -> out.put(e.getKey().trim().toUpperCase(Locale.ROOT), e.getValue().asText("").trim()));
+        return out;
+    }
+    public boolean otaStandard() { return "standard".equalsIgnoreCase(text(channel, "otaProfile", "")); }
     public String locationCode() { return text(channel, "locationCode", "AMM").toUpperCase(Locale.ROOT); }
     public String currency() { return text(channel, "currency", "USD"); }
     public String status() { return text(channel, "status", "active"); }

@@ -53,6 +53,12 @@ public record ChannelRules(
     List<OneWayRoute> oneWayRoutes  // one-way fee per route; routes not listed use oneWayFee
 ) {
 
+    /** The channel's first station, used when a request names none. A channel without stations gets a clear error, not a crash. */
+    public Location homeLocation() {
+        if (locations.isEmpty()) throw ChannelError.INVALID_LOCATION.ex("No stations are set up for this channel yet");
+        return locations.get(0);
+    }
+
     /** One-way fee for a route between two branch codes; bothWays = also from `to` back to `from`. */
     public record OneWayRoute(String from, String to, BigDecimal fee, boolean bothWays) {
         boolean matches(String a, String b) {

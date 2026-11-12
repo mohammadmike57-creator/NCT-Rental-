@@ -7,7 +7,7 @@ import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSecti
 
 /** Defaults the server uses when a rule is not set (see ChannelRules.java). */
 export const RULE_DEFAULTS: Required<Omit<ChannelBookingRules, 'locations' | 'commercial' | 'allowedGroups' | 'ipAllowlist' | 'requireSignature' | 'webhookUrl' | 'webhookEvents'
-  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies' | 'operations' | 'oneWayRoutes'>> = {
+  | 'pricing' | 'groupDetails' | 'allotments' | 'noShowAfterHours' | 'noShowFeePercent' | 'inventoryPushDays' | 'cancellationTiers' | 'currencies' | 'operations' | 'oneWayRoutes' | 'otaCodes'>> = {
   bookingsEnabled: true, paymentModel: 'PAY_AT_COUNTER', freeCancellationHours: 48, lateCancellationFeePercent: 100, modificationFee: 0,
   minLeadHours: 2, maxRentalDays: 60, maxHorizonDays: 365, minDriverAge: 21, maxDriverAge: 0, offerValidityMinutes: 30, holdMinutes: 15,
   operationalBuffer: 0, oneWayFee: 0, rateLimitPerMinute: 120, timeZone: 'Asia/Amman', turnaroundMinutes: 0, overdueHoldHours: 24, graceMinutes: 0,

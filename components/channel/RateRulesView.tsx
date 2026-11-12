@@ -1141,9 +1141,9 @@ const F: React.FC<{ label: string; hint?: string; children: React.ReactNode; cla
 const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregator[]; fleet: Fleet; groups: string[] }> = ({ state, aggregators, fleet, groups }) => {
   const [aggId, setAggId] = useState(aggregators[0]?.id || '');
   const agg = aggregators.find(a => a.id === aggId) || aggregators[0];
-  const plans: RatePlan[] = agg?.ratePlanHistory?.[0]?.ratePlans || [];
+  const plans: RatePlan[] = useMemo(() => agg?.ratePlanHistory?.[0]?.ratePlans || [], [agg]);
   const aggGroups = useMemo(() => Array.from(new Set(plans.flatMap(p => p.sippRates.map(r => (r.sippCode || '').toUpperCase())).filter(Boolean))).sort(), [plans]);
-  const locs = agg?.bookingRules?.locations || [];
+  const locs = useMemo(() => agg?.bookingRules?.locations || [], [agg]);
   const [group, setGroup] = useState('');
   const [loc, setLoc] = useState('');
   const [ret, setRet] = useState('');
@@ -1176,8 +1176,8 @@ const PreviewPanel: React.FC<{ state: DynamicPricingState; aggregators: Aggregat
   }, [agg, cfg, g, l, pickup, dropOff, bookedAt, mode, plans]);
 
   const cur = agg?.currency || 'USD';
-  const br = agg?.bookingRules || {};
-  const pr = br.pricing || {};
+  const br = useMemo(() => agg?.bookingRules || {}, [agg]);
+  const pr = useMemo(() => br.pricing || {}, [br]);
   const days = result?.days ?? rentalDayCount(pickup, dropOff, br.graceMinutes);
   const bandTier = (() => { const plan = findPlanForDate(plans, pickup.slice(0, 10)); const rate = plan?.sippRates.find(x => (x.sippCode || '').toUpperCase() === g); return rate ? findTier(rate, days) : undefined; })();
   const bandText = bandTier ? tierLabel(bandTier) : `${days} days`;

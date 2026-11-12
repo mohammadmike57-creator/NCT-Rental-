@@ -29,9 +29,21 @@ import java.util.List;
  */
 public final class OtaBookingXml {
 
-    /** The channel's supplier name for the response being written (set around each OTA call by OtaBookingController). */
-    static final ThreadLocal<String> VENDOR_NAME = new ThreadLocal<>();
-    static String vendorName() { String n = VENDOR_NAME.get(); return n == null || n.isBlank() ? ChannelSnapshot.DEFAULT_SUPPLIER : n; }
+    /**
+     * Who answers and how: the supplier as the broker sees it (OTA Vendor@Code and the Vendor name, never the system's
+     * own name), and whether the channel receives the strict OpenTravel layout (valid against the official 2017B schemas)
+     * or the layout it was connected with ({@link ChannelSnapshot#otaStandard()}).
+     */
+    public record Supplier(String code, String name, boolean standard, java.util.Map<String, String> coverageCodes) {
+        public Supplier {
+            name = name == null || name.isBlank() ? ChannelSnapshot.DEFAULT_SUPPLIER : name;
+            coverageCodes = coverageCodes == null ? java.util.Map.of() : coverageCodes;
+        }
+        public Supplier(String code, String name, boolean standard) { this(code, name, standard, null); }
+        public static Supplier of(ChannelSnapshot ch, String requestedCode) {
+            return new Supplier(ch.vendorCodeFor(requestedCode), ch.vendorName(), ch.otaStandard(), ch.otaCoverageCodes());
+        }
+    }
 
 
     private OtaBookingXml() {}
@@ -70,7 +82,7 @@ public final class OtaBookingXml {
         LocalDateTime to = dateTime(attr(core, "ReturnDateTime"), "ReturnDateTime");
         String pick = attr(first(core, "PickUpLocation"), "LocationCode");
         String ret = attr(first(core, "ReturnLocation"), "LocationCode");
-        String defaultLoc = rules.locations().get(0).code();
+        String defaultLoc = rules.homeLocation().code();
         if (pick.isEmpty()) pick = defaultLoc;
         if (ret.isEmpty()) ret = pick;
         Element driver = first(root, "DriverType");
@@ -206,22 +218,22 @@ public final class OtaBookingXml {
 
     // ================================================================== responses
 
-    public static String locations(String echo, boolean prod, List<Location> locs, String vendor) {
+    public static String locations(String echo, boolean prod, List<Location> locs, Supplier supplier) {
         X x = open("OTA_VehLocSearchRS", echo, prod);
         x.line("<Success/>").open("VehMatchedLocs");
         for (Location l : locs) {
             x.open("VehMatchedLoc");
-            locationDetail(x, l, vendor);
+            locationDetail(x, l, supplier);
             x.close();
         }
         return x.close().done();
     }
 
     /** OTA_VehLocDetailRS: one station in full. */
-    public static String locationDetail(String echo, boolean prod, Location l, String vendor) {
+    public static String locationDetail(String echo, boolean prod, Location l, Supplier supplier) {
         X x = open("OTA_VehLocDetailRS", echo, prod);
         x.line("<Success/>");
-        locationDetail(x, l, vendor);
+        locationDetail(x, l, supplier);
         return x.close().done();
     }
 
@@ -232,45 +244,62 @@ public final class OtaBookingXml {
         return x.close().done();
     }
 
-    private static void locationDetail(X x, Location l, String vendor) {
-        {
-            x.open("LocationDetail", "Code", l.code(), "Name", l.name(), "AtAirport", "AIRPORT".equals(l.type()),
-                "CodeContext", "IATA");
-            if (!l.address().isBlank()) x.open("Address").el("AddressLine", l.address()).close();
-            if (l.phone() != null && !l.phone().isBlank()) x.el("Telephone", null, "PhoneNumber", l.phone(), "PhoneTechType", 1);
-            if (l.latitude() != null && l.longitude() != null) x.el("Position", null, "Latitude", BigDecimal.valueOf(l.latitude()).toPlainString(), "Longitude", BigDecimal.valueOf(l.longitude()).toPlainString());
-            x.open("AdditionalInfo").el("VehRentLocInfos", null);
-            if (!l.openingHours().isEmpty()) {
-                x.open("OperationSchedules").open("OperationSchedule").open("OperationTimes");
-                for (OpeningHours h : l.openingHours()) {
-                    String day = h.day().charAt(0) + h.day().substring(1).toLowerCase();   // Mon, Tue … as OTA attribute names
-                    x.el("OperationTime", null, day, true, "Start", h.open(), "End", h.close());
-                }
-                x.close().close().close();
+    private static void locationDetail(X x, Location l, Supplier supplier) {
+        locationDetail(x, "LocationDetail", l, supplier);
+    }
+
+    /**
+     * One station. {@code element} is "LocationDetail" (station lists) or "LocationDetails" (rate rules, standard layout).
+     * Standard layout: opening times as xs:time with OTA day names (Weds, Thur), no empty VehRentLocInfos, the map
+     * position in TPA_Extensions (VehicleLocationDetailsType has no Position).
+     */
+    private static void locationDetail(X x, String element, Location l, Supplier supplier) {
+        boolean std = supplier.standard();
+        x.open(element, "Code", l.code(), "Name", l.name(), "AtAirport", "AIRPORT".equals(l.type()), "CodeContext", "IATA");
+        if (!l.address().isBlank()) x.open("Address").el("AddressLine", l.address()).close();
+        if (l.phone() != null && !l.phone().isBlank()) x.el("Telephone", null, "PhoneNumber", l.phone(), "PhoneTechType", 1);
+        boolean located = l.latitude() != null && l.longitude() != null;
+        if (located && !std) x.el("Position", null, "Latitude", coordinate(l.latitude()), "Longitude", coordinate(l.longitude()));
+        x.open("AdditionalInfo");
+        if (!std) x.el("VehRentLocInfos", null);
+        if (!l.openingHours().isEmpty()) {
+            x.open("OperationSchedules").open("OperationSchedule").open("OperationTimes");
+            for (OpeningHours h : l.openingHours()) {
+                x.el("OperationTime", null, std ? OtaCodes.dayAttribute(h.day()) : OtaCodes.legacyDayAttribute(h.day()), true,
+                    "Start", std ? OtaCodes.time(h.open()) : h.open(), "End", std ? OtaCodes.time(h.close()) : h.close());
             }
-            x.close();
-            x.open("TPA_Extensions").el("PickUp", String.valueOf(l.pickup())).el("Return", String.valueOf(l.dropOff()))
-             .el("LocationType", l.type()).el("StationType", l.type()).el("AfterHours", null, "PickUp", l.afterHoursPickup(), "Return", l.afterHoursReturn(),
-                 "Fee", l.afterHoursFee().signum() > 0 ? l.afterHoursFee() : null);
-            if (l.specialDays() != null && !l.specialDays().isEmpty()) {
-                x.open("SpecialDays");
-                for (SpecialDay d : l.specialDays()) x.el("SpecialDay", null, "Date", d.date(), "Closed", d.closed(), "Open", d.open(), "Close", d.close(), "Note", d.note());
-                x.close();
-            }
-            x.el("Vendor", null, "Code", vendor).close();
+            x.close().close().close();
+        }
+        if (!std) x.close();   // the layout channels were connected with: extensions after AdditionalInfo
+        x.open("TPA_Extensions");
+        if (located && std) x.el("Position", null, "Latitude", coordinate(l.latitude()), "Longitude", coordinate(l.longitude()));
+        x.el("PickUp", String.valueOf(l.pickup())).el("Return", String.valueOf(l.dropOff()))
+         .el("LocationType", l.type()).el("StationType", l.type()).el("AfterHours", null, "PickUp", l.afterHoursPickup(), "Return", l.afterHoursReturn(),
+             "Fee", l.afterHoursFee().signum() > 0 ? l.afterHoursFee() : null);
+        if (l.specialDays() != null && !l.specialDays().isEmpty()) {
+            x.open("SpecialDays");
+            for (SpecialDay d : l.specialDays()) x.el("SpecialDay", null, "Date", d.date(), "Closed", d.closed(), "Open", d.open(), "Close", d.close(), "Note", d.note());
             x.close();
         }
+        x.el("Vendor", null, "Code", supplier.code()).close();
+        if (std) x.close();    // standard layout: extensions inside AdditionalInfo
+        x.close();
+    }
+
+    private static String coordinate(double value) {
+        return BigDecimal.valueOf(value).toPlainString();
     }
 
     /** OTA_VehRateRuleRS: price, covers, extras, payment and cancellation rules, age limits, stations and terms. */
-    public static String rateRule(String echo, boolean prod, Search s, RateRule rr, String vendor) {
+    public static String rateRule(String echo, boolean prod, Search s, RateRule rr, Supplier supplier) {
+        if (supplier.standard()) return rateRuleStandard(echo, prod, s, rr, supplier);
         Offer o = rr.offer();
         X x = open("OTA_VehRateRuleRS", echo, prod);
         x.line("<Success/>");
         rentalCore(x, s.pickupAt(), s.returnAt(), s.pickupLocation(), s.returnLocation());
         vehicle(x, o.vehicleGroup(), o.modelExample(), o.transmission(), o.airCon(), o.vehicle());
         Tax tax = new Tax(o.taxAmount(), o.taxIncluded(), o.taxName(), o.taxPercent());
-        rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), o.currency(), o.cancellationPolicy(), o.mileage(), tax, o.promoCode());
+        rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), o.currency(), o.cancellationPolicy(), o.mileage(), tax, o.promoCode(), false);
         coverages(x, o.coverages(), o.currency(), o.rentalDays());
         x.open("PricedEquips");
         for (Extra e : rr.extras()) {
@@ -279,7 +308,7 @@ public final class OtaBookingXml {
              .el("Calculation", null, "UnitCharge", e.dailyPrice(), "UnitName", "Day", "Quantity", 1, "Total", e.maxPerRental()).close().close();
         }
         x.close();
-        fees(x, o.breakdown(), o.currency(), tax);
+        fees(x, o.breakdown(), o.currency(), tax, false);
         x.el("TotalCharge", null, "RateTotalAmount", o.baseAmount(), "EstimatedTotalAmount", o.totalAmount(), "CurrencyCode", o.currency());
         x.open("RateRules", "MinimumKeep", null)
          .el("AdvanceBooking", null, "OffsetTimeUnit", "Hour", "OffsetUnitMultiplier", rr.minLeadHours())
@@ -294,8 +323,8 @@ public final class OtaBookingXml {
         }
         x.close();
         x.open("LocationDetails");
-        locationDetail(x, rr.pickupLocation(), vendor);
-        if (!rr.returnLocation().code().equals(rr.pickupLocation().code())) locationDetail(x, rr.returnLocation(), vendor);
+        locationDetail(x, rr.pickupLocation(), supplier);
+        if (!rr.returnLocation().code().equals(rr.pickupLocation().code())) locationDetail(x, rr.returnLocation(), supplier);
         x.close();
         if (rr.terms() != null && !rr.terms().isBlank()) x.open("RentalTerms").el("Text", rr.terms(), "Formatted", false).close();
         x.open("TPA_Extensions")
@@ -306,6 +335,75 @@ public final class OtaBookingXml {
         if (o.offerId() != null) x.el("Reference", null, "Type", 16, "ID", o.offerId(), "DateTime", o.expiresAt() == null ? null : o.expiresAt().toString());
         if (o.exchangeRate() != null && o.exchangeRate().compareTo(BigDecimal.ONE) != 0) {
             x.el("Conversion", null, "SourceCurrencyCode", o.baseCurrency(), "RequestedCurrencyCode", o.currency(), "RateConversion", o.exchangeRate().stripTrailingZeros().toPlainString());
+        }
+        x.close();
+        return x.close().done();
+    }
+
+    /**
+     * OTA_VehRateRuleRS in the official element order: rental, vehicle, rate, total, RateRules (advance booking, payment,
+     * one CancelPenaltyInfo per cancellation step and one for changes), extras, fees, covers, stations, terms as a
+     * VendorMessage. Rules OpenTravel has no element for (age limits, maximum rental, deposit, excess) are in TPA_Extensions.
+     */
+    private static String rateRuleStandard(String echo, boolean prod, Search s, RateRule rr, Supplier supplier) {
+        Offer o = rr.offer();
+        String cur = o.currency();
+        X x = open("OTA_VehRateRuleRS", echo, prod);
+        x.line("<Success/>");
+        rentalCore(x, s.pickupAt(), s.returnAt(), s.pickupLocation(), s.returnLocation());
+        vehicle(x, o.vehicleGroup(), o.modelExample(), o.transmission(), o.airCon(), o.vehicle());
+        Tax tax = new Tax(o.taxAmount(), o.taxIncluded(), o.taxName(), o.taxPercent());
+        rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), cur, o.cancellationPolicy(), o.mileage(), tax, o.promoCode(), true,
+            new int[] {rr.minDriverAge(), rr.maxDriverAge()});
+        x.el("TotalCharge", null, "RateTotalAmount", o.baseAmount(), "EstimatedTotalAmount", o.totalAmount(), "CurrencyCode", cur);
+
+        x.open("RateRules");
+        x.el("AdvanceBooking", null, "OffsetTimeUnit", "Hour", "OffsetUnitMultiplier", rr.minLeadHours(), "OffsetDropTime", "BeforeArrival");
+        paymentRules(x, o.paymentType(), o.totalAmount(), cur);
+        List<Penalty> steps = o.penalties() == null ? List.of() : o.penalties();
+        if (steps.isEmpty()) {
+            x.open("CancelPenaltyInfo").el("Description", "Free cancellation", "Formatted", false).close();
+        }
+        for (Penalty p : steps) {
+            x.open("CancelPenaltyInfo")
+             .el("Deadline", null, "AbsoluteDeadline", p.from().format(LOCAL), "OffsetTimeUnit", "Hour",
+                 "OffsetUnitMultiplier", p.hoursBefore(), "OffsetDropTime", "BeforeArrival")
+             .el("PenaltyFee", null, "Amount", p.amount(), "CurrencyCode", cur)
+             .el("Description", p.percent().stripTrailingZeros().toPlainString() + "% of the rental", "Formatted", false)
+             .close();
+        }
+        if (rr.modificationFee() != null && rr.modificationFee().signum() > 0) {
+            x.open("CancelPenaltyInfo", "ModifyPenaltyInd", true).el("PenaltyFee", null, "Amount", rr.modificationFee(), "CurrencyCode", cur).close();
+        }
+        x.close();
+
+        if (!rr.extras().isEmpty()) {
+            x.open("PricedEquips");
+            for (Extra e : rr.extras()) {
+                x.open("PricedEquip").open("Equipment", "EquipType", e.code()).el("Description", e.name()).close()
+                 .open("Charge", "Amount", e.dailyPrice(), "CurrencyCode", cur, "TaxInclusive", o.taxIncluded(), "IncludedInRate", false)
+                 .el("Calculation", null, "UnitCharge", e.dailyPrice(), "UnitName", "Day", "Quantity", 1, "Total", e.maxPerRental()).close().close();
+            }
+            x.close();
+        }
+        fees(x, o.breakdown(), cur, tax, true);
+        coveragesStandard(x, o.coverages(), cur, o.rentalDays(), supplier);
+        locationDetail(x, "LocationDetails", rr.pickupLocation(), supplier);
+        if (!rr.returnLocation().code().equals(rr.pickupLocation().code())) locationDetail(x, "LocationDetails", rr.returnLocation(), supplier);
+        if (rr.terms() != null && !rr.terms().isBlank()) {
+            x.open("VendorMessages").open("VendorMessage", "Title", "Rental terms", "InfoType", 1)
+             .open("SubSection").open("Paragraph").el("Text", rr.terms(), "Formatted", false).close().close().close().close();
+        }
+        x.open("TPA_Extensions")
+         .el("MaximumRental", null, "UnitName", "Day", "Quantity", rr.maxRentalDays())
+         .el("Deposit", null, "Amount", o.depositAmount(), "CurrencyCode", cur)
+         .el("Excess", null, "Amount", o.excessAmount(), "CurrencyCode", cur)
+         .el("PaymentType", o.paymentType())
+         .el("CancellationPolicy", null, "Code", o.cancellationPolicy());
+        standardExtensions(x, o.coverages(), o.breakdown(), cur, o.rentalDays(), supplier);
+        if (o.offerId() != null) x.el("Reference", null, "Type", 16, "ID", o.offerId(), "DateTime", o.expiresAt() == null ? null : o.expiresAt().toString());
+        if (o.exchangeRate() != null && o.exchangeRate().compareTo(BigDecimal.ONE) != 0) {
+            x.el("Conversion", null, "SourceCurrencyCode", o.baseCurrency(), "RequestedCurrencyCode", cur, "RateConversion", o.exchangeRate().stripTrailingZeros().toPlainString());
         }
         x.close();
         return x.close().done();
@@ -326,27 +424,32 @@ public final class OtaBookingXml {
         x.close();
     }
 
-    public static String availability(String echo, boolean prod, Search s, List<Offer> offers, String vendor, String warning) {
+    public static String availability(String echo, boolean prod, Search s, List<Offer> offers, Supplier supplier, String warning) {
         X x = open("OTA_VehAvailRateRS", echo, prod);
         x.line("<Success/>");
         if (warning != null) x.line("<Warnings><Warning Type=\"3\" ShortText=\"" + OtaXml.escape(warning) + "\"/></Warnings>");
         x.open("VehAvailRSCore");
         rentalCore(x, s.pickupAt(), s.returnAt(), s.pickupLocation(), s.returnLocation());
-        x.open("VehVendorAvails").open("VehVendorAvail").el("Vendor", vendorName(), "Code", vendor).open("VehAvails");
+        x.open("VehVendorAvails").open("VehVendorAvail").el("Vendor", supplier.name(), "Code", supplier.code()).open("VehAvails");
         for (Offer o : offers) {
             x.open("VehAvail").open("VehAvailCore", "Status", o.status());
             vehicle(x, o.vehicleGroup(), o.modelExample(), o.transmission(), o.airCon(), o.vehicle());
             if ("Available".equals(o.status())) {
                 Tax tax = new Tax(o.taxAmount(), o.taxIncluded(), o.taxName(), o.taxPercent());
-                rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), o.currency(), o.cancellationPolicy(), o.mileage(), tax, o.promoCode());
-                equips(x, o.breakdown(), o.currency(), o.rentalDays());
-                coverages(x, o.coverages(), o.currency(), o.rentalDays());
-                fees(x, o.breakdown(), o.currency(), tax);
+                rate(x, o.baseAmount(), o.breakdown(), o.rentalDays(), o.currency(), o.cancellationPolicy(), o.mileage(), tax, o.promoCode(), supplier.standard());
                 x.el("TotalCharge", null, "RateTotalAmount", o.baseAmount(), "EstimatedTotalAmount", o.totalAmount(), "CurrencyCode", o.currency());
+                equips(x, o.breakdown(), o.currency(), o.rentalDays());
+                if (!supplier.standard()) coverages(x, o.coverages(), o.currency(), o.rentalDays());
+                fees(x, o.breakdown(), o.currency(), tax, supplier.standard());
                 if (o.offerId() != null) x.el("Reference", null, "Type", 16, "ID", o.offerId(), "DateTime", o.expiresAt() == null ? null : o.expiresAt().toString());
             }
             x.close();
-            x.open("VehAvailInfo").open("TPA_Extensions")
+            x.open("VehAvailInfo");
+            if (supplier.standard() && "Available".equals(o.status())) {
+                coveragesStandard(x, o.coverages(), o.currency(), o.rentalDays(), supplier);
+                paymentRules(x, o.paymentType(), o.totalAmount(), o.currency());
+            }
+            x.open("TPA_Extensions")
              .el("Availability", null, "Count", o.available(), "Held", o.held() ? "true" : null)
              .el("AvailableCount", String.valueOf(o.available()))   // the same number as an element, for brokers that read it so
              .el("Deposit", null, "Amount", o.depositAmount(), "CurrencyCode", o.currency())
@@ -359,29 +462,37 @@ public final class OtaBookingXml {
                     "RateConversion", o.exchangeRate().stripTrailingZeros().toPlainString());
             }
             if (o.closedReason() != null && !"Available".equals(o.status())) x.el("ClosedReason", o.closedReason());
+            if (supplier.standard() && "Available".equals(o.status())) standardExtensions(x, o.coverages(), o.breakdown(), o.currency(), o.rentalDays(), supplier);
             x.close().close().close();
         }
         return x.close().close().close().close().close().done();
     }
 
-    public static String reservation(String root, String echo, boolean prod, Reservation r, String vendor) {
+    public static String reservation(String root, String echo, boolean prod, Reservation r, Supplier supplier) {
         X x = open(root, echo, prod);
         x.line("<Success/>");
         switch (root) {
-            case "OTA_VehResRS" -> { x.open("VehResRSCore"); vehReservation(x, r, vendor); x.close(); }
-            case "OTA_VehModifyRS" -> { x.open("VehModifyRSCore", "ModifyStatus", "Modified"); vehReservation(x, r, vendor); x.close(); }
-            case "OTA_VehRetResRS" -> { x.open("VehRetResRSCore"); vehReservation(x, r, vendor); x.close(); }
+            case "OTA_VehResRS" -> { x.open("VehResRSCore"); vehReservation(x, r, supplier); x.close(); }
+            case "OTA_VehModifyRS" -> { x.open("VehModifyRSCore", "ModifyStatus", "Modified"); vehReservation(x, r, supplier); x.close(); }
+            case "OTA_VehRetResRS" -> { x.open("VehRetResRSCore"); vehReservation(x, r, supplier); x.close(); }
             case "OTA_VehCancelRS" -> {
                 x.open("VehCancelRSCore", "CancelStatus", "Cancelled").el("UniqueID", null, "Type", 14, "ID", r.reservationId()).close();
-                x.open("VehCancelRSInfo"); vehReservation(x, r, vendor); x.close();
+                x.open("VehCancelRSInfo"); vehReservation(x, r, supplier);
+                if (supplier.standard()) tpa(x, r, supplier);     // VehCancelRSInfo: VehReservation, TPA_Extensions
+                x.close();
             }
             default -> throw new IllegalArgumentException(root);
         }
-        tpa(x, r);
+        if (!supplier.standard()) tpa(x, r, supplier);
+        else if (!"OTA_VehCancelRS".equals(root)) {
+            x.open(root.replace("OTA_", "").replace("RS", "RSInfo"));   // VehResRSInfo, VehModifyRSInfo, VehRetResRSInfo
+            tpa(x, r, supplier);
+            x.close();
+        }
         return x.close().done();
     }
 
-    private static void vehReservation(X x, Reservation r, String vendor) {
+    private static void vehReservation(X x, Reservation r, Supplier supplier) {
         x.open("VehReservation", "ReservationStatus", otaStatus(r.status()), "CreateDateTime", r.createdAt() == null ? null : r.createdAt().toString());
         Customer c = r.customer();
         x.open("Customer").open("Primary").open("PersonName");
@@ -393,24 +504,34 @@ public final class OtaBookingXml {
         x.open("VehSegmentCore");
         x.el("ConfID", null, "Type", 14, "ID", r.reservationId());
         if (r.brokerReference() != null) x.el("ConfID", null, "Type", 16, "ID", r.brokerReference(), "ID_Context", "BROKER");
-        x.el("Vendor", vendorName(), "Code", vendor);
+        x.el("Vendor", supplier.name(), "Code", supplier.code());
         rentalCore(x, r.pickupAt(), r.returnAt(), r.pickupLocation(), r.returnLocation());
         String desc = r.vehicleDescription() == null ? r.vehicleGroup() : r.vehicleDescription().replaceFirst("^[A-Z]{4} · ", "");
         vehicle(x, r.vehicleGroup(), desc, null, OtaXml.sippAirCon(r.vehicleGroup()), r.vehicle());
         Tax tax = new Tax(r.taxAmount(), r.taxIncluded(), null, null);
-        rate(x, r.baseAmount(), r.breakdown(), r.rentalDays(), r.currency(), r.cancellationPolicy(), r.mileage(), tax, r.promoCode());
+        boolean std = supplier.standard();
+        rate(x, r.baseAmount(), r.breakdown(), r.rentalDays(), r.currency(), r.cancellationPolicy(), r.mileage(), tax, r.promoCode(), std);
         equips(x, r.breakdown(), r.currency(), r.rentalDays());
-        if (r.coverages() != null) coverages(x, r.coverages(), r.currency(), r.rentalDays());
-        fees(x, r.breakdown(), r.currency(), tax);
+        if (!std && r.coverages() != null) coverages(x, r.coverages(), r.currency(), r.rentalDays());
+        fees(x, r.breakdown(), r.currency(), tax, std);
         x.el("TotalCharge", null, "RateTotalAmount", r.baseAmount(), "EstimatedTotalAmount", r.totalAmount(), "CurrencyCode", r.currency());
         x.close();
         x.open("VehSegmentInfo").open("PaymentRules").el("PaymentRule", null, "RuleType", "PREPAID".equals(r.paymentStatus()) || "BROKER_PREPAID".equals(r.paymentType()) ? 2 : 1,
-            "Amount", r.totalAmount(), "CurrencyCode", r.currency()).close().close();
-        x.close();
+            "Amount", r.totalAmount(), "CurrencyCode", r.currency()).close();
+        if (std) coveragesStandard(x, r.coverages(), r.currency(), r.rentalDays(), supplier);   // VehSegmentInfo: PaymentRules, …, PricedCoverages
+        x.close();   // VehSegmentInfo
+        x.close();   // VehReservation
     }
 
-    private static void tpa(X x, Reservation r) {
+    /** PaymentRules: RuleType 2 when the broker has prepaid, 1 when the customer pays at the counter. */
+    private static void paymentRules(X x, String paymentType, BigDecimal amount, String cur) {
+        x.open("PaymentRules").el("PaymentRule", null, "RuleType", "BROKER_PREPAID".equals(paymentType) ? 2 : 1,
+            "Amount", amount, "CurrencyCode", cur).close();
+    }
+
+    private static void tpa(X x, Reservation r, Supplier supplier) {
         x.open("TPA_Extensions");
+        if (supplier.standard()) standardExtensions(x, r.coverages(), r.breakdown(), r.currency(), r.rentalDays(), supplier);
         if (r.promoCode() != null) x.el("PromotionCode", r.promoCode());
         x
          .el("ReservationStatus", r.status())
@@ -453,26 +574,47 @@ public final class OtaBookingXml {
     /** Tax on an offer or booking: amount, whether it is inside the prices, and its name and rate when known. */
     record Tax(BigDecimal amount, boolean included, String name, BigDecimal percent) {}
 
-    private static void rate(X x, BigDecimal base, List<PriceLine> lines, int days, String cur, String policy, Mileage km, Tax tax, String promo) {
+    private static void rate(X x, BigDecimal base, List<PriceLine> lines, int days, String cur, String policy, Mileage km, Tax tax, String promo,
+                             boolean std) {
+        rate(x, base, lines, days, cur, policy, km, tax, promo, std, null);
+    }
+
+    /**
+     * RentalRate. Today's layout keeps tax in TaxAmounts and the extra-distance price in TPA_Extensions; the standard
+     * layout (RentalRate has no TPA_Extensions) writes the extra distance as VehicleCharge Purpose 8, leaves the tax to
+     * Fees (Purpose 7, once) and adds the driver age limits as RateRestrictions when given.
+     */
+    private static void rate(X x, BigDecimal base, List<PriceLine> lines, int days, String cur, String policy, Mileage km, Tax tax, String promo,
+                             boolean std, int[] ageLimits) {
         PriceLine b = lines.stream().filter(l -> "BASE".equals(l.type())).findFirst().orElse(null);
         boolean unlimited = km == null || km.unlimited();
         x.open("RentalRate").el("RateDistance", null, "Unlimited", unlimited, "Quantity", unlimited ? null : km.kmPerDay(), "DistUnitName", "Km",
             "VehiclePeriodUnitName", unlimited ? "RentalPeriod" : "Day");
-        x.open("VehicleCharges").open("VehicleCharge", "Purpose", 1, "TaxInclusive", tax.included(), "IncludedInRate", false, "Amount", base, "CurrencyCode", cur);
-        if (tax.amount() != null && tax.amount().signum() > 0) {
+        x.open("VehicleCharges").open("VehicleCharge", "Purpose", OtaCodes.CHARGE_RENTAL, "TaxInclusive", tax.included(), "IncludedInRate", false,
+            "Amount", base, "CurrencyCode", cur);
+        if (!std && tax.amount() != null && tax.amount().signum() > 0) {
             x.open("TaxAmounts").el("TaxAmount", null, "Total", tax.amount(), "CurrencyCode", cur,
                 "Percentage", tax.percent() == null ? null : tax.percent().stripTrailingZeros().toPlainString(), "Description", tax.name()).close();
         }
-        x.el("Calculation", null, "UnitCharge", b == null ? null : b.unitAmount(), "UnitName", "Day", "Quantity", days).close().close();
+        x.el("Calculation", null, "UnitCharge", b == null ? null : b.unitAmount(), "UnitName", "Day", "Quantity", days).close();
+        if (std && !unlimited && km.extraKmPrice() != null) {
+            x.open("VehicleCharge", "Purpose", OtaCodes.CHARGE_ADDITIONAL_DISTANCE, "Description", "Additional Distance Charge",
+                    "IncludedInRate", false, "IncludedInEstTotalInd", false, "Amount", BigDecimal.ZERO, "CurrencyCode", cur)
+             .el("Calculation", null, "UnitCharge", km.extraKmPrice(), "UnitName", "Km", "Quantity", 1).close();
+        }
+        x.close();
         x.el("RateQualifier", null, "RateQualifier", policy, "RatePeriod", "Daily", "PromotionCode", promo);
-        if (!unlimited && km.extraKmPrice() != null) {
+        if (std && ageLimits != null) {
+            x.el("RateRestrictions", null, "MinimumAge", ageLimits[0] > 0 ? ageLimits[0] : null, "MaximumAge", ageLimits[1] > 0 ? ageLimits[1] : null);
+        }
+        if (!std && !unlimited && km.extraKmPrice() != null) {
             x.open("TPA_Extensions").el("ExtraDistanceCharge", null, "Amount", km.extraKmPrice(), "CurrencyCode", cur, "UnitName", "Km")
              .el("IncludedDistance", null, "Quantity", km.kmIncluded(), "DistUnitName", "Km").close();
         }
         x.close();
     }
 
-    /** Insurance covers: included ones with IncludedInRate=true, optional ones with their daily price. */
+    /** Insurance covers in today's layout: included ones with IncludedInRate=true, optional ones with their daily price. */
     private static void coverages(X x, List<CoverageOffer> covers, String cur, int days) {
         if (covers == null || covers.isEmpty()) return;
         x.open("PricedCoverages");
@@ -489,6 +631,51 @@ public final class OtaBookingXml {
         x.close();
     }
 
+    /**
+     * Insurance covers in the standard layout (CoveragePricedType: Coverage, Charge, Deductible). A chosen or included
+     * cover counts in the estimated total (IncludedInEstTotalInd). Covers without an OTA coverage type are listed by
+     * {@link #uncodedCoverages} instead.
+     */
+    private static void coveragesStandard(X x, List<CoverageOffer> covers, String cur, int days, Supplier supplier) {
+        List<CoverageOffer> coded = covers == null ? List.of()
+            : covers.stream().filter(c -> OtaCodes.coverageType(c.code(), supplier.coverageCodes()) != null).toList();
+        if (coded.isEmpty()) return;
+        x.open("PricedCoverages");
+        for (CoverageOffer c : coded) {
+            BigDecimal amount = c.included() ? BigDecimal.ZERO : c.dailyPrice().multiply(BigDecimal.valueOf(days));
+            x.open("PricedCoverage", "Required", c.included())
+             .open("Coverage", "CoverageType", OtaCodes.coverageType(c.code(), supplier.coverageCodes()), "Code", c.code())
+             .el("Details", c.name(), "CoverageTextType", "Description").close()
+             .open("Charge", "Amount", amount, "CurrencyCode", cur, "TaxInclusive", true, "IncludedInRate", c.included(),
+                 "IncludedInEstTotalInd", c.included() || c.selected())
+             .el("Calculation", null, "UnitCharge", c.included() ? BigDecimal.ZERO : c.dailyPrice(), "UnitName", "Day", "Quantity", days).close();
+            if (c.excess() != null) x.el("Deductible", null, "ExcessAmount", c.excess(), "CurrencyCode", cur);
+            x.close();
+        }
+        x.close();
+    }
+
+    /** Standard layout, inside TPA_Extensions: covers that have no OTA coverage type yet, and discounts. */
+    private static void standardExtensions(X x, List<CoverageOffer> covers, List<PriceLine> lines, String cur, int days, Supplier supplier) {
+        List<CoverageOffer> uncoded = covers == null ? List.of()
+            : covers.stream().filter(c -> OtaCodes.coverageType(c.code(), supplier.coverageCodes()) == null).toList();
+        if (!uncoded.isEmpty()) {
+            x.open("AdditionalCoverages");
+            for (CoverageOffer c : uncoded) {
+                x.el("Coverage", c.name(), "Code", c.code(), "Required", c.included(), "Selected", c.selected(),
+                    "Amount", c.included() ? BigDecimal.ZERO : c.dailyPrice().multiply(BigDecimal.valueOf(days)), "DailyAmount", c.dailyPrice(),
+                    "ExcessAmount", c.excess(), "CurrencyCode", cur);
+            }
+            x.close();
+        }
+        List<PriceLine> discounts = lines == null ? List.of() : lines.stream().filter(l -> "DISCOUNT".equals(l.type())).toList();
+        if (!discounts.isEmpty()) {
+            x.open("Discounts");
+            for (PriceLine l : discounts) x.el("Discount", l.description(), "Code", l.code(), "Amount", l.amount(), "CurrencyCode", cur);
+            x.close();
+        }
+    }
+
     private static void equips(X x, List<PriceLine> lines, String cur, int days) {
         List<PriceLine> ex = lines.stream().filter(l -> "EXTRA".equals(l.type())).toList();
         if (ex.isEmpty()) return;
@@ -501,12 +688,26 @@ public final class OtaBookingXml {
         x.close();
     }
 
-    private static void fees(X x, List<PriceLine> lines, String cur, Tax tax) {
+    private static void fees(X x, List<PriceLine> lines, String cur, Tax tax, boolean std) {
+        if (std) { feesStandard(x, lines, cur, tax); return; }
         List<PriceLine> f = lines.stream().filter(l -> "FEE".equals(l.type()) || "DISCOUNT".equals(l.type()) || "TAX".equals(l.type())).toList();
         if (f.isEmpty()) return;
         x.open("Fees");
         for (PriceLine l : f) x.el("Fee", null, "Purpose", l.code(), "Description", l.description(), "Amount", l.amount(), "CurrencyCode", cur,
             "TaxInclusive", "TAX".equals(l.type()) ? null : tax.included(), "IncludedInEstTotalInd", true);
+        x.close();
+    }
+
+    /** Standard layout: surcharges as Purpose 5 and tax as Purpose 7 (once); discounts go to TPA_Extensions. */
+    private static void feesStandard(X x, List<PriceLine> lines, String cur, Tax tax) {
+        List<PriceLine> f = lines.stream().filter(l -> "FEE".equals(l.type()) || "TAX".equals(l.type())).toList();
+        if (f.isEmpty()) return;
+        x.open("Fees");
+        for (PriceLine l : f) {
+            boolean isTax = "TAX".equals(l.type());
+            x.el("Fee", null, "Purpose", isTax ? OtaCodes.CHARGE_TAX : OtaCodes.CHARGE_SURCHARGE, "Description", OtaCodes.text64(l.description()),
+                "Amount", l.amount(), "CurrencyCode", cur, "TaxInclusive", isTax ? null : tax.included(), "IncludedInEstTotalInd", true);
+        }
         x.close();
     }
 

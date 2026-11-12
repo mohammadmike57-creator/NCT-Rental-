@@ -1067,7 +1067,7 @@ public class ChannelBookingService {
             extras.addObject().put("name", l.description() + (l.quantity() > 1 ? " ×" + l.quantity() : "")).put("dailyPrice", perDay).put("isComplementary", false);
         }
         if (d != null) {
-            ObjectNode dn = r.with("driver");
+            ObjectNode dn = objectAt(r, "driver");
             if (!trim(d.licenceNumber()).isEmpty()) dn.put("licenseNumber", d.licenceNumber().trim());
             if (!trim(d.licenceCountry()).isEmpty()) dn.put("licenseCountry", d.licenceCountry().trim());
             if (!trim(d.dateOfBirth()).isEmpty()) dn.put("dateOfBirth", d.dateOfBirth().trim());
@@ -1400,4 +1400,12 @@ public class ChannelBookingService {
     private static String trim(String s) { return s == null ? "" : s.trim(); }
     private static String pick(String a, String b) { return a == null || a.isBlank() ? b : a; }
     private static String emptyNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }
+
+    /** The object under {@code key}, created when missing (what ObjectNode.with did); refuses to replace a non-object. */
+    private static ObjectNode objectAt(ObjectNode parent, String key) {
+        JsonNode existing = parent.get(key);
+        if (existing == null || existing.isNull()) return parent.putObject(key);
+        if (existing instanceof ObjectNode o) return o;
+        throw new IllegalStateException("\"" + key + "\" is not an object");
+    }
 }

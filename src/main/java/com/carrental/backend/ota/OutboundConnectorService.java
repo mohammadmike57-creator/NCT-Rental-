@@ -220,7 +220,7 @@ public class OutboundConnectorService {
     String reservation(ChannelSnapshot ch, OutboundConnector c, String event, Reservation r) {
         if ("XML".equals(c.getFormat())) {
             String root = switch (event) { case "reservation.cancelled" -> "OTA_VehCancelRS"; case "reservation.modified" -> "OTA_VehModifyRS"; default -> "OTA_VehResRS"; };
-            return OtaBookingXml.reservation(root, null, ch.isProduction(), r, brand(ch));
+            return OtaBookingXml.reservation(root, null, ch.isProduction(), r, new OtaBookingXml.Supplier(ch.vendorCode(), brand(ch), ch.otaStandard()));
         }
         ObjectNode n = JSON.createObjectNode();
         n.put("event", event).put("supplier", brand(ch)).put("sentAt", Instant.now().toString());

@@ -206,7 +206,7 @@ public class NativeXmlController {
         };
         return gateway.handle(channel, key, http, "XML " + operation, body, rid,
             c -> new ChannelGateway.Rendered(action.apply(c), XML),
-            (e, id) -> new ChannelGateway.Rendered(error(responseRoot, e, id), XML));
+            (e, id, sandbox) -> new ChannelGateway.Rendered(error(responseRoot, e, id), XML));
     }
 
     // ------------------------------------------------------------ requests
@@ -216,7 +216,7 @@ public class NativeXmlController {
         if (it == null) throw ChannelError.INVALID_REQUEST.ex("Itinerary is required");
         String pick = val(it, "PickupLocationCode");
         String ret = val(it, "ReturnLocationCode");
-        if (pick.isEmpty()) pick = rules.locations().get(0).code();
+        if (pick.isEmpty()) pick = rules.homeLocation().code();
         if (ret.isEmpty()) ret = pick;
         String age = val(it, "DriverAge");
         return new Search(pick, ret, OtaBookingXml.dateTime(val(it, "PickupDateTime"), "PickupDateTime"),

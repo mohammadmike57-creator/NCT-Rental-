@@ -169,7 +169,7 @@ public class PartnerRestController {
         String key = PartnerKeyVerifier.extractKey(http.getHeader("Authorization"), http.getHeader("X-Api-Key"));
         return gateway.handle(channel, key, http, type, body, http.getHeader("X-Request-ID"),
             c -> new ChannelGateway.Rendered(action.apply(c), MediaType.APPLICATION_JSON),
-            (e, rid) -> new ChannelGateway.Rendered(error(e, rid), MediaType.APPLICATION_JSON));
+            (e, rid, sandbox) -> new ChannelGateway.Rendered(error(e, rid), MediaType.APPLICATION_JSON));
     }
 
     private static String envelope(ChannelGateway.Call c, String field, Object value) {
@@ -200,7 +200,7 @@ public class PartnerRestController {
 
     static Search search(JsonNode it, ChannelRules rules, boolean required) {
         String pick = text(it, "pickup_location"), ret = text(it, "return_location");
-        if (required && pick == null) pick = rules.locations().get(0).code();
+        if (required && pick == null) pick = rules.homeLocation().code();
         if (required && ret == null) ret = pick;
         String from = text(it, "pickup_at"), to = text(it, "return_at");
         List<ExtraRequest> extras = null;

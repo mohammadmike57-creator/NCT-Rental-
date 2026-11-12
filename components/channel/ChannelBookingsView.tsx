@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
 import { deleteChannelBooking, fetchChannelBookings, fetchChannelStatement, ChannelBookingRow, ChannelStatement } from '../../firebase/api';
+import { TrashIcon } from '../icons';
 
 /** Asks before deleting a broker booking; a confirmed live one gets a stronger warning. */
 export const confirmDeleteBooking = (r: { reservationNumber: string; customerName?: string; status: string; sandbox?: boolean }) =>
@@ -289,7 +290,7 @@ const ChannelBookingsView: React.FC<{ aggregator: Aggregator }> = ({ aggregator 
                         if (!confirmDeleteBooking(r)) return;
                         try { await deleteChannelBooking(aggregator.id, r.reservationNumber); load(); }
                         catch (e: any) { alert(e.message || 'Could not delete the booking.'); }
-                      }} className="h-8 px-2.5 rounded-md text-xs font-semibold text-rose-600 hover:bg-rose-50" title="Delete this booking from the records" aria-label={`Delete ${r.reservationNumber}`}>Delete</button>
+                      }} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete this booking from the records" aria-label={`Delete ${r.reservationNumber}`}><TrashIcon className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}

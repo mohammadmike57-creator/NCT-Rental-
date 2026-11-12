@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
@@ -263,7 +263,10 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
     catch { window.alert('The change is shown here but could not be saved to the server yet. Please try again.'); }
   };
 
-  const now = new Date();
+  // Statuses (due, overdue) change once a day, so the table is recalculated per day, not on every render.
+  const nowRef = useRef(new Date());
+  if (nowRef.current.toDateString() !== new Date().toDateString()) nowRef.current = new Date();
+  const now = nowRef.current;
   // The breakdown (rental, add-ons, tickets, damages, other) is for admins, and for staff given the permission.
   const showBreakdown = !!currentUser?.permissions?.includes(UserPermission.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN)
     || !!currentUser?.permissions?.includes(UserPermission.ACTION_ADMIN_MANAGE_USERS);
@@ -301,7 +304,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
       month, idx, total: confirmed.length, confirmed: confirmed.length, cancelled,
       revenueUSD, parts, commissionUSD, feeUSD, waived, started, payment, paidUSD, deadline, status,
     };
-  }), [yearData, year, franchisePayments, breakdown, now.toDateString()]);
+  }), [yearData, year, franchisePayments, breakdown, now]);
 
   const totals = useMemo(() => {
     const t = { bookings: 0, confirmed: 0, cancelled: 0, revenueUSD: 0, commissionUSD: 0, rental: 0, addons: 0, tickets: 0, damages: 0, other: 0, lateFromEarlier: 0 };

@@ -235,7 +235,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const calculatedTotal = useMemo(() => {
     const base = formData.amount || 0;
     const days = formData.startDate && formData.endDate ? billingDays(formData.startDate, formData.endDate) : 0;
-    return base + selectedExtrasTotal((formData as any).selectedExtras, availableExtras, days);
+    return base + selectedExtrasTotal(formData.selectedExtras, availableExtras, days);
   }, [formData.amount, formData.selectedExtras, formData.startDate, formData.endDate, availableExtras]);
 
   const handleChange = (field: keyof Reservation, value: any) => {
@@ -281,7 +281,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     setIsModalOpen(false);
   };
 
-  const monthReservations = allData[selectedYear]?.[selectedMonth] || [];
+  const monthReservations = useMemo(() => allData[selectedYear]?.[selectedMonth] || [], [allData, selectedYear, selectedMonth]);
   const allDisplayReservations = useMemo(() => [...monthReservations, ...newReservations], [monthReservations, newReservations]);
 
   const getReservationPeriod = (reservation: Reservation) => {

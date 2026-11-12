@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -30,6 +29,9 @@ public class ChannelGateway {
 
     public record Call(ChannelBookingService.Ctx ctx, String requestId) {}
     public record Rendered(String body, MediaType type) {}
+    /** Writes the error answer in the adapter's format; {@code sandbox} is true for test keys and the console. */
+    @FunctionalInterface
+    public interface ErrorView { Rendered render(ChannelException e, String requestId, boolean sandbox); }
 
     private final ChannelStateReader channels;
     private final ChannelDeliveryService log2;
@@ -63,7 +65,7 @@ public class ChannelGateway {
      */
     public ResponseEntity<String> handle(String channelCode, String key, HttpServletRequest http, String messageType, String body,
                                          String requestId, Function<Call, Rendered> action,
-                                         BiFunction<ChannelException, String, Rendered> error) {
+                                         ErrorView error) {
         long bytes = body == null ? 0 : body.length();
         boolean console = http.getAttribute(CONSOLE_ATTR) != null;
         boolean sandbox = console;
@@ -109,6 +111,7 @@ public class ChannelGateway {
             if (!ipAllowed(ch, remote)) throw ChannelError.PERMISSION_DENIED.ex("Requests from " + remote + " are not allowed for this channel");
             boolean testKey = !consoleOk && oauth == null && PartnerKeyVerifier.kind(ch, key) == PartnerKeyVerifier.KeyKind.TEST;
             boolean sandboxHeader = console || testKey || (oauth != null && oauth.sandbox()) || "sandbox".equalsIgnoreCase(http.getHeader("X-Environment"));
+            sandbox = sandboxHeader;   // known from here on, also for the errors below
             ChannelBookingService.Ctx ctx = core.context(ch, sandboxHeader);
             sandbox = ctx.sandbox();
             Rendered ok = action.apply(new Call(ctx, rid));
@@ -129,8 +132,8 @@ public class ChannelGateway {
     }
 
     private ResponseEntity<String> failed(ChannelSnapshot ch, HttpServletRequest http, String type, String body, String rid, int status,
-                                          ChannelException e, BiFunction<ChannelException, String, Rendered> error, long start, String remote, boolean sandbox) {
-        Rendered r = error.apply(e, rid);
+                                          ChannelException e, ErrorView error, long start, String remote, boolean sandbox) {
+        Rendered r = error.render(e, rid, sandbox);
         if (ch != null) {
             log2.recordInbound(ch, type, status, false, e.error.name() + ": " + e.getMessage(), body == null ? 0 : body.length(), ms(start), remote);
             traffic.record(ch, http, type, body, rid, status, false, e.error.name(), e.getMessage(), r.body(), ms(start), remote, sandbox);

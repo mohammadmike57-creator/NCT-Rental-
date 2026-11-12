@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { VehicleDamage, VehicleDamageStatus, AppData, Reservation, User, UserPermission, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, EditIcon, SaveIcon, CancelIcon, PaperAirplaneIcon, ShieldExclamationIcon, UploadIcon, DocumentTextIcon, ShareIcon, ExportIcon } from './icons';
 import ConfirmationDialog from './ConfirmationDialog';
@@ -111,6 +111,9 @@ const money = (v: unknown) => {
     const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
     return (Number.isFinite(n) ? n : 0).toFixed(2);
 };
+const num = (v: unknown) => parseFloat(money(v));
+/** What can be claimed for a damage: the police report amount when there is a report, otherwise the damage amount. */
+const claimableOf = (damage: VehicleDamage) => (damage.policeReportNumber ? num(damage.policeReportAmount) : num(damage.amount));
 
 const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAddDamage, onUpdateDamage, onDeleteDamage, currentUser, companyDetails }) => {
   const [newDamageData, setNewDamageData] = useState<Omit<VehicleDamage, 'id'>>(emptyDamage);
@@ -129,7 +132,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
   
   const hasManagePermission = currentUser?.permissions.includes(UserPermission.ACTION_VEHICLE_DAMAGES_MANAGE);
 
-  const findReservationByBookingId = (bookingId: string): Reservation | null => {
+  const findReservationByBookingId = useCallback((bookingId: string): Reservation | null => {
     if (!bookingId) return null;
     const trimmedId = bookingId.trim().toLowerCase();
     for (const year in allData) {
@@ -141,7 +144,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
       }
     }
     return null;
-  };
+  }, [allData]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -159,7 +162,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
       }
     }, 300);
     return () => clearTimeout(handler);
-  }, [newDamageData.bookingId, allData]);
+  }, [newDamageData.bookingId, findReservationByBookingId]);
   
   const filteredDamages = useMemo(() => {
     if (!statusFilter) {
@@ -372,8 +375,6 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
   };
 
 
-  const num = (v: unknown) => parseFloat(money(v));
-  const claimableOf = (damage: VehicleDamage) => (damage.policeReportNumber ? num(damage.policeReportAmount) : num(damage.amount));
 
   const stats = useMemo(() => {
     let collected = 0, outstanding = 0, outstandingCount = 0;

@@ -26,7 +26,7 @@ const shortDate = (iso?: string) => {
 const num = (v: unknown) => { const n = typeof v === 'number' ? v : parseFloat(String(v ?? '')); return Number.isFinite(n) ? n : 0; };
 
 const HomePage: React.FC<HomePageProps> = ({ currentUser, allData, onNavigate, onOpenAgreement, onOpenUnlistedAgreement }) => {
-  const reservations = allData.reservations || {};
+  const reservations = useMemo(() => allData.reservations || {}, [allData.reservations]);
   const fleet = allData.fleet || [];
   const sources: { id: string; name: string }[] = allData.sources || [];
   const [scheduleTab, setScheduleTab] = useState<'pickups' | 'returns'>('pickups');

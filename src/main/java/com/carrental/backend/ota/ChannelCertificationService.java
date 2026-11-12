@@ -40,7 +40,7 @@ public class ChannelCertificationService {
         // Sandbox, no webhooks.
         ChannelBookingService.Ctx c = new ChannelBookingService.Ctx(ch, r.forCertification(r.operationalBuffer()), base.state(), true);
         List<Result> out = new ArrayList<>();
-        String loc = r.locations().get(0).code();
+        String loc = r.homeLocation().code();
         String stamp = String.valueOf(System.currentTimeMillis() % 1_000_000);
 
         step(out, "auth-ok", "Authentication succeeds with the issued key", () -> {
@@ -140,7 +140,7 @@ public class ChannelCertificationService {
             expect(ChannelError.POLICY_VIOLATION, () -> core.search(c, new Search(loc, loc, from, from.plusDays(3), 30, null, null, List.of(), null, "NOPE-" + stamp)));
             return "POLICY_VIOLATION returned";
         });
-        ChannelRules.Location home = r.locations().get(0);
+        ChannelRules.Location home = r.homeLocation();
         if (!home.hours().isEmpty() && !home.afterHoursPickup()) step(out, "closed", "A pick-up when the station is closed is refused", () -> {
             LocalDateTime night = from.toLocalDate().atTime(3, 0);
             if (home.openAt(night)) return "Station is open at 03:00; nothing to check";
@@ -243,7 +243,7 @@ public class ChannelCertificationService {
     /** The first day with published rates, at least two days out, at a time the station is open. */
     private static LocalDateTime firstSellableDate(ChannelBookingService.Ctx c) {
         LocalDateTime d = firstRateDate(c);
-        ChannelRules.Location l = c.rules().locations().get(0);
+        ChannelRules.Location l = c.rules().homeLocation();
         for (int i = 0; i < 14 && !(l.openAt(d) && l.openAt(d.plusDays(3)) && l.openAt(d.plusDays(4))); i++) {
             ChannelRules.Hours h = l.hours().get(d.getDayOfWeek());
             d = h != null && !l.openAt(d) ? d.toLocalDate().atTime(h.open().plusHours(1)) : d.plusDays(1);

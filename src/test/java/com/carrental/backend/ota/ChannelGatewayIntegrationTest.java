@@ -1971,4 +1971,91 @@ class ChannelGatewayIntegrationTest {
         assertThrows(OtaRequestParser.InvalidRequestException.class, () -> OtaRequestParser.parse("<OTA_VehAvailRateRQ>" + deep + "</OTA_VehAvailRateRQ>"));
         assertThrows(ChannelError.ChannelException.class, () -> OtaBookingXml.parse("<OTA_VehResRQ>" + deep + "</OTA_VehResRQ>", "OTA_VehResRQ"));
     }
+
+    @Test
+    void xmlBookingNotificationsCarryTheSupplierNameAndCode() throws Exception {
+        var calls = fakeBroker(x -> new OutboundConnectorService.Reply(200, "<OK/>"));
+        try {
+            connector("{\"type\":\"RES_NOTIFY\",\"url\":\"https://api.broker.example/xml\",\"format\":\"XML\"}");
+            send("/ota/v1/BKG/OTA_VehRes", direct(Y + "-11-10T10:00:00", Y + "-11-12T10:00:00", "XMLV-1", "Doe"));
+            connectorsSvc.deliverDue();
+            String xml = calls.stream().filter(x -> x.url().contains("broker.example/xml")).findFirst().orElseThrow().body();
+            var vendor = java.util.regex.Pattern.compile("<Vendor Code=\"([A-Z]{2,})\">([^<]+)</Vendor>").matcher(xml);
+            assertTrue(vendor.find(), "a supplier code and a supplier name: " + xml);
+            assertNotEquals(vendor.group(1), vendor.group(2), "the name is not used as the code");
+            assertEquals("UR-Drive Jordan", vendor.group(2), "the supplier name, never the system's name: " + xml);
+        } finally {
+            connectorRepo.deleteAll();
+        }
+    }
+
+    @Test
+    void errorsForTheTestKeySayTest() throws Exception {
+        rules((agg, r) -> agg.put("testKeyHash", PartnerKeyVerifier.sha256Hex("test-only-key")));
+        String bad = mvc.perform(post("/ota/v1/BKG/OTA_VehAvailRate").header("X-Api-Key", "test-only-key")
+                .contentType(MediaType.APPLICATION_XML).content("<OTA_VehAvailRateRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><VehAvailRQCore/></OTA_VehAvailRateRQ>"))
+            .andReturn().getResponse().getContentAsString();
+        assertTrue(bad.contains("<Errors>") && bad.contains("Target=\"Test\""), bad);
+        String live = mvc.perform(post("/ota/v1/BKG/OTA_VehAvailRate").header("X-Api-Key", KEY)
+                .contentType(MediaType.APPLICATION_XML).content("<OTA_VehAvailRateRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><VehAvailRQCore/></OTA_VehAvailRateRQ>"))
+            .andReturn().getResponse().getContentAsString();
+        assertTrue(live.contains("<Errors>") && live.contains("Target=\"Production\""), live);
+    }
+
+    @Test
+    void aChannelWithoutAStationListUsesItsMainStation() throws Exception {
+        rules((agg, r) -> r.putArray("locations"));
+        String rs = send("/ota/v1/BKG/OTA_VehAvailRate", avail("NOLOC"));
+        assertTrue(rs.contains("<Success/>") && rs.contains("<VehAvails>"), "falls back to the channel's main station: " + rs);
+    }
+
+    /**
+     * The standard layout is valid against the official OpenTravel 2017B schemas for every message, on a channel with
+     * covers (one without an OTA code), tax, a promotion, limited mileage, a change and a cancellation.
+     */
+    @Test
+    void everyStandardAnswerIsValidAgainstTheOfficialOpenTravelSchemas() throws Exception {
+        rules((agg, r) -> agg.put("otaProfile", "standard"));
+        rules((agg, r) -> {
+            ObjectNode p = r.putObject("pricing");
+            p.put("taxPercent", 16).put("taxIncluded", false).put("taxName", "Sales tax");
+            p.put("unlimitedMileage", false).put("kmPerDay", 200).put("extraKmPrice", 0.25);
+            ArrayNode cv = p.putArray("coverages");
+            cv.addObject().put("code", "CDW").put("name", "Collision damage waiver").put("included", true).put("excess", 500);
+            cv.addObject().put("code", "SCDW").put("name", "Super cover").put("dailyPrice", 10).put("excess", 0);
+            p.putArray("promotions").addObject().put("code", "SUMMER10").put("percentOff", 10).putArray("groups").add("SDAR");
+        });
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        out.put("ping", send("/ota/v1/BKG/OTA_Ping", "<OTA_PingRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><EchoData>hi</EchoData></OTA_PingRQ>"));
+        out.put("locsearch", send("/ota/v1/BKG/OTA_VehLocSearch", "<OTA_VehLocSearchRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"/>"));
+        out.put("locdetail", send("/ota/v1/BKG/OTA_VehLocDetail", "<OTA_VehLocDetailRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><Location LocationCode=\"AMM\"/></OTA_VehLocDetailRQ>"));
+        String av = send("/ota/v1/BKG/OTA_VehAvailRate", avail("E1").replace("</VehAvailRQCore>", "<RateQualifier PromotionCode=\"SUMMER10\"/></VehAvailRQCore>")
+            .replace("</SpecialEquipPrefs>", "</SpecialEquipPrefs><CoveragePrefs><CoveragePref CoverageType=\"SCDW\"/></CoveragePrefs>"));
+        out.put("avail", av);
+        String offer = firstOffer(av);
+        out.put("raterule", send("/ota/v1/BKG/OTA_VehRateRule", "<OTA_VehRateRuleRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><Reference Type=\"16\" ID=\"" + offer + "\"/></OTA_VehRateRuleRQ>"));
+        String res = send("/ota/v1/BKG/OTA_VehRes", vehRes(offer, "PROBE-1"));
+        out.put("res", res);
+        String number = res.substring(res.indexOf("ID=\"RSV-") + 4, res.indexOf('"', res.indexOf("ID=\"RSV-") + 4));
+        out.put("modify", send("/ota/v1/BKG/OTA_VehModify", "<OTA_VehModifyRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><VehModifyRQCore ModifyType=\"Modify\"><UniqueID Type=\"14\" ID=\"" + number
+            + "\"/><VehRentalCore PickUpDateTime=\"" + Y + "-05-01T10:00:00\" ReturnDateTime=\"" + Y + "-05-07T10:00:00\"/></VehModifyRQCore></OTA_VehModifyRQ>"));
+        out.put("retres", send("/ota/v1/BKG/OTA_VehRetRes", "<OTA_VehRetResRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><VehRetResRQCore><UniqueID Type=\"14\" ID=\"" + number + "\"/></VehRetResRQCore></OTA_VehRetResRQ>"));
+        out.put("cancel", send("/ota/v1/BKG/OTA_VehCancel", "<OTA_VehCancelRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><VehCancelRQCore CancelType=\"Book\"><UniqueID Type=\"14\" ID=\"" + number + "\"/></VehCancelRQCore></OTA_VehCancelRQ>"));
+        out.put("error", send("/ota/v1/BKG/OTA_VehAvailRate", "<OTA_VehAvailRateRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><VehAvailRQCore/></OTA_VehAvailRateRQ>"));
+        out.forEach((message, xml) -> assertEquals(List.of(), OfficialOtaSchemas.violations(xml), message + ":\n" + xml));
+        assertTrue(out.get("avail").contains("CoverageType=\"7\" Code=\"CDW\""), "a known cover gets its OTA code");
+        assertTrue(out.get("avail").contains("<AdditionalCoverages>") && out.get("avail").contains("Code=\"SCDW\""), "a cover without an OTA code is still offered");
+        assertTrue(out.get("avail").contains("Purpose=\"7\"") && !out.get("avail").contains("<TaxAmounts>"), "tax once, as an OTA tax fee");
+        assertTrue(out.get("locsearch").contains("Weds=\"true\"") && out.get("locsearch").contains("Start=\"06:00:00\""), "OTA day names and times");
+        assertTrue(out.get("res").contains("<VehResRSInfo>"), "booking details in VehResRSInfo");
+    }
+
+    @Test
+    void channelsConnectedBeforeKeepTheirLayout() throws Exception {
+        String av = send("/ota/v1/BKG/OTA_VehAvailRate", avail("KEEP"));
+        String locs = send("/ota/v1/BKG/OTA_VehLocSearch", "<OTA_VehLocSearchRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"/>");
+        assertTrue(locs.contains("Wed=\"true\"") && locs.contains("Start=\"06:00\"") && locs.contains("<VehRentLocInfos/>"), locs);
+        assertTrue(av.contains("<VehAvailInfo>\n") || av.contains("<VehAvailInfo>"), av);
+        assertFalse(av.contains("<AdditionalCoverages>"), "no standard-only blocks: " + av);
+    }
 }

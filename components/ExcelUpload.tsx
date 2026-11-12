@@ -127,6 +127,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
     const data = allData || reservationService.getData() || {};
     Object.keys(data).forEach(y => Object.keys(data[+y] || {}).forEach(m => (data[+y][m] || []).forEach((r: Reservation) => { const k = r.invoice || r.bookingId; if (k) ids.set(k, `${m} ${y}`); })));
     return ids;
+    // `done` is listed on purpose: an import changes reservationService's data, which is read directly here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allData, done]);
   const pickupMonthLabel = (pickup: string) => `${MONTHS[+pickup.slice(5, 7) - 1]} ${pickup.slice(0, 4)}`;
 
@@ -174,6 +176,8 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ onReservationsImported, years
   const rowEdit = (r: Row): BookingEdit => rowEdits[r.row] || { bookingId: r.bookingId, customer: r.customer, pickup: r.pickup, dropoff: r.dropoff, car: carOf(r), source: sourceOf(r), amount: r.amount, phone: r.phone, email: r.email, notes: r.notes };
   const editedCount = rows.filter(r => r.edited && statusOf(r) !== 'ignored').length;
   // Bookings anywhere in the system listed under a month other than their pick-up month.
+  // `done` / `tidyDone` are listed on purpose: an import or a tidy-up changes reservationService's data, read directly here.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const misfiled = useMemo(() => ReservationService.misfiled(allData || reservationService.getData() || {}), [allData, done, tidyDone]);
   const newSourceNames = Array.from(new Set(distinctSources.filter(s => sourceValue(s.raw) === NEW).map(s => s.m.suggested).filter(Boolean)))
     .filter(n => !sources.some(s => s.name.toLowerCase() === n.toLowerCase()));

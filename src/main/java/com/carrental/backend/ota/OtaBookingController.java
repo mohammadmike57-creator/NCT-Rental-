@@ -104,7 +104,7 @@ public class OtaBookingController {
         Function<ChannelGateway.Call, String> action = switch (rq) {
             case "OTA_VehLocSearchRQ" -> c -> {
                 OtaBookingXml.Parsed p = body == null || body.isBlank() ? null : OtaBookingXml.parse(body, rq);
-                return OtaBookingXml.locations(p == null ? null : p.echoToken(), prod(c), core.locations(c.ctx()), c.ctx().channel().vendorCodeFor(requestedVendor(body)));
+                return OtaBookingXml.locations(p == null ? null : p.echoToken(), prod(c), core.locations(c.ctx()), OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)));
             };
             case "OTA_VehAvailRateRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
@@ -119,30 +119,30 @@ public class OtaBookingController {
                     offers = List.of();
                     warning = e.getMessage();
                 }
-                return OtaBookingXml.availability(p.echoToken(), prod(c), s, offers, c.ctx().channel().vendorCodeFor(requestedVendor(body)), warning);
+                return OtaBookingXml.availability(p.echoToken(), prod(c), s, offers, OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)), warning);
             };
             case "OTA_VehResRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 Reservation r = core.create(c.ctx(), OtaBookingXml.booking(p.root(), c.ctx().rules(), idem));
-                return OtaBookingXml.reservation("OTA_VehResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
+                return OtaBookingXml.reservation("OTA_VehResRS", p.echoToken(), prod(c), r, OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)));
             };
             case "OTA_VehRetResRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 Reservation r = core.retrieve(c.ctx(), OtaBookingXml.uniqueId(p.root()));
                 checkSurname(p, r);
-                return OtaBookingXml.reservation("OTA_VehRetResRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
+                return OtaBookingXml.reservation("OTA_VehRetResRS", p.echoToken(), prod(c), r, OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)));
             };
             case "OTA_VehModifyRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 Reservation r = core.modify(c.ctx(), OtaBookingXml.modify(p.root(), c.ctx().rules()));
-                return OtaBookingXml.reservation("OTA_VehModifyRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
+                return OtaBookingXml.reservation("OTA_VehModifyRS", p.echoToken(), prod(c), r, OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)));
             };
             case "OTA_VehCancelRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 String id = OtaBookingXml.uniqueId(p.root());
                 checkSurname(p, core.get(c.ctx(), id));
                 Reservation r = core.cancel(c.ctx(), id, OtaBookingXml.text(OtaBookingXml.first(OtaBookingXml.first(p.root(), "TPA_Extensions"), "Reason")));
-                return OtaBookingXml.reservation("OTA_VehCancelRS", p.echoToken(), prod(c), r, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
+                return OtaBookingXml.reservation("OTA_VehCancelRS", p.echoToken(), prod(c), r, OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)));
             };
             case "OTA_VehRateRuleRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
@@ -150,14 +150,14 @@ public class OtaBookingController {
                 Search s = OtaBookingXml.first(p.root(), "VehRentalCore") == null ? null : OtaBookingXml.search(p.root(), c.ctx().rules());
                 if (offer == null && s == null) throw ChannelError.INVALID_REQUEST.ex("Send Reference Type=\"16\" with the offer id, or VehRentalCore and VehPref");
                 RateRule rr = core.rateRule(c.ctx(), offer, s);
-                return OtaBookingXml.rateRule(p.echoToken(), prod(c), rr.search(), rr, c.ctx().channel().vendorCodeFor(requestedVendor(body)));
+                return OtaBookingXml.rateRule(p.echoToken(), prod(c), rr.search(), rr, OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)));
             };
             case "OTA_VehLocDetailRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
                 String code = OtaBookingXml.attr(OtaBookingXml.first(p.root(), "Location"), "LocationCode");
                 if (code.isEmpty()) code = OtaBookingXml.attr(OtaBookingXml.first(p.root(), "LocationDetail"), "Code");
                 if (code.isEmpty()) throw ChannelError.INVALID_REQUEST.ex("Location LocationCode is required");
-                return OtaBookingXml.locationDetail(p.echoToken(), prod(c), core.location(c.ctx(), code), c.ctx().channel().vendorCodeFor(requestedVendor(body)));
+                return OtaBookingXml.locationDetail(p.echoToken(), prod(c), core.location(c.ctx(), code), OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)));
             };
             case "OTA_PingRQ" -> c -> {
                 OtaBookingXml.Parsed p = body == null || body.isBlank() ? null : OtaBookingXml.parse(body, rq);
@@ -196,10 +196,9 @@ public class OtaBookingController {
         String echo = echo(body);
         return gateway.handle(channel, key, http, type, body, http.getHeader("X-Request-ID"),
             c -> {
-                OtaBookingXml.VENDOR_NAME.set(c.ctx().channel().vendorName());
-                try { return new ChannelGateway.Rendered(action.apply(c), XML); } finally { OtaBookingXml.VENDOR_NAME.remove(); }
+                return new ChannelGateway.Rendered(action.apply(c), XML);
             },
-            (e, rid) -> new ChannelGateway.Rendered(OtaBookingXml.error(errorRoot, echo, true, e, rid), XML));
+            (e, rid, sandbox) -> new ChannelGateway.Rendered(OtaBookingXml.error(errorRoot, echo, !sandbox, e, rid), XML));
     }
 
     private static String headerKey(HttpServletRequest http) {

@@ -93,15 +93,17 @@ const ReservationWizard: React.FC<ReservationWizardProps> = ({
     : 0;
 
   // ---- Booking-number checks ---------------------------------------------
+  const formKey = bookingKey(formData);
+  const formId = formData.id;
   const bookingIdTaken = useMemo(() => {
-    const id = bookingKey(formData);
+    const id = formKey;
     if (!id) return false;
     let hit = false;
-    const check = (r: Reservation) => { if (!hit && r.id !== formData.id && bookingKey(r) === id) hit = true; };
+    const check = (r: Reservation) => { if (!hit && r.id !== formId && bookingKey(r) === id) hit = true; };
     Object.values(allData || {}).forEach((months: any) => Object.values(months || {}).forEach((items: any) => (items as Reservation[]).forEach(check)));
     newReservations.forEach(check);
     return hit;
-  }, [formData.bookingId, formData.id, allData, newReservations]);
+  }, [formKey, formId, allData, newReservations]);
   const bookingIdDuplicate = bookingIdTaken || duplicateBookingIds.has(bookingKey(formData));
 
   // ---- Fleet availability for the chosen dates ---------------------------
