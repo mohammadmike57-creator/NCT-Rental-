@@ -23,6 +23,7 @@ public class StaffAccountService {
 
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
+    private final com.carrental.backend.repository.MfaSettingsRepository twoStepSettings;
 
     public static class StaffAccountException extends RuntimeException {
         private final int status;
@@ -105,6 +106,7 @@ public class StaffAccountService {
         User u = users.findById(id).orElseThrow(() -> new StaffAccountException(404, "Account not found."));
         if (u.getEmail().equalsIgnoreCase(actorEmail)) throw new StaffAccountException(400, "You cannot delete your own account.");
         if (isActiveAdmin(u) && countActiveAdmins() <= 1) throw new StaffAccountException(400, "At least one active administrator must remain.");
+        twoStepSettings.findByUser(u).ifPresent(twoStepSettings::delete);   // their two-step sign-in goes with the account
         users.delete(u);
     }
 

@@ -7,6 +7,7 @@ broker channel console (OTA XML, rates, price rules, API keys).
 ## How it is put together
 
 Everything lives in this one repository and runs as **one Render service** at www.nctrental.com.
+(Render still builds from the copy in `car-rental-backend-java` until the switch in `docs/one-repository.md`.)
 
 | Part | Where | What it does |
 |------|-------|--------------|
@@ -52,6 +53,7 @@ work through the system in a browser like staff and brokers do (`e2e/`):
 
 - every screen, as administrator, as staff and on a phone;
 - sign-in, wrong password, signing out and in as someone else;
+- turning on two-step sign-in, then signing in with the app code and with a backup code;
 - new booking (all five steps), editing a booking, two people saving at the same time;
 - full check-out (all seven steps, signatures, receipt PDF) and check-in with a traffic violation
   that reaches the Traffic Tickets register;
@@ -105,6 +107,16 @@ Administrators can check the storage at `/api/admin/storage/check`, see a bookin
 `/api/admin/storage/history?bookingId=…` and recently deleted bookings at `/api/admin/storage/deleted`.
 
 Never commit secret values. `docs/application.example.yml` lists the settings without values.
+
+## Two-step sign-in
+
+Optional for each person (off until they turn it on, so nobody's sign-in changes on its own):
+**My Profile → Two-step sign-in → Turn on**, scan the QR code with an authenticator app, type the code.
+They get ten single-use backup codes, shown once. From then on, sign-in asks for the password and then the
+6-digit code from the app (or a backup code). The app key is stored encrypted, backup codes only as hashes;
+a code works once; five tries per sign-in and ten wrong codes per account in 15 minutes.
+Someone lost their phone and backup codes: an administrator types their email under **Turn off for them** on
+the same page; they sign in with the password and set it up again.
 
 ## Changing the server secret
 

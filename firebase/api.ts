@@ -25,18 +25,46 @@ axios.interceptors.response.use(
 
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
-export const signInUser = async (email: string, password: string) => {
+const keepSession = (data: any) => {
+  const user = data.user;
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('user', JSON.stringify(user));
+  return { user: { uid: user.id, email: user.email } };
+};
+
+/**
+ * Step one: password. When the person has two-step sign-in on, no session is created yet:
+ * the result carries `twoStepChallenge`, to be finished with {@link signInWithCode}.
+ */
+export const signInUser = async (email: string, password: string): Promise<{ user?: { uid: string; email: string }; twoStepChallenge?: string }> => {
   try {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });
-    const issued: string = response.data.token;
-    const user = response.data.user;
-    localStorage.setItem('token', issued);
-    localStorage.setItem('user', JSON.stringify(user));
-    return { user: { uid: user.id, email: user.email } };
+    if (response.data?.twoStepRequired) return { twoStepChallenge: String(response.data.challenge) };
+    return keepSession(response.data);
   } catch (error: any) {
-    console.error('Login error:', error.response?.data || error.message);
+    console.error('Login error:', error.response?.status || error.message);
     throw error;
   }
+};
+
+/** Step two: the 6-digit code from the authenticator app, or a backup code. */
+export const signInWithCode = async (challenge: string, code: string) => {
+  const response = await axios.post(`${API_URL}/auth/login/code`, { challenge, code });
+  return keepSession(response.data);
+};
+
+export interface TwoStepStatus { on: boolean; backupCodesLeft: number }
+export const getTwoStepStatus = async (): Promise<TwoStepStatus> =>
+  (await axios.get(`${API_URL}/api/two-step/status`, { headers: authHeaders() })).data;
+export const startTwoStepSetup = async (): Promise<{ secret: string; otpauthUri: string; qrSvg: string }> =>
+  (await axios.post(`${API_URL}/api/two-step/setup`, {}, { headers: authHeaders() })).data;
+export const confirmTwoStep = async (code: string): Promise<string[]> =>
+  (await axios.post(`${API_URL}/api/two-step/confirm`, { code }, { headers: authHeaders() })).data.backupCodes;
+export const turnOffTwoStep = async (password: string, code: string): Promise<void> => {
+  await axios.post(`${API_URL}/api/two-step/off`, { password, code }, { headers: authHeaders() });
+};
+export const resetTwoStepFor = async (email: string): Promise<void> => {
+  await axios.post(`${API_URL}/api/two-step/reset`, { email }, { headers: authHeaders() });
 };
 
 export const signOutUser = async () => {

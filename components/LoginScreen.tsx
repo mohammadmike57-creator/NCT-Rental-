@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { User } from '../types';
-import { signInUser } from '../firebase/api';
+import { signInUser, signInWithCode } from '../firebase/api';
 import { NCT_LOGIN_LOGO_B64 } from '../constants';
 
 interface LoginScreenProps {
@@ -98,6 +98,9 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
   const [errorKey, setErrorKey] = useState(0);
   const [clock, setClock] = useState('');
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const codeRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const speedTarget = useRef(1);
   useNightDrive(canvasRef, speedTarget);
@@ -114,20 +117,33 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
 
   const fail = (msg: string) => { setError(msg); setErrorKey(k => k + 1); speedTarget.current = 1; };
 
+  const welcome = () => {
+    let name = '';
+    try { name = (JSON.parse(localStorage.getItem('user') || '{}').fullName || '').split(' ')[0]; } catch { /* name is optional */ }
+    setWelcomeName(name);
+    window.setTimeout(() => window.location.reload(), 1300);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (challenge) { await submitCode(); return; }
     const enteredInput = username.trim();
     if (!enteredInput || !password) { fail('Enter your username or email and your password.'); return; }
     setIsLoading(true);
     speedTarget.current = 6;
     try {
       // The server accepts either email or username and checks the account is active.
-      await signInUser(enteredInput, password);
-      let name = '';
-      try { name = (JSON.parse(localStorage.getItem('user') || '{}').fullName || '').split(' ')[0]; } catch { /* name is optional */ }
-      setWelcomeName(name);
-      window.setTimeout(() => window.location.reload(), 1300);
+      const result = await signInUser(enteredInput, password);
+      if (result.twoStepChallenge) {
+        setChallenge(result.twoStepChallenge);
+        setCode('');
+        setIsLoading(false);
+        speedTarget.current = 1;
+        window.setTimeout(() => codeRef.current?.focus(), 50);
+        return;
+      }
+      welcome();
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 403) fail(typeof err.response.data === 'string' ? err.response.data : 'This account has been disabled.');
@@ -136,6 +152,29 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       setIsLoading(false);
     }
   };
+
+  const submitCode = async () => {
+    if (!challenge) return;
+    const entered = code.trim();
+    if (!entered) { fail('Enter the code from your authenticator app.'); return; }
+    setIsLoading(true);
+    speedTarget.current = 6;
+    try {
+      await signInWithCode(challenge, entered);
+      welcome();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const text = typeof err?.response?.data === 'string' ? err.response.data : '';
+      if (status === 401) { setChallenge(null); setPassword(''); fail(text || 'The sign-in has expired. Please enter your password again.'); }
+      else if (status === 403 || status === 429) fail(text || 'Please try again later.');
+      else if (!err?.response) fail('Cannot reach the server. Check your connection and try again.');
+      else fail('The code is not right. Use the newest code in your app, or a backup code.');
+      setCode('');
+      setIsLoading(false);
+    }
+  };
+
+  const backToPassword = () => { setChallenge(null); setCode(''); setPassword(''); setError(''); };
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => setCapsLock(!!e.getModifierState && e.getModifierState('CapsLock'));
   const done = welcomeName !== null;
@@ -161,6 +200,19 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
 
       <section className="lg-side">
         <form className="lg-card" onSubmit={handleSubmit} noValidate>
+          {challenge ? (
+            <>
+              <h2>Two-step sign-in</h2>
+              <p className="lg-lead">Enter the 6-digit code from your authenticator app, or one of your backup codes.</p>
+              <div className="lg-field">
+                <input id="code-input" ref={codeRef} name="one-time-code" type="text" inputMode="text" placeholder=" " autoComplete="one-time-code"
+                  autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={14}
+                  value={code} onChange={e => setCode(e.target.value)} disabled={isLoading || done} className="lg-code" />
+                <label htmlFor="code-input">Code</label>
+              </div>
+            </>
+          ) : (
+            <>
           <h2 className="lg-in lg-d3">Welcome back</h2>
           <p className="lg-lead lg-in lg-d4">Sign in to your staff account</p>
 
@@ -180,15 +232,20 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
             </button>
           </div>
 
+            </>
+          )}
+
           {capsLock && <p className="lg-caps">Caps Lock is on</p>}
           {error && <p key={errorKey} className="lg-err" role="alert">{error}</p>}
 
           <button className={`lg-btn lg-in lg-d7 ${isLoading && !done ? 'busy' : ''} ${done ? 'done' : ''}`} type="submit" disabled={isLoading || done}>
-            <span>{done ? 'Signed in' : isLoading ? 'Signing in…' : 'Sign in'}</span>
+            <span>{done ? 'Signed in' : isLoading ? (challenge ? 'Checking…' : 'Signing in…') : (challenge ? 'Verify' : 'Sign in')}</span>
             <span className="lg-fill" />
           </button>
 
-          <p className="lg-help lg-in lg-d8">Forgot your password? Ask your administrator to reset it.</p>
+          {challenge
+            ? <p className="lg-help"><button type="button" className="lg-link" onClick={backToPassword}>Back to password</button> · Lost your phone and backup codes? Ask your administrator.</p>
+            : <p className="lg-help lg-in lg-d8">Forgot your password? Ask your administrator to reset it.</p>}
           <div className="lg-secure lg-in lg-d8">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
             Encrypted connection · Staff access only
@@ -252,6 +309,8 @@ const LOGIN_CSS = `
 .lg-btn.busy .lg-fill { animation:lg-fill 2.4s cubic-bezier(.4,0,.2,1) forwards; }
 .lg-btn.done { background:linear-gradient(135deg,#10b981,#34d399); box-shadow:0 10px 30px -10px rgba(52,211,153,.7); }
 .lg-help { margin:18px 0 0; text-align:center; font-size:13px; color:var(--lg-muted); }
+.lg-link { border:0; background:none; padding:0; color:#b9c3ff; font:inherit; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.lg-field input.lg-code { font:600 20px var(--lg-mono); letter-spacing:.3em; }
 .lg-secure { margin-top:10px; display:flex; align-items:center; justify-content:center; gap:8px; font-size:12.5px; color:var(--lg-muted); }
 .lg-welcome { position:fixed; inset:0; z-index:5; display:grid; place-items:center; background:rgba(7,11,22,0); pointer-events:none; opacity:0; transition:opacity .6s, background .6s; }
 .lg-welcome.show { opacity:1; background:rgba(7,11,22,.88); pointer-events:auto; }

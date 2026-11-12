@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, UserPermission } from '../types';
 import { MailIcon, KeyIcon } from './icons';
 import { API_URL } from '../firebase/api';
+import TwoStepPanel from './TwoStepPanel';
 import { Page, PageHeader, Panel, Badge, Button, Field, DetailList, inputCls } from './ui/Crm';
 
 interface ProfileViewProps {
@@ -57,7 +58,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, }) => {
 
   return (
     <Page className="max-w-3xl">
-      <PageHeader section="Account" title="My Profile" subtitle="Your sign-in details and password." />
+      <PageHeader section="Account" title="My Profile" subtitle="Your sign-in details, password and two-step sign-in." />
 
       <Panel title="Account details">
         <div className="px-4 py-4 flex items-center gap-3 border-b border-slate-100">
@@ -105,6 +106,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, }) => {
           </div>
         </Panel>
       </form>
+
+      <TwoStepPanel isAdmin={!!isAdmin} />
     </Page>
   );
 };

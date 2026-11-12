@@ -77,6 +77,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
                     "/auth/login",
+                    "/auth/login/code",
                     "/auth/signup",
                     "/auth/change-password",
                     "/",

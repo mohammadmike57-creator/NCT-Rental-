@@ -6,11 +6,12 @@ import { VehicleArt, vehicleKind } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon, MailIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { downloadReceiptPdf } from '../services/receiptPdf';
-import { calculateDaysWithGrace, isDriverExtra, AMEND_FIELDS, AMEND_SAVED, AMEND_LABEL } from './voucher/agreementRules';
+import { calculateDaysWithGrace, isDriverExtra, AMEND_FIELDS, AMEND_SAVED, AMEND_LABEL, emailCheck, kmOutOk, kmInOk, chargesOk, signedCount, countChecked as countTicked, firstMissingStep } from './voucher/agreementRules';
 import { recordActivity, sendCustomerEmail } from '../firebase/api';
 import { receiptEmailPayload } from '../services/receiptEmail';
 import { thankYouEmailPayload } from '../services/thankYouEmail';
 import { emailAgreementDocuments } from '../services/agreementEmail';
+import { withEmailLog, documentsSentMessage } from '../services/agreementEmailLog';
 import PaymentChoice from './PaymentChoice';
 import { bookingPayment, isPrepaid as bookingIsPrepaid, paymentUnset, sourceOf, PAYMENT_LABEL } from '../services/paymentType';
 import { depositTermsFor } from '../services/fleetLookup';
@@ -20,6 +21,7 @@ import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
 import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
+import { TextField, KmField, KmFieldProps } from './voucher/Fields';
 import { TimeEditRow, VehiclePicker, ExtrasEditor, withTime } from './voucher/AgreementEditors';
 import { Bi } from './ui/Bi';
 import { Badge, Button, Plate, SectionLabel, labelCls } from './ui/Crm';
@@ -458,7 +460,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     const to = r.customerEmail?.trim();
     if (!to) return;
     setEmailState({ status: 'sending', to });
-    const rc = kind === 'checkin' && r.returnCharges && r.returnCharges.items.length > 0 ? r.returnCharges : undefined;
     const outcome = await emailAgreementDocuments({
       reservation: r, kind, company: companyDetails,
       agreementHtml: buildAgreementHtml(r),
@@ -466,14 +467,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     });
     if (outcome.ok) {
       setEmailState({ status: 'sent', to });
-      const sentAt = new Date().toISOString();
-      const withLog: Reservation = {
-        ...r,
-        agreementEmails: [...(r.agreementEmails || []), { to, kind, sentAt }],
-        ...(rc ? { returnCharges: { ...rc, emails: [...(rc.emails || []), { to, sentAt }] } } : {}),
-      };
+      const withLog = withEmailLog(r, to, kind, new Date().toISOString());
       // Only the email log is taken over, so check-in entries made meanwhile stay on screen.
-      setLocalReservation(prev => ({ ...prev, agreementEmails: withLog.agreementEmails, ...(rc ? { returnCharges: withLog.returnCharges } : {}) }));
+      setLocalReservation(prev => ({ ...prev, agreementEmails: withLog.agreementEmails, ...(withLog.returnCharges !== r.returnCharges ? { returnCharges: withLog.returnCharges } : {}) }));
       saveRes(withLog);
       return true;
     } else {
@@ -522,10 +518,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       sendCustomerEmail(receiptEmailPayload(r, companyDetails, sources, email)).catch(() => ({ ok: false } as { ok: boolean; reason?: string; message?: string })),
     ]);
     setAmendBusy(false);
-    const docs = r.dropOffCompleted ? 'closed agreement, the termination statement' : 'agreement';
-    if (agreementSent && receipt.ok) alert(`The ${docs} and the receipt were emailed to ${email}.`);
-    else if ((receipt as { reason?: string }).reason === 'unconfigured') alert(`Email is not set up yet (Email Settings), so nothing was sent.${savedNote ? ' ' + savedNote : ''}`);
-    else alert(`${agreementSent ? `The ${docs} ${r.dropOffCompleted ? 'were' : 'was'} sent` : `The ${docs} could not be sent`}; ${receipt.ok ? 'the receipt was sent' : 'the receipt could not be sent'} to ${email}.${savedNote ? ' ' + savedNote : ''}`);
+    alert(documentsSentMessage(!!r.dropOffCompleted, email, !!agreementSent, receipt as { ok: boolean; reason?: string }, savedNote));
   };
   /** "Email documents": send them again to the address on the agreement, without changing anything. */
   const resendDocuments = () => {
@@ -576,43 +569,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const counterMethodOk = !isPrepaidBooking || pay.toCollect <= 0
     || (!!localReservation.paymentMethod && localReservation.paymentMethod !== 'prepaid');
 
-  const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) => (
-    <div className="w-full">
-      <label className={labelCls}><Bi en={label} /></label>
-      {isEditable ? (
-        <input
-          type={isEmail ? 'email' : 'text'}
-          value={value || ''}
-          onChange={e => onChange(e.target.value)}
-          className={inputCls}
-          placeholder={isEmail ? 'name@example.com (required)' : 'Enter name'}
-          required={isEmail}
-        />
-      ) : (
-        <p className={`text-[13px] font-medium text-slate-900 py-1.5 ${isEmail ? 'break-all' : 'break-words'}`}>{value || '—'}</p>
-      )}
-    </div>
-  );
-
-  const renderKmField = ({ label, value, onChange, editable, reference, referenceLabel, placeholder }: { label: string; value?: number; onChange: (v?: number) => void; editable: boolean; reference?: number; referenceLabel?: string; placeholder: string }) => (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <label className="text-[13px] font-medium text-slate-700">{label}</label>
-        {referenceLabel && <span className="text-xs text-slate-400">{referenceLabel}: {reference?.toLocaleString() ?? '—'} km</span>}
-      </div>
-      <div className="relative">
-        <input type="number" inputMode="numeric" value={value ?? ''} onChange={e => onChange(parseInt(e.target.value) || undefined)}
-          disabled={!editable} className={`${inputCls} pr-12 font-semibold tabular-nums`} placeholder={placeholder} />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">KM</span>
-      </div>
-      {reference !== undefined && value !== undefined && value > reference && (
-        <p className="mt-1.5 text-xs font-semibold text-indigo-700">{(value - reference).toLocaleString()} km driven</p>
-      )}
-      {reference !== undefined && value !== undefined && value < reference && (
-        <p className="mt-1.5 text-xs font-semibold text-rose-600">Lower than the pickup reading</p>
-      )}
-    </div>
-  );
+  const renderTextField = (label: string, value: string, onChange: (val: string) => void, isEditable: boolean, isEmail: boolean = false) =>
+    <TextField label={label} value={value} onChange={onChange} isEditable={isEditable} isEmail={isEmail} />;
+  const renderKmField = (props: KmFieldProps) => <KmField {...props} />;
 
 
   type CheckSection = 'inspection' | 'fuel' | 'damage' | 'charges' | 'signatures';
@@ -876,23 +835,17 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
 
   // Completion states, derived from data already in state. They mirror the checks in handleSubmit.
   // The email is required (the signed documents are emailed to the customer) and must be valid.
-  const emailMissing = !localReservation.customerEmail?.trim();
-  const emailValid = !emailMissing && /^\S+@\S+\.\S+$/.test(localReservation.customerEmail!.trim());
-  const emailHint = emailMissing ? 'Email address required' : 'Email address not valid';
-  const countChecked = (c?: { [item: string]: boolean }) => checklistItems.filter(i => c?.[i]).length;
-  const kmOutValid = localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.pickupKmOut >= 0;
-  const kmInValid = localReservation.dropOffKmIn !== undefined && localReservation.dropOffKmIn !== null && localReservation.dropOffKmIn >= 0
-    && !(localReservation.pickupKmOut !== undefined && localReservation.pickupKmOut !== null && localReservation.dropOffKmIn < localReservation.pickupKmOut);
+  const { valid: emailValid, hint: emailHint } = emailCheck(localReservation.customerEmail);
+  const countChecked = (c?: { [item: string]: boolean }) => countTicked(checklistItems, c);
+  const kmOutValid = kmOutOk(localReservation);
+  const kmInValid = kmInOk(localReservation);
   const pickupAuthOk = !payUnset;
   // Recorded or not, these never block check-out; the payment step lists what can still be added.
   const payDetailsMissing = [!counterMethodOk && 'payment method', !pay.depositHeld && 'deposit hold'].filter(Boolean).join(' and ');
   // Authorisation codes are optional; the payment step only flags them as not recorded.
   const authMissing = (isPayOnArrival || (pay.toCollect > 0 && localReservation.paymentMethod === 'card')) && !localReservation.authNumber?.trim();
   const authNote = [authMissing && 'payment auth code', pay.depositAuthMissing && 'deposit pre-auth code'].filter(Boolean).join(' and ');
-  const chargesValid = charges.items.length === 0 || (
-    charges.items.every(i => !!i.description.trim() && i.amount > 0) && !!charges.settlement
-    && (charges.settlement !== 'paid' || !!charges.paymentMethod) && !!charges.customerSignature);
-  const signedCount = (a?: string, b?: string) => (a ? 1 : 0) + (b ? 1 : 0);
+  const chargesValid = chargesOk(charges);
 
   type FlowStep = { key: string; label: string; done: boolean; hint?: string };
   const pickupClosed = !!localReservation.voucherSubmitted;
@@ -936,22 +889,10 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   };
 
   // Same order as the checks in handleSubmit, so the step we jump to matches the alert shown.
-  const firstMissingStep = (): string | undefined => {
-    if (viewMode === 'pickup') {
-      if (!emailValid) return 'customer';
-      if (!localReservation.licensePlate?.trim()) return 'vehicle';
-      if (!kmOutValid) return 'fuel';
-      if (!pickupAuthOk) return 'payment';
-      return undefined;
-    }
-    if (!emailValid) return 'return';
-    if (!kmInValid) return 'fuel';
-    if (!chargesValid) return 'charges';
-    return undefined;
-  };
+  const nextMissingStep = (): string | undefined => firstMissingStep(viewMode, localReservation, pickupAuthOk, charges);
 
   const handleComplete = () => {
-    const missing = firstMissingStep();
+    const missing = nextMissingStep();
     if (missing) {
       setAttempted(true);
       const idx = flowSteps.findIndex(s => s.key === missing);

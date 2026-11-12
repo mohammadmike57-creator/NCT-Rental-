@@ -35,6 +35,10 @@ public class MfaSettings {
     @Column(name = "backup_codes", length = 1000)
     private String backupCodes; // Comma-separated encrypted codes
 
+    /** The last 30-second step a code was accepted for, so the same code cannot be used twice. */
+    @Column(name = "last_used_step")
+    private Long lastUsedStep;
+
     @Column(name = "phone_number")
     private String phoneNumber;
 

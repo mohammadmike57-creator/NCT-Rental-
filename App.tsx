@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
 import type { UpgradeDetails } from './components/UpgradeVehicleModal';
-import { effectivePermissions } from './services/permissionCatalog';
 import { v4 as uuidv4 } from 'uuid';
 import { AppData, Reservation, ReservationExtra, ReturnCharges, TrafficTicketStatus, VehicleDamageStatus, ReservationStatus, YearData, Fleet, CompanyDetails, TrafficTicket, VehicleDamage, AllData, User, Expense, ExtensionInfo, RentalSource, UserPermission, Message, UserStatus, ReservationFilters, RentalLocation, InvoiceData, AvailableExtra, FranchisePayment, ActivityLog, Aggregator, StopSale, ImportReport } from './types';
 import { reservationService } from './services/reservationService';
@@ -9,13 +8,11 @@ import { duplicateKeys, findBooking, describeBooking, flatten } from './services
 import { withPriceChange } from './services/addOns';
 import { normalizeSources } from './services/paymentType';
 import { ReservationSyncService } from './services/ReservationSyncService';
-import { INITIAL_YEARS, MONTHS, INITIAL_FLEET, NCT_LOGIN_LOGO_B64 } from './constants';
+import { INITIAL_YEARS, MONTHS, INITIAL_FLEET } from './constants';
 import { attentionCount as countAttention, findIssues } from './services/reservationIssues';
-import { CloseIcon, CalendarIcon, DocumentReportIcon, MenuIcon, LogoutIcon, ChevronDownIcon, InboxIcon, CalendarCheckIcon, HomeIcon, UserCircleIcon, PlusIcon, SaveIcon } from './components/icons';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Notifications from './components/Notifications';
-import { OnlineNowButton } from './components/OnlinePresence';
 import { pickupMonthOf } from './services/pickupMonth';
 import MisfiledNotice from './components/MisfiledNotice';
 import DeleteAgreementDialog from './components/DeleteAgreementDialog';
@@ -28,6 +25,11 @@ import ConfirmationMessage from './components/ui/ConfirmationMessage';
 import { cleanUndefined, getInitialState } from './app/initialState';
 import { usePresence, useLeaveWarning } from './app/usePresence';
 import { sidebarLinks } from './app/navigation';
+import { hasPermission } from './app/permissions';
+import { findBookingMonth } from './services/globalSearch';
+import AppSidebar from './app/AppSidebar';
+import AppHeader from './app/AppHeader';
+import PhoneTabBar from './app/PhoneTabBar';
 
 const USERS_CACHE_KEY = 'NCT_USERS_CACHE';
 
@@ -41,26 +43,6 @@ interface Notification {
 }
 
 
-const SidebarSection: React.FC<{ title: string, children: React.ReactNode, collapsed?: boolean }> = ({ title, children, collapsed }) => {
-    const [isOpen, setIsOpen] = useState(true);
-    if (collapsed) return <div className="space-y-px pt-2 first:pt-0 border-t border-white/5 first:border-0">{children}</div>;
-    return (
-        <div>
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-3 py-1.5 text-[10.5px] font-semibold text-slate-500 uppercase tracking-[0.08em] hover:text-slate-300">
-                {title}
-                <ChevronDownIcon className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`} />
-            </button>
-            {isOpen && <div className="pt-0.5 space-y-px">{children}</div>}
-        </div>
-    );
-};
-
-declare const __APP_BUILD__: string;
-
-const hasPermission = (user: User | null, permission: UserPermission): boolean => {
-    if (!user) return false;
-    return effectivePermissions(user.permissions || []).includes(permission);
-};
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -1338,19 +1320,6 @@ ${currentUser?.fullName}
   // Shell UI state (kept above the early returns so the hook order never changes).
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => { try { return localStorage.getItem('nct.sidebarCollapsed') === '1'; } catch { return false; } });
   const toggleSidebarCollapsed = () => setSidebarCollapsed(v => { const n = !v; try { localStorage.setItem('nct.sidebarCollapsed', n ? '1' : '0'); } catch { /* storage unavailable */ } return n; });
-  const [openMenu, setOpenMenu] = useState<null | 'new' | 'user'>(null);
-  const globalSearchRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    // "/" jumps to the booking search, Escape closes header menus.
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
-      if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey) { e.preventDefault(); globalSearchRef.current?.focus(); }
-      if (e.key === 'Escape') setOpenMenu(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
   if (!authChecked || isLoading || (isAuthenticated && !firstLoadDone)) return <LoadingSpinner />;
   if (!isAuthenticated && authChecked) return <Suspense fallback={<LoadingSpinner message="Opening" />}><LoginScreen users={users} /></Suspense>;
   
@@ -1803,212 +1772,24 @@ ${currentUser?.fullName}
     const term = q.trim();
     if (!term) return;
     // Search every stored month and open the month of the best match.
-    const t = term.toLowerCase();
-    let best: { year: number; month: string; score: number } | null = null;
-    Object.entries(reservations || {}).forEach(([y, months]) => Object.entries(months || {}).forEach(([m, list]) => {
-      (Array.isArray(list) ? list : []).forEach((r: Reservation) => {
-        const score = (r.bookingId || '').toLowerCase() === t ? 3
-          : (r.bookingId || '').toLowerCase().includes(t) || (r.licensePlate || '').toLowerCase().includes(t) ? 2
-          : (r.personName || '').toLowerCase().includes(t) || (r.contactNumber || '').toLowerCase().includes(t) ? 1 : 0;
-        if (score && (!best || score > best.score)) best = { year: Number(y), month: m, score };
-      });
-    }));
-    const hit = best as { year: number; month: string; score: number } | null;
+    const hit = findBookingMonth(reservations, term);
     if (hit) { handleSetSelectedYear(hit.year); handleSetSelectedMonth(hit.month); }
     else addNotification(`No booking matches "${term}".`, 'info');
     handleNavigation('Reservations', { bookingIdSearch: term });
   };
-  const DateSelectors: React.FC<{ compact?: boolean }> = ({ compact }) => (
-    <div className="flex items-center gap-2">
-      <select value={String(selectedYear)} onChange={e => handleSetSelectedYear(Number(e.target.value))} aria-label="Select year"
-        className={`${compact ? 'h-8 text-xs w-[6.25rem]' : 'h-9 text-[13px]'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
-        {years.map(y => <option key={y} value={y}>{y}</option>)}
-      </select>
-      {mainView !== 'Yearly Summary' && (
-        <select value={selectedMonth} onChange={e => handleSetSelectedMonth(e.target.value)} aria-label="Select month"
-          className={`${compact ? 'h-8 text-xs w-[8.5rem]' : 'h-9 text-[13px] w-36'} pl-2.5 pr-7 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none`}>
-          {MONTHS.map(month => <option key={month} value={month}>{month}</option>)}
-        </select>
-      )}
-    </div>
-  );
-  const SaveState = () => (
-    saveStatus === 'saving' ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />Saving…</span>
-    : saveStatus === 'error' ? <span className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" />Save failed</span>
-    : saveStatus === 'saved' && lastSaved ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap" title={`Last saved ${lastSaved}`}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Saved<span className="hidden sm:inline">{lastSaved}</span></span>
-    : null
-  );
-
   return (
     <div className="flex h-screen bg-slate-50">
-      {isSidebarOpen && <div className="fixed inset-0 z-30 bg-slate-900/50 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
-
-      <aside className={`absolute md:relative z-40 md:z-auto w-60 ${sidebarCollapsed ? 'md:w-[68px]' : ''} bg-slate-900 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full border-r border-slate-800`}>
-         <div className="flex items-center justify-between px-4 h-14 border-b border-white/5 flex-shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-                <img src={NCT_LOGIN_LOGO_B64} alt="NCT Rental" className="h-8 w-8 rounded-lg shrink-0 shadow-sm" />
-                <div className={`min-w-0 leading-tight ${sidebarCollapsed ? 'md:hidden' : ''}`}>
-                    <h1 className="text-[15px] font-semibold text-white tracking-tight">NCT Rental</h1>
-                    <p className="text-[10.5px] text-slate-400 truncate">Rental management</p>
-                </div>
-            </div>
-            <button className="text-slate-400 md:hidden hover:text-white" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu"><CloseIcon /></button>
-         </div>
-
-         <div className="flex-1 overflow-y-auto flex flex-col">
-            <nav className="px-2.5 py-3 space-y-3 flex-1 [&_svg]:w-[18px] [&_svg]:h-[18px]">
-                {Object.entries(sidebarGroups).map(([sectionTitle, links]) => {
-                    const visibleLinks = links.filter(link => {
-                        if (link.name === 'Payment Approvals' && !(companyDetails.requirePaymentApproval ?? true)) {
-                            return false;
-                        }
-                        return hasPermission(currentUser, link.permission)
-                    });
-                    if(visibleLinks.length === 0) return null;
-
-                    return (
-                        <SidebarSection key={sectionTitle} title={sectionTitle} collapsed={sidebarCollapsed && !isSidebarOpen}>
-                            {visibleLinks.map(({ name, icon: Icon, badge, badgeText, action }) => (
-                                <a
-                                    key={name}
-                                    href="#"
-                                    onClick={(e) => { e.preventDefault(); if (action) { setIsSidebarOpen(false); action(); } else handleNavigation(name); }}
-                                    aria-current={mainView === name ? 'page' : undefined}
-                                    title={sidebarCollapsed ? name : undefined}
-                                    className={`relative flex items-center ${sidebarCollapsed && !isSidebarOpen ? 'md:justify-center' : ''} justify-between gap-3 px-3 py-[7px] rounded-md text-[13px] font-medium transition-colors ${mainView === name ? 'bg-white/10 text-white before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-indigo-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'}`}
-                                >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                    <Icon />
-                                    <span className={`line-clamp-2 leading-[1.25] ${sidebarCollapsed && !isSidebarOpen ? 'md:hidden' : ''}`}>{name}</span>
-                                    </div>
-                                    {badgeText ? (
-                                    <span className={`${sidebarCollapsed && !isSidebarOpen ? 'md:absolute md:top-0.5 md:right-1 md:h-4 md:text-[9px]' : ''} h-5 px-1.5 inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide text-white bg-rose-500 rounded-full whitespace-nowrap`}><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />{badgeText}</span>
-                                    ) : typeof badge === 'number' && badge > 0 && (
-                                    <span className={`${sidebarCollapsed && !isSidebarOpen ? 'md:absolute md:top-0.5 md:right-1 md:min-w-[16px] md:h-4 md:text-[10px]' : ''} min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center text-[11px] font-semibold text-white bg-rose-500 rounded-full tabular-nums`}>{badge}</span>
-                                    )}
-                                </a>
-                            ))}
-                        </SidebarSection>
-                    );
-                })}
-            </nav>
-
-            <div className="p-2.5 border-t border-white/5 flex-shrink-0 space-y-1 [&_svg]:w-[18px] [&_svg]:h-[18px]">
-                <button onClick={toggleSidebarCollapsed} title={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
-                    className={`hidden md:flex items-center w-full gap-2.5 px-3 py-[7px] text-[13px] font-medium text-slate-400 hover:bg-white/5 hover:text-white rounded-md ${sidebarCollapsed ? 'justify-center' : ''}`}>
-                    <svg className={`transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
-                    {!sidebarCollapsed && <span>Collapse menu</span>}
-                </button>
-                <div className={sidebarCollapsed ? 'md:hidden space-y-1' : 'space-y-1'}>
-                <div className="mt-1 flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.04]">
-                    <div className="w-8 h-8 rounded-full bg-indigo-500/90 text-white text-xs font-semibold flex items-center justify-center shrink-0">{userInitials}</div>
-                    <div className="min-w-0 flex-1 leading-tight">
-                        <p className="text-[13px] font-medium text-white truncate">{currentUser?.fullName}</p>
-                        <p className="text-[11px] text-slate-400 truncate capitalize">{(currentUser?.role || 'staff').toLowerCase()}</p>
-                    </div>
-                    {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
-                        <button onClick={() => handleNavigation('My Profile')} title="My profile" aria-label="My profile"
-                            className={`p-1.5 rounded-md ${mainView === 'My Profile' ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}><UserCircleIcon /></button>
-                    )}
-                    <button onClick={handleLogout} title="Log out" aria-label="Log out" className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10"><LogoutIcon /></button>
-                </div>
-                </div>
-            </div>
-         </div>
-      </aside>
+      <AppSidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} sidebarCollapsed={sidebarCollapsed}
+        toggleSidebarCollapsed={toggleSidebarCollapsed} sidebarGroups={sidebarGroups} companyDetails={companyDetails}
+        currentUser={currentUser} mainView={mainView} handleNavigation={handleNavigation} userInitials={userInitials} handleLogout={handleLogout} />
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="flex items-center gap-3 px-4 sm:px-6 bg-white border-b border-slate-200 no-print h-14 flex-shrink-0">
-            <button className="text-slate-600 md:hidden -ml-1 p-1" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu"><MenuIcon /></button>
-            <div className="min-w-0 md:w-56 shrink-0">
-                <h2 className="text-[15px] font-semibold text-slate-900 truncate leading-tight" title={mainView}>{mainView}</h2>
-                <p className="text-[11px] text-slate-500 truncate" title="UR-Drive Jordan">UR-Drive Jordan</p>
-            </div>
-            <form className="hidden md:block flex-1 max-w-md" onSubmit={e => { e.preventDefault(); const f = e.currentTarget.elements.namedItem('q') as HTMLInputElement; runGlobalSearch(f.value); f.value = ''; }} role="search">
-                <div className="relative">
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-                    <input ref={globalSearchRef} name="q" type="search" placeholder="Find a booking — number, customer, phone or plate" aria-label="Find a booking"
-                        className="peer w-full h-9 pl-9 pr-9 bg-slate-100 border border-transparent rounded-lg text-[13px] text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none" />
-                    <kbd className="peer-focus:hidden absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 rounded border border-slate-300 bg-white text-[10px] font-semibold text-slate-400">/</kbd>
-                </div>
-            </form>
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-                <div className="hidden lg:block mr-1"><SaveState /></div>
-                {(hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_USERS) || hasPermission(currentUser, UserPermission.VIEW_SYSTEM_ACTIVITY_LOG)) && (
-                    <div className="hidden sm:block"><OnlineNowButton selfEmail={currentUser?.email} onOpenStaff={hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_USERS) ? () => setMainView('User & Staff Management') : undefined} /></div>
-                )}
-                <button onClick={() => { fetchAllData(); }} title="Reload data from the server" aria-label="Reload data"
-                    className="hidden md:inline-flex w-9 h-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100">
-                    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-                </button>
-                <button onClick={() => { executeAutoSave(); }} title="Save all changes now"
-                    className="hidden md:inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border border-slate-200 text-[13px] font-medium text-slate-700 hover:bg-slate-50">
-                    <SaveIcon className="w-4 h-4 text-slate-500" />Save
-                </button>
-                {showDateSelectors && <div className="hidden md:block pl-2 ml-1 border-l border-slate-200"><DateSelectors /></div>}
-                <div className="relative">
-                    <button onClick={() => setOpenMenu(m => (m === 'new' ? null : 'new'))} aria-haspopup="menu" aria-expanded={openMenu === 'new'}
-                        className="h-9 inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg bg-indigo-600 text-white text-[13px] font-semibold shadow-sm hover:bg-indigo-700">
-                        <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">New</span>
-                        <ChevronDownIcon className="hidden sm:block w-3.5 h-3.5 opacity-80" />
-                    </button>
-                    {openMenu === 'new' && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
-                            <div role="menu" className="absolute right-0 mt-1.5 z-50 w-64 bg-white rounded-lg border border-slate-200 shadow-xl py-1">
-                                <p className="px-3 pt-1.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Create</p>
-                                {newItems.map(i => (
-                                    <button key={i.label} role="menuitem" onClick={() => { setOpenMenu(null); i.run(); }} className="w-full text-left px-3 py-2 hover:bg-slate-50">
-                                        <span className="block text-[13px] font-medium text-slate-800">{i.label}</span>
-                                        <span className="block text-[11px] text-slate-500">{i.hint}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-                <button
-                    onClick={() => handleNavigation('Internal Messages')}
-                    className="relative w-9 h-9 inline-flex items-center justify-center text-slate-500 rounded-lg hover:text-slate-900 hover:bg-slate-100"
-                    aria-label={`Open Inbox (${unreadCount} unread)`}
-                >
-                    <InboxIcon className="w-5 h-5" />
-                    {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 inline-flex items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-semibold tabular-nums">{unreadCount}</span>
-                    )}
-                </button>
-                <div className="relative hidden md:block">
-                    <button onClick={() => setOpenMenu(m => (m === 'user' ? null : 'user'))} aria-haspopup="menu" aria-expanded={openMenu === 'user'} title={currentUser?.fullName}
-                        className="w-9 h-9 rounded-full bg-indigo-500 text-white text-xs font-semibold inline-flex items-center justify-center ring-2 ring-white hover:ring-indigo-100">{userInitials}</button>
-                    {openMenu === 'user' && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
-                            <div role="menu" className="absolute right-0 mt-1.5 z-50 w-60 bg-white rounded-lg border border-slate-200 shadow-xl py-1 text-[13px]">
-                                <div className="px-3 py-2 border-b border-slate-100">
-                                    <p className="font-semibold text-slate-900 truncate">{currentUser?.fullName}</p>
-                                    <p className="text-[11px] text-slate-500 truncate">{currentUser?.email || currentUser?.username}</p>
-                                </div>
-                                {hasPermission(currentUser, UserPermission.VIEW_MY_PROFILE) && (
-                                    <button role="menuitem" onClick={() => { setOpenMenu(null); handleNavigation('My Profile'); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">My profile</button>
-                                )}
-                                <button role="menuitem" onClick={() => { setOpenMenu(null); toggleSidebarCollapsed(); }} className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">{sidebarCollapsed ? 'Expand side menu' : 'Collapse side menu'}</button>
-                                <div className="border-t border-slate-100 mt-1 pt-1">
-                                    <button role="menuitem" onClick={() => { setOpenMenu(null); handleLogout(); }} className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50">Log out</button>
-                                    <p className="px-3 pt-1.5 pb-1 border-t border-slate-100 text-[10.5px] text-slate-400 tabular-nums">Version {typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev'}</p>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </div>
-        </header>
-
-        {/* Mobile sub-header */}
-        <div className="md:hidden flex items-center justify-between gap-2 px-4 py-2 bg-white border-b border-slate-200">
-            <SaveState />
-            {showDateSelectors && <DateSelectors compact />}
-        </div>
-
+        <AppHeader mainView={mainView} currentUser={currentUser} setIsSidebarOpen={setIsSidebarOpen} sidebarCollapsed={sidebarCollapsed}
+            toggleSidebarCollapsed={toggleSidebarCollapsed} runGlobalSearch={runGlobalSearch} saveStatus={saveStatus} lastSaved={lastSaved}
+            setMainView={setMainView} fetchAllData={() => { fetchAllData(); }} executeAutoSave={() => { executeAutoSave(); }}
+            showDateSelectors={showDateSelectors} newItems={newItems} handleNavigation={handleNavigation} unreadCount={unreadCount}
+            userInitials={userInitials} handleLogout={handleLogout}
+            dates={{ selectedYear, years, selectedMonth, mainView, handleSetSelectedYear, handleSetSelectedMonth }} />
         <main className="flex-1 p-4 pb-24 md:pb-6 overflow-y-auto sm:p-6 bg-slate-50 min-w-0">
             <div className="max-w-[1500px] mx-auto">
             <Suspense fallback={<LoadingSpinner variant="inline" />}>
@@ -2029,27 +1810,7 @@ ${currentUser?.fullName}
             </div>
         </main>
 
-        {/* Phone tab bar: the four most used screens plus the full menu */}
-        <nav className="md:hidden no-print fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-slate-200 pb-[env(safe-area-inset-bottom)]" aria-label="Quick navigation">
-            <div className="grid grid-cols-5">
-                {[
-                    { name: 'Home', label: 'Home', icon: HomeIcon, ok: hasPermission(currentUser, UserPermission.VIEW_HOME_DASHBOARD) },
-                    { name: 'Reservations', label: 'Bookings', icon: CalendarIcon, ok: hasPermission(currentUser, UserPermission.VIEW_RESERVATIONS) },
-                    { name: 'Agreement', label: 'Agreements', icon: DocumentReportIcon, ok: hasPermission(currentUser, UserPermission.VIEW_AGREEMENTS) },
-                    { name: "Today's Reservations", label: 'Today', icon: CalendarCheckIcon, ok: hasPermission(currentUser, UserPermission.VIEW_TODAYS_RESERVATIONS) },
-                ].filter(t => t.ok).map(({ name, label, icon: Icon }) => (
-                    <button key={name} onClick={() => handleNavigation(name)} aria-current={mainView === name ? 'page' : undefined}
-                        className={`relative flex flex-col items-center justify-center gap-0.5 h-14 text-[10.5px] font-medium [&_svg]:w-5 [&_svg]:h-5 ${mainView === name ? 'text-indigo-600' : 'text-slate-500'}`}>
-                        {mainView === name && <span className="absolute top-0 inset-x-5 h-0.5 rounded-full bg-indigo-600" />}
-                        <Icon />{label}
-                    </button>
-                ))}
-                <button onClick={() => setIsSidebarOpen(true)} className="relative flex flex-col items-center justify-center gap-0.5 h-14 text-[10.5px] font-medium text-slate-500 [&_svg]:w-5 [&_svg]:h-5">
-                    <MenuIcon />Menu
-                    {unreadCount > 0 && <span className="absolute top-2 right-[calc(50%-16px)] w-2 h-2 rounded-full bg-rose-500" />}
-                </button>
-            </div>
-        </nav>
+        <PhoneTabBar currentUser={currentUser} mainView={mainView} handleNavigation={handleNavigation} setIsSidebarOpen={setIsSidebarOpen} unreadCount={unreadCount} />
       </div>
 
       <Suspense fallback={<LoadingSpinner />}>

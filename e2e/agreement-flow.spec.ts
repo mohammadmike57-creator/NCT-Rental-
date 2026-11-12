@@ -104,8 +104,10 @@ test('a full check-out and check-in, with a traffic violation that reaches the T
   await next(page).click();
   // 6. Signatures
   await c.getByPlaceholder('Enter name').fill('Omar Agent');
+  // The renter's pad and the representative's pad, by position (a signed pad can be redrawn while it saves).
   await sign(page, c.locator('canvas').first());
-  await sign(page, c.locator('canvas').first());
+  await expect(c.getByText('1 of 2 signed')).toBeVisible();
+  await sign(page, c.locator('canvas').last());
   await expect(c.getByText('6/6')).toBeVisible();
   await c.getByRole('button', { name: /Complete check-in/ }).click();
   await expect(page.getByText(/Check-in complete/).first()).toBeVisible();
