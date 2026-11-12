@@ -1,7 +1,10 @@
 # P11 — Moving the data into proper database tables (plan)
 
-Status: **plan only**. Nothing in this document has been done. Every phase below needs its own
-approval, a fresh backup and a quiet time window before it starts.
+Status: **built and tested, not switched on.** The code is in place with `STORAGE_MODE=document` (as before)
+as the default, so deploying it changes nothing. Each switch below is one setting on Render, needs your
+approval, a fresh Render export, and a quiet time window.
+
+Render backups (checked): Point-in-Time Recovery for the last 3 days, and Export for complete backup files.
 
 ## 1. How the data is stored today
 
@@ -40,6 +43,15 @@ save only changes the sections it touched, and staff permissions are checked per
 - The JSON document is kept, read-only, for at least 30 days after each phase as a fallback.
 
 ## 4. The plan, in phases
+
+### How to switch, step by step
+
+1. Render → car-rental-db → Recovery → **Create export**, download it.
+2. Render → NCT backend-java → Environment → `STORAGE_MODE` = `dual` → deploy. Open
+   `/api/admin/storage/check` as an administrator: every section must say "identical".
+3. After 1–2 weeks with "identical" every day: `STORAGE_MODE` = `tables`, deploy, check again.
+4. After another quiet week: `STORAGE_MODE` = `tables-only`.
+5. Any problem at any step: set the previous value back and deploy. Nothing is lost.
 
 ### Phase 0 — Safety first (no data moved)
 

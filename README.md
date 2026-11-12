@@ -91,6 +91,19 @@ Monitoring:
 - Every unexpected error, on the server or in a staff member's browser, gets a reference such as
   `ERR-7K2M9Q`, shown to the person and listed in **Activity Log → System errors**.
 
+Data storage (`STORAGE_MODE`, default `document`): see `docs/database-plan.md`.
+
+| Mode | What happens | Way back |
+|------|--------------|----------|
+| `document` | All data in one document (as before) | — |
+| `dual` | Also every booking and record in its own table row; reads the document | `document` |
+| `tables` | Reads bookings and records from the tables, checked against the complete document | `dual` |
+| `tables-only` | Bookings and records only in tables; the document keeps settings | `tables` or `dual` (the document is rebuilt) |
+
+In every mode except `document`, each change or deletion of a booking keeps the previous version.
+Administrators can check the storage at `/api/admin/storage/check`, see a booking's earlier versions at
+`/api/admin/storage/history?bookingId=…` and recently deleted bookings at `/api/admin/storage/deleted`.
+
 Never commit secret values. `docs/application.example.yml` lists the settings without values.
 
 ## Changing the server secret

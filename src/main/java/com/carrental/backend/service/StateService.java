@@ -24,6 +24,8 @@ public class StateService {
     private final AppDataRepository appDataRepository;
     private final ObjectMapper objectMapper;
     private final org.springframework.context.ApplicationEventPublisher events;
+    /** How the main document is stored (one row, or bookings and records in their own tables): see DataStore. */
+    private final com.carrental.backend.store.DataStore dataStore;
 
     private static final String INITIAL_STATE = "{" +
         "\"reservations\":{}," +
@@ -122,7 +124,7 @@ public class StateService {
             JsonNode merged = deepMerge(current, updates);
             String mergedJson = objectMapper.writeValueAsString(merged);
             appData.setData(mergedJson);
-            appDataRepository.save(appData);
+            dataStore.saveMain(appData);
         } catch (Exception e) {
             throw new RuntimeException("Failed to merge state: " + e.getMessage(), e);
         }
@@ -142,7 +144,7 @@ public class StateService {
             appDataRepository.findMain().ifPresent(main -> {
                 AppData copy = new AppData();
                 copy.setId("backup-before-update-" + Instant.now().toString().replace(':', '-'));
-                copy.setData(appDataRepository.currentMainData().orElse(main.getData()));
+                copy.setData(dataStore.readFull(INITIAL_STATE));   // the complete data, also what lives in tables
                 appDataRepository.save(copy);
                 log.info("Data backup kept before this update: {}", copy.getId());
                 List<String> ids = appDataRepository.updateBackupIds();
@@ -181,14 +183,7 @@ public class StateService {
 
     /** The main row with the data as saved now (never a copy cached earlier in the same request). */
     private AppData loadMain() {
-        AppData main = appDataRepository.findMain().orElseGet(() -> {
-            AppData newData = new AppData();
-            newData.setId("main");
-            newData.setData(INITIAL_STATE);
-            return appDataRepository.save(newData);
-        });
-        appDataRepository.currentMainData().ifPresent(main::setData);
-        return main;
+        return dataStore.loadMain(INITIAL_STATE);
     }
 
     /**
@@ -264,7 +259,7 @@ public class StateService {
                 }
             }
             appData.setData(objectMapper.writeValueAsString(root));
-            appDataRepository.save(appData);
+            dataStore.saveMain(appData);
             // Listeners (e.g. broker webhooks) must never make a save fail.
             for (ReservationChangedEvent e : changed) {
                 try { events.publishEvent(e); } catch (Exception ignored) { /* logged by the listener */ }
@@ -290,7 +285,7 @@ public class StateService {
             autoBackup(appData);
             removeReservation(root, id, null);
             appData.setData(objectMapper.writeValueAsString(root));
-            appDataRepository.save(appData);
+            dataStore.saveMain(appData);
         } catch (Exception e) {
             throw new RuntimeException("Failed to remove the booking: " + e.getMessage(), e);
         }
@@ -375,7 +370,7 @@ public class StateService {
                 if (empty != null) root.set(key, objectMapper.readTree(empty));
             }
             appData.setData(objectMapper.writeValueAsString(root));
-            appDataRepository.save(appData);
+            dataStore.saveMain(appData);
             return backupId;
         } catch (Exception e) {
             throw new RuntimeException("Failed to clear data: " + e.getMessage(), e);
@@ -417,7 +412,7 @@ public class StateService {
         safety.setData(main.getData());
         appDataRepository.save(safety);
         main.setData(source.getData());
-        appDataRepository.save(main);
+        dataStore.saveMain(main);
         return safetyId;
     }
 
