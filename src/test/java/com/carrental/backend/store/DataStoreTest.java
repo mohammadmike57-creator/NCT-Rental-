@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
  * The storage modes never lose or change data: everything written comes back identical (same order, every field),
@@ -214,5 +216,56 @@ class DataStoreTest {
         assertEquals(0, bookings.count());
         assertEquals(0, records.count());
         assertFalse(documents.findById(DataStore.MARKER_ID).isPresent());
+    }
+
+    /** A booking table that refuses to save, like a full disk or an unexpected database problem. */
+    StoredBookingRepository brokenBookings() {
+        StoredBookingRepository broken = mock(StoredBookingRepository.class, org.mockito.AdditionalAnswers.delegatesTo(bookings));
+        doThrow(new IllegalStateException("simulated database problem")).when(broken).saveAll(any());
+        return broken;
+    }
+
+    @Test
+    void inDualModeASaveNeverFailsBecauseOfTheTableCopy() throws Exception {
+        ObjectNode data = sample();
+        save(store("dual"), data);                       // tables filled and identical
+        com.carrental.backend.monitoring.ErrorMonitor monitor = mock(com.carrental.backend.monitoring.ErrorMonitor.class);
+        DataStore s = new DataStore(documents, brokenBookings(), records, history, tx, "dual");
+        s.setMonitor(monitor);
+        ((ObjectNode) data.path("reservations").path("2026").path("January").get(0)).put("personName", "Jane Changed");
+        assertDoesNotThrow(() -> save(s, data), "the staff member's save goes through");
+        assertEquals(json.writeValueAsString(data), documents.currentMainData().orElseThrow(), "the complete document has the change");
+        assertEquals(data, read(s));
+        verify(monitor).report(eq("server"), contains("could not be updated"), anyString(), isNull());
+        assertFalse(documents.findById(DataStore.MARKER_ID).isPresent(), "the copy is marked for rebuilding");
+        // Later (the problem gone), the copy is rebuilt from the complete document and matches again.
+        DataStore healthy = store("dual");
+        assertEquals(data, read(healthy));
+        assertEquals(true, healthy.check().get("allMatch"));
+        assertEquals("Jane Changed", read(store("tables")).path("reservations").path("2026").path("January").get(0).path("personName").asText());
+    }
+
+    @Test
+    void aFailingCopyIsNotRetriedOnEveryRead() throws Exception {
+        ObjectNode data = sample();
+        save(store("document"), data);                   // today's data, tables empty
+        StoredBookingRepository broken = brokenBookings();
+        DataStore s = new DataStore(documents, broken, records, history, tx, "dual");
+        assertEquals(data, read(s), "reading works while the copy cannot be made");
+        assertEquals(data, read(s));
+        assertEquals(data, read(s));
+        verify(broken, times(1)).saveAll(any());          // tried once, then left alone for 10 minutes
+    }
+
+    @Test
+    void tablesOnlyStaysAllOrNothing() throws Exception {
+        ObjectNode data = sample();
+        save(store("tables-only"), data);
+        String before = documents.currentMainData().orElseThrow();
+        DataStore s = new DataStore(documents, brokenBookings(), records, history, tx, "tables-only");
+        ((ObjectNode) data.path("reservations").path("2026").path("January").get(0)).put("personName", "Not saved");
+        assertThrows(RuntimeException.class, () -> save(s, data), "when bookings live only in tables, a failed save is refused");
+        assertEquals(before, documents.currentMainData().orElseThrow(), "and nothing half-saved remains");
+        assertEquals("Jane Roe", read(store("tables-only")).path("reservations").path("2026").path("January").get(0).path("personName").asText());
     }
 }

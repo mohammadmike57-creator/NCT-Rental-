@@ -58,6 +58,8 @@ public class DataStore {
             };
         }
         boolean writesTables() { return this != DOCUMENT; }
+        /** The document is still complete and saved first; the tables are an extra copy that may lag behind. */
+        boolean documentLeads() { return this == DUAL || this == TABLES; }
         boolean readsTables() { return this == TABLES || this == TABLES_ONLY; }
     }
 
@@ -75,6 +77,14 @@ public class DataStore {
     /** The last stored document and the full document built from it, so frequent reads cost nothing. */
     private String lastStored;
     private String assembledCache;
+    /** When updating the table copy last failed (dual / tables): it is not retried on every read. */
+    private volatile Instant copyFailedAt;
+    static final long COPY_RETRY_SECONDS = 600;
+    private com.carrental.backend.monitoring.ErrorMonitor monitor;
+
+    /** Problems with the table copy are reported (Activity Log -> System errors, and ALERT_EMAIL). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setMonitor(com.carrental.backend.monitoring.ErrorMonitor monitor) { this.monitor = monitor; }
 
     public DataStore(AppDataRepository documents, StoredBookingRepository bookings, StoredRecordRepository records,
                      BookingHistoryRepository history, TransactionTemplate tx, @Value("${storage.mode:${STORAGE_MODE:document}}") String mode) {
@@ -109,7 +119,10 @@ public class DataStore {
             if (stored.equals(lastStored) && assembledCache != null) { main.setData(assembledCache); return main; }
             ObjectNode doc = (ObjectNode) json.readTree(stored);
             boolean split = doc.has(META);
-            if (mode.writesTables() && !tablesReady()) fillTables(doc);
+            if (mode.writesTables() && !tablesReady()) {
+                if (mode.documentLeads()) tryFillTables(doc);   // never stops reading: the document is complete
+                else fillTables(doc);
+            }
             if (split || (mode.readsTables() && tablesReady())) main.setData(json.writeValueAsString(assemble(doc, split)));
             lastStored = stored;
             assembledCache = main.getData();
@@ -132,6 +145,10 @@ public class DataStore {
             documents.save(main);
             return;
         }
+        if (mode.documentLeads()) {
+            saveDocumentThenCopy(main);
+            return;
+        }
         try {
             ObjectNode full = (ObjectNode) json.readTree(main.getData());
             full.remove(META);
@@ -152,6 +169,62 @@ public class DataStore {
             invalidateCaches();
             throw new IllegalStateException("The data could not be saved: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * dual / tables: the complete document is saved first, exactly as in "document" mode, so a save never depends
+     * on the tables. Then the tables are brought up to date. If that fails the save still stands: the problem is
+     * reported, and the tables are rebuilt from the complete document later (reading uses the document meanwhile).
+     */
+    private void saveDocumentThenCopy(AppData main) {
+        ObjectNode full;
+        try {
+            full = (ObjectNode) json.readTree(main.getData());
+        } catch (Exception e) {
+            throw new IllegalStateException("The data could not be saved: " + e.getMessage(), e);
+        }
+        boolean hadMeta = full.remove(META) != null;
+        String stored = hadMeta ? write(full) : main.getData();
+        main.setData(stored);
+        documents.save(main);
+        lastStored = null;
+        assembledCache = null;
+        if (!tablesReady()) {
+            tryFillTables(full);
+            return;
+        }
+        try {
+            tx.executeWithoutResult(status -> syncTables(full));
+        } catch (RuntimeException e) {
+            copyFailed(e);
+        }
+    }
+
+    /** Fills the tables from the complete document; on failure reports it and carries on with the document. */
+    private void tryFillTables(ObjectNode doc) {
+        Instant failed = copyFailedAt;
+        if (failed != null && failed.plusSeconds(COPY_RETRY_SECONDS).isAfter(Instant.now())) return;
+        try {
+            fillTables(doc);
+            copyFailedAt = null;
+        } catch (RuntimeException e) {
+            copyFailed(e);
+        }
+    }
+
+    private void copyFailed(RuntimeException e) {
+        invalidateCaches();
+        copyFailedAt = Instant.now();
+        try {
+            documents.deleteById(MARKER_ID);   // rebuilt from the complete document on a later read
+        } catch (RuntimeException ignored) {
+            // the marker stays; the next check still shows any difference
+        }
+        String text = "The extra table copy of the data (STORAGE_MODE=" + mode.name().toLowerCase(Locale.ROOT).replace('_', '-')
+            + ") could not be updated. The save itself succeeded and nothing is lost; the copy is rebuilt automatically. "
+            + e.getMessage();
+        log.error(text, e);
+        if (monitor != null) monitor.report("server", text, String.valueOf(e), null);
     }
 
     // ------------------------------------------------------------------ checking
