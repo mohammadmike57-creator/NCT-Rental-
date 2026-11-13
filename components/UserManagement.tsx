@@ -3,7 +3,7 @@ import { User, UserPermission, UserStatus } from '../types';
 import { PlusIcon, SearchIcon, CloseIcon, ShieldCheckIcon, KeyIcon, UsersIcon, AlertIcon, CheckCircleIcon } from './icons';
 import {
   listStaffAccounts, createStaffAccount, updateStaffAccount, resetStaffPassword, deleteStaffAccount,
-} from '../firebase/api';
+} from '../services/api';
 import {
   PERMISSION_AREAS, ALL_PERMISSIONS, effectivePermissions, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate, PermissionArea, PermissionSection,
 } from '../services/permissionCatalog';

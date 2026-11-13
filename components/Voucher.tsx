@@ -7,7 +7,7 @@ import { ShieldExclamationIcon, PdfIcon, MailIcon } from './icons';
 import { URDRIVE_LOGO_B64 } from '../constants';
 import { downloadReceiptPdf } from '../services/receiptPdf';
 import { calculateDaysWithGrace, isDriverExtra, AMEND_FIELDS, AMEND_SAVED, AMEND_LABEL, emailCheck, kmOutOk, kmInOk, chargesOk, signedCount, countChecked as countTicked, firstMissingStep } from './voucher/agreementRules';
-import { recordActivity, sendCustomerEmail } from '../firebase/api';
+import { recordActivity, sendCustomerEmail } from '../services/api';
 import { receiptEmailPayload } from '../services/receiptEmail';
 import { thankYouEmailPayload } from '../services/thankYouEmail';
 import { emailAgreementDocuments } from '../services/agreementEmail';
@@ -18,19 +18,20 @@ import { depositTermsFor } from '../services/fleetLookup';
 import { changedFields, clearDraft, draftTime, loadDraft, saveDraft } from '../services/drafts';
 import { counterPayment, DEPOSIT_HOLD_LABEL } from '../services/counterPayment';
 import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
-import ReturnChargesPanel from './ReturnChargesPanel';
 import { StepRail, MobileStepBar, WorkflowStep } from './voucher/WorkflowNav';
 import DriverDetailsForm from './voucher/DriverDetailsForm';
 import { TextField, KmField, KmFieldProps } from './voucher/Fields';
 import { TimeEditRow, VehiclePicker, ExtrasEditor, withTime } from './voucher/AgreementEditors';
 import { Bi } from './ui/Bi';
 import { Badge, Button, Plate, SectionLabel, labelCls } from './ui/Crm';
-import { buildAgreementHtml as buildAgreementDoc, PICKUP_TERMS_AR, RETURN_TERMS_AR } from '../services/agreementDoc';
+import { buildAgreementHtml as buildAgreementDoc } from '../services/agreementDoc';
 import { buildTerminationHtml, terminationNumber } from '../services/terminationDoc';
 import { printHtml } from '../services/printDocs';
 import { buildReturnChargesHtml, chargesDocumentNumber, chargesDocumentTitle, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from '../services/returnChargesDoc';
 
-import { InfoBlock, InfoPair, StepSection, FuelGauge, CHECK_ICON, ChecklistGrid, DamageBoard, SignatureBlock, inputCls, areaCls } from './voucher/AgreementParts';
+import { InfoBlock, InfoPair, StepSection, CHECK_ICON, inputCls } from './voucher/AgreementParts';
+import InspectionStep, { CHECKLIST_ITEMS, CheckSection } from './voucher/InspectionStep';
+import ExchangeStep from './voucher/ExchangeStep';
 interface VoucherProps {
   /** Used to show the real photo of the car when the fleet has one. */
   fleet?: Fleet;
@@ -208,7 +209,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const location = rentalLocations.find(loc => loc.name === reservation.locationName);
   const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
-  const checklistItems = ["Spare Tire", "Jack & Tools", "Windows & Windshield", "Headlights", "Turn Signals", "AC / Heater", "Audio System", "Mirrors", "Interior Cleanliness"];
+  const checklistItems = CHECKLIST_ITEMS;
 
   // ---- Counter edits before the car is handed over: times, car and extras ----
   const setPickupTime = (t: string) => (isPickupEditable || canAmend) && setLocalReservation(prev => ({ ...prev, startDate: withTime(prev.startDate, t), pickupDate: withTime(prev.pickupDate || prev.startDate, t) }));
@@ -405,8 +406,6 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     }
   };
 
-  const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
-  const RETURN_TERMS = "By signing, the Renter confirms the return of the vehicle. The final condition and any additional charges (such as fuel shortage or new damage) have been reviewed and accepted. The Company Representative confirms receipt of the vehicle and the accuracy of the return inspection.";
   // ====================== PRINTABLE RENTAL AGREEMENT ======================
   const buildAgreementHtml = (r: Reservation = localReservation): string => buildAgreementDoc({
     reservation: r,
@@ -574,245 +573,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const renderKmField = (props: KmFieldProps) => <KmField {...props} />;
 
 
-  type CheckSection = 'inspection' | 'fuel' | 'damage' | 'charges' | 'signatures';
-
-  /** One section of the check-out / check-in inspection; the workflow shows one at a time. */
-  const renderCheckSection = (mode: 'pickup' | 'dropoff', section: CheckSection, stepNo?: number) => {
-    const isEditable = mode === 'pickup' ? isPickupEditable : isDropoffEditable;
-    const checklist = localReservation[mode === 'pickup' ? 'pickupChecklist' : 'dropOffChecklist'] || {};
-    const damageMarkers = localReservation[mode === 'pickup' ? 'pickupDamageMarkers' : 'dropOffDamageMarkers'] || [];
-    const fuelLevel = localReservation[mode === 'pickup' ? 'pickupFuelLevel' : 'dropOffFuelLevel'];
-    const renterSign = localReservation[mode === 'pickup' ? 'pickupRenterSignature' : 'dropOffRenterSignature'];
-    const agentSign = localReservation[mode === 'pickup' ? 'pickupAgentSignature' : 'dropOffAgentSignature'];
-    const agentName = localReservation[mode === 'pickup' ? 'pickupAgentName' : 'dropOffAgentName'];
-    const isPickup = mode === 'pickup';
-
-    switch (section) {
-      case 'inspection':
-        return (
-          <StepSection step={stepNo} title={isPickup ? 'Vehicle inspection' : 'Return inspection'} subtitle={isPickup ? 'Confirm each item before handing over the keys' : 'Compare with the condition at pickup'}>
-            <ChecklistGrid
-              items={checklistItems}
-              checked={checklist}
-              onToggle={(item, v) => handleFieldChange(isPickup ? 'pickupChecklist' : 'dropOffChecklist', { ...checklist, [item]: v })}
-              disabled={!isEditable}
-              compareWith={isPickup ? undefined : localReservation.pickupChecklist || {}}
-            />
-          </StepSection>
-        );
-      case 'fuel':
-        return (
-          <StepSection step={stepNo} title="Fuel & mileage" subtitle={isPickup ? 'Readings when the car leaves' : 'Readings when the car comes back'}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <FuelGauge
-                level={fuelLevel}
-                onLevelChange={level => handleFieldChange(isPickup ? 'pickupFuelLevel' : 'dropOffFuelLevel', level)}
-                disabled={!isEditable}
-                pickupLevel={isPickup ? undefined : localReservation.pickupFuelLevel}
-              />
-              {renderKmField({ label: isPickup ? 'Odometer out' : 'Odometer in', value: isPickup ? localReservation.pickupKmOut : localReservation.dropOffKmIn, onChange: v => handleFieldChange(isPickup ? 'pickupKmOut' : 'dropOffKmIn', v), editable: isEditable, reference: isPickup ? undefined : localReservation.pickupKmOut, referenceLabel: isPickup ? undefined : 'Out', placeholder: isPickup ? 'Starting reading' : 'Returning reading' })}
-            </div>
-          </StepSection>
-        );
-      case 'damage':
-        return (
-          <StepSection step={stepNo} title="Damage report" subtitle={isPickup ? 'Mark existing scratches, dents and chips' : 'Mark any damage that was not there at pickup'}>
-            <DamageBoard
-              markers={damageMarkers}
-              priorMarkers={isPickup ? undefined : localReservation.pickupDamageMarkers || []}
-              editable={isEditable}
-              onMark={handleDamageMark}
-              onRemove={removeDamageMarker}
-              onUpdate={updateDamageMarker}
-            />
-          </StepSection>
-        );
-      case 'charges':
-        return (
-          <StepSection step={stepNo} title="Damages, traffic tickets & charges" subtitle="Photograph new damage, add tickets and other charges, then settle or claim">
-            <ReturnChargesPanel
-              charges={charges}
-              onChange={setCharges}
-              editable={isEditable}
-              markers={localReservation.dropOffDamageMarkers || []}
-              customerName={reservation.personName}
-              onPreview={handlePreviewCharges}
-            />
-          </StepSection>
-        );
-      case 'signatures':
-        return (
-          <div className="space-y-4">
-            <StepSection title="Notes">
-              {isPickup ? (
-                <textarea
-                  value={localReservation.pickupNotes || ''}
-                  onChange={e => handleFieldChange('pickupNotes', e.target.value)}
-                  disabled={!isPickupEditable}
-                  rows={3}
-                  className={areaCls}
-                  placeholder="Vehicle condition, customer requests, anything the return team should know"
-                />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className={labelCls}><Bi en="From pickup" /></p>
-                    <p className="min-h-[84px] px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[13px] text-slate-700 whitespace-pre-wrap">{localReservation.pickupNotes || 'No notes from pickup.'}</p>
-                  </div>
-                  <div>
-                    <label className={labelCls}><Bi en="Return notes" /></label>
-                    <textarea
-                      value={localReservation.dropOffNotes || ''}
-                      onChange={e => handleFieldChange('dropOffNotes', e.target.value)}
-                      disabled={!isDropoffEditable}
-                      rows={3}
-                      className={areaCls}
-                      placeholder="Return condition, extra charges, etc."
-                    />
-                  </div>
-                </div>
-              )}
-            </StepSection>
-
-            <StepSection step={stepNo} title={isPickup ? 'Agreement & signatures' : 'Return confirmation'} subtitle="Sign on screen, or print the agreement and sign it by hand">
-              {(() => {
-                const paperKey = isPickup ? 'pickupSignOnPaper' : 'dropOffSignOnPaper';
-                const onPaper = !!localReservation[paperKey];
-                return (
-                  <div className={`mb-4 rounded-lg border p-3 flex flex-wrap items-center gap-3 ${onPaper ? 'border-sky-200 bg-sky-50' : 'border-slate-200 bg-white'}`}>
-                    <label className={`flex items-start gap-3 flex-1 min-w-[240px] ${isEditable ? 'cursor-pointer' : ''}`}>
-                      <input type="checkbox" className="mt-0.5" checked={onPaper} disabled={!isEditable} onChange={e => handleFieldChange(paperKey, e.target.checked || undefined)} />
-                      <span className="min-w-0">
-                        <span className="block text-[13px] font-semibold text-slate-900">Sign on the printed agreement</span>
-                        <span className="block text-xs text-slate-500">The customer and the representative sign the paper copy by hand. On-screen signatures become optional; the print keeps blank signature lines.</span>
-                      </span>
-                    </label>
-                    <Button size="sm" onClick={handleDownloadVoucherPDF} icon={<PdfIcon className="w-4 h-4" />}>Print agreement</Button>
-                  </div>
-                );
-              })()}
-              <div className="text-xs leading-relaxed text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 space-y-2"><p>{isPickup ? PICKUP_TERMS : RETURN_TERMS}</p><p lang="ar" dir="rtl" className="ar-ui !font-normal !text-slate-700 !text-[13px] leading-6 pt-2 border-t border-slate-200">{isPickup ? PICKUP_TERMS_AR : RETURN_TERMS_AR}</p></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <SignatureBlock
-                  title="Renter"
-                  subtitle={reservation.personName}
-                  signature={renterSign}
-                  onSave={data => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', data)}
-                  onClear={() => handleFieldChange(isPickup ? 'pickupRenterSignature' : 'dropOffRenterSignature', undefined)}
-                  disabled={!isEditable}
-                  onPaper={!!localReservation[isPickup ? 'pickupSignOnPaper' : 'dropOffSignOnPaper']}
-                />
-                <SignatureBlock
-                  title="Company representative"
-                  signature={agentSign}
-                  onSave={data => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', data)}
-                  onClear={() => handleFieldChange(isPickup ? 'pickupAgentSignature' : 'dropOffAgentSignature', undefined)}
-                  disabled={!isEditable}
-                  onPaper={!!localReservation[isPickup ? 'pickupSignOnPaper' : 'dropOffSignOnPaper']}
-                >
-                  <div className="mb-3">
-                    {renderTextField('Representative name', agentName || '', val => handleFieldChange(isPickup ? 'pickupAgentName' : 'dropOffAgentName', val), isEditable)}
-                  </div>
-                </SignatureBlock>
-              </div>
-            </StepSection>
-          </div>
-        );
-    }
-  };
-
-  const renderExchangeStep = (step: 'checkin' | 'checkout') => {
-    const isEditable = !localReservation.dropOffCompleted && !hasOutstandingTickets && !hasDueExtension;
-    const checklist = currentExchange[step === 'checkin' ? 'checkinChecklist' : 'checkoutChecklist'] || {};
-    const damageMarkers = currentExchange[step === 'checkin' ? 'checkinDamageMarkers' : 'checkoutDamageMarkers'] || [];
-    const fuelLevel = currentExchange[step === 'checkin' ? 'checkinFuelLevel' : 'checkoutFuelLevel'];
-    const renterSign = currentExchange[step === 'checkin' ? 'checkinRenterSignature' : 'checkoutRenterSignature'];
-    const agentSign = currentExchange[step === 'checkin' ? 'checkinAgentSignature' : 'checkoutAgentSignature'];
-    const agentName = currentExchange[step === 'checkin' ? 'checkinAgentName' : 'checkoutAgentName'];
-
-    const handleExchangeFieldChange = (field: keyof CarExchange, value: any) => {
-      if (!isEditable) return;
-      setCurrentExchange(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleExchangeDamageMark = (e: React.MouseEvent<HTMLDivElement>, view: CarView) => {
-      if (!isEditable) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      const field = step === 'checkin' ? 'checkinDamageMarkers' : 'checkoutDamageMarkers';
-      handleExchangeFieldChange(field, [...(currentExchange[field] || []), { x, y, view }]);
-    };
-
-    const removeExchangeDamageMarker = (index: number) => {
-      if (!isEditable) return;
-      const field = step === 'checkin' ? 'checkinDamageMarkers' : 'checkoutDamageMarkers';
-      handleExchangeFieldChange(field, currentExchange[field]?.filter((_, i) => i !== index));
-    };
-
-    const updateExchangeDamageMarker = (index: number, patch: Partial<DamageMarker>) => {
-      if (!isEditable) return;
-      const field = step === 'checkin' ? 'checkinDamageMarkers' : 'checkoutDamageMarkers';
-      handleExchangeFieldChange(field, (currentExchange[field] || []).map((m, i) => (i === index ? { ...m, ...patch } : m)));
-    };
-
-    const isIn = step === 'checkin';
-
-    return (
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 shadow-sm">
-          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${isIn ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>1 · Return current car</span>
-          <span className="text-slate-300">→</span>
-          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${!isIn ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>2 · Hand over new car</span>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <StepSection title={isIn ? 'Current car inspection' : 'New car inspection'}>
-              <ChecklistGrid items={checklistItems} checked={checklist} disabled={!isEditable}
-                onToggle={(item, v) => handleExchangeFieldChange(isIn ? 'checkinChecklist' : 'checkoutChecklist', { ...checklist, [item]: v })} />
-            </StepSection>
-          </div>
-          <div>
-            <StepSection title="Fuel, mileage & details">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <FuelGauge level={fuelLevel} disabled={!isEditable}
-                  onLevelChange={level => handleExchangeFieldChange(isIn ? 'checkinFuelLevel' : 'checkoutFuelLevel', level)}
-                  pickupLevel={isIn ? localReservation.pickupFuelLevel : undefined} />
-                {renderKmField({ label: isIn ? 'Odometer in (current car)' : 'Odometer out (new car)', value: isIn ? currentExchange.checkinKmIn : currentExchange.checkoutKmOut, onChange: v => handleExchangeFieldChange(isIn ? 'checkinKmIn' : 'checkoutKmOut', v), editable: isEditable, reference: isIn ? localReservation.pickupKmOut : undefined, referenceLabel: isIn ? 'Out' : undefined, placeholder: isIn ? 'Returning reading' : 'Starting reading' })}
-                {isIn ? (
-                  <div>
-                    <label className={labelCls}><Bi en="Reason for exchange" /></label>
-                    <textarea value={currentExchange.reason || ''} onChange={e => handleExchangeFieldChange('reason', e.target.value)} rows={2} className={areaCls} required disabled={!isEditable} />
-                  </div>
-                ) : (
-                  <div>
-                    <label className={labelCls}><Bi en="New car license plate" /></label>
-                    <input value={currentExchange.newCarLicensePlate || ''} onChange={e => handleExchangeFieldChange('newCarLicensePlate', e.target.value)} className={inputCls} required disabled={!isEditable} />
-                  </div>
-                )}
-              </div>
-            </StepSection>
-          </div>
-        </div>
-        <StepSection title="Damage report">
-          <DamageBoard markers={damageMarkers} priorMarkers={isIn ? localReservation.pickupDamageMarkers || [] : undefined}
-            editable={isEditable} onMark={handleExchangeDamageMark} onRemove={removeExchangeDamageMarker} onUpdate={updateExchangeDamageMarker} />
-        </StepSection>
-        <StepSection title="Signatures">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SignatureBlock title="Renter" subtitle={reservation.personName} signature={renterSign} disabled={!isEditable}
-              onSave={data => handleExchangeFieldChange(isIn ? 'checkinRenterSignature' : 'checkoutRenterSignature', data)}
-              onClear={() => handleExchangeFieldChange(isIn ? 'checkinRenterSignature' : 'checkoutRenterSignature', undefined)} />
-            <SignatureBlock title="Company representative" signature={agentSign} disabled={!isEditable}
-              onSave={data => handleExchangeFieldChange(isIn ? 'checkinAgentSignature' : 'checkoutAgentSignature', data)}
-              onClear={() => handleExchangeFieldChange(isIn ? 'checkinAgentSignature' : 'checkoutAgentSignature', undefined)}>
-              <div className="mb-3">{renderTextField('Representative name', agentName || '', val => handleExchangeFieldChange(isIn ? 'checkinAgentName' : 'checkoutAgentName', val), isEditable)}</div>
-            </SignatureBlock>
-          </div>
-        </StepSection>
-      </div>
-    );
-  };
+  const inspection = (mode: 'pickup' | 'dropoff', section: CheckSection, stepNo?: number) => (
+    <InspectionStep mode={mode} section={section} stepNo={stepNo} reservation={reservation} localReservation={localReservation}
+      isPickupEditable={isPickupEditable} isDropoffEditable={isDropoffEditable} charges={charges} setCharges={setCharges}
+      handleFieldChange={handleFieldChange} handleDamageMark={handleDamageMark} removeDamageMarker={removeDamageMarker}
+      updateDamageMarker={updateDamageMarker} handlePreviewCharges={handlePreviewCharges} handleDownloadVoucherPDF={handleDownloadVoucherPDF}
+      renderKmField={renderKmField} renderTextField={renderTextField} />
+  );
 
   const kind = vehicleKind(localReservation.carModel);
   const fmtDateTime = (iso?: string) => {
@@ -1308,20 +1075,20 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       switch (activeKey) {
         case 'customer': return renderCustomerStep(n);
         case 'vehicle': return renderVehicleStep(n);
-        case 'inspection': return renderCheckSection('pickup', 'inspection', n);
-        case 'damage': return renderCheckSection('pickup', 'damage', n);
-        case 'fuel': return renderCheckSection('pickup', 'fuel', n);
+        case 'inspection': return inspection('pickup', 'inspection', n);
+        case 'damage': return inspection('pickup', 'damage', n);
+        case 'fuel': return inspection('pickup', 'fuel', n);
         case 'payment': return renderPaymentStep(n);
-        default: return renderCheckSection('pickup', 'signatures', n);
+        default: return inspection('pickup', 'signatures', n);
       }
     }
     switch (activeKey) {
       case 'return': return renderReturnDetailsStep(n);
-      case 'inspection': return renderCheckSection('dropoff', 'inspection', n);
-      case 'damage': return renderCheckSection('dropoff', 'damage', n);
-      case 'fuel': return renderCheckSection('dropoff', 'fuel', n);
-      case 'charges': return renderCheckSection('dropoff', 'charges', n);
-      default: return renderCheckSection('dropoff', 'signatures', n);
+      case 'inspection': return inspection('dropoff', 'inspection', n);
+      case 'damage': return inspection('dropoff', 'damage', n);
+      case 'fuel': return inspection('dropoff', 'fuel', n);
+      case 'charges': return inspection('dropoff', 'charges', n);
+      default: return inspection('dropoff', 'signatures', n);
     }
   };
 
@@ -1546,7 +1313,9 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
                             <button type="button" onClick={() => setMidUpgrade(null)} className="h-8 px-3 rounded-md text-[13px] font-medium text-rose-700 hover:bg-rose-50">Cancel upgrade</button>
                           </div>
                         )}
-                        {exchangeStep === 'checkin' ? renderExchangeStep('checkin') : renderExchangeStep('checkout')}
+                        <ExchangeStep step={exchangeStep === 'checkin' ? 'checkin' : 'checkout'} reservation={reservation} localReservation={localReservation}
+                          hasOutstandingTickets={hasOutstandingTickets} hasDueExtension={hasDueExtension} currentExchange={currentExchange}
+                          setCurrentExchange={setCurrentExchange} renderKmField={renderKmField} renderTextField={renderTextField} />
                       </>
                     ) : (
                       renderWizardStep()

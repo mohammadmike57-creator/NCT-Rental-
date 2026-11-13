@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { effectivePermissions } from '../services/permissionCatalog';
 import CarPicture from './CarPicture';
-import * as XLSX from 'xlsx';
 import { AppData, Reservation, RentalSource, Fleet, User, ReservationStatus, RentalLocation, AvailableExtra, CompanyDetails, UserPermission, PaymentType } from '../types';
 import { MONTHS } from '../constants';
 import { vehicleKind, vehicleKindLabel } from './VehicleGraphics';
@@ -9,7 +8,7 @@ import UpgradeVehicleModal, { UpgradeDetails } from './UpgradeVehicleModal';
 import ReservationWizard from './reservation/ReservationWizard';
 import { clearDraft, loadDraft, saveDraft } from '../services/drafts';
 import ReservationRecord from './reservation/ReservationRecord';
-import { recordActivity } from '../firebase/api';
+import { recordActivity } from '../services/api';
 import { bookingKey } from '../services/duplicates';
 import SendDocumentsDialog from './SendDocumentsDialog';
 import ChangeStatusDialog, { statusLabel } from './ChangeStatusDialog';
@@ -17,6 +16,7 @@ import { bookingPayment, paymentUnset } from '../services/paymentType';
 import { agreementHtmlFor, printHtml, terminationHtmlFor } from '../services/printDocs';
 import { rentalDaysOf as billingDays } from '../services/rentalDays';
 import { mergeSelectedExtras, selectedExtrasTotal } from '../services/extras';
+import { Stage, stageOf, alertOf, rentalDaysOf, timeOf, money, dayDate, todayIso, exportRows, downloadExcel, downloadCsv, PrinterGlyph, Plate, StatusBadge, SortHeading } from './reservation/reservationList';
 import { 
   DocumentReportIcon, 
   ShareIcon, 
@@ -327,67 +327,10 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
       ? <span className="inline-block px-1.5 py-px rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold whitespace-nowrap">Prepaid</span>
       : <span className="inline-block px-1.5 py-px rounded bg-amber-50 text-amber-700 text-[10px] font-semibold whitespace-nowrap">Pay on arrival</span>;
   };
-  const getDuration = (start: string, end: string) => {
-    if (!start || !end) return '';
-    const diff = new Date(end).getTime() - new Date(start).getTime();
-    return (diff / (1000 * 3600 * 24)).toFixed(1);
-  };
 
-  const handleExportExcel = () => {
-    if (filteredReservations.length === 0) return;
-
-    const data = filteredReservations.map(res => ({
-      'Person Name': res.personName,
-      'Booking ID': res.bookingId,
-      'Source': getSourceName(res.source || ''),
-      'Car Model': res.carModel,
-      'Booking Date': res.bookingDate || res.startDate?.split('T')[0],
-      'Pickup Date': res.startDate,
-      'Return Date': res.endDate,
-      'Days': getDuration(res.startDate, res.endDate),
-      'Status': res.status,
-      'Location': res.locationName,
-      'Contact': res.contactNumber,
-      'Notes': res.notes
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Reservations");
-    
-    XLSX.writeFile(workbook, `Reservations_${selectedMonth}_${selectedYear}.xlsx`);
-  };
-
-  const handleExportCSV = () => {
-    if (filteredReservations.length === 0) return;
-
-    const data = filteredReservations.map(res => ({
-      'Person Name': res.personName,
-      'Booking ID': res.bookingId,
-      'Source': getSourceName(res.source || ''),
-      'Car Model': res.carModel,
-      'Booking Date': res.bookingDate || res.startDate?.split('T')[0],
-      'Pickup Date': res.startDate,
-      'Return Date': res.endDate,
-      'Days': getDuration(res.startDate, res.endDate),
-      'Status': res.status,
-      'Location': res.locationName,
-      'Contact': res.contactNumber,
-      'Notes': res.notes
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Reservations_${selectedMonth}_${selectedYear}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  const exportName = `Reservations_${selectedMonth}_${selectedYear}`;
+  const handleExportExcel = () => { if (filteredReservations.length) downloadExcel(exportRows(filteredReservations, getSourceName), exportName); };
+  const handleExportCSV = () => { if (filteredReservations.length) downloadCsv(exportRows(filteredReservations, getSourceName), exportName); };
 
   const upgradePermission = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE);
   const canViewVoucherActions = isAgreementView || hasPermission(UserPermission.ACTION_VOUCHER_MANAGE);
@@ -395,37 +338,7 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   const canDeleteMonth = hasPermission(UserPermission.ACTION_ADMIN_DELETE_ALL_RESERVATIONS) || hasPermission(UserPermission.ACTION_ADMIN_MANAGE_USERS);
 
   // ---- Rental lifecycle -------------------------------------------------
-  type Stage = 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled';
-  const stageOf = (res: Reservation): Stage => {
-    if (res.status === ReservationStatus.CANCELLED || res.status === ('NO_SHOW' as ReservationStatus)) return 'cancelled';
-    if (res.dropOffCompleted) return 'closed';
-    if (res.voucherSubmitted) return 'onrent';
-    if (res.status === ReservationStatus.PENDING) return 'pending';
-    return 'ready';
-  };
-  const STAGE_META: Record<Stage, { label: string; dot: string; chip: string }> = {
-    ready: { label: 'Awaiting pickup', dot: 'bg-sky-500', chip: 'bg-sky-50 text-sky-700 ring-sky-200' },
-    onrent: { label: 'On rent', dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-    closed: { label: 'Closed', dot: 'bg-slate-400', chip: 'bg-slate-100 text-slate-600 ring-slate-200' },
-    pending: { label: 'Pending', dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700 ring-amber-200' },
-    cancelled: { label: 'Cancelled', dot: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700 ring-rose-200' },
-  };
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const alertOf = (res: Reservation): { label: string; cls: string } | null => {
-    const stage = stageOf(res);
-    const pickupDay = (res.startDate || '').slice(0, 10);
-    if (stage === 'ready' && pickupDay === todayKey) return { label: 'Pickup today', cls: 'bg-sky-600 text-white' };
-    if (stage === 'ready' && pickupDay && pickupDay < todayKey) return { label: 'Pickup overdue', cls: 'bg-amber-500 text-white' };
-    if (stage === 'onrent' && res.endDate && new Date(res.endDate).getTime() < Date.now()) return { label: 'Return overdue', cls: 'bg-rose-600 text-white' };
-    if (stage === 'onrent' && (res.endDate || '').slice(0, 10) === todayKey) return { label: 'Returns today', cls: 'bg-emerald-600 text-white' };
-    return null;
-  };
-  const rentalDaysOf = (res: Reservation) => {
-    if (!res.startDate || !res.endDate) return 0;
-    return Math.max(1, Math.ceil((new Date(res.endDate).getTime() - new Date(res.startDate).getTime()) / 86400000));
-  };
-  const timeOf = (iso?: string) => (iso && iso.includes('T') ? iso.split('T')[1].slice(0, 5) : '');
-  const money = (n?: number) => `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const todayKey = todayIso();
 
   // Filter tabs: the lifecycle stages, with cancelled and no-show apart, and records sharing a booking number.
   type Tab = 'all' | Stage | 'noshow' | 'duplicates';
@@ -543,9 +456,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     return () => clearTimeout(t);
   }, [mailNotice]);
 
-  const PrinterGlyph = ({ className = 'w-4 h-4' }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" /></svg>
-  );
 
   // Every secondary action a booking offers, in one place so the row menu,
   // the detail panel and the mobile list stay identical.
@@ -637,40 +547,6 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
     if (sortKey === k) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir(k === 'amount' ? 'desc' : 'asc'); }
   };
-  const SortTh = ({ k, children, className = '' }: { k: typeof sortKey; children: React.ReactNode; className?: string }) => (
-    <th className={`font-semibold px-3 py-2.5 whitespace-nowrap ${className}`} aria-sort={sortKey === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button onClick={() => toggleSort(k)} className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-slate-900 ${sortKey === k ? 'text-slate-900' : ''}`}>
-        {children}
-        <svg className={`w-3 h-3 transition-transform ${sortKey === k ? 'opacity-100' : 'opacity-30'} ${sortKey === k && sortDir === 'desc' ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a.75.75 0 01.53.22l4 4a.75.75 0 11-1.06 1.06L10 6.81 6.53 10.28a.75.75 0 01-1.06-1.06l4-4A.75.75 0 0110 5z" clipRule="evenodd" /></svg>
-      </button>
-    </th>
-  );
-  const dayDate = (iso?: string) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
-  };
-  const StatusBadge = ({ res, withAlert = true }: { res: Reservation; withAlert?: boolean }) => {
-    const stage = stageOf(res);
-    const alert = withAlert ? alertOf(res) : null;
-    return (
-      <div className="flex flex-col items-start gap-1">
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ring-inset whitespace-nowrap ${STAGE_META[stage].chip}`}
-          title={stage === 'cancelled' && res.statusReason ? `${res.statusReason}${res.statusChangedBy ? ` · ${res.statusChangedBy}` : ''}` : undefined}>
-          <span className={`w-1.5 h-1.5 rounded-full ${STAGE_META[stage].dot}`} />{stage === 'cancelled' && res.status === ReservationStatus.NO_SHOW ? 'No-show' : STAGE_META[stage].label}
-        </span>
-        {alert && (
-          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${/overdue/i.test(alert.label) ? 'text-rose-600' : 'text-sky-700'}`}>
-            <ClockIcon className="w-3 h-3" />{alert.label}
-          </span>
-        )}
-      </div>
-    );
-  };
-  const Plate = ({ value }: { value?: string }) => value
-    ? <span className="inline-block px-1.5 py-px rounded border border-slate-300 bg-slate-50 font-mono text-[10.5px] font-semibold text-slate-700 tracking-wide">{value}</span>
-    : null;
-
   const drawerRes = detailsModalReservation
     ? (allDisplayReservations.find(r => r.id === detailsModalReservation.id) || awaitingConfirmation.find(r => r.id === detailsModalReservation.id) || detailsModalReservation)
     : null;
@@ -868,11 +744,11 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
               <table className="hidden lg:table w-full text-[13px]">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50 text-[11px] text-slate-500 border-b border-slate-200 text-left">
-                    <SortTh k="booking" className="pl-4">Res. no.</SortTh>
+                    <SortHeading sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} k="booking" className="pl-4">Res. no.</SortHeading>
                     <th className="font-semibold px-3 py-2.5 uppercase tracking-wider">Status</th>
-                    <SortTh k="name">Customer</SortTh>
-                    <SortTh k="pickup">Pickup</SortTh>
-                    <SortTh k="return">Return</SortTh>
+                    <SortHeading sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} k="name">Customer</SortHeading>
+                    <SortHeading sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} k="pickup">Pickup</SortHeading>
+                    <SortHeading sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} k="return">Return</SortHeading>
                     <th className="font-semibold px-3 py-2.5 uppercase tracking-wider">Vehicle</th>
                     <th className="hidden 2xl:table-cell font-semibold px-3 py-2.5 uppercase tracking-wider">Source</th>
                     <th className="font-semibold px-3 py-2.5 uppercase tracking-wider text-right">Days</th>

@@ -87,7 +87,7 @@ footer{max-width:1240px;margin:0 auto;padding:24px 40px 40px;color:var(--mut);fo
   <p>REST / JSON v3</p>
   <a href="#quickstart">Quick start</a><a href="#rest">Endpoints</a><a href="#conventions">Conventions</a>
   <p>OTA XML</p>
-  <a href="#xml">Messages</a><a href="#xml-sample">Sample request</a><a href="#signing">Signed requests</a>
+  <a href="#xml">Messages</a><a href="#xml-sample">Sample request</a><a href="#xml-answers">Sample answers</a><a href="#xml-standard">Releases and layout</a><a href="#limits">Limits</a><a href="#signing">Signed requests</a>
   <p>Events</p>
   <a href="#webhooks">Webhooks v2</a><a href="#verify">Verify a webhook</a>
   <p>Reference</p>
@@ -103,6 +103,7 @@ footer{max-width:1240px;margin:0 auto;padding:24px 40px 40px;color:var(--mut);fo
     <a class="btn" href="__BASE__/api/v3/openapi.yaml" download>OpenAPI 3.1</a>
     <a class="btn" href="__BASE__/api/v3/postman.json" download="urdrive-postman.json">Postman collection</a>
     <a class="btn" href="#errors">Error catalogue</a>
+    <a class="btn" href="#xml-answers">XML samples</a>
   </div>
   <div class="grid g4" style="margin-top:28px">
     <div class="card"><h4>Instant confirmation</h4><p>Bookings are confirmed in the response, with our reservation number.</p></div>
@@ -352,6 +353,126 @@ book.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());</pre>
   <p class="sub">Sending the same <code>BrokerReference</code> again returns the first booking instead of a second one.</p>
 </section>
 
+<section id="xml-answers">
+  <h2>Sample answers</h2>
+  <p class="sub">Taken from the live system (amounts and IDs shortened). Every answer has either <code>&lt;Success/&gt;</code> or <code>&lt;Errors&gt;</code>, never both. Keep the offer ID from <code>Reference Type="16"</code> and book it before its <code>DateTime</code>; our reservation number is <code>ConfID Type="14"</code>.</p>
+  <div class="codebox" data-group="xmlrs">
+    <div class="tabs"><button>OTA_VehAvailRateRS</button><button>OTA_VehResRS</button><button>Error</button><button>SOAP</button><button class="copy">Copy</button></div>
+<pre>&lt;OTA_VehAvailRateRS xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="a1" TimeStamp="2027-03-01T08:00:00Z" Target="Production" Version="2.000"&gt;
+  &lt;Success/&gt;
+  &lt;VehAvailRSCore&gt;
+    &lt;VehRentalCore PickUpDateTime="2027-03-10T10:00:00" ReturnDateTime="2027-03-14T10:00:00"&gt;
+      &lt;PickUpLocation LocationCode="AMM"/&gt;&lt;ReturnLocation LocationCode="AMM"/&gt;
+    &lt;/VehRentalCore&gt;
+    &lt;VehVendorAvails&gt;&lt;VehVendorAvail&gt;
+      &lt;Vendor Code="URD"&gt;__BRAND__&lt;/Vendor&gt;
+      &lt;VehAvails&gt;&lt;VehAvail&gt;
+        &lt;VehAvailCore Status="Available"&gt;
+          &lt;Vehicle AirConditionInd="true" TransmissionType="Automatic" PassengerQuantity="5" BaggageQuantity="4" Code="SDAR" CodeContext="SIPP"&gt;
+            &lt;VehType VehicleCategory="1" DoorCount="4"/&gt;&lt;VehClass Size="7"/&gt;
+            &lt;VehMakeModel Name="Toyota Corolla or similar" Code="SDAR"/&gt;
+          &lt;/Vehicle&gt;
+          &lt;RentalRate&gt;
+            &lt;RateDistance Unlimited="true" DistUnitName="Km" VehiclePeriodUnitName="RentalPeriod"/&gt;
+            &lt;VehicleCharges&gt;
+              &lt;VehicleCharge Purpose="1" TaxInclusive="true" IncludedInRate="false" Amount="160.00" CurrencyCode="USD"&gt;
+                &lt;Calculation UnitCharge="40.00" UnitName="Day" Quantity="4"/&gt;
+              &lt;/VehicleCharge&gt;
+            &lt;/VehicleCharges&gt;
+            &lt;RateQualifier RateQualifier="FLEX48" RatePeriod="Daily"/&gt;
+          &lt;/RentalRate&gt;
+          &lt;TotalCharge RateTotalAmount="160.00" EstimatedTotalAmount="185.00" CurrencyCode="USD"/&gt;
+          &lt;PricedEquips&gt;&lt;PricedEquip&gt;
+            &lt;Equipment EquipType="13" Quantity="1"&gt;&lt;Description&gt;GPS&lt;/Description&gt;&lt;/Equipment&gt;
+            &lt;Charge Amount="25.00" CurrencyCode="USD" TaxInclusive="true" IncludedInRate="false"&gt;
+              &lt;Calculation UnitCharge="25.00" UnitName="RentalPeriod" Quantity="1"/&gt;
+            &lt;/Charge&gt;
+          &lt;/PricedEquip&gt;&lt;/PricedEquips&gt;
+          &lt;Reference Type="16" ID="OFF-ECB69BEE9B1042A8" DateTime="2027-03-01T08:30:00Z"/&gt;
+        &lt;/VehAvailCore&gt;
+        &lt;VehAvailInfo&gt;
+          &lt;PaymentRules&gt;&lt;PaymentRule RuleType="1" Amount="185.00" CurrencyCode="USD"/&gt;&lt;/PaymentRules&gt;
+        &lt;/VehAvailInfo&gt;
+      &lt;/VehAvail&gt;&lt;/VehAvails&gt;
+    &lt;/VehVendorAvail&gt;&lt;/VehVendorAvails&gt;
+  &lt;/VehAvailRSCore&gt;
+&lt;/OTA_VehAvailRateRS&gt;</pre>
+<pre>&lt;OTA_VehResRS xmlns="http://www.opentravel.org/OTA/2003/05" TimeStamp="2027-03-01T08:01:00Z" Target="Production" Version="2.000"&gt;
+  &lt;Success/&gt;
+  &lt;VehResRSCore&gt;
+    &lt;VehReservation ReservationStatus="Reserved" CreateDateTime="2027-03-01T08:01:00Z"&gt;
+      &lt;Customer&gt;&lt;Primary&gt;
+        &lt;PersonName&gt;&lt;GivenName&gt;John&lt;/GivenName&gt;&lt;Surname&gt;Doe&lt;/Surname&gt;&lt;/PersonName&gt;
+        &lt;Email&gt;john.doe@example.com&lt;/Email&gt;
+      &lt;/Primary&gt;&lt;/Customer&gt;
+      &lt;VehSegmentCore&gt;
+        &lt;ConfID Type="14" ID="RSV-2027-000123"/&gt;
+        &lt;ConfID Type="16" ID="YOUR-REF-1001" ID_Context="BROKER"/&gt;
+        &lt;Vendor Code="URD"&gt;__BRAND__&lt;/Vendor&gt;
+        &lt;VehRentalCore PickUpDateTime="2027-03-10T10:00:00" ReturnDateTime="2027-03-14T10:00:00"&gt;
+          &lt;PickUpLocation LocationCode="AMM"/&gt;&lt;ReturnLocation LocationCode="AMM"/&gt;
+        &lt;/VehRentalCore&gt;
+        &lt;Vehicle Code="SDAR" CodeContext="SIPP"&gt;…&lt;/Vehicle&gt;
+        &lt;RentalRate&gt;…&lt;/RentalRate&gt;
+        &lt;TotalCharge RateTotalAmount="160.00" EstimatedTotalAmount="185.00" CurrencyCode="USD"/&gt;
+      &lt;/VehSegmentCore&gt;
+    &lt;/VehReservation&gt;
+  &lt;/VehResRSCore&gt;
+&lt;/OTA_VehResRS&gt;</pre>
+<pre>&lt;OTA_VehLocDetailRS xmlns="http://www.opentravel.org/OTA/2003/05" TimeStamp="2027-03-01T08:02:00Z" Target="Production" Version="2.000"&gt;
+  &lt;Errors&gt;
+    &lt;Error Type="3" Code="61" ShortText="INVALID_LOCATION" Status="NotProcessed" Tag="REQ-1E2370DE-0B95"&gt;Unknown location ZZZ&lt;/Error&gt;
+  &lt;/Errors&gt;
+&lt;/OTA_VehLocDetailRS&gt;</pre>
+<pre>POST __BASE__/ota/{CODE}/soap
+Content-Type: text/xml; charset=utf-8          (SOAP 1.1; use application/soap+xml for SOAP 1.2)
+X-Api-Key: &lt;your key&gt;
+
+&lt;soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"&gt;
+  &lt;soap:Body&gt;
+    &lt;OTA_PingRQ xmlns="http://www.opentravel.org/OTA/2003/05" Version="2.000" EchoToken="p1"&gt;
+      &lt;EchoData&gt;hello&lt;/EchoData&gt;
+    &lt;/OTA_PingRQ&gt;
+  &lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;
+
+&lt;soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"&gt;
+  &lt;soap:Header/&gt;
+  &lt;soap:Body&gt;
+    &lt;OTA_PingRS xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="p1" Version="2.000"&gt;
+      &lt;Success/&gt;&lt;EchoData&gt;hello&lt;/EchoData&gt;
+    &lt;/OTA_PingRS&gt;
+  &lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;</pre>
+  </div>
+</section>
+
+<section id="xml-standard">
+  <h2>OpenTravel releases and answer layout</h2>
+  <p class="sub">Answers use the OpenTravel 2003/05 namespace, which every release from 2003 to 2024 shares. Two layouts are available per connection; we agree which one with you.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Layout</th><th>What you get</th><th>Best for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Standard</b></td><td>Every answer is valid against the official OpenTravel XML schemas (checked for 2010B, 2014B and 2017B), with OpenTravel code lists for charges and coverages.</td><td>New connections and platforms that validate against the schemas</td></tr>
+      <tr><td><b>As connected</b></td><td>The layout agreed with existing partners, with extra details (deposit, excess, cancellation deadline) in <code>TPA_Extensions</code>.</td><td>Connections that are already live</td></tr>
+    </tbody>
+  </table></div>
+  <p class="sub" style="margin-top:10px">Requests are checked against the OpenTravel 2017B schema. By default a request that does not match is still answered and we tell you what to fix during certification; when agreed, the connection can refuse such requests with error 321.</p>
+</section>
+
+<section id="limits">
+  <h2>Limits</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Limit</th><th>Value</th><th>When exceeded</th></tr></thead>
+    <tbody>
+      <tr><td>Requests per minute, per connection and address</td><td>120 (agreed per connection, up to 5,000)</td><td>HTTP 429 with OTA <code>Error Type="12" Code="456"</code>; wait and retry with back-off</td></tr>
+      <tr><td>Request size</td><td>64 KB</td><td>Refused as an invalid request</td></tr>
+      <tr><td>Failed logins from one address</td><td>10 in 10 minutes</td><td>That address is locked for 15 minutes</td></tr>
+      <tr><td>Offer validity</td><td>Shown in <code>Reference/@DateTime</code></td><td>Search again for a new offer</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
 <section id="signing">
   <h2>Signed requests (optional)</h2>
   <p class="sub">When signing is agreed for your channel, add two headers to every XML request: <code>X-URD-Timestamp</code> (Unix seconds) and <code>X-URD-Signature: sha256=&lt;hex HMAC-SHA256(secret, timestamp + "." + body)&gt;</code>. The body is the exact bytes you send. Requests older than 5 minutes, or seen before, are refused.</p>
@@ -429,6 +550,19 @@ def verify(headers, raw_body: bytes, secret: str) -> bool:
     <li>We agree rates, cancellation terms and the payment model, and issue production credentials.</li>
     <li>First live bookings are monitored together; then you are live.</li>
   </ol>
+  <h3>Sandbox checklist</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Test</th><th>Expected</th></tr></thead>
+    <tbody>
+      <tr><td>Ping</td><td><code>&lt;Success/&gt;</code> with your <code>EchoData</code></td></tr>
+      <tr><td>Branch list and one branch's details</td><td>Codes, address, opening hours</td></tr>
+      <tr><td>Search 3 dates, including a weekend and a one-day rental</td><td>Offers with totals that add up</td></tr>
+      <tr><td>Terms of one offer, then book it</td><td><code>ConfID Type="14"</code> reservation number</td></tr>
+      <tr><td>Send the same booking again with the same <code>BrokerReference</code></td><td>The same reservation number, not a second booking</td></tr>
+      <tr><td>Retrieve, change the dates, cancel</td><td>Each answer shows the new state</td></tr>
+      <tr><td>An unknown branch code and an expired offer</td><td>An OTA <code>Error</code> (codes in the catalogue below)</td></tr>
+    </tbody>
+  </table></div>
 </section>
 
 <section id="versions">

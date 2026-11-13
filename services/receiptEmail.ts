@@ -1,5 +1,5 @@
 import { CompanyDetails, RentalSource, Reservation } from '../types';
-import { CustomerEmailPayload } from '../firebase/api';
+import { CustomerEmailPayload } from './api';
 import { isPrepaid as bookingIsPrepaid } from './paymentType';
 import { brandFields, supportLine } from './emailBrand';
 

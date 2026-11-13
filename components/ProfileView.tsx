@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { User, UserPermission } from '../types';
 import { MailIcon, KeyIcon } from './icons';
-import { API_URL } from '../firebase/api';
+import { API_URL } from '../services/api';
 import TwoStepPanel from './TwoStepPanel';
 import { Page, PageHeader, Panel, Badge, Button, Field, DetailList, inputCls } from './ui/Crm';
 
 interface ProfileViewProps {
   currentUser: User;
-  firebaseUser?: { uid: string; email: string };
   onUserUpdate: (user: User) => void;
 }
 

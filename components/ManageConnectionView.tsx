@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Aggregator, AggregatorConnectionDetails, ChannelStatus } from '../types';
 import { SaveIcon, LockClosedIcon, EyeIcon, CheckCircleIcon, AlertIcon } from './icons';
 import { SUPPORTED_CURRENCIES, acceptedVendorCodes, validateChannel, generateFeedKey, sha256Hex, partnerEndpoints } from '../services/channelManager';
-import { API_URL } from '../firebase/api';
+import { API_URL } from '../services/api';
 import { Panel, Button, inputCls, selectCls, labelCls } from './ui/Crm';
 import { keyMessage } from './channel/ApiKeysView';
 import { KNOWN_COVERAGE_TYPES, coverageTypeFor, isOtaCode } from '../services/otaCodes';
+
+/** OpenTravel releases a broker's specification can name; all share the 2003/05 namespace this system answers in. */
+const OTA_RELEASES = ['2003A', '2006B', '2008B', '2010B', '2012B', '2014B', '2015B', '2016B', '2017B', '2018A', '2019A', '2024A'];
 
 interface ManageConnectionViewProps {
   aggregator: Aggregator;
@@ -24,6 +27,9 @@ type Draft = {
   commissionPercent: string;
   contactEmail: string;
   otaProfile: 'standard' | 'compatible';
+  otaValidation: 'report' | 'strict';
+  otaRelease: string;
+  soapVersion: '' | '1.1' | '1.2';
   coverageCodes: Record<string, string>;
 };
 
@@ -44,6 +50,9 @@ const toDraft = (agg: Aggregator): Draft => ({
   commissionPercent: agg.commissionPercent != null ? String(agg.commissionPercent) : '',
   contactEmail: agg.contactEmail || '',
   otaProfile: agg.otaProfile === 'standard' ? 'standard' : 'compatible',
+  otaValidation: agg.otaValidation === 'strict' ? 'strict' : 'report',
+  otaRelease: agg.otaRelease || '',
+  soapVersion: agg.soapVersion === '1.1' || agg.soapVersion === '1.2' ? agg.soapVersion : '',
   coverageCodes: { ...(agg.bookingRules?.otaCodes?.coverages || {}) },
 });
 
@@ -97,6 +106,9 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
       commissionPercent: Number.isFinite(commission) ? commission : undefined,
       contactEmail: draft.contactEmail.trim() || undefined,
       otaProfile: draft.otaProfile,
+      otaValidation: draft.otaValidation,
+      otaRelease: draft.otaRelease || undefined,
+      soapVersion: draft.soapVersion || undefined,
       bookingRules: { ...aggregator.bookingRules, otaCodes: { ...aggregator.bookingRules?.otaCodes, coverages: cleanCodes(draft.coverageCodes) } },
     };
   };
@@ -296,6 +308,33 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
               <span><span className="block text-[13px] font-semibold text-slate-900">{title}</span><span className="block text-xs text-slate-600 mt-0.5">{text}</span></span>
             </label>
           ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200 px-3 py-2.5">
+          <span className="text-[13px] font-semibold text-slate-900">Schema check of broker requests</span>
+          {([['report', 'Report only (recommended)'], ['strict', 'Strict: refuse invalid requests']] as const).map(([v, l]) => (
+            <label key={v} className="inline-flex items-center gap-1.5 text-[13px] text-slate-700 cursor-pointer">
+              <input type="radio" name="otaValidation" checked={draft.otaValidation === v} onChange={() => set('otaValidation', v)} />{l}
+            </label>
+          ))}
+          <span className="basis-full text-xs text-slate-500">Every request is checked against the official OpenTravel 2017B schema. Problems show in Traffic with a “Schema” label. Use Strict only after this broker's requests show no problems.</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="block">
+            <span className={labelCls}>OpenTravel release in the broker's specification</span>
+            <select value={draft.otaRelease} onChange={e => set('otaRelease', e.target.value)} className={selectCls} aria-label="OpenTravel release">
+              <option value="">Not recorded</option>
+              {OTA_RELEASES.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className={labelCls}>How they send messages</span>
+            <select value={draft.soapVersion} onChange={e => set('soapVersion', e.target.value as Draft['soapVersion'])} className={selectCls} aria-label="SOAP version">
+              <option value="">Plain XML over HTTPS</option>
+              <option value="1.1">SOAP 1.1</option>
+              <option value="1.2">SOAP 1.2</option>
+            </select>
+          </label>
+          <span className="sm:col-span-2 text-xs text-slate-500">A record of what was agreed. Traffic → “What the broker sends” shows the release address, SOAP version and message Version they really use.</span>
         </div>
         {coverCodes.length > 0 && (
           <div className="space-y-2">

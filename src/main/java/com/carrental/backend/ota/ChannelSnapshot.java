@@ -105,6 +105,8 @@ public class ChannelSnapshot {
             .forEachRemaining(e -> out.put(e.getKey().trim().toUpperCase(Locale.ROOT), e.getValue().asText("").trim()));
         return out;
     }
+    /** True when requests that break the official OpenTravel schema are refused (otaValidation = "strict"); otherwise they are only reported. */
+    public boolean otaStrictValidation() { return "strict".equalsIgnoreCase(text(channel, "otaValidation", "")); }
     public boolean otaStandard() { return "standard".equalsIgnoreCase(text(channel, "otaProfile", "")); }
     public String locationCode() { return text(channel, "locationCode", "AMM").toUpperCase(Locale.ROOT); }
     public String currency() { return text(channel, "currency", "USD"); }

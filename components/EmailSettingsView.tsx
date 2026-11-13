@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getMailSettings, MailSettingsView, saveMailSettings, sendTestEmail } from '../firebase/api';
+import { getMailSettings, MailSettingsView, saveMailSettings, sendTestEmail } from '../services/api';
 import { Page, PageHeader, StatGrid, Panel, Badge, Button, Field, inputCls, selectCls } from './ui/Crm';
 
 const PROVIDERS: { key: string; label: string; sub: string; host: string; port: number; security: 'STARTTLS' | 'SSL'; user?: string; help: string }[] = [

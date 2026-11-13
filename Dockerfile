@@ -29,8 +29,11 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-# Use most of the container's memory for the heap; Render sets PORT.
+# Memory: the whole process must stay under the instance's limit (512 MB on Render's Starter plan), or Render
+# restarts it. Outside the heap the server needs about 190 MB (classes, code, threads), measured with realistic data,
+# so the heap gets 55% (about 282 MB of 512 MB, against ~180 MB in use; it grows automatically on a larger instance), class metadata and the
+# code cache are capped, and a full heap restarts the server cleanly instead of leaving it stuck.
 # Small instances get a fraction of one CPU: the serial collector, quick (C1) compilation and smaller
-# thread stacks / code cache halve start-up time (~22 s -> ~12 s on one core) and cut memory by ~45 MB.
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k -XX:ReservedCodeCacheSize=64m"
+# thread stacks halve start-up time (~22 s -> ~12 s on one core). Render sets PORT.
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=55 -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m -XX:MaxDirectMemorySize=32m -XX:+ExitOnOutOfMemoryError -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k"
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

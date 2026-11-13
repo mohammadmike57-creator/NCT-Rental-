@@ -1,5 +1,5 @@
 import { AppData } from '../types';
-import { fetchInitialData, saveAllData } from '../firebase/api';
+import { fetchInitialData, saveAllData } from './api';
 
 export class ReservationSyncService {
   private static lastSyncTimestamp: string = new Date(0).toISOString();

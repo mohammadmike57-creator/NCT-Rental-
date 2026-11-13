@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Reservation, ExtensionInfo, ReservationExtra, TrafficTicket, TrafficTicketStatus, CompanyDetails } from '../types';
 import { CloseIcon, ShieldExclamationIcon } from './icons';
-import { sendCustomerEmail } from '../firebase/api';
+import { sendCustomerEmail } from '../services/api';
 import { brandFields, supportLine } from '../services/emailBrand';
 import { Panel, SectionLabel, Badge, Button, DetailList, inputCls } from './ui/Crm';
 

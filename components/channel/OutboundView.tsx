@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Aggregator } from '../../types';
 import {
   ConnectorSendRow, ConnectorType, OutboundConnectorRow, deleteConnector, fetchConnectorSends, fetchConnectors, saveConnector, testConnector,
-} from '../../firebase/api';
+} from '../../services/api';
 import { Panel, Badge, Button, Dialog, EmptyState, inputCls, selectCls, table } from '../ui/Crm';
 
 /**

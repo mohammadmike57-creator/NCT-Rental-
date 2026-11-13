@@ -78,12 +78,6 @@
             <artifactId>javax.mail</artifactId>
             <version>1.6.2</version>
         </dependency>
-        <!-- Used by XmlReservationParser -->
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20240303</version>
-        </dependency>
         <!-- QR code shown when someone turns on two-step sign-in -->
         <dependency>
             <groupId>com.google.zxing</groupId>

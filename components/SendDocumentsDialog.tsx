@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Reservation } from '../types';
-import { sendCustomerEmail, recordActivity } from '../firebase/api';
+import { sendCustomerEmail, recordActivity } from '../services/api';
 import { emailAgreementDocuments } from '../services/agreementEmail';
 import { agreementHtmlFor, terminationHtmlFor, PrintContext } from '../services/printDocs';
 import { receiptEmailPayload } from '../services/receiptEmail';

@@ -1,5 +1,5 @@
 import { Fleet } from '../types';
-import { mediaUrl } from '../firebase/api';
+import { mediaUrl } from './api';
 
 /** Photo for a booking's car: the exact plate first, otherwise any car of the same model that has one. */
 export const carPhotoFor = (fleet: Fleet | undefined, plate?: string, model?: string): string | undefined => {

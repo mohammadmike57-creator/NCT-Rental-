@@ -213,6 +213,8 @@ public class ChannelGatewayAdminController {
             r.put("remoteIp", m.getRemoteIp());
             r.put("sandbox", m.isSandbox());
             r.put("reservationNumber", m.getReservationNumber());
+            r.put("schemaIssues", m.getSchemaIssues());
+        r.put("protocol", m.getProtocol());
             return r;
         }).toList());
     }

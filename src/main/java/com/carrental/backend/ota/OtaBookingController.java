@@ -38,10 +38,12 @@ public class OtaBookingController {
 
     private final ChannelGateway gateway;
     private final ChannelBookingService core;
+    private final OtaSchemaValidator schemas;
 
-    public OtaBookingController(ChannelGateway gateway, ChannelBookingService core) {
+    public OtaBookingController(ChannelGateway gateway, ChannelBookingService core, OtaSchemaValidator schemas) {
         this.gateway = gateway;
         this.core = core;
+        this.schemas = schemas;
     }
 
     @PostMapping(value = "/OTA_VehLocSearch", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE, MediaType.ALL_VALUE})
@@ -196,6 +198,13 @@ public class OtaBookingController {
         String echo = echo(body);
         return gateway.handle(channel, key, http, type, body, http.getHeader("X-Request-ID"),
             c -> {
+                if (c.ctx().channel().otaStrictValidation()) {
+                    List<String> problems = schemas.check(body);
+                    if (!problems.isEmpty()) {
+                        throw ChannelError.INVALID_REQUEST.ex("The request does not match the OpenTravel " + OtaSchemaValidator.RELEASE
+                            + " schema: " + problems.get(0));
+                    }
+                }
                 return new ChannelGateway.Rendered(action.apply(c), XML);
             },
             (e, rid, sandbox) -> new ChannelGateway.Rendered(OtaBookingXml.error(errorRoot, echo, !sandbox, e, rid), XML));

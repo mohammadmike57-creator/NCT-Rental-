@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Aggregator } from '../../types';
-import { ChannelSecurityInfo, fetchChannelSecurity, rotateWebhookSecret, unlockChannelAddress } from '../../firebase/api';
+import { ChannelSecurityInfo, fetchChannelSecurity, rotateWebhookSecret, unlockChannelAddress } from '../../services/api';
 import { Panel, Badge, Button, StatGrid, EmptyState, table, inputCls } from '../ui/Crm';
 import { CheckCircleIcon } from '../icons';
 

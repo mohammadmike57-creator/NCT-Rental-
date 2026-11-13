@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { confirmTwoStep, getTwoStepStatus, resetTwoStepFor, startTwoStepSetup, turnOffTwoStep, TwoStepStatus } from '../firebase/api';
+import { confirmTwoStep, getTwoStepStatus, resetTwoStepFor, startTwoStepSetup, turnOffTwoStep, TwoStepStatus } from '../services/api';
 import { Panel, Badge, Button, Field, inputCls } from './ui/Crm';
 
 const errorText = (err: any, fallback: string) =>

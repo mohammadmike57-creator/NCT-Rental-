@@ -6,6 +6,7 @@ import { reservationService } from './services/reservationService';
 import { mergeAgreementInto } from './services/agreementLink';
 import { duplicateKeys, findBooking, describeBooking, flatten } from './services/duplicates';
 import { withPriceChange } from './services/addOns';
+import { reservationShareMessage } from './services/reservationShare';
 import { normalizeSources } from './services/paymentType';
 import { ReservationSyncService } from './services/ReservationSyncService';
 import { INITIAL_YEARS, MONTHS, INITIAL_FLEET } from './constants';
@@ -17,13 +18,14 @@ import { pickupMonthOf } from './services/pickupMonth';
 import MisfiledNotice from './components/MisfiledNotice';
 import DeleteAgreementDialog from './components/DeleteAgreementDialog';
 import { flushActivity } from './services/activityTracker';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, markSignedOut, rememberServerState, clearDataSections } from './firebase/api';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, markSignedOut, rememberServerState, clearDataSections } from './services/api';
 
 import { ReservationTable, SummaryTable, ManageSourcesView, Invoice, ManageFleetView, FleetAvailability, Voucher, Receipt, SourcePerformanceReport, ReservationAddOnsView, TrafficTickets, VehicleDamages, LoginScreen, ExtendRentalModal, ExtrasManagerModal, UnlistedAgreementModal, UnlistedAgreementsView, ManageCompanyDetailsView, AgreementTermsView, ManageYearsView, UserManagement, AccountingDashboard, InternalMessages, TodaysReservations, NeedsAttentionView, HomePage, ManageLocationsView, DeferredPayments, PaymentApprovals, ManageExtrasView, ProfileView, AggregatorSetupView, StaffActivityView, EmailSettingsView, ExcelUpload } from './app/lazyViews';
 import AnimatedModal from './components/ui/AnimatedModal';
 import ConfirmationMessage from './components/ui/ConfirmationMessage';
 import { cleanUndefined, getInitialState } from './app/initialState';
 import { usePresence, useLeaveWarning } from './app/usePresence';
+import { useUnlistedAgreements } from './app/useUnlistedAgreements';
 import { sidebarLinks } from './app/navigation';
 import { hasPermission } from './app/permissions';
 import { findBookingMonth } from './services/globalSearch';
@@ -396,6 +398,22 @@ export const App: React.FC = () => {
 
   const showConfirmation = (message: string) => {
     setConfirmation(message);
+  };
+
+  /**
+   * Saves the given sections straight away (only what changed is sent), then shows `done` or the `failed` notice.
+   * Everything else is saved by the automatic save as usual.
+   */
+  const saveSections = async (sections: Partial<AllData>, done: string, failed: string, level: Notification['type'] = 'error'): Promise<boolean> => {
+    try {
+      await saveAllData(cleanUndefined(sections));
+      if (done) showConfirmation(done);
+      return true;
+    } catch (err) {
+      console.error(failed, err);
+      addNotification(failed, level);
+      return false;
+    }
   };
 
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1023,22 +1041,7 @@ export const App: React.FC = () => {
 
   const handleFleetUpdate = async (newFleet: Fleet) => {
     setFleet(newFleet);
-    const allData: AllData = {
-        reservations, sources, fleet: newFleet, companyDetails,
-        trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-        availableExtras, franchisePayments,
-        activityLog,
-        aggregators,
-        stopSales,
-        years,
-    };
-    try {
-      await saveAllData(cleanUndefined(allData));
-      showConfirmation('Fleet updated successfully.');
-    } catch (err) {
-      console.error("Failed to save fleet update:", err);
-      addNotification("Failed to save fleet changes. Check connection.", 'error');
-    }
+    await saveSections({ fleet: newFleet }, 'Fleet updated successfully.', 'Failed to save fleet changes. Check connection.');
   };
   
   const handleSendMessage = (message: Omit<Message, 'id' | 'senderId' | 'senderName' | 'timestamp'>) => {
@@ -1050,89 +1053,25 @@ export const App: React.FC = () => {
         timestamp: new Date().toISOString(),
         ...message
     };
-    setMessages(prev => {
-        const newMessages = [...prev, newMessage];
-        const allData: AllData = {
-            reservations, sources, fleet, companyDetails,
-            trafficTickets, vehicleDamages, users, expenses, messages: newMessages, rentalLocations, invoices,
-            availableExtras, franchisePayments,
-            activityLog,
-            aggregators,
-            stopSales,
-            years,
-        };
-        saveAllData(cleanUndefined(allData)).catch(err => {
-            console.error("Failed to save message:", err);
-            addNotification("Failed to save message. Check connection.", 'error');
-        });
-        return newMessages;
-    });
-    showConfirmation('Message sent successfully!');
+    const newMessages = [...messages, newMessage];
+    setMessages(newMessages);
+    saveSections({ messages: newMessages }, 'Message sent successfully!', 'Failed to save message. Check connection.');
   };
 
   const handleMarkMessageRead = (messageId: string) => {
-      setMessages(prev => {
-          const newMessages = prev.map(msg => msg.id === messageId ? { ...msg, isRead: true } : msg);
-          const allData: AllData = {
-              reservations, sources, fleet, companyDetails,
-              trafficTickets, vehicleDamages, users, expenses, messages: newMessages, rentalLocations, invoices,
-              availableExtras, franchisePayments,
-              activityLog,
-              aggregators,
-              stopSales,
-              years,
-          };
-          saveAllData(cleanUndefined(allData)).catch(err => {
-              console.error("Failed to mark message read:", err);
-              addNotification("Failed to update message. Check connection.", 'error');
-          });
-          return newMessages;
-      });
+      const newMessages = messages.map(msg => msg.id === messageId ? { ...msg, isRead: true } : msg);
+      setMessages(newMessages);
+      saveSections({ messages: newMessages }, '', 'Failed to update message. Check connection.');
   };
   
   const handleDeleteMessage = (messageId: string) => {
-      setMessages(prev => {
-          const newMessages = prev.filter(msg => msg.id !== messageId);
-          const allData: AllData = {
-              reservations, sources, fleet, companyDetails,
-              trafficTickets, vehicleDamages, users, expenses, messages: newMessages, rentalLocations, invoices,
-              availableExtras, franchisePayments,
-              activityLog,
-              aggregators,
-              stopSales,
-              years,
-          };
-          saveAllData(cleanUndefined(allData)).catch(err => {
-              console.error("Failed to delete message:", err);
-              addNotification("Failed to delete message. Check connection.", 'error');
-          });
-          return newMessages;
-      });
+      const newMessages = messages.filter(msg => msg.id !== messageId);
+      setMessages(newMessages);
+      saveSections({ messages: newMessages }, '', 'Failed to delete message. Check connection.');
   };
   
   const handleShareReservation = (reservation: Reservation) => {
-      const subject = `Reservation Details: ${reservation.personName} (${reservation.bookingId})`;
-      const body = `
-Hi,
-
-Please see the details for the following reservation:
-
-Renter: ${reservation.personName}
-Booking ID: ${reservation.bookingId}
-Source: ${reservation.source}
-Vehicle: ${reservation.carModel}
-Location: ${reservation.locationName || 'N/A'}
-Pickup: ${reservation.startDate}
-Return: ${reservation.endDate}
-Status: ${reservation.status}
-Total Amount: $${(reservation.amount || 0).toFixed(2)}
-
-Notes: ${reservation.notes || 'N/A'}
-
-Thanks,
-${currentUser?.fullName}
-      `.trim();
-      setMessageToCompose({ subject, body });
+      setMessageToCompose(reservationShareMessage(reservation, currentUser?.fullName));
       setMainView('Internal Messages');
   };
   
@@ -1243,66 +1182,9 @@ ${currentUser?.fullName}
     return () => window.removeEventListener('nct:navigate', onNav);
   });
 
-  /** Unlisted agreement → normal reservation, stored under its (possibly changed) pickup month. */
-  const handleListUnlisted = async (updated: Reservation, original: Reservation) => {
-    const start = new Date(updated.startDate);
-    const year = Number.isNaN(start.getTime()) ? original.storageYear : start.getFullYear();
-    const month = Number.isNaN(start.getTime()) ? original.storageMonth : MONTHS[start.getMonth()];
-    const next: Reservation = { ...updated, storageYear: year, storageMonth: month, importLockedYear: year, importLockedMonth: month, lastEditedBy: currentUser?.fullName, updatedAt: new Date().toISOString() };
-    setSaveStatus('saving');
-    try {
-      if (original.storageYear && original.storageMonth && (original.storageYear !== year || original.storageMonth !== month)) {
-        await reservationService.deleteReservation(original.id, original.storageYear, original.storageMonth);
-      }
-      const data = await reservationService.updateReservation(next);
-      setReservations(data);
-      setSaveStatus('saved');
-      showConfirmation(`${next.bookingId} is now listed in Reservations (${month} ${year}).`);
-      recordActivity('UNLISTED_LISTED', 'reservation', `Listed unlisted agreement as a reservation — ${next.personName}, ${next.carModel}`, next.bookingId);
-    } catch (err) {
-      setSaveStatus('error');
-      console.error('Failed to list unlisted agreement:', err);
-      addNotification('Could not list the reservation. Check your connection and try again.', 'error');
-    }
-  };
-  /** Counter agreement → the website/partner reservation entered later; the temporary record is removed. */
-  const handleLinkUnlisted = async (target: Reservation, agreement: Reservation) => {
-    const merged = mergeAgreementInto(target, agreement, currentUser?.fullName);
-    setSaveStatus('saving');
-    try {
-      await reservationService.updateReservation({ ...merged, lastEditedBy: currentUser?.fullName, updatedAt: new Date().toISOString() });
-      const data = await reservationService.deleteReservation(agreement.id, agreement.storageYear, agreement.storageMonth);
-      setReservations(data);
-      setSaveStatus('saved');
-      showConfirmation(`Agreement ${agreement.bookingId} is now attached to reservation ${target.bookingId}.`);
-      recordActivity('UNLISTED_LINKED', 'reservation', `Linked counter agreement ${agreement.bookingId} to reservation ${target.bookingId} — ${target.personName}`, target.bookingId);
-    } catch (err) {
-      setSaveStatus('error');
-      console.error('Failed to link agreement:', err);
-      addNotification('Could not link the agreement. Check your connection and try again.', 'error');
-    }
-  };
-  const handleSaveUnlistedDraft = async (updated: Reservation) => {
-    await handleUpdateReservations(updated);
-    showConfirmation(`Details saved for ${updated.bookingId}. It stays in Unlisted agreements until you list it.`);
-  };
-  /** Marks unlisted agreements as reviewed by the signed-in user (removes them from their "New" section). */
-  const handleMarkUnlistedSeen = async (items: Reservation[]) => {
-    if (!myEmail) return;
-    for (const res of items) {
-      if ((res.unlistedSeenBy || []).includes(myEmail)) continue;
-      // Saved directly so "last edited by" is not changed just by reviewing.
-      try { setReservations(await reservationService.updateReservation({ ...res, unlistedSeenBy: [...(res.unlistedSeenBy || []), myEmail] })); } catch (e) { console.error('Could not mark as reviewed', e); }
-    }
-  };
-  const handleRejectUnlisted = (res: Reservation) => {
-    const msg = res.voucherSubmitted && !res.dropOffCompleted
-      ? `${res.personName} currently has the car (${res.licensePlate || res.carModel}). Reject ${res.bookingId} anyway? It will be marked as cancelled.`
-      : `Reject ${res.bookingId} for ${res.personName}? It will be marked as cancelled.`;
-    if (!window.confirm(msg)) return;
-    handleUpdateReservations({ ...res, awaitingConfirmation: false, status: ReservationStatus.CANCELLED, confirmedBy: currentUser?.fullName, confirmedAt: new Date().toISOString() });
-    recordActivity('UNLISTED_REJECTED', 'reservation', `Rejected unlisted agreement — ${res.personName}`, res.bookingId);
-  };
+  const { handleListUnlisted, handleLinkUnlisted, handleSaveUnlistedDraft, handleMarkUnlistedSeen, handleRejectUnlisted } = useUnlistedAgreements({
+    currentUser, myEmail, setReservations, setSaveStatus, showConfirmation, addNotification, updateReservation: handleUpdateReservations,
+  });
 
   // LocalStorage sync for availableExtras (workaround until backend supports it)
   useEffect(() => {
@@ -1545,22 +1427,7 @@ ${currentUser?.fullName}
           users={users} 
           onUpdateUsers={async (updatedUsers) => {
             setUsers(updatedUsers);
-            const allData: AllData = {
-                reservations, sources, fleet, companyDetails,
-                trafficTickets, vehicleDamages, users: updatedUsers, expenses, messages, rentalLocations, invoices,
-                availableExtras, franchisePayments,
-                activityLog,
-                aggregators,
-                stopSales,
-                years,
-            };
-            try {
-                await saveAllData(cleanUndefined(allData));
-                showConfirmation("Users updated.");
-            } catch (err) {
-                console.error("Failed to save users:", err);
-                addNotification("Failed to save users. Check connection.", 'error');
-            }
+            await saveSections({ users: updatedUsers }, 'Users updated.', 'Failed to save users. Check connection.');
           }} 
           currentUser={currentUser} 
         />
@@ -1571,63 +1438,17 @@ ${currentUser?.fullName}
             onAdd={async (s) => {
                 const newSources = [...sources, s];
                 setSources(newSources);
-                const allData: AllData = {
-                    reservations, sources: newSources, fleet, companyDetails,
-                    trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-                    availableExtras, franchisePayments,
-                    activityLog,
-                    aggregators,
-                    stopSales,
-                    years,
-                };
-                try {
-                    const cleaned = cleanUndefined(allData);
-                    await saveAllData(cleaned);
-                    showConfirmation("Source added successfully.");
-                } catch (err) {
-                    console.error("Failed to save new source:", err);
-                    addNotification("Failed to save source to cloud. Check connection.", 'error');
-                }
+                await saveSections({ sources: newSources }, 'Source added successfully.', 'Failed to save source to cloud. Check connection.');
             }} 
             onDelete={async (id) => {
                 const newSources = sources.filter(src => src.id !== id);
                 setSources(newSources);
-                const allData: AllData = {
-                    reservations, sources: newSources, fleet, companyDetails,
-                    trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-                    availableExtras, franchisePayments,
-                    activityLog,
-                    aggregators,
-                    stopSales,
-                    years,
-                };
-                try {
-                    await saveAllData(cleanUndefined(allData));
-                    showConfirmation("Source deleted.");
-                } catch (err) {
-                    console.error("Failed to delete source:", err);
-                    addNotification("Failed to delete source.", 'error');
-                }
+                await saveSections({ sources: newSources }, 'Source deleted.', 'Failed to delete source.');
             }}
             onUpdate={async (s) => {
                 const newSources = sources.map(src => src.id === s.id ? s : src);
                 setSources(newSources);
-                const allData: AllData = {
-                    reservations, sources: newSources, fleet, companyDetails,
-                    trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-                    availableExtras, franchisePayments,
-                    activityLog,
-                    aggregators,
-                    stopSales,
-                    years,
-                };
-                try {
-                    await saveAllData(cleanUndefined(allData));
-                    showConfirmation("Source updated.");
-                } catch (err) {
-                    console.error("Failed to update source:", err);
-                    addNotification("Failed to update source.", 'error');
-                }
+                await saveSections({ sources: newSources }, 'Source updated.', 'Failed to update source.');
             }}
         />
     ), permission: UserPermission.ACTION_ADMIN_MANAGE_SOURCES },
@@ -1636,22 +1457,7 @@ ${currentUser?.fullName}
             locations={rentalLocations}
             onUpdate={async (newLocations) => {
                 setRentalLocations(newLocations);
-                const allData: AllData = {
-                    reservations, sources, fleet, companyDetails,
-                    trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations: newLocations, invoices,
-                    availableExtras, franchisePayments,
-                    activityLog,
-                    aggregators,
-                    stopSales,
-                    years,
-                };
-                try {
-                    await saveAllData(cleanUndefined(allData));
-                    showConfirmation("Locations updated.");
-                } catch (err) {
-                    console.error("Failed to save locations:", err);
-                    addNotification("Failed to save locations. Check connection.", 'error');
-                }
+                await saveSections({ rentalLocations: newLocations }, 'Locations updated.', 'Failed to save locations. Check connection.');
             }}
         />
     ), permission: UserPermission.ACTION_ADMIN_MANAGE_LOCATIONS },
@@ -1659,51 +1465,16 @@ ${currentUser?.fullName}
     'Manage Extras': { component: <ManageExtrasView extras={availableExtras} onUpdate={async (newExtras) => {
         setAvailableExtras(newExtras);
         localStorage.setItem('availableExtras', JSON.stringify(newExtras));
-        const allData: AllData = {
-            reservations, sources, fleet, companyDetails,
-            trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-            availableExtras: newExtras, franchisePayments,
-            activityLog,
-            aggregators,
-            stopSales,
-            years,
-        };
-        try {
-            await saveAllData(cleanUndefined(allData));
-            showConfirmation("Extras updated.");
-            await fetchAllData();
-        } catch (err) {
-            console.error("Failed to save extras to backend:", err);
-            addNotification("Failed to save extras to server, but stored locally.", 'warning');
-        }
+        if (await saveSections({ availableExtras: newExtras }, 'Extras updated.', 'Failed to save extras to server, but stored locally.', 'warning')) await fetchAllData();
     }} />, permission: UserPermission.ACTION_ADMIN_MANAGE_EXTRAS },
     'Company Details': { component: <ManageCompanyDetailsView details={companyDetails} onUpdate={async (newDetails) => {
         setCompanyDetails(newDetails);
-        const allData: AllData = {
-            reservations, sources, fleet, companyDetails: newDetails,
-            trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-            availableExtras, franchisePayments,
-            activityLog,
-            aggregators,
-            stopSales,
-            years,
-        };
-        try {
-            await saveAllData(cleanUndefined(allData));
-            showConfirmation("Company details updated.");
-        } catch (err) {
-            console.error("Failed to save company details:", err);
-            addNotification("Failed to save company details. Check connection.", 'error');
-        }
+        await saveSections({ companyDetails: newDetails }, 'Company details updated.', 'Failed to save company details. Check connection.');
     }} cleanup={hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_USERS) ? { sections: cleanupSections, onClear: handleClearData, onRestored: handleBackupRestored } : undefined} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
     'Agreement Terms': { component: <AgreementTermsView details={companyDetails} currentUser={currentUser} onSave={async (newDetails) => {
         setCompanyDetails(newDetails);
         try {
-            await saveAllData(cleanUndefined({
-                reservations, sources, fleet, companyDetails: newDetails,
-                trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices,
-                availableExtras, franchisePayments, activityLog, aggregators, stopSales, years,
-            } as AllData));
+            await saveAllData(cleanUndefined({ companyDetails: newDetails }));
             recordActivity('AGREEMENT_TERMS_UPDATED', 'settings', 'Updated the rental agreement terms and conditions');
             showConfirmation('Agreement terms saved. New agreements use the updated text.');
         } catch (err) {
@@ -1717,26 +1488,10 @@ ${currentUser?.fullName}
     'My Profile': { component: (
         <ProfileView
             currentUser={currentUser!}
-            firebaseUser={{ uid: currentUser!.id, email: currentUser!.email }}
             onUserUpdate={async (updatedUser: User) => {
                 const newUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
                 setUsers(newUsers);
-                const allData: AllData = {
-                    reservations, sources, fleet, companyDetails,
-                    trafficTickets, vehicleDamages, users: newUsers, expenses, messages, rentalLocations, invoices,
-                    availableExtras, franchisePayments,
-                    activityLog,
-                    aggregators,
-                    stopSales,
-                    years,
-                };
-                try {
-                    await saveAllData(cleanUndefined(allData));
-                    showConfirmation("Profile updated.");
-                } catch (err) {
-                    console.error("Failed to save profile update:", err);
-                    addNotification("Failed to save profile. Check connection.", 'error');
-                }
+                await saveSections({ users: newUsers }, 'Profile updated.', 'Failed to save profile. Check connection.');
             }}
         />
     ), permission: UserPermission.VIEW_MY_PROFILE },

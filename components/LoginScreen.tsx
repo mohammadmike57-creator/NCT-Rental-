@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { User } from '../types';
-import { signInUser, signInWithCode } from '../firebase/api';
+import { signInUser, signInWithCode } from '../services/api';
 import { NCT_LOGIN_LOGO_B64 } from '../constants';
 
 interface LoginScreenProps {

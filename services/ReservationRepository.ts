@@ -1,6 +1,6 @@
 import { AppData, Reservation } from '../types';
 import { ReservationStore } from './ReservationStore';
-import { fetchInitialData, saveAllData } from '../firebase/api';
+import { fetchInitialData, saveAllData } from './api';
 
 export class ReservationRepository {
   private store: ReservationStore;

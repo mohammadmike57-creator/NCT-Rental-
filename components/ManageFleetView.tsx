@@ -5,7 +5,7 @@ import FleetExcelUpload from './FleetExcelUpload';
 import { CAR_CATEGORIES } from '../constants';
 import CarPicture from './CarPicture';
 import { compressImage } from '../services/imageCompress';
-import { mediaUrl, uploadImage } from '../firebase/api';
+import { mediaUrl, uploadImage } from '../services/api';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Badge, Button, Field, Dialog, Plate, EmptyState, inputCls, selectCls, table } from './ui/Crm';
 
 interface ManageFleetViewProps {

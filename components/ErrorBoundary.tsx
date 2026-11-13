@@ -1,5 +1,5 @@
 import React from 'react';
-import { reportScreenError } from '../firebase/api';
+import { reportScreenError } from '../services/api';
 
 /**
  * Keeps one failing screen from blanking the whole system: the error is shown in place of

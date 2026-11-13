@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
-import { fetchChannelBookings, fetchChannelTrafficStats, fetchChannelWebhooks, ChannelBookingRow, ChannelTrafficStats, ChannelWebhookRow } from '../../firebase/api';
+import { fetchChannelBookings, fetchChannelTrafficStats, fetchChannelWebhooks, ChannelBookingRow, ChannelTrafficStats, ChannelWebhookRow } from '../../services/api';
 import { Panel, Badge, Button, StatGrid, EmptyState, Plate, table } from '../ui/Crm';
 import { connectionStateOf } from './ConnectionProfileView';
 import type { ChannelTab } from '../AggregatorSetupView';

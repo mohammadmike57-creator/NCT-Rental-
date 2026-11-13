@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 
 // The server client reads Vite's import.meta, which Jest cannot load.
-jest.mock('./firebase/api', () => ({
+jest.mock('./services/api', () => ({
   fetchReservations: jest.fn(),
   createReservation: jest.fn(),
   updateReservation: jest.fn(),

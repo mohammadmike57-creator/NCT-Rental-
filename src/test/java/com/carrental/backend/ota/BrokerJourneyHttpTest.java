@@ -282,6 +282,19 @@ class BrokerJourneyHttpTest {
         Rs groups = call("GET", "/partner/v1/AEU/vehicle-groups", null, null, "X-Api-Key", KEY);
         assertEquals(200, groups.status(), groups.body());
         assertEquals(3, M.readTree(groups.body()).path("vehicle_groups").size(), groups.body());
+
+        // 8. Every step is in the channel's traffic log, with the request, the answer and the booking number.
+        Rs log = call("GET", "/api/channels/agg-aeu/traffic?hours=24&limit=500", null, null, "Authorization", auth);
+        assertEquals(200, log.status(), log.body());
+        JsonNode rows = M.readTree(log.body());
+        java.util.Set<String> ops = new java.util.HashSet<>();
+        rows.forEach(r -> ops.add(r.path("operation").asText()));
+        for (String op : List.of("OTA_Ping", "OTA_VehLocSearch", "OTA_VehLocDetail", "OTA_VehAvailRate", "OTA_VehRateRule", "OTA_VehRes",
+                "OTA_VehRetRes", "OTA_VehModify", "OTA_VehCancel")) {
+            assertTrue(ops.contains(op), op + " logged: " + ops);
+        }
+        assertTrue(rows.toString().contains(number), "the booking number is on its log entries");
+        rows.forEach(r -> assertTrue(r.has("schemaIssues"), "schema check shown for every call"));
     }
 
     @Test

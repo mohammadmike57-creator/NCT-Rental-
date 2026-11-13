@@ -1,5 +1,7 @@
 package com.carrental.backend.ota;
 
+import org.springframework.mock.web.MockHttpServletResponse;
+
 import com.carrental.backend.model.User;
 import com.carrental.backend.model.UserPermission;
 import com.carrental.backend.model.UserStatus;
@@ -52,6 +54,7 @@ class ChannelGatewayIntegrationTest {
     @Autowired ChannelOfferRepository offers;
     @Autowired ChannelWebhookRepository webhooks;
     @Autowired UserRepository users;
+    @Autowired ChannelMessageRepository trafficLog;
     @Autowired PasswordEncoder encoder;
     @Autowired JwtUtil jwt;
 
@@ -1313,6 +1316,16 @@ class ChannelGatewayIntegrationTest {
         assertTrue(page.getContentType().startsWith("text/html") && page.getHeader("Content-Security-Policy").contains("frame-ancestors 'none'"));
         assertTrue(html.contains("UR-Drive Jordan") && html.contains("https://www.nctrental.com/api/v3/postman.json") && html.contains("X-URD-Signature"), "brand and links");
         assertFalse(html.contains("NCT") || html.contains("__BASE__") || html.contains("__BRAND__") || html.contains(KEY), "no system name, placeholders or keys");
+        String samples = html.substring(html.indexOf("<section id=\"xml-answers\">"), html.indexOf("<section id=\"xml-standard\">"));
+        var pre = java.util.regex.Pattern.compile("<pre>(.*?)</pre>", java.util.regex.Pattern.DOTALL).matcher(samples);
+        int checked = 0;
+        while (pre.find()) {
+            String xml = org.springframework.web.util.HtmlUtils.htmlUnescape(pre.group(1));
+            if (!xml.startsWith("<OTA_") || xml.contains("…")) continue;           // the SOAP and the shortened booking sample are excerpts
+            assertEquals(List.of(), OfficialOtaSchemas.violations(xml), "the published sample passes the official schema: " + xml);
+            checked++;
+        }
+        assertEquals(2, checked, "the availability and the error sample are checked");
 
         JsonNode col = M.readTree(mvc.perform(get("/api/v3/postman.json")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertEquals("https://schema.getpostman.com/json/collection/v2.1.0/collection.json", col.path("info").path("schema").asText());
@@ -1665,7 +1678,7 @@ class ChannelGatewayIntegrationTest {
             int st = mvc.perform(get(path)).andReturn().getResponse().getStatus();
             assertTrue(st == 401 || st == 403, path + " -> " + st);
         }
-        rules((agg, r) -> r.put("rateLimitPerMinute", 3));
+        rules((agg, r) -> r.put("rateLimitPerMinute", 10));   // the lowest limit a channel can have
         try {
             int limited = 0;
             for (int i = 0; i < 8; i++) {
@@ -2057,5 +2070,155 @@ class ChannelGatewayIntegrationTest {
         assertTrue(locs.contains("Wed=\"true\"") && locs.contains("Start=\"06:00\"") && locs.contains("<VehRentLocInfos/>"), locs);
         assertTrue(av.contains("<VehAvailInfo>\n") || av.contains("<VehAvailInfo>"), av);
         assertFalse(av.contains("<AdditionalCoverages>"), "no standard-only blocks: " + av);
+    }
+
+    /** The newest logged call with this request id. */
+    ChannelMessage logged(String requestId) {
+        return trafficLog.findAll().stream().filter(m -> requestId.equals(m.getRequestId())).findFirst().orElseThrow();
+    }
+
+    /** A fully standard search: Version and POS, as the official schema requires. */
+    static String standardAvail(String echo) {
+        String equip = "<SpecialEquipPrefs><SpecialEquipPref EquipType=\"13\" Quantity=\"1\"/></SpecialEquipPrefs>";
+        return avail(echo).replace("EchoToken=\"" + echo + "\">", "EchoToken=\"" + echo + "\" Version=\"5.000\">"
+            + "<POS><Source><RequestorID Type=\"4\" ID=\"BKG\"/></Source></POS>")
+            .replaceAll("\\s*<SpecialEquipPrefs>.*</SpecialEquipPrefs>", "")
+            .replace("<DriverType Age=\"35\"/></VehAvailRQCore>", "<DriverType Age=\"35\"/>" + equip + "</VehAvailRQCore>");
+    }
+
+    /** A search with an element OpenTravel does not have: answered as before, the problem is logged. */
+    static String availWithUnknownElement() {
+        return standardAvail("SCHEMA").replace("<DriverType Age=\"35\"/>", "<DriverType Age=\"35\"/><NotAnOtaElement/>");
+    }
+
+    @Test
+    void theTrafficLogReportsRequestsThatBreakTheOfficialSchemaWithoutRefusingThem() throws Exception {
+        String ok = send("/ota/v1/BKG/OTA_VehAvailRate", standardAvail("CLEAN"), "X-Request-ID", "rid-clean");
+        assertTrue(ok.contains("<Success/>"), ok);
+        assertNull(logged("rid-clean").getSchemaIssues(), "a valid request: nothing reported");
+        String odd = send("/ota/v1/BKG/OTA_VehAvailRate", availWithUnknownElement(), "X-Request-ID", "rid-odd");
+        assertTrue(odd.contains("<Success/>"), "still answered: " + odd);
+        assertTrue(logged("rid-odd").getSchemaIssues().startsWith("Request: ") && logged("rid-odd").getSchemaIssues().contains("NotAnOtaElement"),
+            logged("rid-odd").getSchemaIssues());
+        String noNs = send("/ota/v1/BKG/OTA_VehAvailRate", avail("NONS").replace(" xmlns=\"http://www.opentravel.org/OTA/2003/05\"", ""), "X-Request-ID", "rid-nons");
+        assertTrue(noNs.contains("<Success/>"), noNs);
+        assertTrue(logged("rid-nons").getSchemaIssues().contains("not in the OpenTravel namespace"), logged("rid-nons").getSchemaIssues());
+    }
+
+    @Test
+    void standardAnswersAreCheckedAndCleanAndStrictChannelsRefuseInvalidRequests() throws Exception {
+        rules((agg, r) -> agg.put("otaProfile", "standard"));
+        send("/ota/v1/BKG/OTA_VehAvailRate", standardAvail("STD"), "X-Request-ID", "rid-std");
+        assertNull(logged("rid-std").getSchemaIssues(), "our standard answer and the request are valid");
+        rules((agg, r) -> agg.put("otaValidation", "strict"));
+        String refused = send("/ota/v1/BKG/OTA_VehAvailRate", availWithUnknownElement());
+        assertTrue(refused.contains("<Errors>") && refused.contains("Code=\"321\"") && refused.contains("OpenTravel 2017B schema"), refused);
+        assertTrue(send("/ota/v1/BKG/OTA_VehAvailRate", standardAvail("STRICT-OK")).contains("<Success/>"), "valid requests still work");
+    }
+
+    @Test
+    void theRateLimitRefusesExtraRequestsWithAnOtaErrorAndAPause() throws Exception {
+        rules((agg, r) -> r.put("rateLimitPerMinute", 10));   // the lowest limit a channel can have
+        String ping = "<OTA_PingRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><EchoData>r</EchoData></OTA_PingRQ>";
+        int ok = 0;
+        MockHttpServletResponse last = null;
+        for (int i = 0; i < 14; i++) {
+            last = mvc.perform(post("/ota/v1/BKG/OTA_Ping").contentType(MediaType.APPLICATION_XML).content(ping).header("X-Api-Key", KEY)
+                .with(rq -> { rq.setRemoteAddr("198.51.100.7"); return rq; })).andReturn().getResponse();
+            if (last.getStatus() == 200) ok++;
+        }
+        assertTrue(ok >= 1 && ok <= 10, "at most the limit gets through (other tests may have used part of this minute): " + ok);
+        assertEquals(429, last.getStatus());
+        String body = last.getContentAsString();
+        assertTrue(body.contains("<Errors>") && body.contains("Type=\"12\"") && body.contains("Rate limit of 10 requests a minute"), body);
+        rules((agg, r) -> r.put("rateLimitPerMinute", 600));
+    }
+
+    @Test
+    void theStationDetailAnswerCarriesEveryStationField() throws Exception {
+        String d = send("/ota/v1/BKG/OTA_VehLocDetail", "<OTA_VehLocDetailRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><Location LocationCode=\"AMM\"/></OTA_VehLocDetailRQ>");
+        assertTrue(d.contains("<Success/>"), d);
+        for (String part : List.of("Code=\"AMM\"", "Name=\"", "AtAirport=\"true\"", "<AddressLine>", "<OperationTime ", "<PickUp>true</PickUp>",
+                "<Return>true</Return>", "<LocationType>AIRPORT</LocationType>", "<Vendor Code=\"")) {
+            assertTrue(d.contains(part), part + " in " + d);
+        }
+        String unknown = send("/ota/v1/BKG/OTA_VehLocDetail", "<OTA_VehLocDetailRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><Location LocationCode=\"ZZZ\"/></OTA_VehLocDetailRQ>");
+        assertTrue(unknown.contains("<Errors>") && unknown.contains("Code=\"61\""), "unknown station: " + unknown);
+    }
+
+    @Test
+    void theRateRuleAnswerCarriesPricesRulesPenaltiesExtrasAndStations() throws Exception {
+        String offer = firstOffer(send("/ota/v1/BKG/OTA_VehAvailRate", avail("RR")));
+        String rr = send("/ota/v1/BKG/OTA_VehRateRule", "<OTA_VehRateRuleRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><Reference Type=\"16\" ID=\"" + offer + "\"/></OTA_VehRateRuleRQ>");
+        for (String part : List.of("<VehRentalCore ", "<Vehicle ", "<RentalRate>", "<TotalCharge ", "<RateRules", "<AdvanceBooking ", "<PaymentRules>",
+                "CancelPenalt", "<MinimumAge ", "<LocationDetails>", "ID=\"" + offer + "\"")) {
+            assertTrue(rr.contains(part), part + " in " + rr);
+        }
+        rules((agg, r) -> agg.put("otaProfile", "standard"));
+        String std = send("/ota/v1/BKG/OTA_VehRateRule", "<OTA_VehRateRuleRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><Reference Type=\"16\" ID=\""
+            + firstOffer(send("/ota/v1/BKG/OTA_VehAvailRate", avail("RR2"))) + "\"/></OTA_VehRateRuleRQ>");
+        assertTrue(std.contains("<RateRestrictions MinimumAge=") && std.contains("<CancelPenaltyInfo") && std.contains("<LocationDetails Code=\"AMM\""), std);
+        assertEquals(List.of(), OfficialOtaSchemas.violations(std), std);
+        String expired = send("/ota/v1/BKG/OTA_VehRateRule", "<OTA_VehRateRuleRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"><Reference Type=\"16\" ID=\"OFF-unknown\"/></OTA_VehRateRuleRQ>");
+        assertTrue(expired.contains("<Errors>"), "an unknown or expired offer is an error: " + expired);
+    }
+
+    @Test
+    void the2018AAnd2024AAddressesGiveSchemaValidStandardAnswers() throws Exception {
+        rules((agg, r) -> agg.put("otaProfile", "standard"));
+        for (String release : List.of("2018A", "2024A")) {
+            var av = mvc.perform(post("/ota/" + release + "/BKG/OTA_VehAvailRate").contentType(MediaType.APPLICATION_XML).content(avail("R" + release))
+                .header("X-Api-Key", KEY)).andReturn().getResponse().getContentAsString();
+            assertEquals(List.of(), OfficialOtaSchemas.violations(av), release + ": " + av);
+            var loc = mvc.perform(post("/ota/" + release + "/BKG/OTA_VehLocSearch").contentType(MediaType.APPLICATION_XML)
+                .content("<OTA_VehLocSearchRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\"/>").header("X-Api-Key", KEY)).andReturn().getResponse().getContentAsString();
+            assertEquals(List.of(), OfficialOtaSchemas.violations(loc), release + ": " + loc);
+        }
+    }
+
+    /** Expected broker traffic: 8 brokers searching at once, 25 searches each, every answer correct and fast enough. */
+    @Test
+    void searchesFromManyBrokersAtOnceAllSucceedQuickly() throws Exception {
+        rules((agg, r) -> r.put("rateLimitPerMinute", 10000));
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        List<java.util.concurrent.Future<Long>> calls = new java.util.ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            final int n = i;
+            calls.add(pool.submit(() -> {
+                long t = System.nanoTime();
+                String a = send("/ota/v1/BKG/OTA_VehAvailRate", avail("LOAD" + n));
+                assertTrue(a.contains("<Success/>") && a.contains("Code=\"SDAR\""), a);
+                return (System.nanoTime() - t) / 1_000_000;
+            }));
+        }
+        List<Long> ms = new java.util.ArrayList<>();
+        for (var c : calls) ms.add(c.get(60, java.util.concurrent.TimeUnit.SECONDS));
+        pool.shutdown();
+        java.util.Collections.sort(ms);
+        long p95 = ms.get((int) (ms.size() * 0.95) - 1);
+        System.out.println("Load test: 200 searches, 8 at once, median " + ms.get(100) + " ms, 95% within " + p95 + " ms");
+        assertTrue(p95 < 3000, "95% of searches answer within 3 seconds, was " + p95 + " ms");
+        rules((agg, r) -> r.put("rateLimitPerMinute", 600));
+    }
+
+    @Test
+    void theTrafficLogRecordsTheReleaseSoapVersionAndMessageVersionTheBrokerUses() throws Exception {
+        send("/ota/2024A/BKG/OTA_VehAvailRate", standardAvail("P1"), "X-Request-ID", "rid-proto-2024");
+        send("/ota/v1/BKG/OTA_VehAvailRate", avail("P2"), "X-Request-ID", "rid-proto-v1");
+        String s12 = """
+            <env:Envelope xmlns:env="http://www.w3.org/2003/05/soap-envelope"><env:Body>
+            <OTA_PingRQ xmlns="http://www.opentravel.org/OTA/2003/05" Version="1.003"><EchoData>x</EchoData></OTA_PingRQ></env:Body></env:Envelope>""";
+        mvc.perform(post("/ota/v1/BKG/soap").contentType(MediaType.parseMediaType("application/soap+xml")).content(s12)
+            .header("X-Api-Key", KEY).header("X-Request-ID", "rid-proto-soap")).andExpect(status().isOk());
+
+        assertEquals("OTA 2024A · Version 5.000", logged("rid-proto-2024").getProtocol());
+        assertEquals("OTA v1", logged("rid-proto-v1").getProtocol());
+        assertEquals("OTA v1 · SOAP 1.2 · Version 1.003", logged("rid-proto-soap").getProtocol());
+
+        JsonNode stats = M.readTree(mvc.perform(get("/api/channels/agg-1/traffic/stats?hours=1").header("Authorization", staffToken()))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        List<String> seen = new java.util.ArrayList<>();
+        stats.path("protocols").forEach(p -> seen.add(p.path("protocol").asText()));
+        assertTrue(seen.containsAll(List.of("OTA 2024A · Version 5.000", "OTA v1", "OTA v1 · SOAP 1.2 · Version 1.003")), seen.toString());
     }
 }

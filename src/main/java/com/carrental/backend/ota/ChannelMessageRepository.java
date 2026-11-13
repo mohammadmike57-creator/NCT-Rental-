@@ -22,8 +22,8 @@ public interface ChannelMessageRepository extends JpaRepository<ChannelMessage, 
     List<ChannelMessage> search(@Param("ch") String channelId, @Param("since") Instant since, @Param("op") String operation,
                                 @Param("result") String result, @Param("q") String q, @Param("like") String like, Pageable page);
 
-    /** duration, operation, success, errorCode, createdAt for the statistics. */
-    @Query("select m.durationMs, m.operation, m.success, m.errorCode, m.createdAt, m.sandbox from ChannelMessage m"
+    /** duration, operation, success, errorCode, createdAt, sandbox, protocol for the statistics. */
+    @Query("select m.durationMs, m.operation, m.success, m.errorCode, m.createdAt, m.sandbox, m.protocol from ChannelMessage m"
         + " where m.channelId = :ch and m.createdAt >= :since")
     List<Object[]> statsRows(@Param("ch") String channelId, @Param("since") Instant since);
 

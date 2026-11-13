@@ -40,10 +40,27 @@ public class ChannelTrafficService {
 
     private final ChannelMessageRepository messages;
     private final int retentionDays;
+    private final OtaSchemaValidator schemas;
 
-    public ChannelTrafficService(ChannelMessageRepository messages, @Value("${channel.traffic.retention-days:30}") int retentionDays) {
+    public ChannelTrafficService(ChannelMessageRepository messages, @Value("${channel.traffic.retention-days:30}") int retentionDays,
+                                 OtaSchemaValidator schemas) {
         this.messages = messages;
         this.retentionDays = Math.max(1, retentionDays);
+        this.schemas = schemas;
+    }
+
+    /**
+     * Report-only schema check of one OTA call: the broker's request always, our answer when the channel uses the
+     * OpenTravel standard layout (the layout older channels were connected with is not meant to be schema-exact).
+     */
+    String schemaIssues(ChannelSnapshot ch, String operation, String request, String response) {
+        if (schemas == null || operation == null || !operation.startsWith("OTA_")) return null;
+        List<String> out = new java.util.ArrayList<>();
+        schemas.check(request).forEach(p -> out.add("Request: " + p));
+        if (ch.otaStandard()) schemas.check(response).forEach(p -> out.add("Answer: " + p));
+        if (out.isEmpty()) return null;
+        String text = String.join(" | ", out);
+        return text.length() > 2000 ? text.substring(0, 1999) + "…" : text;
     }
 
     public void record(ChannelSnapshot ch, HttpServletRequest http, String operation, String requestBody, String requestId,
@@ -59,11 +76,13 @@ public class ChannelTrafficService {
             m.setChannelId(ch.id());
             m.setRequestId(requestId);
             m.setFormat(format(http, operation));
+            m.setProtocol(protocol(http, m.getFormat(), req));
             m.setOperation(operation.length() > 60 ? operation.substring(0, 60) : operation);
             m.setHttpStatus(status);
             m.setSuccess(success);
             m.setErrorCode(errorCode);
             m.setErrorMessage(errorMessage == null ? null : errorMessage.length() > 500 ? errorMessage.substring(0, 500) : errorMessage);
+            m.setSchemaIssues(schemaIssues(ch, operation, requestBody, responseBody));
             m.setDurationMs(ms);
             m.setRequestBytes(req == null ? 0 : req.length());
             m.setResponseBytes(responseBody == null ? 0 : responseBody.length());
@@ -86,6 +105,34 @@ public class ChannelTrafficService {
         if (operation.startsWith("XML ")) return "XML";
         if (operation.startsWith("REST ")) return "REST";
         return "OTA";
+    }
+
+    private static final Pattern RELEASE_PATH = Pattern.compile("^/ota/(2018A|2024A)/");
+    private static final Pattern OTA_VERSION = Pattern.compile("<(?:[\\w-]+:)?OTA_\\w+\\b[^>]*?\\sVersion=\"([^\"]{1,12})\"");
+
+    /**
+     * What the broker actually sends: the address (OpenTravel release), SOAP and its version, and the Version
+     * attribute of the message. Shown per channel so the release on record can be checked against real traffic.
+     */
+    static String protocol(HttpServletRequest http, String format, String body) {
+        if (http == null) return null;
+        String uri = http.getRequestURI() == null ? "" : http.getRequestURI();
+        List<String> parts = new ArrayList<>();
+        Matcher release = RELEASE_PATH.matcher(uri);
+        if (release.find()) parts.add("OTA " + release.group(1));
+        else if (uri.startsWith("/ota/")) parts.add("OTA v1");
+        else if (uri.startsWith("/xml/")) parts.add("Native XML");
+        else if (uri.startsWith("/api/v3")) parts.add("REST v3");
+        else return null;                                           // the staff console and other callers
+        if ("SOAP".equals(format)) {
+            String type = http.getContentType() == null ? "" : http.getContentType().toLowerCase(java.util.Locale.ROOT);
+            parts.add(type.contains("application/soap+xml") ? "SOAP 1.2" : "SOAP 1.1");
+        }
+        if (body != null) {
+            Matcher v = OTA_VERSION.matcher(body.length() > 4000 ? body.substring(0, 4000) : body);
+            if (v.find()) parts.add("Version " + v.group(1));
+        }
+        return String.join(" · ", parts);
     }
 
     static String mask(String s) {
@@ -142,6 +189,7 @@ public class ChannelTrafficService {
         List<Long> durations = new ArrayList<>();
         Map<String, long[]> byOp = new TreeMap<>();          // calls, errors, total ms
         Map<String, Long> byError = new TreeMap<>();
+        Map<String, Object[]> byProtocol = new TreeMap<>();   // calls, last seen
         boolean hourly = h <= 72;
         int buckets = hourly ? h : (int) Math.ceil(h / 24.0);
         long[][] series = new long[buckets][2];
@@ -154,6 +202,11 @@ public class ChannelTrafficService {
             String err = (String) r[3];
             Instant at = (Instant) r[4];
             durations.add(ms);
+            if (r.length > 6 && r[6] instanceof String proto && !proto.isBlank()) {
+                Object[] pr = byProtocol.computeIfAbsent(proto, k -> new Object[]{0L, at});
+                pr[0] = (Long) pr[0] + 1;
+                if (at.isAfter((Instant) pr[1])) pr[1] = at;
+            }
             sum += ms;
             max = Math.max(max, ms);
             long[] o = byOp.computeIfAbsent(op, k -> new long[3]);
@@ -188,6 +241,10 @@ public class ChannelTrafficService {
         byError.forEach((k, v) -> errs.add(Map.of("code", k, "count", v)));
         errs.sort((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")));
         out.put("errorCodes", errs);
+        List<Map<String, Object>> protos = new ArrayList<>();
+        byProtocol.forEach((k, v) -> protos.add(Map.of("protocol", k, "calls", v[0], "lastSeen", v[1].toString())));
+        protos.sort((a, b) -> Long.compare((Long) b.get("calls"), (Long) a.get("calls")));
+        out.put("protocols", protos);
         List<Map<String, Object>> ser = new ArrayList<>();
         for (int i = 0; i < buckets; i++) {
             Instant at = nowT.minus(buckets - 1 - i, unit);

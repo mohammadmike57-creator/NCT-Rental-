@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Aggregator } from '../../types';
-import { API_URL, fetchChannelTraffic } from '../../firebase/api';
+import { API_URL, fetchChannelTraffic } from '../../services/api';
 import { generateFeedKey, partnerEndpoints, partnerUrlCode, sha256Hex } from '../../services/channelManager';
 import { Panel, Badge, Button, Dialog, EmptyState, Plate, table, textareaCls } from '../ui/Crm';
 import { connectionStateOf } from './ConnectionProfileView';

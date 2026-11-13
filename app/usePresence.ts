@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { startActivityTracking, track, lastInteractionAt } from '../services/activityTracker';
-import { sendHeartbeat } from '../firebase/api';
+import { sendHeartbeat } from '../services/api';
 
 const deviceType = () => (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
 

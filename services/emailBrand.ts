@@ -1,5 +1,5 @@
 import { CompanyDetails } from '../types';
-import { CustomerEmailPayload, sendCustomerEmail } from '../firebase/api';
+import { CustomerEmailPayload, sendCustomerEmail } from './api';
 
 /** Where customers get help: the support contacts from Company Details, else the main company contacts. */
 export function supportOf(c: CompanyDetails) {

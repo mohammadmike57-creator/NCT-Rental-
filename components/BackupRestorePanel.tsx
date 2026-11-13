@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Panel, Button, Badge } from './ui/Crm';
-import { DataBackup, downloadBackupFile, listBackups, restoreBackup } from '../firebase/api';
+import { DataBackup, downloadBackupFile, listBackups, restoreBackup } from '../services/api';
 
 /** Turns "auto-2026-10-22T09-15-02.123Z" into a readable local date and time. */
 const whenOf = (id: string) => {

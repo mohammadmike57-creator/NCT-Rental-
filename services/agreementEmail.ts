@@ -1,6 +1,6 @@
 import { CompanyDetails, Reservation } from '../types';
 import { URDRIVE_LOGO_B64 } from '../constants';
-import { sendCustomerEmail, EmailOutcome } from '../firebase/api';
+import { sendCustomerEmail, EmailOutcome } from './api';
 import { agreementHtmlToPdfBase64 } from './agreementPdf';
 import { terminationFileName, terminationNumber } from './terminationDoc';
 import { buildReturnChargesHtml, chargesFileName, chargesTotal, formatMoney, CHARGE_KIND_LABEL } from './returnChargesDoc';

@@ -1,4 +1,4 @@
-import { ActivityCategory, ActivityEvent, recordActivityBatch } from '../firebase/api';
+import { ActivityCategory, ActivityEvent, recordActivityBatch } from './api';
 
 /**
  * Records what staff do in the app for the Activity Log: every screen opened, button, tab, link

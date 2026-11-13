@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Panel, Button, Badge, inputCls } from './ui/Crm';
-import { getBookingHistory, getDeletedBookings, getStorageCheck, StorageCheck, StoredVersion } from '../firebase/api';
+import { getBookingHistory, getDeletedBookings, getStorageCheck, StorageCheck, StoredVersion } from '../services/api';
 
 const SECTION_LABEL: Record<string, string> = {
   reservations: 'Bookings', fleet: 'Fleet', invoices: 'Invoices', trafficTickets: 'Traffic tickets', vehicleDamages: 'Vehicle damages',

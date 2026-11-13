@@ -1,5 +1,5 @@
 import { CompanyDetails, RentalSource, Reservation } from '../types';
-import { CustomerEmailPayload } from '../firebase/api';
+import { CustomerEmailPayload } from './api';
 import { brandFields } from './emailBrand';
 import { rentalDaysOf } from './rentalDays';
 import { chargesTotal, formatMoney } from './returnChargesDoc';

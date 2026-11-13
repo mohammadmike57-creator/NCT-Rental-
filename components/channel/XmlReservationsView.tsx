@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
-import { deleteChannelBooking, fetchChannelBookings, ChannelBookingRow } from '../../firebase/api';
+import { deleteChannelBooking, fetchChannelBookings, ChannelBookingRow } from '../../services/api';
 import { confirmDeleteBooking } from './ChannelBookingsView';
 import { Panel, Badge, Button, StatGrid, EmptyState, Tabs, Plate, table, inputCls, selectCls } from '../ui/Crm';
 

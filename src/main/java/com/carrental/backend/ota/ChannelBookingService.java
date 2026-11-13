@@ -1,7 +1,6 @@
 package com.carrental.backend.ota;
 
 import com.carrental.backend.audit.ActivityService;
-import com.carrental.backend.ota.ChannelError.ChannelException;
 import com.carrental.backend.ota.ChannelModels.*;
 import com.carrental.backend.service.StateService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -137,7 +136,7 @@ public class ChannelBookingService {
     // =========================================================== availability & offers
 
     public List<Offer> search(Ctx c, Search s) {
-        validate(c, s);
+        BookingValidation.validate(c, s);
         List<Offer> out = new ArrayList<>();
         for (Offer o : price(c, s, null, null)) {
             if (s.vehicleGroup() != null && !s.vehicleGroup().isBlank() && !o.vehicleGroup().equalsIgnoreCase(s.vehicleGroup())) continue;
@@ -185,7 +184,7 @@ public class ChannelBookingService {
                 throw ChannelError.INVALID_REQUEST.ex("Send an offer id, or the rental dates, locations and vehicle group");
             }
             s = search;
-            validate(c, s);
+            BookingValidation.validate(c, s);
             Offer fresh = single(c, s, s.vehicleGroup(), null, null);
             o = "Available".equals(fresh.status()) ? persistOffer(c, s, fresh) : fresh;
         }
@@ -259,10 +258,10 @@ public class ChannelBookingService {
             if (s == null || s.vehicleGroup() == null || s.vehicleGroup().isBlank()) {
                 throw ChannelError.INVALID_REQUEST.ex("Send an offer id, or the rental dates, locations and vehicle group");
             }
-            s = withDriverAge(s, req.driver());
-            validate(c, s);
-            validateCustomer(req.customer());
-            validateDriver(c, req.driver(), s.pickupAt());
+            s = BookingValidation.withDriverAge(s, req.driver());
+            BookingValidation.validate(c, s);
+            BookingValidation.validateCustomer(req.customer());
+            BookingValidation.validateDriver(c, req.driver(), s.pickupAt());
 
             Offer fresh = single(c, s, s.vehicleGroup(), offer == null ? "" : offer.getId(), null);
             if (!"Available".equals(fresh.status())) throw ChannelError.NO_AVAILABILITY.ex(fresh.closedReason());
@@ -355,10 +354,10 @@ public class ChannelBookingService {
                 in != null && in.promoCode() != null ? emptyNull(in.promoCode()) : cur.promoCode(), cur.currency());
             Customer customer = req.customer() != null ? req.customer() : customerOf(res);
             Driver driver = req.driver() != null ? req.driver() : driverOf(res);
-            if (in == null || in.driverAge() == null) s = withDriverAge(s, req.driver());
-            validate(c, s);
-            validateCustomer(customer);
-            validateDriver(c, driver, s.pickupAt());
+            if (in == null || in.driverAge() == null) s = BookingValidation.withDriverAge(s, req.driver());
+            BookingValidation.validate(c, s);
+            BookingValidation.validateCustomer(customer);
+            BookingValidation.validateDriver(c, driver, s.pickupAt());
 
             Offer fresh = single(c, s, s.vehicleGroup(), "", b.getStateReservationId());
             if (!"Available".equals(fresh.status())) throw ChannelError.NO_AVAILABILITY.ex(fresh.closedReason());
@@ -937,90 +936,6 @@ public class ChannelBookingService {
             if (!a.isAfter(to) && !b.isBefore(from)) return true;
         }
         return false;
-    }
-
-    // =========================================================== validation
-
-    void validate(Ctx c, Search s) {
-        if (s.pickupAt() == null || s.returnAt() == null) throw ChannelError.INVALID_DATE.ex("Pick-up and return date and time are required");
-        if (!s.returnAt().isAfter(s.pickupAt())) throw ChannelError.INVALID_DATE.ex("Return must be after pick-up");
-        LocalDateTime now = c.rules().now();
-        if (s.pickupAt().isBefore(now.plusHours(c.rules().minLeadHours()))) {
-            throw ChannelError.INVALID_DATE.ex("Pick-up must be at least " + c.rules().minLeadHours() + " hours from now");
-        }
-        if (s.pickupAt().isAfter(now.plusDays(c.rules().maxHorizonDays()))) {
-            throw ChannelError.INVALID_DATE.ex("Bookings are accepted up to " + c.rules().maxHorizonDays() + " days ahead");
-        }
-        int days = OtaXml.rentalDays(s.pickupAt(), s.returnAt(), c.rules().graceMinutes());
-        if (days > c.rules().maxRentalDays()) throw ChannelError.INVALID_DATE.ex("The longest rental is " + c.rules().maxRentalDays() + " days");
-        ChannelCommercial com = ChannelCommercial.of(c.channel().raw().path("bookingRules"));
-        if (days < com.minRentalDays()) throw ChannelError.INVALID_DATE.ex("The shortest rental is " + com.minRentalDays() + " days");
-        if (com.closedToArrival().contains(s.pickupAt().toLocalDate())) throw ChannelError.INVALID_DATE.ex("No pick-ups on " + s.pickupAt().toLocalDate());
-        if (com.closedToDeparture().contains(s.returnAt().toLocalDate())) throw ChannelError.INVALID_DATE.ex("No returns on " + s.returnAt().toLocalDate());
-        ChannelRules.Location p = c.rules().location(s.pickupLocation());
-        ChannelRules.Location r = c.rules().location(s.returnLocation());
-        if (p == null) throw ChannelError.INVALID_LOCATION.ex("Unknown pick-up location " + s.pickupLocation());
-        if (r == null) throw ChannelError.INVALID_LOCATION.ex("Unknown return location " + s.returnLocation());
-        if (!p.pickup()) throw ChannelError.INVALID_LOCATION.ex(p.code() + " does not allow pick-ups");
-        if (!r.dropOff()) throw ChannelError.INVALID_LOCATION.ex(r.code() + " does not allow returns");
-        closedDay(p, s.pickupAt(), "pick-up");
-        closedDay(r, s.returnAt(), "return");
-        if (!p.openAt(s.pickupAt()) && !p.afterHoursPickup()) {
-            throw ChannelError.INVALID_DATE.ex(p.code() + " is closed at " + s.pickupAt().toLocalTime() + " on " + s.pickupAt().getDayOfWeek() + hoursText(p, s.pickupAt()));
-        }
-        if (!r.openAt(s.returnAt()) && !r.afterHoursReturn()) {
-            throw ChannelError.INVALID_DATE.ex(r.code() + " is closed at " + s.returnAt().toLocalTime() + " on " + s.returnAt().getDayOfWeek() + hoursText(r, s.returnAt()));
-        }
-        if (s.driverAge() != null) checkAge(c, s.driverAge());
-    }
-
-    /** A branch closed for a holiday takes no pick-ups or returns that day, not even after hours. */
-    private static void closedDay(ChannelRules.Location l, LocalDateTime t, String what) {
-        ChannelRules.SpecialDay sd = l.specialDays().get(t.toLocalDate());
-        if (sd != null && sd.closed()) {
-            throw ChannelError.INVALID_DATE.ex(l.code() + " is closed on " + t.toLocalDate() + (sd.note().isEmpty() ? "" : " (" + sd.note() + ")") + ": no " + what + " that day");
-        }
-    }
-
-    private static String hoursText(ChannelRules.Location l, LocalDateTime t) {
-        ChannelRules.SpecialDay sd = l.specialDays().get(t.toLocalDate());
-        if (sd != null) return " (" + (sd.note().isEmpty() ? "special hours" : sd.note()) + ": open " + sd.open() + "-" + sd.close() + ")";
-        ChannelRules.Hours h = l.hours().get(t.getDayOfWeek());
-        return h == null ? " (closed all day)" : " (open " + h.open() + "-" + h.close() + ")";
-    }
-
-    /** The driver's age at pick-up from the date of birth, when the search did not give one. */
-    private static Search withDriverAge(Search s, Driver d) {
-        if (s.driverAge() != null || d == null || trim(d.dateOfBirth()).length() < 10) return s;
-        try {
-            return s.with(Period.between(LocalDate.parse(d.dateOfBirth().trim().substring(0, 10)), s.pickupAt().toLocalDate()).getYears());
-        } catch (Exception e) {
-            return s;   // validateDriver reports the bad date
-        }
-    }
-
-    private void checkAge(Ctx c, int age) {
-        if (age < c.rules().minDriverAge()) throw ChannelError.POLICY_VIOLATION.ex("The driver must be at least " + c.rules().minDriverAge());
-        if (c.rules().maxDriverAge() > 0 && age > c.rules().maxDriverAge()) throw ChannelError.POLICY_VIOLATION.ex("The driver must be at most " + c.rules().maxDriverAge());
-    }
-
-    private static void validateCustomer(Customer cu) {
-        if (cu == null || trim(cu.lastName()).isEmpty()) throw ChannelError.INVALID_REQUEST.ex("Customer last name is required");
-        if (trim(cu.firstName()).length() > 100 || trim(cu.lastName()).length() > 100) throw ChannelError.INVALID_REQUEST.ex("Customer name is too long");
-        String email = trim(cu.email());
-        if (!email.isEmpty() && !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) throw ChannelError.INVALID_REQUEST.ex("Customer email is not valid");
-    }
-
-    private void validateDriver(Ctx c, Driver d, LocalDateTime pickup) {
-        if (d == null || trim(d.dateOfBirth()).isEmpty()) return;
-        try {
-            LocalDate dob = LocalDate.parse(d.dateOfBirth().trim().substring(0, 10));
-            checkAge(c, Period.between(dob, pickup.toLocalDate()).getYears());
-        } catch (ChannelException e) {
-            throw e;
-        } catch (Exception e) {
-            throw ChannelError.INVALID_REQUEST.ex("Driver date of birth must be YYYY-MM-DD");
-        }
     }
 
     // =========================================================== storage

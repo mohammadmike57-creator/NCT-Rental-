@@ -10,7 +10,7 @@ import { addLogo } from '../services/pdfImage';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
 import SecurityKeyModal from './SecurityKeyModal';
-import { API_URL } from '../firebase/api';
+import { API_URL } from '../services/api';
 import { setCommissionMonth, useCommissionMonths } from '../services/commissionMonths';
 
 const FIXED_ADDON = 148; // Fixed franchise fee per month (USD)

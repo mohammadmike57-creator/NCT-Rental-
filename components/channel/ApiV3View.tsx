@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Aggregator } from '../../types';
-import { API_URL, OAuthClientRow, createOAuthClient, fetchOAuthClients, revokeOAuthClient } from '../../firebase/api';
+import { API_URL, OAuthClientRow, createOAuthClient, fetchOAuthClients, revokeOAuthClient } from '../../services/api';
 import { partnerUrlCode } from '../../services/channelManager';
 import { Panel, Badge, Button, Dialog, EmptyState, table, inputCls, selectCls } from '../ui/Crm';
 

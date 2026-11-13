@@ -3,7 +3,7 @@ import {
   Aggregator, ChannelAllotment, ChannelBookingLocation, ChannelBookingRules, ChannelCoverage, ChannelGroupDetail,
   ChannelLocationType, ChannelPricingRules, ChannelPromotion, ChannelSpecialDay, ChannelWeekday, Fleet,
 } from '../../types';
-import { fetchChannelInventory, pushChannelInventory, ChannelInventory } from '../../firebase/api';
+import { fetchChannelInventory, pushChannelInventory, ChannelInventory } from '../../services/api';
 import { Panel, Button, Badge, inputCls, selectCls, labelCls } from '../ui/Crm';
 
 /* The broker-facing commercial rules: vehicle and station details, tax, mileage, insurance covers,

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { User } from '../types';
-import { fetchActivity, fetchActivitySummary, StaffActivityEntry, StaffActivitySummary } from '../firebase/api';
+import { fetchActivity, fetchActivitySummary, StaffActivityEntry, StaffActivitySummary } from '../services/api';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, EmptyState, inputCls } from './ui/Crm';
 
 interface Props {

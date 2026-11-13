@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
-import { fetchChannelTraffic, fetchChannelTrafficMessage, fetchChannelTrafficStats, ChannelTrafficMessage, ChannelTrafficRow, ChannelTrafficStats } from '../../firebase/api';
+import { fetchChannelTraffic, fetchChannelTrafficMessage, fetchChannelTrafficStats, ChannelTrafficMessage, ChannelTrafficRow, ChannelTrafficStats } from '../../services/api';
 import { Panel, Badge, Button, StatGrid, EmptyState, selectCls, inputCls, table } from '../ui/Crm';
 import CodeView, { detectLang } from './CodeView';
 
@@ -126,6 +126,17 @@ const TrafficView: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) => {
         </div>
       )}
 
+      {stats?.protocols && stats.protocols.length > 0 && (
+        <Panel title="What the broker sends" subtitle="Address (OpenTravel release), SOAP version and the message Version attribute, from the calls in this period. Compare with the release on record under Settings.">
+          <ul className="px-4 py-3 flex flex-wrap gap-2" data-testid="broker-protocols">
+            {stats.protocols.map(p => (
+              <li key={p.protocol} className="rounded-md bg-slate-50 ring-1 ring-inset ring-slate-200 px-2.5 py-1 text-xs text-slate-700">
+                <span className="font-mono text-slate-900">{p.protocol}</span> · {p.calls.toLocaleString('en-GB')} calls · last {fmtTime(p.lastSeen)}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
       <Panel title="Message log" subtitle={`Each call with its full request and response. Keys, passwords and card numbers are masked. Kept ${stats?.retentionDays ?? 30} days.`}>
         {error && <p className="px-4 py-3 text-xs text-rose-600">{error}</p>}
         {rows === null ? <p className="px-4 py-10 text-center text-[13px] text-slate-500">Loading…</p> : rows.length === 0 ? (
@@ -142,8 +153,9 @@ const TrafficView: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) => {
                       <span className="inline-flex items-center gap-2"><Badge tone={FORMAT_TONE[r.format] || 'muted'}>{r.format}</Badge>
                         <span className="font-mono text-xs text-slate-900">{r.operation.replace(/^(XML|REST) /, '')}</span>{r.sandbox && <span className="text-[10px] font-semibold uppercase text-amber-600">sandbox</span>}</span>
                     </td>
-                    <td className={table.td}>{r.success ? <Badge tone="success">{r.httpStatus} OK</Badge>
-                      : <span title={r.errorMessage}><Badge tone="danger">{r.httpStatus} {r.errorCode}</Badge></span>}</td>
+                    <td className={table.td}><span className="inline-flex items-center gap-1.5">{r.success ? <Badge tone="success">{r.httpStatus} OK</Badge>
+                      : <span title={r.errorMessage}><Badge tone="danger">{r.httpStatus} {r.errorCode}</Badge></span>}
+                      {r.schemaIssues && <span title={r.schemaIssues}><Badge tone="warning" dot={false}>Schema</Badge></span>}</span></td>
                     <td className={`${table.td} text-right tabular-nums text-xs whitespace-nowrap ${r.durationMs > 2000 ? 'text-amber-600 font-semibold' : ''}`}>{r.durationMs} ms</td>
                     <td className={`${table.td} font-mono text-[11px] text-slate-500 whitespace-nowrap`}>{r.requestId}</td>
                     <td className={`${table.td} font-mono text-[11px] whitespace-nowrap`}>{r.reservationNumber || '—'}</td>
@@ -166,6 +178,12 @@ const TrafficView: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) => {
                 <p className="text-xs text-slate-500 mt-1">{fmtTime(open.createdAt)} · {open.durationMs} ms · HTTP {open.httpStatus} · {open.remoteIp}
                   {open.requestId && <> · <span className="font-mono">{open.requestId}</span></>}{open.reservationNumber && <> · <span className="font-mono">{open.reservationNumber}</span></>}</p>
                 {!open.success && <p className="mt-2 text-xs text-rose-700 bg-rose-50 rounded px-2 py-1"><b>{open.errorCode}</b> {open.errorMessage}</p>}
+                {open.schemaIssues && (
+                  <div className="mt-2 text-xs text-amber-900 bg-amber-50 ring-1 ring-inset ring-amber-200 rounded px-2 py-1.5">
+                    <p className="font-semibold">Not valid against the official OpenTravel 2017B schema (reported only, the call was handled)</p>
+                    <ul className="mt-1 list-disc pl-4 space-y-0.5">{open.schemaIssues.split(' | ').map((p, i) => <li key={i} className="break-words">{p}</li>)}</ul>
+                  </div>
+                )}
               </div>
               <Button size="sm" onClick={() => setOpen(null)}>Close</Button>
             </div>

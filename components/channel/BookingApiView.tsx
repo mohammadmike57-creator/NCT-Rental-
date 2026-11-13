@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator, ChannelBookingRules, ChannelBookingLocation, Fleet, RentalLocation } from '../../types';
-import { API_URL, fetchChannelWebhooks, rotateWebhookSecret, sendTestWebhook, replayWebhook, ChannelWebhookRow } from '../../firebase/api';
+import { API_URL, fetchChannelWebhooks, rotateWebhookSecret, sendTestWebhook, replayWebhook, ChannelWebhookRow } from '../../services/api';
 import { partnerEndpoints } from '../../services/channelManager';
 import { Panel, Button, Badge, inputCls, selectCls, labelCls } from '../ui/Crm';
 import { LocationDetails, VehicleDetailsSection, PricingSection, AllotmentsSection, OperationsSection, CancellationSchedule, CurrenciesSection } from './CommercialRules';

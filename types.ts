@@ -663,6 +663,12 @@ export interface Aggregator {
     vendorCode?: string;         // Our supplier code at the partner, e.g. URD
     /** XML layout: 'standard' = valid against the official OpenTravel 2017B schemas; otherwise the layout the broker was connected with. */
     otaProfile?: 'standard' | 'compatible';
+    /** 'strict': requests that break the official OpenTravel schema are refused; otherwise they are only reported in Traffic. */
+    otaValidation?: 'report' | 'strict';
+    /** OpenTravel release agreed with the broker (their specification), e.g. '2017B'. A record only; Traffic shows what they really send. */
+    otaRelease?: string;
+    /** SOAP agreed with the broker: '' (plain XML over HTTPS), '1.1' or '1.2'. A record only. */
+    soapVersion?: '' | '1.1' | '1.2';
     vendorName?: string;         // Supplier name brokers see in every response (Vendor), e.g. UR-Drive Jordan
     locationCode?: string;       // Pick-up location code sent in XML, e.g. AMM
     currency?: string;           // ISO 4217, defaults to USD

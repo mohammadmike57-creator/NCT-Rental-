@@ -2,7 +2,7 @@ import { isPrepaid as bookingIsPrepaid } from '../services/paymentType';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppData, Aggregator, CompanyDetails, InvoiceData, InvoiceLine, PaymentType, RentalSource, Reservation, ReservationStatus, YearData } from '../types';
 import { MONTHS, URDRIVE_LOGO_B64 } from '../constants';
-import { sendCustomerEmail, recordActivity } from '../firebase/api';
+import { sendCustomerEmail, recordActivity } from '../services/api';
 import { brandFields, supportLine } from '../services/emailBrand';
 import { downloadPdf, htmlToPdfBase64 } from '../services/agreementPdf';
 import { printHtml } from '../services/printDocs';

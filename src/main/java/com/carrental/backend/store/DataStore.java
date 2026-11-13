@@ -380,7 +380,7 @@ public class DataStore {
     private void syncRecords(String section, JsonNode list, Instant now) {
         Map<String, String> cache = recordCache.computeIfAbsent(section, s -> {
             Map<String, String> c = new HashMap<>();
-            for (StoredRecord r : records.findBySection(s)) c.put(r.getItemId(), r.getPosition() + "|" + r.getData());
+            for (StoredRecord r : records.findBySection(s)) c.put(r.getItemId(), r.getPosition() + "|" + sha256(r.getData()));
             return c;
         });
         Set<String> seen = new HashSet<>();
@@ -389,7 +389,7 @@ public class DataStore {
         for (JsonNode item : list) {
             String id = item.path("id").asText();
             String data = write(item);
-            String fp = pos + "|" + data;
+            String fp = pos + "|" + sha256(data);
             seen.add(id);
             if (!fp.equals(cache.get(id))) {
                 StoredRecord row = new StoredRecord();
@@ -420,8 +420,22 @@ public class DataStore {
         history.save(h);
     }
 
+    /**
+     * What a stored row looks like, as a short SHA-256 fingerprint (64 characters) instead of a copy of the data:
+     * signatures and pictures make bookings large, and a full copy of every booking in memory exceeded the server's
+     * memory limit. A changed booking still changes its fingerprint.
+     */
     private static String fingerprint(String year, String month, int pos, String data) {
-        return year + "|" + month + "|" + pos + "|" + data;
+        return year + "|" + month + "|" + pos + "|" + sha256(data);
+    }
+
+    private static String sha256(String data) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(data.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private StoredBooking toRow(String id, String year, String month, int pos, JsonNode r, String data, Instant now) {

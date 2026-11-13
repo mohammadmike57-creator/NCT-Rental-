@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Aggregator } from '../types';
-import { ChannelDeliveryLog, fetchChannelDeliveries } from '../firebase/api';
+import { ChannelDeliveryLog, fetchChannelDeliveries } from '../services/api';
 import { RefreshIcon, PaperAirplaneIcon } from './icons';
 import { channelStatus, submissionVersion } from '../services/channelManager';
 import { Badge, Button, EmptyState, table } from './ui/Crm';

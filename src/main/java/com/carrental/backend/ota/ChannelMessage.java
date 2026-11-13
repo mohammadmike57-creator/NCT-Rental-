@@ -27,6 +27,9 @@ public class ChannelMessage {
     private boolean success;
     @Column(length = 40) private String errorCode;
     @Column(length = 500) private String errorMessage;
+    /** Where the request or our answer breaks the official OpenTravel schema (null when valid or not OTA). */
+    @Column(length = 2000) private String schemaIssues;
+    @Column(length = 80) private String protocol;        // e.g. "OTA 2024A · SOAP 1.2 · Version 2.000": what the broker actually sends
     private long durationMs;
     private int requestBytes;
     private int responseBytes;

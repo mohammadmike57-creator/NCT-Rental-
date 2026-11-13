@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { API_URL, RetentionPolicy, fetchRetentionPolicy } from '../../firebase/api';
+import { API_URL, RetentionPolicy, fetchRetentionPolicy } from '../../services/api';
 import { Panel, Badge, Button, table } from '../ui/Crm';
 import CodeView from './CodeView';
 

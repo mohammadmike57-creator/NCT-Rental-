@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { loadedSection, saveAllData } from '../firebase/api';
+import { loadedSection, saveAllData } from './api';
 import type { CommissionMonthOverride, CommissionMonthOverrides } from './revenueByMonth';
 
 /**

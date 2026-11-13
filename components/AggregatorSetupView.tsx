@@ -31,7 +31,7 @@ import LanguagesView from './channel/LanguagesView';
 import OutboundView from './channel/OutboundView';
 import DeveloperView from './channel/DeveloperView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
-import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../firebase/api';
+import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../services/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
 
 interface AggregatorSetupViewProps {

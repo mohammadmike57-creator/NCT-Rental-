@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { fetchOnlineNow, OnlineStaff } from '../firebase/api';
+import { fetchOnlineNow, OnlineStaff } from '../services/api';
 
 /** Online status shared by the staff screen and the top bar. */
 

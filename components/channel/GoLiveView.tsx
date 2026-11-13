@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Aggregator, CompanyDetails, Fleet } from '../../types';
-import { API_URL, fetchChannelWebhooks, runChannelCertification } from '../../firebase/api';
+import { API_URL, fetchChannelWebhooks, runChannelCertification } from '../../services/api';
 import { openIntegrationGuide } from '../../services/integrationGuide';
 import { Panel, Button, Badge } from '../ui/Crm';
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aggregator } from '../../types';
-import { deleteChannelBooking, fetchChannelBookings, fetchChannelStatement, ChannelBookingRow, ChannelStatement } from '../../firebase/api';
+import { deleteChannelBooking, fetchChannelBookings, fetchChannelStatement, ChannelBookingRow, ChannelStatement } from '../../services/api';
 import { TrashIcon } from '../icons';
 
 /** Asks before deleting a broker booking; a confirmed live one gets a stronger warning. */

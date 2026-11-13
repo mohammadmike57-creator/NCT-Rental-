@@ -16,7 +16,7 @@ Everything lives in this one repository and runs as **one Render service** at ww
 | Build | `Dockerfile` | Builds the website, puts it inside the server, produces one container |
 
 The browser talks only to the server it was opened from (`services/apiBase.ts`).
-`firebase/api.ts` is the server client; the folder name is historical, there is no Firebase.
+`services/api.ts` is the client for every server call.
 
 ## Folders
 
