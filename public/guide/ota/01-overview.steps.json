@@ -1,0 +1,58 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "The Channel Manager",
+  "text": "Where you connect car-rental brokers, publish your prices to them and receive their bookings."
+ },
+ {
+  "start": 10.09,
+  "end": 22.02,
+  "step": 1,
+  "total": 6,
+  "title": "OTA XML is where you work with brokers: websites such as Rentalcars or DiscoverCars that sell your cars.",
+  "text": "They connect to this system over OTA XML, the standard language of the travel industry."
+ },
+ {
+  "start": 22.02,
+  "end": 31.45,
+  "step": 2,
+  "total": 6,
+  "title": "The status bar shows the health of every connection at a glance.",
+  "text": "Broker updates, live channels, unpublished changes, blocking errors, stop sales and the last publish."
+ },
+ {
+  "start": 31.45,
+  "end": 41.06,
+  "step": 3,
+  "total": 6,
+  "title": "The menu opens the console pages: channels, dashboard, XML reservations, rate rules, API keys, bulk editor, stop sales, developer and this video guide.",
+  "text": ""
+ },
+ {
+  "start": 41.06,
+  "end": 50.06,
+  "step": 4,
+  "total": 6,
+  "title": "Each broker is a channel. Pick one on the left to open its own pages.",
+  "text": "Sample Broker is live; Travel Partner is still being tested."
+ },
+ {
+  "start": 55.34,
+  "end": 66.13,
+  "step": 5,
+  "total": 6,
+  "title": "A channel’s pages are grouped by job: Overview, Pricing, Connection, Operations and Publishing.",
+  "text": "The next chapters go through each of them in order."
+ },
+ {
+  "start": 66.13,
+  "end": 71.17,
+  "step": 6,
+  "total": 6,
+  "title": "“Jump to…” (Ctrl K) finds any channel or page by typing its name.",
+  "text": ""
+ }
+]

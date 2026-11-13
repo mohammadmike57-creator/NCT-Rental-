@@ -1,0 +1,58 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "Connection, API keys and the XML layout",
+  "text": "How a broker reaches you, the keys they use and the OpenTravel layout of your answers."
+ },
+ {
+  "start": 13.13,
+  "end": 24.47,
+  "step": 1,
+  "total": 6,
+  "title": "Connection: the broker’s contacts and the addresses they send their messages to.",
+  "text": "One address per message type, for XML, SOAP and the newer 2018A and 2024A versions."
+ },
+ {
+  "start": 24.47,
+  "end": 37.07,
+  "step": 2,
+  "total": 6,
+  "title": "OpenTravel XML layout: “OpenTravel standard” answers exactly as the official OpenTravel rules require.",
+  "text": "“As connected” keeps the layout an existing broker was built against, until they confirm they read the standard one."
+ },
+ {
+  "start": 37.07,
+  "end": 46.08,
+  "step": 3,
+  "total": 6,
+  "title": "Schema check: every message is checked against the official OpenTravel rules. “Report only” shows problems in Traffic; “Strict” refuses invalid messages.",
+  "text": ""
+ },
+ {
+  "start": 46.08,
+  "end": 54.01,
+  "step": 4,
+  "total": 6,
+  "title": "Record the OpenTravel version and SOAP version you agreed with the broker.",
+  "text": "Traffic shows what they really send, so you can compare."
+ },
+ {
+  "start": 58.27,
+  "end": 71.65,
+  "step": 5,
+  "total": 6,
+  "title": "API keys: one secret key per broker. A live key for real bookings and an optional test key that only makes sandbox bookings.",
+  "text": "A key is shown once when it is made; only a fingerprint is stored."
+ },
+ {
+  "start": 71.65,
+  "end": 78.85,
+  "step": 6,
+  "total": 6,
+  "title": "“Replace” makes a new key if a key may be known to someone else; “Revoke” stops it at once.",
+  "text": ""
+ }
+]

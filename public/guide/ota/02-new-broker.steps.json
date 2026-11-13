@@ -1,0 +1,98 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "Connecting a new broker, step by step",
+  "text": "From “Add channel” to a broker that is ready to go live, done live in the system."
+ },
+ {
+  "start": 11.25,
+  "end": 16.06,
+  "step": 1,
+  "total": 11,
+  "title": "Click “Add channel” to connect a new broker.",
+  "text": ""
+ },
+ {
+  "start": 23.15,
+  "end": 34.32,
+  "step": 2,
+  "total": 11,
+  "title": "Type the broker’s name. To save time, copy the setup of a broker you already have.",
+  "text": "Branches, booking rules, extras, terms and the rates are copied. Keys and contacts never are."
+ },
+ {
+  "start": 39.87,
+  "end": 45.27,
+  "step": 3,
+  "total": 11,
+  "title": "The channel code is the short name in the broker’s addresses, for example /ota/2024A/GCO/…",
+  "text": ""
+ },
+ {
+  "start": 51.93,
+  "end": 63.83,
+  "step": 4,
+  "total": 11,
+  "title": "The new broker starts in Testing: its bookings are sandbox bookings and never hold a car.",
+  "text": "Overview lists every setup step in order, with a link to the page where it is done."
+ },
+ {
+  "start": 68.1,
+  "end": 73.87,
+  "step": 5,
+  "total": 11,
+  "title": "Rates were copied as a draft. Check the prices for this broker, then publish them.",
+  "text": ""
+ },
+ {
+  "start": 77.69,
+  "end": 84.17,
+  "step": 6,
+  "total": 11,
+  "title": "The publish window shows what changes. Publishing sends the prices to the broker as a new version.",
+  "text": ""
+ },
+ {
+  "start": 92.54,
+  "end": 101.91,
+  "step": 7,
+  "total": 11,
+  "title": "Connection: new brokers use the “OpenTravel standard” layout, checked against the official OpenTravel rules.",
+  "text": "Fill in the broker’s contacts and note the OpenTravel version they use."
+ },
+ {
+  "start": 106.23,
+  "end": 111.04,
+  "step": 8,
+  "total": 11,
+  "title": "Create the broker’s live key on the API keys page.",
+  "text": ""
+ },
+ {
+  "start": 113.86,
+  "end": 126.83,
+  "step": 9,
+  "total": 11,
+  "title": "The key is shown only once, with a ready message for the broker. Send it securely, never in the same email as the documentation.",
+  "text": "Only a fingerprint is stored: nobody can read the key back later."
+ },
+ {
+  "start": 140.97,
+  "end": 146.38,
+  "step": 10,
+  "total": 11,
+  "title": "Go-live: the certification test sends every broker message to the channel in the sandbox.",
+  "text": ""
+ },
+ {
+  "start": 151.65,
+  "end": 161.01,
+  "step": 11,
+  "total": 11,
+  "title": "Each test shows its result. When the broker has tested too and the required items are done, “Approve go-live” switches the broker to real bookings.",
+  "text": ""
+ }
+]

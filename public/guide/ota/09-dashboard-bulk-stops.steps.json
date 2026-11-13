@@ -1,0 +1,42 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "Dashboard, bulk editor and stop sales",
+  "text": "Figures across every broker, changing many brokers at once, and closing cars for some dates."
+ },
+ {
+  "start": 13.23,
+  "end": 19.9,
+  "step": 1,
+  "total": 4,
+  "title": "Dashboard: requests, bookings, revenue, errors and alerts across every broker, for the period you choose.",
+  "text": ""
+ },
+ {
+  "start": 19.9,
+  "end": 26.03,
+  "step": 2,
+  "total": 4,
+  "title": "Per-broker figures show who sells most and who has problems; click a broker to open it.",
+  "text": ""
+ },
+ {
+  "start": 29.18,
+  "end": 36.75,
+  "step": 3,
+  "total": 4,
+  "title": "Bulk editor: change rates, extras, terms and policies for several brokers at once, with a preview before anything is saved.",
+  "text": ""
+ },
+ {
+  "start": 39.73,
+  "end": 52.69,
+  "step": 4,
+  "total": 4,
+  "title": "Stop sales: close a car or a car group for some dates, for every broker or only chosen ones.",
+  "text": "Example: all SUVs closed over the Eid holiday for walk-in customers. Brokers stop seeing them at once."
+ }
+]

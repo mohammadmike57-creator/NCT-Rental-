@@ -1,0 +1,58 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "Booking API, languages, security, API v3 and outbound",
+  "text": "Booking rules and branches, Arabic texts, who is calling, REST v3 with OAuth and what we send to the broker."
+ },
+ {
+  "start": 13.3,
+  "end": 25.01,
+  "step": 1,
+  "total": 6,
+  "title": "Booking API: the branches this broker may use, their opening hours and holidays, and the booking rules.",
+  "text": "Minimum driver age, how far ahead, the longest rental, fees, cancellation and no-shows."
+ },
+ {
+  "start": 25.01,
+  "end": 34.02,
+  "step": 2,
+  "total": 6,
+  "title": "When you change or cancel a broker booking, the broker is told automatically. Failed updates are retried and shown in red at the top.",
+  "text": ""
+ },
+ {
+  "start": 36.78,
+  "end": 41.59,
+  "step": 3,
+  "total": 6,
+  "title": "Languages: Arabic names and texts for brokers that ask in Arabic.",
+  "text": ""
+ },
+ {
+  "start": 44.68,
+  "end": 56.94,
+  "step": 4,
+  "total": 6,
+  "title": "Security: every address that called with this broker’s code, failed sign-ins, and addresses locked after too many wrong keys.",
+  "text": "You can also limit the broker to its own IP addresses and require signed requests."
+ },
+ {
+  "start": 59.95,
+  "end": 67.88,
+  "step": 5,
+  "total": 6,
+  "title": "API v3: for brokers that prefer REST/JSON. Each gets an OAuth client with exactly the permissions it needs, and webhook notifications.",
+  "text": ""
+ },
+ {
+  "start": 71,
+  "end": 79.28,
+  "step": 6,
+  "total": 6,
+  "title": "Outbound: for brokers that want us to send to them — rate files, availability updates and booking notifications to their own system.",
+  "text": ""
+ }
+]

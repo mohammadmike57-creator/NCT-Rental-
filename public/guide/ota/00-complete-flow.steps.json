@@ -1,0 +1,146 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "The complete flow, explained",
+  "text": "From a new broker to a real booking: what you do on screen, and what happens behind it at every step."
+ },
+ {
+  "start": 7.02,
+  "end": 19.04,
+  "step": 1,
+  "total": 17,
+  "title": "Brokers sell your cars on their websites",
+  "text": "A customer searches on a broker’s website. The broker’s system asks our system for cars and prices in OTA XML — the standard language of the travel industry — and books the car the customer chooses. No one types anything: systems talk to systems."
+ },
+ {
+  "start": 22.14,
+  "end": 32.95,
+  "step": 2,
+  "total": 17,
+  "title": "Everything about brokers is here, in OTA XML.",
+  "text": "Each broker is a channel with its own prices, rules and key. Let us connect a new one from start to finish."
+ },
+ {
+  "start": 45.01,
+  "end": 54.38,
+  "step": 3,
+  "total": 17,
+  "title": "Name the broker, copy the setup of one you already have, and give it a short code.",
+  "text": "The code becomes part of the broker’s addresses: /ota/2024A/DDT/…"
+ },
+ {
+  "start": 61.19,
+  "end": 71.29,
+  "step": 4,
+  "total": 17,
+  "title": "The broker is created in Testing.",
+  "text": "While testing, everything it books is a sandbox booking: it is recorded, but it never holds a car or reaches a branch."
+ },
+ {
+  "start": 77.3,
+  "end": 86.67,
+  "step": 5,
+  "total": 17,
+  "title": "Publish the prices this broker will quote to its customers.",
+  "text": "Each publish is a new numbered version, so you always know which prices the broker has."
+ },
+ {
+  "start": 96.53,
+  "end": 107.34,
+  "step": 6,
+  "total": 17,
+  "title": "Give the broker its key: the password its system sends with every message.",
+  "text": "Shown once, with a ready message to send securely. Without a valid key, every message is refused."
+ },
+ {
+  "start": 110.3,
+  "end": 119.31,
+  "step": 7,
+  "total": 17,
+  "title": "The broker searches",
+  "text": "A customer on the broker’s website looks for a car at Amman Airport for three days. The broker’s system sends our system a search; our system answers with every free car group, its price, the extras and the cancellation terms."
+ },
+ {
+  "start": 133.2,
+  "end": 145.44,
+  "step": 8,
+  "total": 17,
+  "title": "The search arrives in Traffic, the moment the broker sends it.",
+  "text": "Every message is kept with its answer and the time taken — this is where you look when a broker asks “what happened?”."
+ },
+ {
+  "start": 149.94,
+  "end": 163.16,
+  "step": 9,
+  "total": 17,
+  "title": "Open it to see exactly what the broker asked, and exactly what we answered.",
+  "text": "Here: Amman Airport, three days, driver aged 35 — and our answer with each car, its price and an offer number."
+ },
+ {
+  "start": 165.46,
+  "end": 174.47,
+  "step": 10,
+  "total": 17,
+  "title": "The broker books",
+  "text": "The customer chooses a Toyota Corolla and pays the broker. The broker’s system books the offer with the customer’s name and its own reference. Our system checks the car is still free, creates the reservation and answers with our reservation number."
+ },
+ {
+  "start": 181.28,
+  "end": 193.88,
+  "step": 11,
+  "total": 17,
+  "title": "The booking is here in XML reservations: RSV-2026-000005, John Doe, broker reference DDT-5001.",
+  "text": "Broker bookings are kept apart from your own Reservations screen. This one is under “Sandbox (tests)” because the broker is still testing."
+ },
+ {
+  "start": 193.88,
+  "end": 202.88,
+  "step": 12,
+  "total": 17,
+  "title": "The customer changes the dates",
+  "text": "The customer adds a day on the broker’s website. The broker’s system sends the change; our system checks the car is still free for the new dates, prices the rental again and confirms."
+ },
+ {
+  "start": 206.38,
+  "end": 215.74,
+  "step": 13,
+  "total": 17,
+  "title": "The booking now shows four days and the new total.",
+  "text": "If you change a broker booking yourself, the broker is told automatically in the same way."
+ },
+ {
+  "start": 215.74,
+  "end": 224.75,
+  "step": 14,
+  "total": 17,
+  "title": "The customer cancels",
+  "text": "The customer cancels on the broker’s website. The broker’s system sends the cancellation; our system applies your cancellation terms, frees the car at once and confirms."
+ },
+ {
+  "start": 227.87,
+  "end": 235.08,
+  "step": 15,
+  "total": 17,
+  "title": "The booking is cancelled. It is never deleted, so the record stays for your accounts and for the broker.",
+  "text": ""
+ },
+ {
+  "start": 245.47,
+  "end": 257,
+  "step": 16,
+  "total": 17,
+  "title": "When testing is done, approve go-live here.",
+  "text": "The broker’s searches and bookings are then real: cars are held, the branch sees the booking, and everything you just saw happens for real customers."
+ },
+ {
+  "start": 257,
+  "end": 267,
+  "step": 17,
+  "total": 17,
+  "title": "Search, book, change, cancel — all automatic",
+  "text": "You set up the broker once: prices, rules and a key. From then on the broker’s system and ours do the work, and you see every message in Traffic and every booking in XML reservations. The next chapters show each page in detail."
+ }
+]

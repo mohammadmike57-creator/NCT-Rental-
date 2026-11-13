@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { GUIDE_CHAPTERS, GUIDE_POSTER, GUIDE_VIDEO } from '../components/channel/videoGuide';
+import { GUIDE_CHAPTERS, GUIDE_POSTER, GUIDE_STEPS, GUIDE_VIDEO, GuideStep } from '../components/channel/videoGuide';
 
 /**
  * The floating video-guide player. A chapter opens in a window that stays on screen while the person
@@ -9,7 +9,7 @@ import { GUIDE_CHAPTERS, GUIDE_POSTER, GUIDE_VIDEO } from '../components/channel
  */
 
 type Size = 'small' | 'large';
-interface PlayerState { id: string | null; size: Size; minimised: boolean; x: number | null; y: number | null; time: number }
+interface PlayerState { id: string | null; size: Size; minimised: boolean; x: number | null; y: number | null; time: number; seek?: number }
 
 const STORE = 'nct.guidePlayer';
 const WIDTH: Record<Size, number> = { small: 440, large: 760 };
@@ -33,8 +33,19 @@ const set = (patch: Partial<PlayerState>) => {
 };
 const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
 
-/** Opens a chapter in the floating player (from the start, unless it is already the one playing). */
-export const openGuideVideo = (id: string) => set({ id, minimised: false, time: state.id === id ? state.time : 0 });
+/** Opens a chapter in the floating player: at `at` seconds when given, else from the start (or where it is, if already open). */
+export const openGuideVideo = (id: string, at?: number) =>
+  set({ id, minimised: false, time: at ?? (state.id === id ? state.time : 0), seek: at !== undefined ? Date.now() : state.seek });
+
+/** The steps of a chapter with their times, as the recorder saved them (empty if they cannot be loaded). */
+const stepCache = new Map<string, Promise<GuideStep[]>>();
+export const loadGuideSteps = (id: string): Promise<GuideStep[]> => {
+  if (!stepCache.has(id)) {
+    stepCache.set(id, fetch(GUIDE_STEPS(id)).then(r => (r.ok ? r.json() : [])).catch(() => []));
+  }
+  return stepCache.get(id)!;
+};
+export const formatTime = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 export const useGuidePlayer = () => useSyncExternalStore(subscribe, () => state);
 
 const Icon: React.FC<{ d: string; className?: string }> = ({ d, className = 'w-4 h-4' }) => (
@@ -57,9 +68,20 @@ const GuidePlayer: React.FC = () => {
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const [phone, setPhone] = useState(() => window.innerWidth < 640);
+  const [steps, setSteps] = useState<GuideStep[]>([]);
+  const [now, setNow] = useState(0);
   const index = GUIDE_CHAPTERS.findIndex(c => c.id === s.id);
   const chapter = index >= 0 ? GUIDE_CHAPTERS[index] : null;
   const width = phone ? window.innerWidth - 2 * 8 : WIDTH[s.size];
+
+  useEffect(() => {
+    setSteps([]);
+    if (s.id) void loadGuideSteps(s.id).then(setSteps);
+  }, [s.id]);
+  // A step chosen on the guide page: jump to it in the open video.
+  useEffect(() => {
+    if (s.seek && video.current && video.current.readyState > 0) { video.current.currentTime = s.time; void video.current.play().catch(() => undefined); }
+  }, [s.seek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onResize = () => setPhone(window.innerWidth < 640);
@@ -78,7 +100,12 @@ const GuidePlayer: React.FC = () => {
 
   // Resumes where it stopped, and remembers the second every few seconds.
   const onLoaded = () => { if (video.current && s.time > 1) video.current.currentTime = s.time; void video.current?.play().catch(() => undefined); };
-  const onTime = () => { const t = video.current?.currentTime || 0; if (Math.abs(t - state.time) > 3) set({ time: t }); };
+  const onTime = () => {
+    const t = video.current?.currentTime || 0;
+    setNow(t);
+    if (Math.abs(t - state.time) > 3) set({ time: t });
+  };
+  const current = steps.find(c => now >= c.start && now < c.end) || null;
 
   const go = (i: number) => { const c = GUIDE_CHAPTERS[i]; if (c) set({ id: c.id, time: 0 }); };
 
@@ -141,6 +168,13 @@ const GuidePlayer: React.FC = () => {
           onEnded={() => (index < GUIDE_CHAPTERS.length - 1 ? go(index + 1) : set({ time: 0 }))}>
           <source src={GUIDE_VIDEO(chapter.id)} type="video/mp4" />
         </video>
+        <div className="px-3.5 pt-2.5 pb-2 min-h-[76px] border-b border-white/10" aria-live="polite" data-testid="guide-subtitle">
+          {current ? (<>
+            <p className="text-[10.5px] font-semibold uppercase tracking-wider text-indigo-300">{current.step ? `Step ${current.step} of ${current.total}` : `Chapter ${index + 1}`}</p>
+            <p className="mt-0.5 text-[13px] font-semibold leading-snug text-white">{current.title}</p>
+            {current.text && <p className="mt-0.5 text-[12px] leading-snug text-slate-300">{current.text}</p>}
+          </>) : <p className="text-[12px] text-slate-400 leading-snug pt-1">{chapter.summary}</p>}
+        </div>
         <div className="flex items-center gap-1 px-1.5 py-1.5">
           <button type="button" className={btn} onClick={() => go(index - 1)} disabled={index === 0} aria-label="Previous chapter" title="Previous chapter"><Icon d={I.prev} /></button>
           <p className="min-w-0 flex-1 px-1 text-[11.5px] text-slate-400 truncate">

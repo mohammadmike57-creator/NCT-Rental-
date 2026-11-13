@@ -1,0 +1,42 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "Developer page and broker documentation",
+  "text": "What brokers read to connect, and the technical details for their developers."
+ },
+ {
+  "start": 13.26,
+  "end": 21.26,
+  "step": 1,
+  "total": 4,
+  "title": "Developer: the technical details for a broker’s developers — addresses, message types, error codes and examples.",
+  "text": ""
+ },
+ {
+  "start": 21.26,
+  "end": 34.29,
+  "step": 2,
+  "total": 4,
+  "title": "The developer portal is the public page you send to brokers. It shows only “UR-Drive Jordan”, never any keys.",
+  "text": "Authentication, sandbox and production, a quick start, every message and error, and webhooks."
+ },
+ {
+  "start": 34.29,
+  "end": 44.14,
+  "step": 3,
+  "total": 4,
+  "title": "Sample answers are taken from the real system and checked against the official OpenTravel rules, so the documentation always matches what brokers receive.",
+  "text": ""
+ },
+ {
+  "start": 44.14,
+  "end": 49.18,
+  "step": 4,
+  "total": 4,
+  "title": "The sandbox checklist tells a broker exactly what to test before going live.",
+  "text": ""
+ }
+]

@@ -1,0 +1,74 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "Price rules, rate rules, extras and terms",
+  "text": "Commercial terms per broker, dynamic pricing for seasons and last-minute, extras and rental terms."
+ },
+ {
+  "start": 13.44,
+  "end": 23.35,
+  "step": 1,
+  "total": 8,
+  "title": "Price rules: this broker’s own commercial terms.",
+  "text": "Markup or discount, prices by day of the week, early-booking and last-minute changes, minimum days and closed dates."
+ },
+ {
+  "start": 23.35,
+  "end": 28.77,
+  "step": 2,
+  "total": 8,
+  "title": "Every rule shows an example price, so you see its effect before you save.",
+  "text": ""
+ },
+ {
+  "start": 32.02,
+  "end": 39.95,
+  "step": 3,
+  "total": 8,
+  "title": "Rate rules (top menu): seasons, holidays and events, and last-minute pricing for the brokers you choose.",
+  "text": "Prices are calculated day by day."
+ },
+ {
+  "start": 42.19,
+  "end": 48.32,
+  "step": 4,
+  "total": 8,
+  "title": "Seasons & events: Eid, Ramadan, Christmas or your own dates, each raising or lowering the price.",
+  "text": ""
+ },
+ {
+  "start": 50.4,
+  "end": 55.21,
+  "step": 5,
+  "total": 8,
+  "title": "Last minute: prices that change with how soon the rental starts.",
+  "text": ""
+ },
+ {
+  "start": 57.5,
+  "end": 64.36,
+  "step": 6,
+  "total": 8,
+  "title": "Try a price: shows the final price of any rental, step by step, before it reaches a broker.",
+  "text": ""
+ },
+ {
+  "start": 73.69,
+  "end": 82.35,
+  "step": 7,
+  "total": 8,
+  "title": "Extras: what this broker may sell with a car, such as GPS, a child seat or an extra driver, and at what price.",
+  "text": ""
+ },
+ {
+  "start": 85.6,
+  "end": 91,
+  "step": 8,
+  "total": 8,
+  "title": "Terms: the rental conditions sent with every quote and booking, in English and Arabic.",
+  "text": ""
+ }
+]

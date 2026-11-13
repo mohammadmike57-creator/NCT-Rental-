@@ -22,10 +22,32 @@ export interface GuideChapter {
 
 export const GUIDE_VIDEO = (id: string) => `/guide/ota/${id}.mp4`;
 export const GUIDE_POSTER = (id: string) => `/guide/ota/${id}.jpg`;
+/** The steps of a video with their times (seconds), saved by the recorder: the player shows them as subtitles. */
+export const GUIDE_STEPS = (id: string) => `/guide/ota/${id}.steps.json`;
+
+export interface GuideStep { start: number; end: number; step: number; total: number; title: string; text: string }
 
 export const GUIDE_CHAPTERS: GuideChapter[] = [
   {
-    id: '01-overview', title: 'The Channel Manager', length: '1:09',
+    id: '00-complete-flow', title: 'The complete flow, explained', length: '4:48',
+    summary: 'From a new broker to a real booking: what you do on screen, and what happens behind it at every step.',
+    pages: [
+      { name: 'How it works', where: 'Brokers and OTA XML', what: 'A broker’s system (Rentalcars, DiscoverCars, a travel agent…) asks our system for cars and prices in OTA XML, then books, changes and cancels — automatically, system to system.',
+        usedFor: 'Selling your cars on broker websites without anyone typing bookings.' },
+      { name: '1 · Set up the broker', where: 'OTA XML → Add channel, Rates, API keys', what: 'Add the channel (copying an existing broker’s setup), publish its prices and give it its key.',
+        usedFor: 'Everything the broker needs to connect. It starts in Testing: its bookings are sandbox bookings.' },
+      { name: '2 · The broker searches', where: 'Channel → Traffic', what: 'The search (OTA_VehAvailRateRQ) arrives in Traffic with our answer: every free car group, price, extras and an offer number.',
+        usedFor: 'Seeing exactly what a broker asked and what we answered.' },
+      { name: '3 · The broker books', where: 'OTA XML → XML reservations', what: 'The booking (OTA_VehResRQ) creates a reservation with our number (RSV-…) and the broker’s own reference.',
+        usedFor: 'Finding every broker booking, apart from your own Reservations screen.' },
+      { name: '4 · Changes and cancellation', where: 'OTA XML → XML reservations', what: 'A change is re-priced and the car checked again; a cancellation frees the car and is kept on record, never deleted.',
+        usedFor: 'Following a booking through its life. Changes you make are sent back to the broker automatically.' },
+      { name: '5 · Go-live', where: 'Channel → Go-live', what: 'After testing, approval switches the broker to real bookings: cars are held and branches see the booking.',
+        usedFor: 'Starting real sales with a new broker.' },
+    ],
+  },
+  {
+    id: '01-overview', title: 'The Channel Manager', length: '1:17',
     summary: 'Where you connect car-rental brokers, publish your prices to them and receive their bookings.',
     pages: [
       { name: 'Channel Manager', where: 'OTA XML', what: 'The home of everything to do with brokers (websites such as Rentalcars or DiscoverCars that sell your cars).',
@@ -37,7 +59,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '02-new-broker', title: 'Connecting a new broker, step by step', length: '2:25',
+    id: '02-new-broker', title: 'Connecting a new broker, step by step', length: '2:53',
     summary: 'From “Add channel” to a broker that is ready to go live, done live in the system.',
     pages: [
       { name: '1 · Add the channel', where: 'OTA XML → Add channel', what: 'Name, channel code and “Copy setup from” an existing broker (branches, booking rules, extras, terms and rates; never keys or contacts).',
@@ -55,7 +77,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '03-rates-publishing', title: 'Rates and publishing', length: '1:00',
+    id: '03-rates-publishing', title: 'Rates and publishing', length: '1:07',
     summary: 'The prices a broker is quoted, how they are published and what the broker receives.',
     pages: [
       { name: 'Rates', where: 'Channel → Rates', what: 'The price per day for each car group, by season and by rental length.',
@@ -67,7 +89,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '04-pricing-rules', title: 'Price rules, rate rules, extras and terms', length: '1:28',
+    id: '04-pricing-rules', title: 'Price rules, rate rules, extras and terms', length: '1:39',
     summary: 'Commercial terms per broker, dynamic pricing for seasons and last-minute, extras and rental terms.',
     pages: [
       { name: 'Price rules', where: 'Channel → Price rules', what: 'This broker’s own commercial terms: markup or discount, prices by day of the week, early-booking and last-minute changes, minimum days and closed dates.',
@@ -81,7 +103,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '05-connection-keys', title: 'Connection, API keys and the XML layout', length: '1:14',
+    id: '05-connection-keys', title: 'Connection, API keys and the XML layout', length: '1:25',
     summary: 'How a broker reaches you, the keys they use and the OpenTravel layout of your answers.',
     pages: [
       { name: 'Connection', where: 'Channel → Connection', what: 'The broker’s contacts and the addresses they send messages to (XML, SOAP, 2018A and 2024A).',
@@ -97,7 +119,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '06-advanced-connection', title: 'Booking API, languages, security, API v3 and outbound', length: '1:18',
+    id: '06-advanced-connection', title: 'Booking API, languages, security, API v3 and outbound', length: '1:25',
     summary: 'Booking rules and branches, Arabic texts, who is calling, REST v3 with OAuth and what we send to the broker.',
     pages: [
       { name: 'Booking API', where: 'Channel → Booking API', what: 'The branches the broker may use, their opening hours and holidays, and the booking rules (driver age, how far ahead, longest rental, fees, cancellation, no-shows).',
@@ -113,7 +135,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '07-booking-over-xml', title: 'A booking over XML, step by step', length: '1:53',
+    id: '07-booking-over-xml', title: 'A booking over XML, step by step', length: '2:14',
     summary: 'What a broker sends and what we answer, message by message, in the test console (sandbox: nothing real is booked).',
     pages: [
       { name: 'Test console', where: 'Channel → Test console', what: 'Sends real broker messages to this channel in the sandbox; nothing is booked for real and no updates are sent.',
@@ -129,7 +151,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '08-daily-work', title: 'Daily work: bookings and traffic', length: '1:24',
+    id: '08-daily-work', title: 'Daily work: bookings and traffic', length: '1:38',
     summary: 'Where broker bookings arrive and how to read every message they send.',
     pages: [
       { name: 'XML reservations', where: 'OTA XML → XML reservations', what: 'Every booking received from the brokers, kept apart from your own Reservations screen.',
@@ -141,7 +163,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '09-dashboard-bulk-stops', title: 'Dashboard, bulk editor and stop sales', length: '0:53',
+    id: '09-dashboard-bulk-stops', title: 'Dashboard, bulk editor and stop sales', length: '0:58',
     summary: 'Figures across every broker, changing many brokers at once, and closing cars for some dates.',
     pages: [
       { name: 'Dashboard', where: 'OTA XML → Dashboard', what: 'Requests, bookings, revenue, errors and alerts across every broker.',
@@ -153,7 +175,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     ],
   },
   {
-    id: '10-developer', title: 'Developer page and broker documentation', length: '0:50',
+    id: '10-developer', title: 'Developer page and broker documentation', length: '0:54',
     summary: 'What brokers read to connect, and the technical details for their developers.',
     pages: [
       { name: 'Developer', where: 'OTA XML → Developer', what: 'Addresses, message types, error codes, downloads and examples.',

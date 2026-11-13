@@ -1,0 +1,74 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "A booking over XML, step by step",
+  "text": "What a broker sends and what we answer, message by message, in the test console (sandbox: nothing real is booked)."
+ },
+ {
+  "start": 14.82,
+  "end": 24.55,
+  "step": 1,
+  "total": 8,
+  "title": "The test console sends real broker messages to this channel, in the sandbox: nothing is booked for real.",
+  "text": "Pick a message on the left, then click Send."
+ },
+ {
+  "start": 32.84,
+  "end": 38.25,
+  "step": 2,
+  "total": 8,
+  "title": "Ping: the broker checks the connection. The answer says Success and repeats their text.",
+  "text": ""
+ },
+ {
+  "start": 45.45,
+  "end": 55.89,
+  "step": 3,
+  "total": 8,
+  "title": "Availability & rates: the broker’s search — branch, dates and driver age.",
+  "text": "Our answer lists each car group with its price, extras, the cancellation terms and an offer number."
+ },
+ {
+  "start": 63.29,
+  "end": 73.74,
+  "step": 4,
+  "total": 8,
+  "title": "Book: the broker books an offer. Our answer confirms it with our reservation number (RSV-…).",
+  "text": "Sending the same broker reference again returns the same booking, never a second one."
+ },
+ {
+  "start": 80.89,
+  "end": 85.7,
+  "step": 5,
+  "total": 8,
+  "title": "Retrieve: the broker reads the booking back with our reservation number.",
+  "text": ""
+ },
+ {
+  "start": 92.6,
+  "end": 100.17,
+  "step": 6,
+  "total": 8,
+  "title": "Modify: the broker changes the dates. The price is worked out again and the car is checked as still free.",
+  "text": ""
+ },
+ {
+  "start": 107.24,
+  "end": 114.66,
+  "step": 7,
+  "total": 8,
+  "title": "Cancel: the booking is cancelled under your cancellation terms and the car is free again.",
+  "text": ""
+ },
+ {
+  "start": 114.66,
+  "end": 121.5,
+  "step": 8,
+  "total": 8,
+  "title": "“Run full booking flow” runs all of these in one click — the quickest check after any change.",
+  "text": ""
+ }
+]

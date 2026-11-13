@@ -1,0 +1,42 @@
+[
+ {
+  "start": 0,
+  "end": 7,
+  "step": 0,
+  "total": 0,
+  "title": "Rates and publishing",
+  "text": "The prices a broker is quoted, how they are published and what the broker receives."
+ },
+ {
+  "start": 13.2,
+  "end": 27.14,
+  "step": 1,
+  "total": 4,
+  "title": "Rates: the price per day for each car group, by season and by rental length.",
+  "text": "Example: Economy (EDAR) 40 USD a day for 1–2 days, 35 for 3–6 days, 30 from 7 days."
+ },
+ {
+  "start": 27.14,
+  "end": 35.8,
+  "step": 2,
+  "total": 4,
+  "title": "“Add period” adds a season; “Excel” downloads the grid to edit and upload again.",
+  "text": "Changes stay a draft until you click “Review & publish”."
+ },
+ {
+  "start": 40.01,
+  "end": 48.66,
+  "step": 3,
+  "total": 4,
+  "title": "Publish history: every published version, who published it and when.",
+  "text": "A wrong change can be rolled back to an earlier version in one step."
+ },
+ {
+  "start": 51.71,
+  "end": 61.43,
+  "step": 4,
+  "total": 4,
+  "title": "XML feed: the rate sheet exactly as the broker receives it, ready to copy or download.",
+  "text": "Useful when a broker asks “which prices did you send us?”."
+ }
+]

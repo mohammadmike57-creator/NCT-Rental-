@@ -21,7 +21,7 @@ const BASE = `http://localhost:${PORT}`;
 const PASSWORD = 'guide-pass-1234567890';
 const ADMIN = 'e2e-admin@example.test';
 const OTA = 'http://www.opentravel.org/OTA/2003/05';
-const W = 1280, H = 720;
+const W = 1920, H = 1080;
 fs.mkdirSync(OUT, { recursive: true });
 
 const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -128,27 +128,59 @@ async function login(page) {
 }
 const FONT = "'Inter','Segoe UI',system-ui,sans-serif";
 const OVERLAY_CSS = `
-#guide-cap{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;max-width:1060px;width:calc(100% - 110px);
-  background:rgba(15,23,42,.95);color:#fff;border-radius:14px;padding:14px 22px 15px;font:500 19px/1.45 ${FONT};
-  box-shadow:0 10px 40px rgba(0,0,0,.35);display:flex;gap:16px;align-items:flex-start;pointer-events:none}
-#guide-cap b{flex:none;min-width:44px;height:30px;padding:0 8px;border-radius:8px;background:#4f46e5;color:#fff;font:700 14px/30px ${FONT};text-align:center}
-#guide-cap small{display:block;color:#cbd5e1;font-size:15.5px;font-weight:400;margin-top:3px}
-#guide-hl{position:fixed;z-index:2147483646;border:3px solid #f59e0b;border-radius:10px;box-shadow:0 0 0 9999px rgba(15,23,42,.28);pointer-events:none;transition:all .35s ease}
-.guide-card{position:fixed;inset:0;z-index:2147483647;background:radial-gradient(900px 400px at 85% 0%,rgba(99,102,241,.35),transparent 60%),linear-gradient(135deg,#1e1b4b,#0f172a 65%);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 110px;font-family:${FONT}}
-.guide-card p{margin:0;color:#a5b4fc;font:700 15px/1 ${FONT};letter-spacing:.18em;text-transform:uppercase}
-.guide-card h1{margin:18px 0 14px;font:700 50px/1.1 ${FONT};letter-spacing:-.02em}
-.guide-card div{color:#cbd5e1;font:400 21px/1.5 ${FONT};max-width:920px}
-.guide-card ol{margin:22px 0 0;padding:0;list-style:none;display:grid;gap:8px;color:#e2e8f0;font:500 18px/1.4 ${FONT}}
-.guide-card ol li::before{content:"›";color:#818cf8;margin-right:10px}
-#guide-cursor{position:fixed;left:0;top:0;z-index:2147483647;width:26px;height:26px;pointer-events:none;transform:translate(-3px,-2px);filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
-.guide-ripple{position:fixed;z-index:2147483646;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:3px solid #f59e0b;pointer-events:none;animation:guide-ripple .6s ease-out forwards}
-@keyframes guide-ripple{to{transform:scale(3.6);opacity:0}}`;
+#guide-cap{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:2147483647;width:min(1400px,calc(100% - 160px));
+  background:rgba(15,23,42,.96);color:#fff;border-radius:18px;padding:20px 28px 0;font-family:${FONT};
+  box-shadow:0 18px 60px rgba(2,6,23,.45);pointer-events:none;overflow:hidden;animation:guide-up .35s ease-out}
+#guide-cap .row{display:flex;gap:22px;align-items:flex-start;padding-bottom:18px}
+#guide-cap .num{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:86px;height:58px;border-radius:12px;background:#4f46e5;font:700 13px/1.1 ${FONT};letter-spacing:.06em;text-transform:uppercase;color:#c7d2fe}
+#guide-cap .num strong{font:700 24px/1 ${FONT};color:#fff;letter-spacing:0;margin-top:3px}
+#guide-cap h3{margin:2px 0 0;font:650 27px/1.3 ${FONT};letter-spacing:-.01em}
+#guide-cap p{margin:6px 0 0;color:#cbd5e1;font:400 21px/1.45 ${FONT}}
+#guide-cap .bar{height:5px;background:rgba(255,255,255,.12);margin:0 -28px}
+#guide-cap .bar i{display:block;height:100%;background:linear-gradient(90deg,#818cf8,#22d3ee)}
+@keyframes guide-up{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+#guide-chip{position:fixed;left:28px;top:24px;z-index:2147483646;display:flex;align-items:center;gap:12px;padding:10px 18px 10px 12px;border-radius:999px;
+  background:rgba(15,23,42,.9);color:#fff;font:600 17px/1 ${FONT};box-shadow:0 8px 30px rgba(2,6,23,.3);pointer-events:none}
+#guide-chip b{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:#4f46e5;font-size:15px}
+#guide-chip span{color:#a5b4fc;font-weight:500}
+#guide-hl{position:fixed;z-index:2147483645;border:4px solid #f59e0b;border-radius:14px;box-shadow:0 0 0 9999px rgba(15,23,42,.30),0 0 0 8px rgba(245,158,11,.25);pointer-events:none;transition:all .45s cubic-bezier(.4,0,.2,1)}
+.guide-card{position:fixed;inset:0;z-index:2147483647;background:radial-gradient(1300px 600px at 85% -10%,rgba(99,102,241,.38),transparent 60%),radial-gradient(900px 500px at -10% 120%,rgba(34,211,238,.16),transparent 60%),linear-gradient(135deg,#1e1b4b,#0f172a 62%);
+  color:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 160px;font-family:${FONT};animation:guide-fade .45s ease-out}
+@keyframes guide-fade{from{opacity:0}to{opacity:1}}
+.guide-card .k{margin:0;color:#a5b4fc;font:700 20px/1 ${FONT};letter-spacing:.2em;text-transform:uppercase}
+.guide-card h1{margin:26px 0 18px;font:750 72px/1.08 ${FONT};letter-spacing:-.025em;max-width:1400px}
+.guide-card .t{color:#cbd5e1;font:400 30px/1.5 ${FONT};max-width:1300px}
+.guide-card ol{margin:40px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,560px));gap:14px 60px;counter-reset:g}
+.guide-card ol li{counter-increment:g;display:flex;gap:16px;align-items:baseline;color:#e2e8f0;font:500 25px/1.35 ${FONT}}
+.guide-card ol li::before{content:counter(g);flex:none;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(129,140,248,.2);color:#c7d2fe;font:700 18px/1 ${FONT}}
+.guide-card .brand{position:absolute;left:160px;bottom:64px;color:#94a3b8;font:500 19px/1 ${FONT};letter-spacing:.04em}
+.guide-flow{display:flex;align-items:center;gap:0;margin-top:56px}
+.guide-flow .node{flex:none;width:300px;padding:26px 24px;border-radius:20px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.16);text-align:center}
+.guide-flow .node b{display:block;font:700 27px/1.25 ${FONT}}
+.guide-flow .node small{display:block;margin-top:8px;color:#94a3b8;font:400 18px/1.35 ${FONT}}
+.guide-flow .node.us{background:rgba(79,70,229,.28);border-color:rgba(165,180,252,.55)}
+.guide-flow .link{flex:1;min-width:300px;position:relative;height:150px}
+.guide-flow .lane{position:absolute;left:24px;right:24px;height:3px;background:rgba(255,255,255,.22)}
+.guide-flow .lane.a{top:46px} .guide-flow .lane.b{top:104px}
+.guide-flow .lane::after{content:"";position:absolute;top:-7px;width:0;height:0;border:8px solid transparent}
+.guide-flow .lane.a::after{right:-6px;border-left:12px solid rgba(255,255,255,.4)} .guide-flow .lane.b::after{left:-6px;border-right:12px solid rgba(255,255,255,.4)}
+.guide-flow .msg{position:absolute;left:0;right:0;text-align:center;font:600 19px/1.3 'JetBrains Mono',ui-monospace,monospace}
+.guide-flow .msg.a{top:8px;color:#a5b4fc} .guide-flow .msg.b{top:116px;color:#67e8f9}
+.guide-flow .dot{position:absolute;width:16px;height:16px;border-radius:50%;margin-top:-7px}
+.guide-flow .dot.a{top:47px;background:#818cf8;box-shadow:0 0 18px #818cf8;animation:guide-go 1.6s ease-in-out .4s both}
+.guide-flow .dot.b{top:105px;background:#22d3ee;box-shadow:0 0 18px #22d3ee;animation:guide-back 1.6s ease-in-out 2.1s both}
+@keyframes guide-go{from{left:24px;opacity:0}10%{opacity:1}to{left:calc(100% - 40px);opacity:1}}
+@keyframes guide-back{from{left:calc(100% - 40px);opacity:0}10%{opacity:1}to{left:24px;opacity:1}}
+#guide-cursor{position:fixed;left:0;top:0;z-index:2147483647;width:34px;height:34px;pointer-events:none;transform:translate(-4px,-3px);filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
+.guide-ripple{position:fixed;z-index:2147483646;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:4px solid #f59e0b;pointer-events:none;animation:guide-ripple .65s ease-out forwards}
+@keyframes guide-ripple{to{transform:scale(3.6);opacity:0}}
+#root{transition:transform .9s cubic-bezier(.4,0,.2,1);transform-origin:0 0;will-change:transform}`;
 // A visible pointer that follows the mouse and shows each click (videos have no system pointer).
 const CURSOR_SCRIPT = `(() => {
   const add = () => {
     if (document.getElementById('guide-cursor') || !document.body) return;
     const c = document.createElement('div'); c.id = 'guide-cursor';
-    c.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 2.5l15.5 9.2-6.8 1.5 3.9 7.2-3 1.6-3.9-7.3-5.7 4.6z" fill="#fff" stroke="#0f172a" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    c.innerHTML = '<svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 2.5l15.5 9.2-6.8 1.5 3.9 7.2-3 1.6-3.9-7.3-5.7 4.6z" fill="#fff" stroke="#0f172a" stroke-width="1.5" stroke-linejoin="round"/></svg>';
     c.style.left = (window.__gx || -100) + 'px'; c.style.top = (window.__gy || -100) + 'px';
     document.body.appendChild(c);
   };
@@ -159,77 +191,126 @@ const CURSOR_SCRIPT = `(() => {
 async function overlay(page) {
   await page.evaluate(css => { if (!document.getElementById('guide-css')) { const s = document.createElement('style'); s.id = 'guide-css'; s.textContent = css; document.head.appendChild(s); } }, OVERLAY_CSS);
 }
-async function card(page, kicker, heading, text, list, ms) {
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function showCard(page, html, ms) {
   await overlay(page);
-  await page.evaluate(([k, h, t, l]) => {
-    const d = document.createElement('div'); d.className = 'guide-card'; d.id = 'guide-card';
-    d.innerHTML = '<p></p><h1></h1><div></div>';
-    d.querySelector('p').textContent = k; d.querySelector('h1').textContent = h; d.querySelector('div').textContent = t;
-    if (l && l.length) { const ol = document.createElement('ol'); l.forEach(x => { const li = document.createElement('li'); li.textContent = x; ol.appendChild(li); }); d.appendChild(ol); }
-    document.body.appendChild(d);
-  }, [kicker, heading, text, list || []]);
+  await page.evaluate(h => { const d = document.createElement('div'); d.className = 'guide-card'; d.id = 'guide-card'; d.innerHTML = h; document.body.appendChild(d); }, html);
   await sleep(ms);
   await page.evaluate(() => document.getElementById('guide-card')?.remove());
 }
-let CH = 0, STEP = 0;
+async function card(page, kicker, heading, text, list, ms) {
+  await showCard(page, `<p class="k">${esc(kicker)}</p><h1>${esc(heading)}</h1><div class="t">${esc(text)}</div>`
+    + (list && list.length ? `<ol>${list.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '') + '<div class="brand">UR-Drive Jordan · Staff training</div>', ms);
+}
+/** An explanation card: what happens behind the screen, with an animated message going out and the answer coming back. */
+async function explain(page, { kicker = 'What happens now', title, text, from, to, out, back, fromNote, toNote, ms = 9000 }) {
+  STEP++;
+  cue(title, text);
+  const flow = from ? `<div class="guide-flow"><div class="node"><b>${esc(from)}</b><small>${esc(fromNote || '')}</small></div>
+    <div class="link"><div class="msg a">${esc(out || '')}</div><div class="lane a"></div><div class="dot a"></div>${back ? `<div class="lane b"></div><div class="dot b"></div><div class="msg b">${esc(back)}</div>` : ''}</div>
+    <div class="node us"><b>${esc(to)}</b><small>${esc(toNote || '')}</small></div></div>` : '';
+  await showCard(page, `<p class="k">${esc(kicker)} · Step ${STEP} of ${TOTAL}</p><h1>${esc(title)}</h1><div class="t">${esc(text)}</div>${flow}<div class="brand">UR-Drive Jordan · Staff training</div>`, ms);
+  endCue();
+}
+let CH = 0, STEP = 0, TOTAL = 0, ZOOM = 1;
+// The steps with their times, saved next to each video so the player can show them as subtitles.
+let CUES = [], T0 = 0;
+const cue = (title, text) => { const t = (Date.now() - T0) / 1000; if (CUES.length && CUES[CUES.length - 1].end == null) CUES[CUES.length - 1].end = t; CUES.push({ start: t, end: null, step: STEP, total: TOTAL, title, text: text || '' }); };
+const endCue = () => { if (CUES.length && CUES[CUES.length - 1].end == null) CUES[CUES.length - 1].end = (Date.now() - T0) / 1000; };
+/** Smoothly zooms the whole app into a box (viewport coordinates), so it can be read; 1 zooms back out. */
+async function zoomTo(page, box, max = 1.7) {
+  let s = 1, tx = 0, ty = 0;
+  if (box) {
+    s = Math.max(1, Math.min(max, (W * 0.78) / box.width, (H * 0.62) / box.height));
+    if (s < 1.12) s = 1;
+    const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+    tx = Math.min(0, Math.max(W - s * W, W / 2 - s * cx));
+    ty = Math.min(0, Math.max(H - s * H, H * 0.42 - s * cy));
+  }
+  if (s === 1 && ZOOM === 1) return;
+  ZOOM = s;
+  await page.evaluate(([s, tx, ty]) => { const r = document.getElementById('root'); if (r) r.style.transform = s === 1 ? '' : `translate(${tx}px, ${ty}px) scale(${s})`; }, [s, tx, ty]);
+  await sleep(1000);
+}
 async function boxOf(page, target) {
   const locs = (Array.isArray(target) ? target : [target]).map(t => typeof t === 'string' ? page.getByText(t, { exact: true }).first() : t);
   try {
     await locs[0].waitFor({ timeout: 3000 });
-    const vis = await locs[0].evaluate(el => { const r = el.getBoundingClientRect(); return r.top >= 70 && r.bottom <= window.innerHeight - 150; });
-    if (!vis) { await locs[0].evaluate(el => el.scrollIntoView({ block: 'center' })); await sleep(350); }
+    const vis = await locs[0].evaluate(el => { const r = el.getBoundingClientRect(); return r.top >= 90 && r.bottom <= window.innerHeight - 220; });
+    if (!vis) { await locs[0].evaluate(el => el.scrollIntoView({ block: 'center' })); await sleep(450); }
     const boxes = (await Promise.all(locs.map(l => l.boundingBox()))).filter(Boolean);
     if (!boxes.length) return null;
     const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
-    return { x, y, width: Math.max(...boxes.map(b => b.x + b.width)) - x, height: Math.max(...boxes.map(b => b.y + b.height)) - y };
+    return { x, y, width: Math.max(...boxes.map(b => b.x + b.width)) - x, height: Math.max(...boxes.map(b => b.y + b.height)) - y, inDialog: await locs[0].evaluate(el => !!el.closest('[role=dialog]')) };
   } catch { return null; }
 }
-/** Shows the next step's caption (and a highlight round `target`), long enough to read it. */
+/** The next step: zooms into its target, highlights it and shows the caption long enough to read. */
 async function say(page, text, sub, target, ms) {
   await overlay(page);
   STEP++;
-  const box = target ? await boxOf(page, target) : null;
-  await page.evaluate(([step, text, sub, box]) => {
+  let box = target ? await boxOf(page, target) : null;
+  if (box && !box.inDialog) { await zoomTo(page, box); box = await boxOf(page, target); } else await zoomTo(page, null);
+  await page.evaluate(([step, total, text, sub, box]) => {
     let c = document.getElementById('guide-cap');
-    if (!c) { c = document.createElement('div'); c.id = 'guide-cap'; document.body.appendChild(c); }
-    c.innerHTML = '<b></b><span></span>';
-    c.querySelector('b').textContent = step;
-    c.querySelector('span').textContent = text;
-    if (sub) { const s = document.createElement('small'); s.textContent = sub; c.querySelector('span').appendChild(s); }
+    if (c) c.remove();
+    c = document.createElement('div'); c.id = 'guide-cap';
+    c.innerHTML = '<div class="row"><div class="num">Step<strong></strong></div><div><h3></h3></div></div><div class="bar"><i></i></div>';
+    c.querySelector('strong').textContent = `${step} / ${total}`;
+    c.querySelector('h3').textContent = text;
+    if (sub) { const p = document.createElement('p'); p.textContent = sub; c.querySelector('h3').after(p); }
+    c.querySelector('.bar i').style.width = `${Math.round((step / total) * 100)}%`;
+    document.body.appendChild(c);
     let h = document.getElementById('guide-hl');
     if (box) {
       if (!h) { h = document.createElement('div'); h.id = 'guide-hl'; document.body.appendChild(h); }
-      Object.assign(h.style, { left: `${box.x - 6}px`, top: `${box.y - 6}px`, width: `${box.width + 12}px`, height: `${box.height + 12}px` });
+      Object.assign(h.style, { left: `${box.x - 8}px`, top: `${box.y - 8}px`, width: `${box.width + 16}px`, height: `${box.height + 16}px` });
     } else if (h) h.remove();
-  }, [`${CH}.${STEP}`, text, sub || '', box]);
+  }, [STEP, TOTAL, text, sub || '', box]);
+  cue(text, sub);
   const words = (text + ' ' + (sub || '')).split(/\s+/).length;
-  await sleep(ms || Math.max(4000, words * 340));
+  await sleep(ms || Math.max(4800, words * 360));
 }
-async function clear(page) { await page.evaluate(() => { document.getElementById('guide-cap')?.remove(); document.getElementById('guide-hl')?.remove(); }); }
-/** Moves the visible pointer to an element and clicks it, like a person would. */
+async function clear(page) { endCue(); await page.evaluate(() => { document.getElementById('guide-cap')?.remove(); document.getElementById('guide-hl')?.remove(); }); }
+async function chip(page, label) {
+  await overlay(page);
+  await page.evaluate(([n, t]) => { document.getElementById('guide-chip')?.remove(); if (!t) return; const c = document.createElement('div'); c.id = 'guide-chip'; c.innerHTML = '<b></b><div></div>'; c.querySelector('b').textContent = n; c.querySelector('div').innerHTML = ''; const s = document.createElement('span'); s.textContent = 'OTA XML guide · '; c.querySelector('div').append(s, t); document.body.appendChild(c); }, [String(CH), label || '']);
+}
+let PX = W / 2, PY = H / 2;
+/** Moves the pointer along an eased path, like a hand would. */
+async function moveTo(page, x, y) {
+  const n = 30;
+  for (let i = 1; i <= n; i++) {
+    const t = i / n, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    await page.mouse.move(PX + (x - PX) * e, PY + (y - PY) * e);
+    await sleep(14);
+  }
+  PX = x; PY = y;
+}
+/** Zooms out, moves the pointer to an element and clicks it. */
 async function click(page, target) {
   const loc = typeof target === 'string' ? page.getByText(target, { exact: true }).first() : target;
   await loc.waitFor({ timeout: 10000 });
-  await loc.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await clear(page);
+  await zoomTo(page, null);
+  await loc.evaluate(el => { const r = el.getBoundingClientRect(); if (r.top < 90 || r.bottom > window.innerHeight - 220) el.scrollIntoView({ block: 'center', inline: 'nearest' }); });
   await sleep(300);
-  await page.evaluate(() => document.getElementById('guide-hl')?.remove());
   const b = await loc.boundingBox();
   if (!b) { await loc.click(); return; }
   const x = b.x + b.width / 2, y = b.y + b.height / 2;
-  await page.mouse.move(x, y, { steps: 22 });
-  await sleep(250);
+  await moveTo(page, x, y);
+  await sleep(220);
   await page.mouse.click(x, y);
-  await sleep(700);
+  await sleep(750);
 }
 async function type(page, loc, text) {
   await click(page, loc);
   await loc.fill('');
-  await page.keyboard.type(text, { delay: 55 });
-  await sleep(400);
+  await page.keyboard.type(text, { delay: 65 });
+  await sleep(450);
 }
 async function pointAt(page, loc) {
   const b = await boxOf(page, loc);
-  if (b) await page.mouse.move(b.x + Math.min(b.width - 10, 40), b.y + b.height / 2, { steps: 18 });
+  if (b) await moveTo(page, b.x + Math.min(b.width - 10, 40), b.y + b.height / 2);
 }
 const nav = page => page.locator('aside nav');
 async function openOta(page) {
@@ -253,6 +334,11 @@ async function channelTab(page, broker, tab) {
   await page.evaluate(() => window.scrollTo(0, 0));
 }
 const btn = (page, name) => page.getByRole('button', { name: new RegExp('^' + name) }).first();
+/** Sends a message as the broker's own system would (straight to the server, not through the screen). */
+async function broker(key, address, body, type = 'application/xml') {
+  const r = await fetch(`${BASE}${address}`, { method: 'POST', headers: { 'Content-Type': type, 'X-Api-Key': key }, body });
+  return r.text();
+}
 async function consoleSend(page, template) {
   await click(page, page.getByRole('navigation', { name: 'Message templates' }).getByRole('button', { name: new RegExp(template.replace(/[()&]/g, '.')) }).first());
   await sleep(600);
@@ -270,6 +356,82 @@ async function consoleSend(page, template) {
 
 // ---------------------------------------------------------------- the chapters
 const CHAPTERS = [
+  { id: '00-complete-flow', title: 'The complete flow, explained', text: 'From a new broker to a real booking: what you do on screen, and what happens behind it at every step.',
+    list: ['How brokers and OTA XML work', 'Add and set up the broker', 'Publish prices and give the key', 'The broker searches', 'The broker books', 'Changes and cancellation', 'Go-live'], run: async page => {
+    await explain(page, { kicker: 'The idea', title: 'Brokers sell your cars on their websites', text: 'A customer searches on a broker’s website. The broker’s system asks our system for cars and prices in OTA XML — the standard language of the travel industry — and books the car the customer chooses. No one types anything: systems talk to systems.',
+      from: 'Broker’s system', fromNote: 'Rentalcars, DiscoverCars, a travel agent…', to: 'UR-Drive Jordan', toNote: 'This system: cars, prices, bookings', out: 'search · book · change · cancel', back: 'cars, prices, confirmations', ms: 12000 });
+    await openOta(page);
+    await say(page, 'Everything about brokers is here, in OTA XML.', 'Each broker is a channel with its own prices, rules and key. Let us connect a new one from start to finish.');
+    await click(page, btn(page, 'Add channel'));
+    const dlg = page.getByRole('dialog');
+    await type(page, dlg.getByPlaceholder('Channel name, e.g. Rentalcars'), 'Desert Drive Travel');
+    await click(page, dlg.getByLabel('Copy setup from'));
+    await dlg.getByLabel('Copy setup from').selectOption({ label: 'Sample Broker (SBK)' });
+    await type(page, dlg.getByPlaceholder(/Code \(optional\)/), 'DDT');
+    await say(page, 'Name the broker, copy the setup of one you already have, and give it a short code.', 'The code becomes part of the broker’s addresses: /ota/2024A/DDT/…', dlg);
+    await click(page, dlg.getByRole('button', { name: 'Create' }));
+    await sleep(1500);
+    await channelTab(page, 'Desert Drive Travel', 'Overview');
+    await say(page, 'The broker is created in Testing.', 'While testing, everything it books is a sandbox booking: it is recorded, but it never holds a car or reaches a branch.');
+    await channelTab(page, 'Desert Drive Travel', 'Rates');
+    await click(page, btn(page, 'Review & publish'));
+    await say(page, 'Publish the prices this broker will quote to its customers.', 'Each publish is a new numbered version, so you always know which prices the broker has.', page.getByRole('dialog').last());
+    await click(page, page.getByRole('dialog').last().getByRole('button', { name: /^Publish version/ }));
+    await sleep(1200);
+    await module(page, 'API keys');
+    const row = page.getByRole('row').filter({ hasText: 'Desert Drive Travel' });
+    await click(page, row.getByRole('button', { name: 'Create', exact: true }).first());
+    await page.getByText(/urd_[A-Za-z0-9_-]{20,}/).first().waitFor();
+    const key = /urd_[A-Za-z0-9_-]{20,}/.exec(await page.locator('body').innerText())[0];
+    await say(page, 'Give the broker its key: the password its system sends with every message.', 'Shown once, with a ready message to send securely. Without a valid key, every message is refused.', page.getByRole('dialog').last());
+    await click(page, page.getByRole('button', { name: 'I have copied it' }));
+    await sleep(800);
+
+    await explain(page, { title: 'The broker searches', text: 'A customer on the broker’s website looks for a car at Amman Airport for three days. The broker’s system sends our system a search; our system answers with every free car group, its price, the extras and the cancellation terms.',
+      from: 'Broker’s system', fromNote: 'Desert Drive Travel', to: 'UR-Drive Jordan', toNote: 'Checks cars, prices, opening hours', out: 'OTA_VehAvailRateRQ', back: 'OTA_VehAvailRateRS · offers' });
+    const search = await broker(key, '/ota/2024A/DDT/OTA_VehAvailRate', `<OTA_VehAvailRateRQ xmlns="${OTA}" Version="2.000" EchoToken="WEB-1"><POS><Source><RequestorID Type="22" ID="DDT"/></Source></POS><VehAvailRQCore>
+      <VehRentalCore PickUpDateTime="${at(30)}" ReturnDateTime="${at(33)}"><PickUpLocation LocationCode="AMM"/><ReturnLocation LocationCode="AMM"/></VehRentalCore><DriverType Age="35"/></VehAvailRQCore></OTA_VehAvailRateRQ>`);
+    const offer = (/Type="16" ID="(OFF-[^"]+)"/.exec(search) || [])[1];
+    await channelTab(page, 'Desert Drive Travel', 'Traffic');
+    await click(page, btn(page, 'Refresh'));
+    await sleep(800);
+    const log = page.getByText('Message log').first().locator('xpath=ancestor::section[1]');
+    await say(page, 'The search arrives in Traffic, the moment the broker sends it.', 'Every message is kept with its answer and the time taken — this is where you look when a broker asks “what happened?”.', log.locator('tbody tr').first());
+    await click(page, log.locator('tbody tr').first());
+    await sleep(1200);
+    await say(page, 'Open it to see exactly what the broker asked, and exactly what we answered.', 'Here: Amman Airport, three days, driver aged 35 — and our answer with each car, its price and an offer number.');
+    await page.keyboard.press('Escape'); await sleep(600);
+    const close = page.getByRole('button', { name: 'Close' }).first();
+    if (await close.isVisible().catch(() => false)) await click(page, close);
+
+    await explain(page, { title: 'The broker books', text: 'The customer chooses a Toyota Corolla and pays the broker. The broker’s system books the offer with the customer’s name and its own reference. Our system checks the car is still free, creates the reservation and answers with our reservation number.',
+      from: 'Broker’s system', fromNote: 'Customer: John Doe', to: 'UR-Drive Jordan', toNote: 'Creates the reservation', out: 'OTA_VehResRQ · offer + customer', back: 'OTA_VehResRS · RSV-…' });
+    const booked = await broker(key, '/ota/2024A/DDT/OTA_VehRes', `<OTA_VehResRQ xmlns="${OTA}" Version="2.000"><VehResRQCore><Customer><Primary BirthDate="1988-04-12"><PersonName><GivenName>John</GivenName><Surname>Doe</Surname></PersonName>
+      <Email>john.doe@example.com</Email></Primary></Customer></VehResRQCore><VehResRQInfo><Reference Type="16" ID="${offer}"/><TPA_Extensions><BrokerReference>DDT-5001</BrokerReference></TPA_Extensions></VehResRQInfo></OTA_VehResRQ>`);
+    const conf = (/ID="(RSV-[^"]+)"/.exec(booked) || [])[1];
+    await module(page, 'XML reservations');
+    await click(page, page.getByRole('button', { name: 'Sandbox (tests)' }).first());
+    await sleep(1200);
+    await say(page, `The booking is here in XML reservations: ${conf}, John Doe, broker reference DDT-5001.`, 'Broker bookings are kept apart from your own Reservations screen. This one is under “Sandbox (tests)” because the broker is still testing.', page.getByText('DDT-5001').first().locator('xpath=ancestor::tr[1]'));
+
+    await explain(page, { title: 'The customer changes the dates', text: 'The customer adds a day on the broker’s website. The broker’s system sends the change; our system checks the car is still free for the new dates, prices the rental again and confirms.',
+      from: 'Broker’s system', fromNote: 'One more day', to: 'UR-Drive Jordan', toNote: 'Re-prices and checks the car', out: 'OTA_VehModifyRQ', back: 'OTA_VehModifyRS · new price' });
+    await broker(key, '/ota/2024A/DDT/OTA_VehModify', `<OTA_VehModifyRQ xmlns="${OTA}" Version="2.000"><VehModifyRQCore ModifyType="Modify"><UniqueID Type="14" ID="${conf}"/>
+      <VehRentalCore PickUpDateTime="${at(30)}" ReturnDateTime="${at(34)}"/></VehModifyRQCore></OTA_VehModifyRQ>`);
+    await click(page, btn(page, 'Refresh')); await sleep(1200);
+    await say(page, 'The booking now shows four days and the new total.', 'If you change a broker booking yourself, the broker is told automatically in the same way.', page.getByText('DDT-5001').first().locator('xpath=ancestor::tr[1]'));
+
+    await explain(page, { title: 'The customer cancels', text: 'The customer cancels on the broker’s website. The broker’s system sends the cancellation; our system applies your cancellation terms, frees the car at once and confirms.',
+      from: 'Broker’s system', fromNote: 'Cancellation', to: 'UR-Drive Jordan', toNote: 'Frees the car, applies the terms', out: 'OTA_VehCancelRQ', back: 'OTA_VehCancelRS · cancelled' });
+    await broker(key, '/ota/2024A/DDT/OTA_VehCancel', `<OTA_VehCancelRQ xmlns="${OTA}" Version="2.000"><VehCancelRQCore CancelType="Cancel"><UniqueID Type="14" ID="${conf}"/>
+      <PersonName><Surname>Doe</Surname></PersonName></VehCancelRQCore></OTA_VehCancelRQ>`);
+    await click(page, btn(page, 'Refresh')); await sleep(1200);
+    await say(page, 'The booking is cancelled. It is never deleted, so the record stays for your accounts and for the broker.', null, page.getByText('DDT-5001').first().locator('xpath=ancestor::tr[1]'));
+
+    await channelTab(page, 'Desert Drive Travel', 'Go-live');
+    await say(page, 'When testing is done, approve go-live here.', 'The broker’s searches and bookings are then real: cars are held, the branch sees the booking, and everything you just saw happens for real customers.', btn(page, 'Approve go-live'));
+    await explain(page, { kicker: 'In short', title: 'Search, book, change, cancel — all automatic', text: 'You set up the broker once: prices, rules and a key. From then on the broker’s system and ours do the work, and you see every message in Traffic and every booking in XML reservations. The next chapters show each page in detail.', ms: 10000 });
+  } },
   { id: '01-overview', title: 'The Channel Manager', text: 'Where you connect car-rental brokers, publish your prices to them and receive their bookings.',
     list: ['What OTA XML is', 'The status bar', 'The console menu', 'Channels: one per broker'], run: async page => {
     await openOta(page);
@@ -344,10 +506,12 @@ const CHAPTERS = [
     await say(page, 'Every rule shows an example price, so you see its effect before you save.');
     await module(page, 'Rate rules');
     await say(page, 'Rate rules (top menu): seasons, holidays and events, and last-minute pricing for the brokers you choose.', 'Prices are calculated day by day.');
-    for (const [t, msg] of [['Seasons', 'Seasons & events: Eid, Ramadan, Christmas or your own dates, each raising or lowering the price.'], ['Last minute', 'Last minute: prices that change with how soon the rental starts.'], ['Try a price', 'Try a price: shows the final price of any rental, step by step, before it reaches a broker.']]) {
-      const b = page.getByRole('button', { name: new RegExp('^' + t) }).first();
-      if (await b.count()) { await click(page, b); await say(page, msg); }
-    }
+    await click(page, btn(page, 'Seasons'));
+    await say(page, 'Seasons & events: Eid, Ramadan, Christmas or your own dates, each raising or lowering the price.');
+    await click(page, btn(page, 'Last minute'));
+    await say(page, 'Last minute: prices that change with how soon the rental starts.');
+    await click(page, btn(page, 'Try a price'));
+    await say(page, 'Try a price: shows the final price of any rental, step by step, before it reaches a broker.');
     await channelTab(page, 'Sample Broker', 'Extras');
     await say(page, 'Extras: what this broker may sell with a car, such as GPS, a child seat or an extra driver, and at what price.');
     await channelTab(page, 'Sample Broker', 'Terms & Conditions');
@@ -464,17 +628,24 @@ const CHAPTERS = [
       const t0 = Date.now();
       await login(page);
       const skip = (Date.now() - t0) / 1000;
-      CH = i + 1; STEP = 0;
-      await card(page, `OTA XML video guide · Chapter ${i + 1} of ${CHAPTERS.length}`, ch.title, ch.text, ch.list, 6500);
+      CUES = []; T0 = Date.now();
+      CH = i + 1; STEP = 0; ZOOM = 1; PX = W / 2; PY = H / 2;
+      TOTAL = (ch.run.toString().match(/\b(say|explain)\(page/g) || []).length;
+      CUES.push({ start: 0, end: 7, step: 0, total: 0, title: ch.title, text: ch.text });
+      await card(page, `OTA XML video guide · Chapter ${i + 1} of ${CHAPTERS.length}`, ch.title, ch.text, ch.list, 7000);
+      await chip(page, ch.title);
       try { await ch.run(page); } catch (e) { await page.screenshot({ path: path.join(OUT, `fail-${ch.id}.png`) }); throw e; }
       await clear(page);
+      await chip(page, '');
+      await zoomTo(page, null);
       const nxt = CHAPTERS[i + 1];
       await card(page, nxt ? 'Next chapter' : 'End of the guide', nxt ? nxt.title : 'You have seen every part of OTA XML', nxt ? nxt.text : 'Open any chapter again from OTA XML → Video guide.', null, 3500);
       const video = page.video();
       await ctx.close();
       const src = await video.path();
       const mp4 = path.join(OUT, `${ch.id}.mp4`);
-      execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', skip.toFixed(2), '-i', src, '-c:v', 'libx264', '-preset', 'slow', '-crf', '30', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', mp4]);
+      fs.writeFileSync(path.join(OUT, `${ch.id}.steps.json`), JSON.stringify(CUES.filter(c => c.end != null && c.end > c.start).map(c => ({ ...c, start: +c.start.toFixed(2), end: +c.end.toFixed(2) })), null, 1) + '\n');
+      execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', skip.toFixed(2), '-i', src, '-c:v', 'libx264', '-preset', 'slow', '-crf', '32', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', mp4]);
       execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(probe(mp4) * 0.45), '-i', mp4, '-frames:v', '1', '-vf', 'scale=640:-2', '-q:v', '4', path.join(OUT, `${ch.id}.jpg`)]);
       fs.rmSync(raw, { recursive: true, force: true });
       const s = Math.round(probe(mp4));

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { GUIDE_CHAPTERS, GUIDE_POSTER } from './videoGuide';
-import { openGuideVideo, useGuidePlayer } from '../../app/GuidePlayer';
+import { GUIDE_CHAPTERS, GUIDE_POSTER, GuideStep } from './videoGuide';
+import { formatTime, loadGuideSteps, openGuideVideo, useGuidePlayer } from '../../app/GuidePlayer';
 
 const STORE = 'nct.otaGuideChapter';
 const seconds = (len: string) => { const [m, s] = len.split(':').map(Number); return m * 60 + s; };
@@ -25,6 +25,8 @@ const VideoGuideView: React.FC = () => {
   const chapter = GUIDE_CHAPTERS.find(c => c.id === selected) || GUIDE_CHAPTERS[0];
   const index = GUIDE_CHAPTERS.indexOf(chapter);
   const play = (id: string) => { setSelected(id); openGuideVideo(id); };
+  const [steps, setSteps] = useState<GuideStep[]>([]);
+  useEffect(() => { setSteps([]); let live = true; void loadGuideSteps(selected).then(x => { if (live) setSteps(x.filter(c => c.step > 0)); }); return () => { live = false; }; }, [selected]);
 
   return (
     <div className="space-y-4" data-testid="video-guide">
@@ -79,6 +81,21 @@ const VideoGuideView: React.FC = () => {
             <PlayGlyph className="w-4 h-4 text-indigo-600" />{player.id === chapter.id ? 'Playing' : 'Play this chapter'}
           </button>
         </div>
+        {steps.length > 0 && (<>
+          <h4 className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Steps in this video <span className="normal-case tracking-normal font-normal text-slate-400">· click a step to watch it</span></h4>
+          <ol className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-x-4 gap-y-1" data-testid="guide-steps">
+            {steps.map(c => (
+              <li key={`${c.step}-${c.start}`}>
+                <button type="button" onClick={() => openGuideVideo(chapter.id, c.start)}
+                  className="w-full text-left flex items-start gap-3 rounded-lg px-2.5 py-2 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500">
+                  <span className="shrink-0 w-7 h-7 rounded-md bg-indigo-50 text-indigo-700 text-[12px] font-bold inline-flex items-center justify-center tabular-nums">{c.step}</span>
+                  <span className="min-w-0 flex-1 text-[13px] leading-snug text-slate-800">{c.title}</span>
+                  <span className="shrink-0 text-[12px] text-slate-400 tabular-nums pt-0.5">{formatTime(c.start)}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </>)}
         <h4 className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">In this chapter</h4>
         <div className="mt-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {chapter.pages.map(p => (
