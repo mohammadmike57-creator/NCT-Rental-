@@ -32,6 +32,7 @@ import { findBookingMonth } from './services/globalSearch';
 import AppSidebar from './app/AppSidebar';
 import AppHeader from './app/AppHeader';
 import PhoneTabBar from './app/PhoneTabBar';
+import GuidePlayer from './app/GuidePlayer';
 
 const USERS_CACHE_KEY = 'NCT_USERS_CACHE';
 
@@ -1613,6 +1614,8 @@ export const App: React.FC = () => {
       
       {confirmation && <ConfirmationMessage message={confirmation} onClose={() => setConfirmation('')} />}
       <Notifications notifications={notifications} onDismiss={(id) => setNotifications(prev => prev.filter(n => n.id !== id))} />
+      {/* The video guide keeps playing in its floating window on every screen. */}
+      <GuidePlayer />
 
     </div>
   );

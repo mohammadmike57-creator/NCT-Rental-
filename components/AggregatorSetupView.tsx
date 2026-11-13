@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon,
-  ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon } from './icons';
+  ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon, PlayCircleIcon } from './icons';
 import RateRulesView from './channel/RateRulesView';
 import { useResponsiveTables } from '../services/responsiveTables';
 import BookingApiView from './channel/BookingApiView';
@@ -30,6 +30,7 @@ import PriceRulesView from './channel/PriceRulesView';
 import LanguagesView from './channel/LanguagesView';
 import OutboundView from './channel/OutboundView';
 import DeveloperView from './channel/DeveloperView';
+import VideoGuideView from './channel/VideoGuideView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../services/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -89,6 +90,7 @@ const MODULE_INFO: Record<string, { icon: IconC; title: string; text: string }> 
   multi: { icon: PencilIcon, title: 'Bulk editor', text: 'Change rates, extras, terms and policies for several brokers at once.' },
   stopsale: { icon: StopIcon, title: 'Stop sales', text: 'Close a car or a car group for some dates, for every broker or chosen ones.' },
   developer: { icon: CodeBracketIcon, title: 'Developer', text: 'Addresses, formats and samples for the brokers\' developers.' },
+  guide: { icon: PlayCircleIcon, title: 'Video guide', text: 'Short videos of every part of OTA XML: what it is and what it is used for.' },
 };
 const AVATAR = ['bg-indigo-600', 'bg-sky-600', 'bg-emerald-600', 'bg-amber-600', 'bg-rose-600', 'bg-violet-600', 'bg-teal-600', 'bg-fuchsia-600'];
 const avatarOf = (a: Aggregator) => {
@@ -251,7 +253,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
   // Phones: tables become labelled cards (index.css .rt-cards).
   useResponsiveTables('ota-console');
-  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates'>('channels');
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates' | 'guide'>('channels');
   /** Opens a section; on a phone also scrolls to it, so the content is not hidden below the header. */
   const openModule = (key: typeof mode) => {
     setMode(key);
@@ -436,6 +438,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     ['multi', 'Bulk editor', PencilIcon, undefined],
     ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
     ['developer', 'Developer', CodeBracketIcon, undefined],
+    ['guide', 'Video guide', PlayCircleIcon, undefined],
   ] as const;
   const statusCells: { label: string; value: React.ReactNode; tone: 'ok' | 'warn' | 'bad' | 'plain' }[] = [
     { label: 'Broker updates', value: failingUpdates ? `${failingUpdates} failing` : 'Operational', tone: failingUpdates ? 'bad' : 'ok' },
@@ -531,7 +534,9 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         </section>
       ); })()}
 
-      {mode === 'developer' ? (
+      {mode === 'guide' ? (
+        <VideoGuideView />
+      ) : mode === 'developer' ? (
         <DeveloperView />
       ) : mode === 'rates' ? (
         <RateRulesView aggregators={aggregators} fleet={fleet} currentUserName={currentUserName} onUpdateAggregator={handleUpdateAggregator} showConfirmation={showConfirmation} />

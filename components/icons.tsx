@@ -445,3 +445,10 @@ export const ReceiptIcon: React.FC<{ className?: string }> = ({ className = "w-5
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
   </svg>
 );
+
+export const PlayCircleIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="9" strokeWidth={2} />
+    <path strokeLinejoin="round" strokeWidth={2} d="M10 8.75v6.5L15.25 12 10 8.75z" />
+  </svg>
+);
