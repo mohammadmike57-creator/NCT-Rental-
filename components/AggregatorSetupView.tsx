@@ -438,7 +438,6 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     ['multi', 'Bulk editor', PencilIcon, undefined],
     ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
     ['developer', 'Developer', CodeBracketIcon, undefined],
-    ['guide', 'Video guide', PlayCircleIcon, undefined],
   ] as const;
   const statusCells: { label: string; value: React.ReactNode; tone: 'ok' | 'warn' | 'bad' | 'plain' }[] = [
     { label: 'Broker updates', value: failingUpdates ? `${failingUpdates} failing` : 'Operational', tone: failingUpdates ? 'bad' : 'ok' },
@@ -473,6 +472,11 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
             <span className="hidden 2xl:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-white/5 ring-1 ring-inset ring-white/10 text-[11px] font-medium text-slate-300">
               <span className="font-mono">OTA 2003/05 · 2018A · 2024A</span><span className="text-slate-600">|</span><span className="font-mono">REST v3</span>
             </span>
+            <button type="button" onClick={() => openModule('guide')} aria-current={mode === 'guide' ? 'page' : undefined}
+              className={`h-9 px-3 rounded-lg ring-1 ring-inset text-[13px] font-semibold inline-flex items-center gap-2 transition-colors ${mode === 'guide' ? 'bg-white text-slate-900 ring-white' : 'bg-white/10 hover:bg-white/15 ring-white/15 text-white'}`}
+              title="Short videos of every part of OTA XML">
+              <PlayCircleIcon className="w-4 h-4" />Video guide
+            </button>
             <button type="button" onClick={() => setJumpOpen(true)} aria-label="Quick search"
               className="h-9 pl-3 pr-2 rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-inset ring-white/15 text-slate-200 text-[13px] hidden sm:inline-flex items-center gap-2 min-w-[180px]">
               <SearchIcon className="w-4 h-4 text-slate-400" /><span className="flex-1 text-left text-slate-400">Jump to…</span>
@@ -504,7 +508,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
             </button>
           ))}
         </nav>
-        <nav className="hidden md:flex px-3 gap-0.5 overflow-x-auto no-scrollbar border-t border-white/10 bg-slate-950/40" aria-label="OTA XML sections">
+        <nav className="hidden md:flex flex-wrap px-3 gap-x-0.5 border-t border-white/10 bg-slate-950/40" aria-label="OTA XML sections">
           {MODULES.map(([key, label, Icon, count]) => (
             <button key={key} type="button" onClick={() => openModule(key)} aria-current={mode === key ? 'page' : undefined}
               className={`h-11 px-3 inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${mode === key ? 'border-indigo-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-100'}`}>
