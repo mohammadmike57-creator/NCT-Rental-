@@ -9,7 +9,14 @@ import java.time.Instant;
 @Entity
 @Table(name = "mail_settings")
 @Data
-public class MailSettings {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class MailSettings implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     @Id
     private Long id = 1L;
     private boolean enabled;

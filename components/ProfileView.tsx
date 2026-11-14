@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { sessionToken } from '../services/session';
 import { User, UserPermission } from '../types';
 import { MailIcon, KeyIcon } from './icons';
 import { API_URL } from '../services/api';
@@ -28,7 +29,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, }) => {
 
     setIsChangingPassword(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionToken();
       const response = await fetch(`${API_URL}/auth/change-password`, {
         method: 'POST',
         headers: {

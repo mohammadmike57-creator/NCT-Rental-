@@ -31,11 +31,13 @@ public class StaffAccountController {
     private final StaffAccountService service;
     private final ActivityService activity;
     private final PresenceService presence;
+    private final com.carrental.backend.tenant.SupplierService suppliers;
 
     @GetMapping("/api/account/me")
     public ResponseEntity<?> me(Authentication auth) {
         if (auth == null) return ResponseEntity.status(401).build();
         return service.findByEmail(auth.getName())
+                .map(suppliers::describe)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Account not found")));
     }
@@ -65,14 +67,14 @@ public class StaffAccountController {
     @GetMapping("/api/admin/users")
     public ResponseEntity<?> list(Authentication auth) {
         if (!canManage(auth)) return forbidden();
-        return ResponseEntity.ok(presence.withLiveStatus(service.list()));
+        return ResponseEntity.ok(presence.withLiveStatus(service.list()).stream().map(suppliers::describe).toList());
     }
 
     @PostMapping("/api/admin/users")
     public ResponseEntity<?> create(@RequestBody StaffAccountRequest req, Authentication auth) {
         if (!canManage(auth)) return forbidden();
         return run(() -> {
-            Object created = service.create(req);
+            Object created = service.create(req, authorities(auth));
             activity.record(auth.getName(), "STAFF_CREATED", "staff", "Created staff account " + req.email(), null, null);
             return ResponseEntity.status(201).body(created);
         });
@@ -82,7 +84,7 @@ public class StaffAccountController {
     public ResponseEntity<?> update(@PathVariable String id, @RequestBody StaffAccountRequest req, Authentication auth) {
         if (!canManage(auth)) return forbidden();
         return run(() -> {
-            Object updated = service.update(id, req, auth.getName());
+            Object updated = service.update(id, req, auth.getName(), authorities(auth));
             activity.record(auth.getName(), "STAFF_UPDATED", "staff", "Updated staff account " + (req.email() == null ? id : req.email()), null, null);
             return ResponseEntity.ok(updated);
         });
@@ -106,6 +108,11 @@ public class StaffAccountController {
             activity.record(auth.getName(), "STAFF_DELETED", "staff", "Deleted staff account " + id, null, null);
             return ResponseEntity.noContent().build();
         });
+    }
+
+    /** What the signed-in person may do (already capped by their supplier's package). */
+    private static java.util.Set<String> authorities(Authentication auth) {
+        return auth.getAuthorities().stream().map(a -> a.getAuthority()).collect(java.util.stream.Collectors.toSet());
     }
 
     private static boolean canManage(Authentication auth) {

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { User } from '../types';
 import { signInUser, signInWithCode } from '../services/api';
 import { NCT_LOGIN_LOGO_B64 } from '../constants';
+import { API_BASE } from '../services/apiBase';
 
 interface LoginScreenProps {
   users: User[];
@@ -88,7 +89,24 @@ function useNightDrive(canvas: React.RefObject<HTMLCanvasElement>, target: React
   }, [canvas, target]);
 }
 
+/** A supplier's own sign-in link (/s/CODE): its name, logo, colour and sign-in line. */
+interface Brand { code: string; name: string; logoUrl: string | null; brandColor: string | null; signInTagline: string }
+const brandCode = (): string | null => {
+  // A supplier's own address (desert-drive-rentals) or its code (DDR).
+  const m = window.location.pathname.match(/^\/s\/([A-Za-z0-9-]{2,40})\/?$/);
+  return m ? m[1] : null;
+};
+
 const LoginScreen: React.FC<LoginScreenProps> = () => {
+  const [brand, setBrand] = useState<Brand | null>(null);
+  useEffect(() => {
+    const code = brandCode();
+    if (!code) return;
+    fetch(`${API_BASE}/auth/branding?code=${encodeURIComponent(code)}`)
+      .then(r => (r.ok ? r.json() : null)).then(b => { if (b && b.name) { setBrand(b); document.title = `${b.name} · Sign in`; } })
+      .catch(() => { /* the standard sign-in page */ });
+  }, []);
+  const brandLogo = brand?.logoUrl ? (brand.logoUrl.startsWith('/api/') ? `${API_BASE}${brand.logoUrl}` : brand.logoUrl) : null;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -184,16 +202,21 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       <style>{LOGIN_CSS}</style>
       <section className="lg-scene" aria-hidden="true">
         <canvas ref={canvasRef} />
-        <div className="lg-brand lg-in lg-d1">
-          <img src={NCT_LOGIN_LOGO_B64} alt="" />
-          <div><div className="lg-brand-name">NCT Rental</div></div>
+        <div className="lg-brand lg-in lg-d1" data-testid="login-brand">
+          {brand
+            ? brandLogo
+              ? <span style={{ background: '#fff', borderRadius: 10, padding: 4, display: 'inline-flex' }}><img src={brandLogo} alt="" style={{ objectFit: 'contain' }} /></span>
+              : <span style={{ width: 40, height: 40, borderRadius: 10, background: brand.brandColor || '#4f46e5', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                  {brand.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()}</span>
+            : <img src={NCT_LOGIN_LOGO_B64} alt="" />}
+          <div><div className="lg-brand-name">{brand ? brand.name : 'NCT Rental'}</div></div>
         </div>
         <div className="lg-hero">
           <h1 className="lg-in lg-d2">Every rental, <em>from counter to return.</em></h1>
           <div className="lg-ticker lg-in lg-d4">
             <span><i />All systems running</span>
             <span>Amman <b className="lg-clock">{clock}</b></span>
-            <span>Queen Alia Airport · City Center</span>
+            {!brand && <span>Queen Alia Airport · City Center</span>}
           </div>
         </div>
       </section>
@@ -214,7 +237,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           ) : (
             <>
           <h2 className="lg-in lg-d3">Welcome back</h2>
-          <p className="lg-lead lg-in lg-d4">Sign in to your staff account</p>
+          <p className="lg-lead lg-in lg-d4">{brand?.signInTagline || (brand ? `Sign in to ${brand.name}` : 'Sign in to your staff account')}</p>
 
           <div className="lg-field lg-in lg-d5">
             <input id="username-input" name="username" type="text" placeholder=" " autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false}
@@ -238,7 +261,8 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           {capsLock && <p className="lg-caps">Caps Lock is on</p>}
           {error && <p key={errorKey} className="lg-err" role="alert">{error}</p>}
 
-          <button className={`lg-btn lg-in lg-d7 ${isLoading && !done ? 'busy' : ''} ${done ? 'done' : ''}`} type="submit" disabled={isLoading || done}>
+          <button className={`lg-btn lg-in lg-d7 ${isLoading && !done ? 'busy' : ''} ${done ? 'done' : ''}`} type="submit" disabled={isLoading || done}
+            style={brand?.brandColor ? { background: brand.brandColor, boxShadow: 'none' } : undefined}>
             <span>{done ? 'Signed in' : isLoading ? (challenge ? 'Checking…' : 'Signing in…') : (challenge ? 'Verify' : 'Sign in')}</span>
             <span className="lg-fill" />
           </button>

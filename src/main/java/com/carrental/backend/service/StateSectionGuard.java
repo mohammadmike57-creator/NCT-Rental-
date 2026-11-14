@@ -44,12 +44,16 @@ public final class StateSectionGuard {
     static final List<String> PROTECTED_USER_FIELDS = List.of("permissions", "role", "status", "webAppAccess", "password", "passwordHash");
 
     /** The person saving: their e-mail and permissions. {@link #SYSTEM} is the server itself (no limits). */
-    public record Writer(String email, Set<String> permissions) {
-        public static final Writer SYSTEM = new Writer(null, null);
+    public record Writer(String email, Set<String> permissions, Set<String> blocked) {
+        public static final Writer SYSTEM = new Writer(null, null, Set.of());
         public boolean isSystem() { return permissions == null; }
         public boolean isAdmin() { return isSystem() || permissions.contains(ADMIN); }
         public static Writer of(String email, Collection<String> permissions) {
-            return new Writer(email, permissions == null ? Set.of() : Set.copyOf(permissions));
+            return of(email, permissions, Set.of());
+        }
+        /** {@code blocked}: sections outside the supplier's package; nobody of that supplier changes them, administrators included. */
+        public static Writer of(String email, Collection<String> permissions, Collection<String> blocked) {
+            return new Writer(email, permissions == null ? Set.of() : Set.copyOf(permissions), blocked == null ? Set.of() : Set.copyOf(blocked));
         }
     }
 
@@ -76,6 +80,7 @@ public final class StateSectionGuard {
 
     /** True when this writer may replace the whole section. */
     public static boolean maySet(Writer w, String section) {
+        if (w.blocked().contains(section)) return false;   // not in the supplier's package
         if (w.isAdmin()) return true;
         Set<String> need = WRITE.get(section);
         return need == null ? !"users".equals(section) : need.stream().anyMatch(w.permissions()::contains);

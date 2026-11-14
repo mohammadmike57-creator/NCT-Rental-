@@ -10,7 +10,14 @@ import java.time.Instant;
 @Entity
 @Table(name = "channel_inventory_snapshot")
 @Getter @Setter
-public class ChannelInventorySnapshot {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class ChannelInventorySnapshot implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     @Id @Column(length = 100) private String channelId;
     @Column(nullable = false, length = 64) private String hash;
     @Column(nullable = false) private Instant sentAt;

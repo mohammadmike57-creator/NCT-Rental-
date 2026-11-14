@@ -45,6 +45,8 @@ export interface NewItem { label: string; hint: string; run: () => void }
 
 export interface AppHeaderProps {
   mainView: string;
+  /** The signed-in person's own company (each supplier sees its own name). */
+  companyName: string;
   currentUser: User | null;
   setIsSidebarOpen: (open: boolean) => void;
   sidebarCollapsed: boolean;
@@ -65,7 +67,7 @@ export interface AppHeaderProps {
 }
 
 /** The bar above every screen: title, booking search, save state, reload, month, "New", inbox and the person menu. */
-const AppHeader: React.FC<AppHeaderProps> = ({ mainView, currentUser, setIsSidebarOpen, sidebarCollapsed, toggleSidebarCollapsed, runGlobalSearch,
+const AppHeader: React.FC<AppHeaderProps> = ({ mainView, companyName, currentUser, setIsSidebarOpen, sidebarCollapsed, toggleSidebarCollapsed, runGlobalSearch,
   saveStatus, lastSaved, setMainView, fetchAllData, executeAutoSave, showDateSelectors, dates, newItems, handleNavigation, unreadCount,
   userInitials, handleLogout }) => {
   const [openMenu, setOpenMenu] = useState<null | 'new' | 'user'>(null);
@@ -88,7 +90,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ mainView, currentUser, setIsSideb
           <button className="text-slate-600 md:hidden -ml-1 p-1" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu"><MenuIcon /></button>
           <div className="min-w-0 md:w-56 shrink-0">
               <h2 className="text-[15px] font-semibold text-slate-900 truncate leading-tight" title={mainView}>{mainView}</h2>
-              <p className="text-[11px] text-slate-500 truncate" title="UR-Drive Jordan">UR-Drive Jordan</p>
+              <p className="text-[11px] text-slate-500 truncate" title={companyName}>{companyName}</p>
           </div>
           <form className="hidden md:block flex-1 max-w-md" onSubmit={e => { e.preventDefault(); const f = e.currentTarget.elements.namedItem('q') as HTMLInputElement; runGlobalSearch(f.value); f.value = ''; }} role="search">
               <div className="relative">

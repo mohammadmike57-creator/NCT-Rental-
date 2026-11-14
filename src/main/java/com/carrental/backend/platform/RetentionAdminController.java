@@ -30,6 +30,8 @@ public class RetentionAdminController {
     }
 
     private static boolean allowed(Authentication auth) {
-        return auth != null && auth.getAuthorities().stream().anyMatch(a -> "VIEW_AGGREGATOR_SETUP".equals(a.getAuthority()));
+        return auth != null && auth.getAuthorities().stream().anyMatch(a -> "VIEW_AGGREGATOR_SETUP".equals(a.getAuthority()))
+            // Platform-wide (all suppliers' data): UR-Drive Jordan's administrators only, until the admin portal.
+            && com.carrental.backend.tenant.TenantContext.DEFAULT.equals(com.carrental.backend.tenant.TenantContext.current());
     }
 }

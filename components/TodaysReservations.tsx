@@ -4,6 +4,7 @@ import CarPicture from './CarPicture';
 import { AppData, Reservation, ReservationStatus, RentalSource } from '../types';
 import { DocumentTextIcon, ClockIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Badge, Plate, EmptyState, table } from './ui/Crm';
+import { displayDay, displayTime } from '../services/displayDate';
 
 interface TodaysReservationsProps {
   fleet?: Fleet;
@@ -21,8 +22,8 @@ const KIND_META: Record<Kind, { label: string; tone: 'success' | 'danger' | 'inf
 };
 
 const splitDate = (value?: string) => ({
-  date: value?.split('T')[0] || '\u2014',
-  time: value?.split('T')[1]?.substring(0, 5) || '',
+  date: displayDay(value, false),
+  time: displayTime(value),
 });
 
 /** The next step for the booking, as in Reservations: check out, then check in, then the closed agreement. */

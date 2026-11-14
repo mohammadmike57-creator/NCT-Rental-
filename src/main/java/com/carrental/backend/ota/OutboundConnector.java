@@ -15,7 +15,14 @@ import java.time.Instant;
 @Table(name = "outbound_connector", indexes = @Index(name = "idx_conn_channel", columnList = "channelId"))
 @Getter
 @Setter
-public class OutboundConnector {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class OutboundConnector implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     public enum Type { RATE_FILE, ARI_PUSH, RES_NOTIFY }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;

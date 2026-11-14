@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { User, UserPermission, UserStatus } from '../types';
+import { hasPermission } from '../app/permissions';
 import { PlusIcon, SearchIcon, CloseIcon, ShieldCheckIcon, KeyIcon, UsersIcon, AlertIcon, CheckCircleIcon } from './icons';
 import {
   listStaffAccounts, createStaffAccount, updateStaffAccount, resetStaffPassword, deleteStaffAccount,
 } from '../services/api';
 import {
-  PERMISSION_AREAS, ALL_PERMISSIONS, effectivePermissions, ROLE_TEMPLATES, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate, PermissionArea, PermissionSection,
+  PERMISSION_AREAS as ALL_AREAS, ALL_PERMISSIONS, effectivePermissions, ROLE_TEMPLATES, rolesFor, SENSITIVE_PERMISSIONS, matchRole, generatePassword, passwordProblems, RoleTemplate, PermissionArea, PermissionSection,
 } from '../services/permissionCatalog';
 import { OnlineNowPanel, PresenceDot, LastSeenText, presenceOf, serverTime } from './OnlinePresence';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Tabs, Badge, Button, Field, SectionLabel, EmptyState, inputCls, table } from './ui/Crm';
@@ -52,12 +53,21 @@ const Switch: React.FC<{ on: boolean; disabled?: boolean; onClick: () => void; l
   </button>
 );
 
-const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPermission[]) => void; disabled?: boolean }> = ({ value, onChange, disabled }) => {
+/**
+ * {@code allowed}: what the person editing may give. Screens and roles outside it (their supplier's package, or
+ * rights they do not have themselves) are not offered; the server refuses them as well.
+ */
+const PermissionEditor: React.FC<{ value: UserPermission[]; onChange: (v: UserPermission[]) => void; disabled?: boolean; allowed?: UserPermission[] }> = ({ value, onChange, disabled, allowed }) => {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const set = new Set(value);
   const q = query.trim().toLowerCase();
-  const role = matchRole(value);
+  const allowedSet = allowed ? new Set(allowed) : null;
+  const PERMISSION_AREAS = allowedSet
+    ? ALL_AREAS.map(a => ({ ...a, sections: a.sections.filter(x => allowedSet.has(x.access.key)).map(x => ({ ...x, actions: x.actions.filter(y => allowedSet.has(y.key)) })) })).filter(a => a.sections.length > 0)
+    : ALL_AREAS;
+  const ROLE_TEMPLATES = rolesFor(allowed);
+  const role = matchRole(value, ROLE_TEMPLATES);
   const allSections = PERMISSION_AREAS.flatMap(a => a.sections);
   const openSections = allSections.filter(x => set.has(x.access.key)).length;
   const known = new Set<string>(ALL_PERMISSIONS);
@@ -268,7 +278,11 @@ const StaffDrawer: React.FC<{
     baseSalaryJOD: base.baseSalaryJOD ? String(base.baseSalaryJOD) : '',
   });
   const [permissions, setPermissions] = useState<UserPermission[]>(
-    (base.permissions as UserPermission[])?.length ? effectivePermissions(base.permissions as UserPermission[]) : [...ROLE_TEMPLATES.find(r => r.id === 'agent')!.permissions],
+    (base.permissions as UserPermission[])?.length ? effectivePermissions(base.permissions as UserPermission[]) : (() => {
+      // A new account starts as a reservations agent, or (OTA XML-only package) a broker integration manager.
+      const fits = rolesFor(ALL_PERMISSIONS.filter(p => hasPermission(currentUser, p)));
+      return [...(fits.find(r => r.id === 'agent') || fits.find(r => r.id === 'broker') || fits.find(r => r.id === 'viewer') || ROLE_TEMPLATES[0]).permissions];
+    })(),
   );
   const [status, setStatus] = useState<UserStatus>(editing?.status || UserStatus.ACTIVE);
   const [webAccess, setWebAccess] = useState(editing?.webAppAccess !== false);
@@ -375,7 +389,8 @@ const StaffDrawer: React.FC<{
           {tab === 'access' && (
             <>
               {isSelf && <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">You can't remove your own access to staff management — another administrator has to do that.</p>}
-              <PermissionEditor value={permissions} onChange={setPermissions} />
+              <PermissionEditor value={permissions} onChange={setPermissions}
+                allowed={ALL_PERMISSIONS.filter(p => hasPermission(currentUser, p))} />
             </>
           )}
 

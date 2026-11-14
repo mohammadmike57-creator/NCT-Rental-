@@ -6,11 +6,15 @@ import { parseTerms } from '../services/agreementTerms';
 import DataCleanupPanel, { CleanupSection } from './DataCleanupPanel';
 import BackupRestorePanel from './BackupRestorePanel';
 import StorageCheckPanel from './StorageCheckPanel';
+import BrandingPanel from './BrandingPanel';
+import { isPrimarySupplier } from '../services/brand';
 
 interface ManageCompanyDetailsViewProps {
   details: CompanyDetails;
   onUpdate: (newDetails: CompanyDetails) => void;
   onDeleteAllReservations?: () => void;
+  /** The supplier's code, for its branded sign-in link. */
+  supplierCode?: string;
   /** Data clean-up for administrators; hidden when not provided. */
   cleanup?: { sections: CleanupSection[]; onClear: (keys: string[]) => Promise<void>; onRestored: () => Promise<void> };
 }
@@ -30,6 +34,7 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
   details,
   onUpdate,
   cleanup,
+  supplierCode,
 }) => {
   const [formData, setFormData] = useState<CompanyDetails>(details);
   // Until the person edits something, the form follows the saved details (they may still be loading,
@@ -87,6 +92,12 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
         </Panel>
       </SettingsSection>
 
+      <SettingsSection title="Branding" description="Your logo, colour and sign-in page. Printed on agreements, invoices and receipts, and shown in the menu.">
+        <Panel footer={saveBar}>
+          <BrandingPanel value={formData} onChange={(k, v) => handleChange(k, v)} supplierCode={supplierCode} />
+        </Panel>
+      </SettingsSection>
+
       <SettingsSection title="Contact" description="Address, phone and email customers use to reach you.">
         <Panel footer={saveBar}>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -138,7 +149,7 @@ const ManageCompanyDetailsView: React.FC<ManageCompanyDetailsViewProps> = ({
         </Panel>
       </SettingsSection>
 
-      {cleanup && (
+      {cleanup && isPrimarySupplier() && (
         <SettingsSection title="Data storage" description="How bookings and records are stored, and whether every copy matches. Read only, for administrators.">
           <StorageCheckPanel />
         </SettingsSection>

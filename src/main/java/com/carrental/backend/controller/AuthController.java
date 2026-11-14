@@ -38,6 +38,9 @@ public class AuthController {
     @Autowired
     private com.carrental.backend.security.TwoStepService twoStep;
 
+    @Autowired
+    private com.carrental.backend.tenant.SupplierService suppliers;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
         // Staff can sign in with their email or their username.
@@ -49,6 +52,8 @@ public class AuthController {
         if (user == null) {
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
+        // From here the sign-in belongs to the account's supplier (its activity log, its rules).
+        com.carrental.backend.tenant.TenantContext.bind(com.carrental.backend.service.CustomUserDetailsService.supplierOf(user.getSupplierId()));
         if (user.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             activity.record(user.getEmail(), "LOGIN_FAILED", "auth", "Failed sign-in attempt (wrong password)", null, null);
             return ResponseEntity.badRequest().body("Invalid credentials");
@@ -56,6 +61,9 @@ public class AuthController {
         if ((user.getStatus() != null && user.getStatus() != com.carrental.backend.model.UserStatus.ACTIVE)
                 || Boolean.FALSE.equals(user.getWebAppAccess())) {
             return ResponseEntity.status(403).body("This account has been disabled. Contact your administrator.");
+        }
+        if (!suppliers.isActive(com.carrental.backend.tenant.TenantContext.current())) {
+            return ResponseEntity.status(403).body("Access for this company is paused. Contact the platform administrator.");
         }
         if (twoStep.isOn(user)) {
             // Password right; the login token is only given after the code (POST /auth/login/code).
@@ -73,6 +81,11 @@ public class AuthController {
             return ResponseEntity.status(401).body("The sign-in has expired. Please enter your password again.");
         }
         User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) com.carrental.backend.tenant.TenantContext.bind(com.carrental.backend.service.CustomUserDetailsService.supplierOf(user.getSupplierId()));
+        if (user != null && !suppliers.isActive(com.carrental.backend.tenant.TenantContext.current())) {
+            twoStep.finishChallenge(challenge);
+            return ResponseEntity.status(403).body("Access for this company is paused. Contact the platform administrator.");
+        }
         if (user == null || (user.getStatus() != null && user.getStatus() != com.carrental.backend.model.UserStatus.ACTIVE)
                 || Boolean.FALSE.equals(user.getWebAppAccess())) {
             twoStep.finishChallenge(challenge);
@@ -95,7 +108,7 @@ public class AuthController {
         String token = jwtUtil.generateToken(user.getEmail());
         activity.record(user.getEmail(), "LOGIN", "auth", note, null, null);
         presence.seen(user.getEmail(), true);
-        return ResponseEntity.ok(new AuthResponse(token, user));
+        return ResponseEntity.ok(new AuthResponse(token, suppliers.describe(user)));
     }
 
     @PostMapping("/change-password")
@@ -106,6 +119,7 @@ public class AuthController {
         }
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        com.carrental.backend.tenant.TenantContext.bind(com.carrental.backend.service.CustomUserDetailsService.supplierOf(user.getSupplierId()));
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             return ResponseEntity.badRequest().body("Current password is incorrect");
         }

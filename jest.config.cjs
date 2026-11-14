@@ -26,14 +26,6 @@ module.exports = {
     '!**/node_modules/**',
     '!**/dist/**',
   ],
-  coverageThresholds: {
-    global: {
-      branches: 60,
-      functions: 60,
-      lines: 60,
-      statements: 60,
-    },
-  },
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   testTimeout: 10000,
   verbose: true,

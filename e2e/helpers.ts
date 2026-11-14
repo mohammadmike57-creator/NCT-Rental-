@@ -6,8 +6,13 @@ export const PASSWORD = () => process.env.E2E_PASSWORD as string;
 
 export async function login(page: Page, email: string, password = PASSWORD()) {
   await page.goto('/');
-  await page.locator('#username-input').fill(email);
-  await page.locator('#password-input').fill(password);
+  // The sign-in form can re-render once while the page finishes loading: fill until both values stick.
+  await expect(async () => {
+    await page.locator('#username-input').fill(email);
+    await page.locator('#password-input').fill(password);
+    await expect(page.locator('#username-input')).toHaveValue(email, { timeout: 500 });
+    await expect(page.locator('#password-input')).toHaveValue(password, { timeout: 500 });
+  }).toPass({ timeout: 15_000 });
   await page.locator('button[type=submit]').click();
   await expect(page.locator('aside')).toBeVisible({ timeout: 20_000 });
 }

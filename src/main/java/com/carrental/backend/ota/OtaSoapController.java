@@ -39,9 +39,11 @@ public class OtaSoapController {
     private static final MediaType SOAP12_TYPE = new MediaType("application", "soap+xml", StandardCharsets.UTF_8);
 
     private final OtaBookingController ota;
+    private final ChannelStateReader channels;
 
-    public OtaSoapController(OtaBookingController ota) {
+    public OtaSoapController(OtaBookingController ota, ChannelStateReader channels) {
         this.ota = ota;
+        this.channels = channels;
     }
 
     @GetMapping
@@ -49,7 +51,9 @@ public class OtaSoapController {
         String address = http.getRequestURL().toString();
         String proto = http.getHeader("X-Forwarded-Proto");
         if ("https".equalsIgnoreCase(proto) && address.startsWith("http:")) address = "https:" + address.substring(5);
-        return ResponseEntity.ok().contentType(TEXT_XML).header("Cache-Control", "public, max-age=3600").body(ChannelSchemas.wsdl(address));
+        // The description names the channel's own supplier, never another one.
+        String supplier = channels.find(channel).map(ChannelSnapshot::vendorName).orElse(null);
+        return ResponseEntity.ok().contentType(TEXT_XML).header("Cache-Control", "public, max-age=3600").body(ChannelSchemas.wsdl(address, supplier));
     }
 
     @PostMapping(consumes = MediaType.ALL_VALUE)

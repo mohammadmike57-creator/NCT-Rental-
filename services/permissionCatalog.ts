@@ -163,52 +163,89 @@ export interface RoleTemplate {
   description: string;
   color: string;
   permissions: P[];
+  /** Which part of the system the role is about: shown only when the supplier's package has it. */
+  needs: 'any' | 'crm' | 'xml';
 }
 
 const OPS: P[] = [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_AGREEMENTS, P.VIEW_UNLISTED_AGREEMENTS, P.VIEW_TODAYS_RESERVATIONS, P.VIEW_NEEDS_ATTENTION, P.VIEW_FLEET_AVAILABILITY, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE];
+const BASIC: P[] = [P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE];
+const XML_WORK: P[] = [P.VIEW_AGGREGATOR_SETUP, P.ACTION_ADMIN_MANAGE_RATE_PLANS, P.ACTION_ADMIN_MANAGE_TERMS];
+const areaKeys = (id: string, skip: string[] = []) => PERMISSION_AREAS.find(a => a.id === id)!.sections.filter(x => !skip.includes(x.id)).flatMap(x => [x.access.key, ...x.actions.map(y => y.key)]);
 
+/** Ready-made roles for a supplier's staff. Platform roles (super admin, support) are set on the server, not here. */
 export const ROLE_TEMPLATES: RoleTemplate[] = [
   {
-    id: 'admin', name: 'Administrator', color: 'bg-rose-600',
-    description: 'Full access, including staff accounts and company settings',
+    id: 'owner', name: 'Owner', color: 'bg-slate-900', needs: 'any',
+    description: 'Everything the package allows, including staff, settings and deleting all bookings',
     permissions: [...ALL_PERMISSIONS],
   },
   {
-    id: 'manager', name: 'Branch manager', color: 'bg-indigo-600',
-    description: 'Runs the branch: bookings, agreements, reports, finance and incidents',
-    permissions: ALL_PERMISSIONS.filter(k => ![P.ACTION_ADMIN_MANAGE_USERS, P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS, P.ACTION_ADMIN_MANAGE_YEARS, P.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN].includes(k)),
+    id: 'admin', name: 'Administrator', color: 'bg-rose-600', needs: 'any',
+    description: 'Staff accounts, company settings and every screen, but not deleting all bookings',
+    permissions: ALL_PERMISSIONS.filter(k => k !== P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS),
   },
   {
-    id: 'agent', name: 'Reservations agent', color: 'bg-sky-600',
+    id: 'manager', name: 'Operations manager', color: 'bg-indigo-600', needs: 'crm',
+    description: 'Runs the branch: bookings, agreements, reports, finance and incidents',
+    permissions: ALL_PERMISSIONS.filter(k => ![P.ACTION_ADMIN_MANAGE_USERS, P.ACTION_ADMIN_DELETE_ALL_RESERVATIONS, P.ACTION_ADMIN_MANAGE_COMPANY_DETAILS, P.ACTION_ADMIN_MANAGE_EMAIL_SETTINGS, P.ACTION_ADMIN_MANAGE_YEARS, P.ACTION_REPORTS_VIEW_REVENUE_BREAKDOWN, ...XML_WORK].includes(k)),
+  },
+  {
+    id: 'fleet', name: 'Fleet manager', color: 'bg-amber-600', needs: 'any',
+    description: 'Vehicles, branches, extras, damage and traffic tickets',
+    permissions: [...OPS, P.VIEW_ADMIN_PANEL, P.ACTION_ADMIN_MANAGE_FLEET, P.ACTION_ADMIN_MANAGE_LOCATIONS, P.ACTION_ADMIN_MANAGE_EXTRAS,
+      P.VIEW_TRAFFIC_TICKETS, P.ACTION_TRAFFIC_TICKETS_MANAGE, P.VIEW_VEHICLE_DAMAGES, P.ACTION_VEHICLE_DAMAGES_MANAGE, P.ACTION_RESERVATIONS_ASSIGN],
+  },
+  {
+    id: 'agent', name: 'Reservations agent', color: 'bg-sky-600', needs: 'crm',
     description: 'Takes bookings and handles check-out and check-in',
     permissions: [...OPS, P.ACTION_RESERVATIONS_ADD, P.ACTION_RESERVATIONS_EDIT, P.ACTION_RESERVATIONS_EXTEND, P.ACTION_VOUCHER_MANAGE, P.ACTION_UNLISTED_AGREEMENTS_LIST, P.ACTION_RESERVATIONS_MANAGE_EXTRAS, P.VIEW_TRAFFIC_TICKETS, P.VIEW_VEHICLE_DAMAGES],
   },
   {
-    id: 'accountant', name: 'Accountant', color: 'bg-emerald-600',
+    id: 'pricing', name: 'Pricing manager', color: 'bg-violet-600', needs: 'xml',
+    description: 'Rates, price rules, extras and stop sales for every broker',
+    permissions: [...BASIC, P.VIEW_HOME_DASHBOARD, P.VIEW_FLEET_AVAILABILITY, P.VIEW_RESERVATIONS, P.VIEW_REPORTS_SOURCE_PERFORMANCE, P.VIEW_ADMIN_PANEL, P.ACTION_ADMIN_MANAGE_EXTRAS, ...XML_WORK],
+  },
+  {
+    id: 'finance', name: 'Finance user', color: 'bg-teal-600', needs: 'crm',
+    description: 'Payments, approvals, deferred payments and late returns',
+    permissions: [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, ...BASIC, ...areaKeys('finance', ['tickets', 'damages']).filter(k => k !== P.ACTION_FINANCIALS_MANAGE_FRANCHISE_PAYMENTS)],
+  },
+  {
+    id: 'accountant', name: 'Accountant', color: 'bg-emerald-600', needs: 'crm',
     description: 'Reports, accounting, payments and franchise fees',
-    permissions: [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, P.VIEW_INTERNAL_MESSAGES, P.VIEW_MY_PROFILE,
+    permissions: [P.VIEW_HOME_DASHBOARD, P.VIEW_RESERVATIONS, ...BASIC,
       ...PERMISSION_GROUPS.find(g => g.id === 'reports')!.permissions.map(x => x.key),
-      ...PERMISSION_AREAS.find(a => a.id === 'finance')!.sections.filter(x => x.id !== 'tickets' && x.id !== 'damages').flatMap(x => [x.access.key, ...x.actions.map(y => y.key)]),
+      ...areaKeys('finance', ['tickets', 'damages']),
       P.VIEW_TRAFFIC_TICKETS, P.VIEW_RESERVATION_ADDONS],
   },
   {
-    id: 'fleet', name: 'Fleet & incidents', color: 'bg-amber-600',
-    description: 'Vehicles, damage and traffic tickets',
-    permissions: [...OPS, P.VIEW_TRAFFIC_TICKETS, P.ACTION_TRAFFIC_TICKETS_MANAGE, P.VIEW_VEHICLE_DAMAGES, P.ACTION_VEHICLE_DAMAGES_MANAGE, P.ACTION_ADMIN_MANAGE_FLEET, P.ACTION_RESERVATIONS_ASSIGN],
+    id: 'broker', name: 'Broker integration manager', color: 'bg-cyan-700', needs: 'xml',
+    description: 'Broker channels, API keys, webhooks, connections and broker bookings',
+    permissions: [...BASIC, P.VIEW_FLEET_AVAILABILITY, P.VIEW_SYSTEM_ACTIVITY_LOG, ...XML_WORK],
   },
   {
-    id: 'viewer', name: 'View only', color: 'bg-slate-500',
+    id: 'viewer', name: 'Read-only', color: 'bg-slate-500', needs: 'any',
     description: 'Can look but not change anything',
-    permissions: [...OPS, P.VIEW_REPORTS_YEARLY_SUMMARY],
+    permissions: [...OPS, P.VIEW_REPORTS_YEARLY_SUMMARY, P.VIEW_AGGREGATOR_SETUP],
   },
 ];
 
+/** The roles that fit what the person editing may give (their package and their own permissions), trimmed to it. */
+export const rolesFor = (allowed?: P[]): RoleTemplate[] => {
+  if (!allowed) return ROLE_TEMPLATES;
+  const a = new Set(allowed);
+  return ROLE_TEMPLATES
+    .filter(r => r.needs === 'any' || (r.needs === 'crm' ? a.has(P.VIEW_RESERVATIONS) : a.has(P.VIEW_AGGREGATOR_SETUP)))
+    .map(r => ({ ...r, permissions: r.permissions.filter(k => a.has(k)) }))
+    .filter((r, i, all) => r.permissions.length > 0 && all.findIndex(o => o.permissions.length === r.permissions.length && o.permissions.every(k => r.permissions.includes(k))) === i);
+};
+
 /** The role whose permissions match exactly, if any. */
-export const matchRole = (perms: string[]): RoleTemplate | undefined => {
+export const matchRole = (perms: string[], roles: RoleTemplate[] = ROLE_TEMPLATES): RoleTemplate | undefined => {
   // Only compare permissions the catalogue knows about (older accounts may carry retired names).
   const known = new Set<string>(ALL_PERMISSIONS);
   const set = new Set(perms.filter(k => known.has(k)));
-  return ROLE_TEMPLATES.find(r => r.permissions.length === set.size && r.permissions.every(k => set.has(k)));
+  return roles.find(r => r.permissions.length === set.size && r.permissions.every(k => set.has(k)));
 };
 
 /** Password generator for new accounts / resets: letters and digits, no look-alikes. */

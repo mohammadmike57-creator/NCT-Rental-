@@ -18,12 +18,14 @@ import { pickupMonthOf } from './services/pickupMonth';
 import MisfiledNotice from './components/MisfiledNotice';
 import DeleteAgreementDialog from './components/DeleteAgreementDialog';
 import { flushActivity } from './services/activityTracker';
-import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, markSignedOut, rememberServerState, clearDataSections } from './services/api';
+import { signOutUser, onAuthStateChangedListener, fetchInitialData, fetchStateIfChanged, saveAllData, fetchCurrentAccount, recordActivity, markSignedOut, rememberServerState, clearDataSections, API_URL } from './services/api';
 
 import { ReservationTable, SummaryTable, ManageSourcesView, Invoice, ManageFleetView, FleetAvailability, Voucher, Receipt, SourcePerformanceReport, ReservationAddOnsView, TrafficTickets, VehicleDamages, LoginScreen, ExtendRentalModal, ExtrasManagerModal, UnlistedAgreementModal, UnlistedAgreementsView, ManageCompanyDetailsView, AgreementTermsView, ManageYearsView, UserManagement, AccountingDashboard, InternalMessages, TodaysReservations, NeedsAttentionView, HomePage, ManageLocationsView, DeferredPayments, PaymentApprovals, ManageExtrasView, ProfileView, AggregatorSetupView, StaffActivityView, EmailSettingsView, ExcelUpload } from './app/lazyViews';
 import AnimatedModal from './components/ui/AnimatedModal';
 import ConfirmationMessage from './components/ui/ConfirmationMessage';
 import { cleanUndefined, getInitialState } from './app/initialState';
+
+const BLANK_COMPANY: CompanyDetails = { name: '', subName: '', address: '', phone: '', email: '', taxNumber: '' };
 import { usePresence, useLeaveWarning } from './app/usePresence';
 import { useUnlistedAgreements } from './app/useUnlistedAgreements';
 import { sidebarLinks } from './app/navigation';
@@ -34,6 +36,9 @@ import AppHeader from './app/AppHeader';
 import PhoneTabBar from './app/PhoneTabBar';
 import GuidePlayer from './app/GuidePlayer';
 import ActionFeedback from './components/ui/ActionFeedback';
+import SupportBanner from './components/platform/SupportBanner';
+import { isSupportView, keepCachesFor } from './services/session';
+import { setBrand, setMediaBase } from './services/brand';
 
 const USERS_CACHE_KEY = 'NCT_USERS_CACHE';
 
@@ -240,10 +245,11 @@ export const App: React.FC = () => {
       setReservations(migratedReservations);
       setSources(normalizeSources(data.sources || initialState.sources));
       setFleet(data.fleet || initialState.fleet);
-      setCompanyDetails({
-        ...initialState.companyDetails,
-        ...(data.companyDetails || {}),
-      });
+      // Saved details are used as they are: the built-in sample details (UR-Drive Jordan's) only fill a system
+      // that has none at all, never a company's empty fields.
+      setCompanyDetails(data.companyDetails
+        ? { ...BLANK_COMPANY, ...(data.companyDetails as Partial<CompanyDetails>) }
+        : { ...initialState.companyDetails });
       setTrafficTickets(data.trafficTickets || initialState.trafficTickets);
       setVehicleDamages(data.vehicleDamages || initialState.vehicleDamages);
       
@@ -322,7 +328,8 @@ export const App: React.FC = () => {
         fetchCurrentAccount()
           .then(fresh => {
             if (fresh && fresh.id) {
-              localStorage.setItem('user', JSON.stringify(fresh));
+              // A support view keeps the profile in this tab only; the admin's own saved profile stays as it is.
+              if (!isSupportView()) localStorage.setItem('user', JSON.stringify(fresh));
               setCurrentUser(fresh);
             }
           })
@@ -422,6 +429,7 @@ export const App: React.FC = () => {
   const executeAutoSaveRef = useRef<(() => void) | null>(null);
   const executeAutoSave = useCallback(async () => {
     if (!isAuthenticated) return;
+    if (isSupportView()) { setSaveStatus('saved'); return; }   // platform support view: read-only, nothing is saved
     setSaveStatus('saving');
     ReservationSyncService.setSaving(true);
     
@@ -493,11 +501,31 @@ export const App: React.FC = () => {
   }, [reservations, sources, fleet, companyDetails, trafficTickets, vehicleDamages, users, expenses, messages, rentalLocations, invoices, availableExtras, franchisePayments, activityLog, aggregators, stopSales, years, isLoading, executeAutoSave]);
 
   useEffect(() => {
-    if (authChecked && !isLoading && currentUser && !users.some(u => u.id === currentUser.id)) {
+    if (authChecked && !isLoading && currentUser && !isSupportView() && !users.some(u => u.id === currentUser.id)) {
+        // A new company starts with an empty staff list: its first person is added without a message.
+        if (users.length > 0) showConfirmation('Your user profile was restored.');
         setUsers(prev => [...prev, currentUser]);
-        showConfirmation('Your user profile was restored.');
     }
   }, [authChecked, isLoading, currentUser, users]);
+
+  // Documents and the menu use the signed-in supplier's own logo and colour.
+  setMediaBase(API_URL);
+  // Another company signed in on this browser: its cached drafts and lists are not shown to this one.
+  useEffect(() => { if (currentUser?.id) keepCachesFor(currentUser.supplierId); }, [currentUser?.id, currentUser?.supplierId]);
+  setBrand(isSupportView() ? 'support-view' : currentUser?.supplierId, companyDetails);
+
+  // A screen the person cannot use (for example Home in an OTA XML-only package): open the first one they can.
+  useEffect(() => {
+    if (!currentUser) return;
+    const links = Object.values(sidebarLinks({ unlistedWaitingCount: 0, unlistedNewCount: 0, attentionCount: 0, unreadCount: 0,
+      pendingApprovalsCount: 0, openUnlistedAgreement: () => undefined })).flat().filter(l => !l.action);
+    const current = links.find(l => l.name === mainView);
+    if (!current || hasPermission(currentUser, current.permission)) return;
+    // An OTA XML-only package opens on OTA XML; otherwise the first screen in the menu the person can use.
+    const first = links.find(l => l.name === 'OTA XML' && hasPermission(currentUser, l.permission) && currentUser.supplierPlan === 'XML')
+      || links.find(l => hasPermission(currentUser, l.permission));
+    if (first) setMainView(first.name);
+  }, [currentUser, mainView]);
 
   const handleLogout = async () => {
     recordActivity('LOGOUT', 'auth', 'Signed out');
@@ -1468,7 +1496,7 @@ export const App: React.FC = () => {
         localStorage.setItem('availableExtras', JSON.stringify(newExtras));
         if (await saveSections({ availableExtras: newExtras }, 'Extras updated.', 'Failed to save extras to server, but stored locally.', 'warning')) await fetchAllData();
     }} />, permission: UserPermission.ACTION_ADMIN_MANAGE_EXTRAS },
-    'Company Details': { component: <ManageCompanyDetailsView details={companyDetails} onUpdate={async (newDetails) => {
+    'Company Details': { component: <ManageCompanyDetailsView details={companyDetails} supplierCode={currentUser?.supplierCode} onUpdate={async (newDetails) => {
         setCompanyDetails(newDetails);
         await saveSections({ companyDetails: newDetails }, 'Company details updated.', 'Failed to save company details. Check connection.');
     }} cleanup={hasPermission(currentUser, UserPermission.ACTION_ADMIN_MANAGE_USERS) ? { sections: cleanupSections, onClear: handleClearData, onRestored: handleBackupRestored } : undefined} />, permission: UserPermission.ACTION_ADMIN_MANAGE_COMPANY_DETAILS },
@@ -1541,13 +1569,15 @@ export const App: React.FC = () => {
     handleNavigation('Reservations', { bookingIdSearch: term });
   };
   return (
-    <div className="flex h-screen bg-slate-50">
+    <>
+    {isSupportView() && <SupportBanner company={companyDetails?.name || ''} />}
+    <div className={`flex bg-slate-50 ${isSupportView() ? 'h-[calc(100vh-40px)]' : 'h-screen'}`}>
       <AppSidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} sidebarCollapsed={sidebarCollapsed}
         toggleSidebarCollapsed={toggleSidebarCollapsed} sidebarGroups={sidebarGroups} companyDetails={companyDetails}
         currentUser={currentUser} mainView={mainView} handleNavigation={handleNavigation} userInitials={userInitials} handleLogout={handleLogout} />
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <AppHeader mainView={mainView} currentUser={currentUser} setIsSidebarOpen={setIsSidebarOpen} sidebarCollapsed={sidebarCollapsed}
+        <AppHeader mainView={mainView} companyName={companyDetails?.name || ''} currentUser={currentUser} setIsSidebarOpen={setIsSidebarOpen} sidebarCollapsed={sidebarCollapsed}
             toggleSidebarCollapsed={toggleSidebarCollapsed} runGlobalSearch={runGlobalSearch} saveStatus={saveStatus} lastSaved={lastSaved}
             setMainView={setMainView} fetchAllData={() => { fetchAllData(); }} executeAutoSave={() => { executeAutoSave(); }}
             showDateSelectors={showDateSelectors} newItems={newItems} handleNavigation={handleNavigation} unreadCount={unreadCount}
@@ -1620,5 +1650,6 @@ export const App: React.FC = () => {
       <ActionFeedback />
 
     </div>
+    </>
   );
 };

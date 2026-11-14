@@ -68,7 +68,7 @@ const STATUS_TONE: Record<AddOnStatus, 'default' | 'info' | 'success' | 'warning
 };
 
 const usd = (n: number, signed = false) => `${signed && n > 0 ? '+' : n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const jod = (n: number, signed = false) => `${signed && n > 0 ? '+' : n < 0 ? '−' : ''}JOD ${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
+const jod = (n: number, signed = false) => `${signed && n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} JOD`;
 const money = (n: number, cur: 'USD' | 'JOD', signed = false) => (cur === 'JOD' ? jod(n, signed) : usd(n, signed));
 const both = (m: Record<'USD' | 'JOD', number>) => [m.USD ? usd(m.USD) : '', m.JOD ? jod(m.JOD) : ''].filter(Boolean).join(' · ') || '—';
 const fmtDate = (iso?: string, time = false) => {
@@ -219,7 +219,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
     const lines = rows.flatMap(s => s.entries.filter(matches).map(e => [
       s.reservation.bookingId, s.reservation.personName, sourceName(s.reservation.source), s.reservation.startDate, s.reservation.endDate,
       s.originalPrice.toFixed(2), s.currentPrice.toFixed(2), e.at || '', KIND_LABEL[e.kind], e.title, e.detail || '', e.by || '', e.reference || '', STATUS_LABEL[e.status],
-      e.amount.toFixed(e.currency === 'JOD' ? 3 : 2), e.currency,
+      e.amount.toFixed(2), e.currency,
     ]));
     const csv = [head, ...lines].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const a = document.createElement('a');
@@ -248,7 +248,7 @@ const ReservationAddOnsView: React.FC<Props> = ({ allData, tickets, damages, sou
 
       <StatGrid items={[
         { label: 'Bookings with add-ons', value: withAddOns.length, sub: `of ${inScope.length} booking${inScope.length === 1 ? '' : 's'} (${inScope.length ? Math.round((withAddOns.length / inScope.length) * 100) : 0}%)` },
-        { label: 'Added to rental price', value: usd(kpi.priceNet, true), sub: kpi.priceUp.USD !== kpi.priceNet ? `${usd(kpi.priceUp.USD)} added, less reductions` : 'extras, upgrades, extensions', tone: kpi.priceNet > 0 ? 'success' : 'default' },
+        { label: 'Added to rental price', value: kpi.priceNet ? usd(kpi.priceNet, true) : '—', sub: kpi.priceUp.USD !== kpi.priceNet ? `${usd(kpi.priceUp.USD)} added, less reductions` : 'extras, upgrades, extensions', tone: kpi.priceNet > 0 ? 'success' : 'default' },
         { label: 'Charges raised', value: <Stack m={kpi.charges} />, sub: 'damages, tickets, fees' },
         { label: 'Outstanding', value: <Stack m={kpi.outstanding} />, sub: 'claims, tickets, extensions', tone: kpi.outstanding.USD || kpi.outstanding.JOD ? 'danger' : 'default', active: status === 'open', onClick: () => setStatus(s => (s === 'open' ? 'all' : 'open')) },
         { label: 'Waived', value: <Stack m={kpi.waived} />, sub: 'fees not charged', tone: 'muted' },

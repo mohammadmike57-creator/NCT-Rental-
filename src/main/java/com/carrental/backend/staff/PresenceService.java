@@ -108,7 +108,7 @@ public class PresenceService {
     /** The people online or away right now, most recently active first. */
     public List<Map<String, Object>> onlineNow() {
         List<Map<String, Object>> out = new ArrayList<>();
-        for (User u : withLiveStatus(new ArrayList<>(users.findAll()))) {
+        for (User u : withLiveStatus(new ArrayList<>(users.findAll().stream().filter(u -> com.carrental.backend.tenant.SupplierScope.mine(u.getSupplierId())).toList()))) {
             if ("offline".equals(u.getPresence())) continue;
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", u.getId());

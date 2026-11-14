@@ -11,7 +11,14 @@ import java.time.Instant;
 @Table(name = "connector_send", indexes = @Index(name = "idx_csend_due", columnList = "status,nextAttemptAt"))
 @Getter
 @Setter
-public class ConnectorSend {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class ConnectorSend implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     public enum Status { PENDING, SENT, FAILED }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;

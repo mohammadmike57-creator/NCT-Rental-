@@ -18,9 +18,14 @@ public class ChannelSnapshot {
     private final JsonNode stopSales;
     private final String companyName;
 
+    /** The supplier that owns this channel; every call for it is answered from that supplier's data only. */
+    private final String supplierId;
+    public String supplierId() { return supplierId; }
+
     public ChannelSnapshot(JsonNode channel, JsonNode fleet, JsonNode stopSales) { this(channel, fleet, stopSales, null); }
 
     public ChannelSnapshot(JsonNode channel, JsonNode fleet, JsonNode stopSales, String companyName) {
+        this.supplierId = com.carrental.backend.tenant.TenantContext.current();   // read from this supplier's data
         this.channel = channel;
         this.companyName = companyName;
         this.fleet = fleet == null || !fleet.isArray() ? com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.arrayNode() : fleet;

@@ -211,7 +211,9 @@ public class ChannelWebhookService {
                 deliveries.save(d);
                 continue;
             }
-            if (attempt(d).getStatus() != ChannelWebhookDelivery.Status.DELIVERED) down.add(d.getUrl());
+            boolean[] delivered = {false};
+            channels.asOwner(d.getChannelId(), () -> delivered[0] = attempt(d).getStatus() == ChannelWebhookDelivery.Status.DELIVERED);
+            if (!delivered[0]) down.add(d.getUrl());
         }
     }
 
@@ -222,16 +224,21 @@ public class ChannelWebhookService {
             URI target = OutboundUrlGuard.check(d.getUrl());   // public HTTPS only (no SSRF)
             String secret = secretFor(d.getChannelId());
             long ts = Instant.now().getEpochSecond();
-            HttpRequest req = HttpRequest.newBuilder(target)
+            String signature = "sha256=" + sign(secret, ts + "." + d.getPayload());
+            HttpRequest.Builder rq = HttpRequest.newBuilder(target)
                 .timeout(Duration.ofSeconds(15))
                 .header("Content-Type", "application/json")
-                .header("User-Agent", "NCT-Rental-Webhooks/1.0")
-                .header("X-NCT-Event", d.getEventType())
-                .header("X-NCT-Delivery", d.getEventId())
-                .header("X-NCT-Timestamp", String.valueOf(ts))
-                .header("X-NCT-Signature", "sha256=" + sign(secret, ts + "." + d.getPayload()))
-                .POST(HttpRequest.BodyPublishers.ofString(d.getPayload(), StandardCharsets.UTF_8))
-                .build();
+                .header("User-Agent", "Rental-Webhooks/1.0")
+                .header("X-Webhook-Event", d.getEventType())
+                .header("X-Webhook-Delivery", d.getEventId())
+                .header("X-Webhook-Timestamp", String.valueOf(ts))
+                .header("X-Webhook-Signature", signature);
+            // UR-Drive Jordan's brokers may already read the original header names; nobody else ever gets them.
+            if (com.carrental.backend.tenant.TenantContext.DEFAULT.equals(com.carrental.backend.tenant.TenantContext.current())) {
+                rq.header("X-NCT-Event", d.getEventType()).header("X-NCT-Delivery", d.getEventId())
+                  .header("X-NCT-Timestamp", String.valueOf(ts)).header("X-NCT-Signature", signature);
+            }
+            HttpRequest req = rq.POST(HttpRequest.BodyPublishers.ofString(d.getPayload(), StandardCharsets.UTF_8)).build();
             HttpResponse<String> res = http.send(req, OutboundUrlGuard.boundedReply());
             d.setLastHttpStatus(res.statusCode());
             if (res.statusCode() >= 200 && res.statusCode() < 300) {

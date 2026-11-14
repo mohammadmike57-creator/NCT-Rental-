@@ -2221,4 +2221,29 @@ class ChannelGatewayIntegrationTest {
         stats.path("protocols").forEach(p -> seen.add(p.path("protocol").asText()));
         assertTrue(seen.containsAll(List.of("OTA 2024A · Version 5.000", "OTA v1", "OTA v1 · SOAP 1.2 · Version 1.003")), seen.toString());
     }
+
+    @Test
+    void requestStatisticsKeepRealLiveRequestsApartFromTestsTurnedAwayCallsAndChecks() throws Exception {
+        JsonNode before = trafficStats();
+        send("/ota/v1/BKG/OTA_VehAvailRate", avail("R1"));                                                    // real live search
+        mvc.perform(post("/ota/v1/BKG/OTA_VehAvailRate").header("X-Api-Key", "wrong").contentType(MediaType.APPLICATION_XML).content(avail("R2")));
+        send("/ota/v1/BKG/OTA_Ping", "<OTA_PingRQ EchoToken=\"P\"><EchoData>hi</EchoData></OTA_PingRQ>");   // service check
+        mvc.perform(post("/api/channels/agg-1/console").header("Authorization", staffToken()).contentType(MediaType.APPLICATION_JSON)
+            .content(M.writeValueAsString(java.util.Map.of("format", "OTA", "body", avail("R3"))))).andExpect(status().isOk());
+        JsonNode after = trafficStats();
+        java.util.function.ToLongFunction<String> d = k -> after.path(k).asLong() - before.path(k).asLong();
+        assertEquals(4, d.applyAsLong("calls"));
+        assertEquals(1, d.applyAsLong("liveCalls"), "only the real search counts as a request");
+        assertEquals(1, d.applyAsLong("rejectedCalls"), "the wrong key is turned away");
+        assertEquals(1, d.applyAsLong("pingCalls"));
+        assertEquals(1, d.applyAsLong("testCalls"), "the console call is a test");
+        assertEquals(0, d.applyAsLong("liveErrors"), "the refused call is not a failed real request");
+        assertEquals(after.path("calls").asLong(), after.path("liveCalls").asLong() + after.path("rejectedCalls").asLong()
+            + after.path("pingCalls").asLong() + after.path("testCalls").asLong());
+    }
+
+    private JsonNode trafficStats() throws Exception {
+        return M.readTree(mvc.perform(get("/api/channels/agg-1/traffic/stats?hours=1").header("Authorization", staffToken()))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+    }
 }

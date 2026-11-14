@@ -6,6 +6,7 @@ import SecurityKeyModal from './SecurityKeyModal';
 import { brandFields, deliverCustomerEmail, supportLine } from '../services/emailBrand';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, Field, EmptyState, DetailList, SectionLabel, Dialog, Drawer, inputCls, selectCls, textareaCls, labelCls, table } from './ui/Crm';
 import { USD_TO_JOD_RATE } from '../constants';
+import { displayDayTime } from '../services/displayDate';
 
 interface VehicleDamagesProps {
   damages: VehicleDamage[];
@@ -622,7 +623,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
                           <p className="font-semibold text-slate-900">{res?.personName || <span className="text-slate-400 font-normal">Unknown renter</span>}</p>
                           <p className="text-xs text-slate-500"><span className="font-mono">#{damage.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
                         </td>
-                        <td className={`${table.td} whitespace-nowrap text-xs text-slate-600 tabular-nums`}>{res ? <>{res.startDate}<br />{res.endDate}</> : <span className="text-slate-400">-</span>}</td>
+                        <td className={`${table.td} whitespace-nowrap text-xs text-slate-600 tabular-nums`}>{res ? <>{displayDayTime(res.startDate)}<br />{displayDayTime(res.endDate)}</> : <span className="text-slate-400">-</span>}</td>
                         <td className={`${table.td} whitespace-nowrap text-right font-semibold text-slate-900 tabular-nums`}>{repairCostCell(damage, false)}</td>
                         <td className={`${table.td} whitespace-nowrap text-slate-700`}>{reportNumberCell(damage, false)}</td>
                         <td className={`${table.td} whitespace-nowrap text-right font-semibold text-slate-900 tabular-nums`}>{excessCell(damage, false)}</td>
@@ -689,7 +690,7 @@ const VehicleDamages: React.FC<VehicleDamagesProps> = ({ damages, allData, onAdd
               <DetailList rows={[
                 { label: 'Renter', value: drawerRes?.personName || <span className="text-slate-400">Unknown</span> },
                 { label: 'Vehicle', value: drawerRes?.carModel || '-' },
-                { label: 'Rental period', value: <span className="tabular-nums">{drawerRes ? `${drawerRes.startDate} – ${drawerRes.endDate}` : '-'}</span> },
+                { label: 'Rental period', value: <span className="tabular-nums">{drawerRes ? `${displayDayTime(drawerRes.startDate)} – ${displayDayTime(drawerRes.endDate)}` : '-'}</span> },
                 { label: 'Renter email', value: drawerRes?.customerEmail || <span className="text-slate-400">Not on voucher</span> },
               ]} />
             </div>

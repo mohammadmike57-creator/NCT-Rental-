@@ -10,4 +10,6 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findFirstByUsernameIgnoreCase(String username);
     boolean existsByEmail(String email);
     boolean existsByUsername(String username);
+    /** Usernames are unique on the whole platform, whatever the letter case (sign-in ignores case). */
+    boolean existsByUsernameIgnoreCase(String username);
 }

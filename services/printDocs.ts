@@ -2,7 +2,7 @@ import { waitForFonts } from './docFonts';
 import { CompanyDetails, Fleet, RentalLocation, RentalSource, Reservation } from '../types';
 import { carPhotoFor } from './carPhoto';
 import { isPrepaid } from './paymentType';
-import { URDRIVE_LOGO_B64 } from '../constants';
+import { documentLogo } from './brand';
 import { buildAgreementHtml } from './agreementDoc';
 import { buildTerminationHtml } from './terminationDoc';
 
@@ -18,7 +18,7 @@ const docInput = (r: Reservation, ctx: PrintContext) => {
   const extras = (r.extras || []).reduce((s, e) => (e.isComplementary ? s : s + e.dailyPrice * days), 0);
   const loc = ctx.locations.find(l => l.name === r.locationName);
   return {
-    reservation: r, company: ctx.company, logo: URDRIVE_LOGO_B64, checklistItems: CHECKLIST_ITEMS, rentalDays: days,
+    reservation: r, company: ctx.company, logo: documentLogo(ctx.company), checklistItems: CHECKLIST_ITEMS, rentalDays: days,
     baseRentalFee: r.baseAmount ?? ((r.amount || 0) - extras), locationName: loc?.name || r.locationName, locationAddress: loc?.address,
     prepaid: isPrepaid(r, ctx.sources),
     vehiclePhoto: carPhotoFor(ctx.fleet, r.licensePlate, r.carModel),

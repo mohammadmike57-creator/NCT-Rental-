@@ -7,7 +7,14 @@ import java.time.Instant;
 /** Audit record of every XML exchange with a partner, in either direction. */
 @Entity
 @Table(name = "channel_delivery_log", indexes = @Index(name = "idx_cdl_channel_created", columnList = "channelId,createdAt"))
-public class ChannelDeliveryLog {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class ChannelDeliveryLog implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
 
     public enum Direction { OUTBOUND, INBOUND }
 

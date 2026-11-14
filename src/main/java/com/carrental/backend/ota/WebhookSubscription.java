@@ -11,7 +11,14 @@ import java.time.Instant;
 @Table(name = "webhook_subscription", indexes = @Index(name = "idx_whsub_channel", columnList = "channelId,environment"))
 @Getter
 @Setter
-public class WebhookSubscription {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class WebhookSubscription implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     public enum Status { ACTIVE, PAUSED, DISABLED }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;

@@ -114,6 +114,8 @@ public class ChannelGateway {
             sandbox = sandboxHeader;   // known from here on, also for the errors below
             ChannelBookingService.Ctx ctx = core.context(ch, sandboxHeader);
             sandbox = ctx.sandbox();
+            String denied = channels.accessProblem(ch.supplierId(), sandbox);   // the platform switched test or live off
+            if (denied != null) throw ChannelError.PERMISSION_DENIED.ex(denied);
             Rendered ok = action.apply(new Call(ctx, rid));
             log2.recordInbound(ch, messageType, 200, true, null, bytes, ms(start), remote);
             traffic.record(ch, http, messageType, body, rid, 200, true, null, null, ok.body(), ms(start), remote, sandbox);

@@ -40,8 +40,13 @@ test('the app works on a phone', async ({ browser }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await page.locator('#username-input').fill(ADMIN);
-  await page.locator('#password-input').fill(process.env.E2E_PASSWORD as string);
+  // The sign-in form can re-render once while the page finishes loading: fill until both values stick.
+  await expect(async () => {
+    await page.locator('#username-input').fill(ADMIN);
+    await page.locator('#password-input').fill(process.env.E2E_PASSWORD as string);
+    await expect(page.locator('#username-input')).toHaveValue(ADMIN, { timeout: 500 });
+    await expect(page.locator('#password-input')).not.toHaveValue('', { timeout: 500 });
+  }).toPass({ timeout: 15_000 });
   await page.locator('button[type=submit]').click();
   await expect(page.getByText(/Dashboard|Reservations/).first()).toBeVisible({ timeout: 20_000 });
   const width = await page.evaluate(() => document.documentElement.scrollWidth);

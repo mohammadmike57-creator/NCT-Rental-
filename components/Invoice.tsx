@@ -1,7 +1,8 @@
 import { isPrepaid as bookingIsPrepaid } from '../services/paymentType';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppData, Aggregator, CompanyDetails, InvoiceData, InvoiceLine, PaymentType, RentalSource, Reservation, ReservationStatus, YearData } from '../types';
-import { MONTHS, URDRIVE_LOGO_B64 } from '../constants';
+import { MONTHS } from '../constants';
+import { documentLogo } from '../services/brand';
 import { sendCustomerEmail, recordActivity } from '../services/api';
 import { brandFields, supportLine } from '../services/emailBrand';
 import { downloadPdf, htmlToPdfBase64 } from '../services/agreementPdf';
@@ -144,7 +145,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
     grandTotalInWords: amountInWords(totals.total, currency), status: 'issued', currency, taxRate: rate, taxMode, terms, dueDate,
     poNumber: poNumber.trim() || undefined, notes: notes.trim() || undefined, paymentInstructions: payInstr.trim() || undefined, issuedBy: currentUserName,
   };
-  const draftHtml = useMemo(() => buildInvoiceHtml(draft, companyDetails, URDRIVE_LOGO_B64),
+  const draftHtml = useMemo(() => buildInvoiceHtml(draft, companyDetails, documentLogo(companyDetails)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify({ ...draft, generatedAt: draft.generatedAt.slice(0, 10) }), companyDetails]);
 
@@ -423,7 +424,7 @@ const Invoice: React.FC<InvoiceProps> = ({ yearData, allData, year, month, compa
 };
 
 const InvoiceDrawer: React.FC<{ invoice: InvoiceData; company: CompanyDetails; onClose: () => void; onUpdate: (i: InvoiceData) => void; canUpdate: boolean; flash: (t: string) => void }> = ({ invoice, company, onClose, onUpdate, canUpdate, flash }) => {
-  const html = useMemo(() => buildInvoiceHtml(invoice, company, URDRIVE_LOGO_B64), [invoice, company]);
+  const html = useMemo(() => buildInvoiceHtml(invoice, company, documentLogo(company)), [invoice, company]);
   const st = invoiceState(invoice);
   const [busy, setBusy] = useState<'pdf' | 'email' | null>(null);
   const [emailTo, setEmailTo] = useState(invoice.billToEmail || '');

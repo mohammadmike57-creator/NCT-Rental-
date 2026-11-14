@@ -18,7 +18,14 @@ import java.time.LocalDateTime;
     @Index(name = "idx_offer_hold", columnList = "status,sippCode,expiresAt"),
     @Index(name = "idx_offer_created", columnList = "createdAt")})
 @Getter @Setter
-public class ChannelOffer {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class ChannelOffer implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     public enum Status { QUOTED, HELD, CONVERTED, EXPIRED, RELEASED }
 
     @Id @Column(length = 40) private String id;

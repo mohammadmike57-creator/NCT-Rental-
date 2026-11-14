@@ -23,7 +23,9 @@ public class StorageController {
     public StorageController(DataStore store) { this.store = store; }
 
     private static boolean isAdmin(Authentication auth) {
-        return auth != null && auth.getAuthorities().stream().anyMatch(a -> "ACTION_ADMIN_MANAGE_USERS".equals(a.getAuthority()));
+        return auth != null && auth.getAuthorities().stream().anyMatch(a -> "ACTION_ADMIN_MANAGE_USERS".equals(a.getAuthority()))
+            // Platform-wide (all suppliers' data): UR-Drive Jordan's administrators only, until the admin portal.
+            && com.carrental.backend.tenant.TenantContext.DEFAULT.equals(com.carrental.backend.tenant.TenantContext.current());
     }
 
     private static ResponseEntity<?> forbidden() {

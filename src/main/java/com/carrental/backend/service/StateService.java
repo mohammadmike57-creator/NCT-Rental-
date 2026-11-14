@@ -26,6 +26,8 @@ public class StateService {
     private final org.springframework.context.ApplicationEventPublisher events;
     /** How the main document is stored (one row, or bookings and records in their own tables): see DataStore. */
     private final com.carrental.backend.store.DataStore dataStore;
+    /** Which supplier owns each broker channel code, kept current on every save. */
+    private final com.carrental.backend.tenant.ChannelRegistry channelRegistry;
 
     private static final String INITIAL_STATE = "{" +
         "\"reservations\":{}," +
@@ -64,6 +66,10 @@ public class StateService {
     // Every read-modify-write below is synchronised and saves (and commits) before releasing the lock,
     // so concurrent saves are applied one after another on the latest data. (No @Transactional here:
     // it would commit after the lock is released and let a parallel save read stale data.)
+    /**
+     * The office data of the supplier this request works for (see {@link com.carrental.backend.tenant.TenantContext}):
+     * UR-Drive Jordan's original document, or another supplier's own. There is no way to name another supplier here.
+     */
     public synchronized String getFullState() {
         return loadMain().getData();
     }
@@ -124,7 +130,9 @@ public class StateService {
             JsonNode merged = deepMerge(current, updates);
             String mergedJson = objectMapper.writeValueAsString(merged);
             appData.setData(mergedJson);
-            dataStore.saveMain(appData);
+            save(appData, merged);
+        } catch (com.carrental.backend.tenant.ChannelRegistry.ChannelTakenException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to merge state: " + e.getMessage(), e);
         }
@@ -153,37 +161,81 @@ public class StateService {
         } catch (Exception e) {
             log.warn("Could not keep a backup before this update: {}", e.getMessage());
         }
+        // Every other supplier's office data gets the same copy.
+        for (String id : appDataRepository.idsLike(com.carrental.backend.tenant.SupplierService.documentId("") + "%")) {
+            if (id.contains("-auto-") || id.contains("-backup-")) continue;
+            try {
+                String supplier = id.substring(com.carrental.backend.tenant.SupplierService.documentId("").length());
+                appDataRepository.currentData(id).ifPresent(data -> {
+                    AppData copy = new AppData();
+                    copy.setId(backupPrefix(supplier) + "backup-before-update-" + Instant.now().toString().replace(':', '-'));
+                    copy.setData(data);
+                    appDataRepository.save(copy);
+                    List<String> ids = appDataRepository.idsLike(backupPrefix(supplier) + "backup-before-update-%");
+                    for (int i = UPDATE_BACKUPS_KEPT; i < ids.size(); i++) appDataRepository.deleteById(ids.get(i));
+                });
+            } catch (Exception e) {
+                log.warn("Could not keep a backup of {} before this update: {}", id, e.getMessage());
+            }
+        }
     }
 
     /** All the data as one JSON file for an administrator to keep (passwords removed). */
     public String backupFileContent() {
         return getStateForClient();
     }
-    private Instant lastAutoBackup;
+    private final Map<String, Instant> lastAutoBackup = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Before data changes, keeps a full copy of the data as an "auto-<timestamp>" row at most once an
-     * hour (and on the first change after the server starts), so any mistake can be restored.
+     * hour (and on the first change after the server starts), so any mistake can be restored. Each supplier
+     * has its own copies.
      */
     private void autoBackup(AppData current) {
         try {
+            String supplier = com.carrental.backend.tenant.TenantContext.current();
             Instant now = Instant.now();
-            if (lastAutoBackup != null && now.isBefore(lastAutoBackup.plusSeconds(3600))) return;
+            Instant last = lastAutoBackup.get(supplier);
+            if (last != null && now.isBefore(last.plusSeconds(3600))) return;
             AppData copy = new AppData();
-            copy.setId("auto-" + now.toString().replace(':', '-'));
+            copy.setId(backupPrefix(supplier) + "auto-" + now.toString().replace(':', '-'));
             copy.setData(current.getData());
             appDataRepository.save(copy);
-            lastAutoBackup = now;
-            List<String> ids = appDataRepository.autoBackupIds();
+            lastAutoBackup.put(supplier, now);
+            List<String> ids = isDefault(supplier) ? appDataRepository.autoBackupIds() : appDataRepository.idsLike(backupPrefix(supplier) + "auto-%");
             for (int i = AUTO_BACKUPS_KEPT; i < ids.size(); i++) appDataRepository.deleteById(ids.get(i));
         } catch (Exception e) {
             // A failed backup must never block saving.
         }
     }
 
+    private static boolean isDefault(String supplier) {
+        return com.carrental.backend.tenant.TenantContext.DEFAULT.equals(supplier);
+    }
+
+    /** Backup rows of a supplier: UR-Drive Jordan's keep their original names ("auto-…", "backup-…"). */
+    static String backupPrefix(String supplier) {
+        return isDefault(supplier) ? "" : com.carrental.backend.tenant.SupplierService.documentId(supplier) + "-";
+    }
+
+    /** Saves the supplier's office data and keeps the broker channel owners current. */
+    private void save(AppData doc, JsonNode root) {
+        String supplier = com.carrental.backend.tenant.TenantContext.current();
+        channelRegistry.check(supplier, root.path("aggregators"));
+        if (isDefault(supplier)) dataStore.saveMain(doc);
+        else appDataRepository.save(doc);
+        channelRegistry.update(supplier, root.path("aggregators"));
+    }
+
     /** The main row with the data as saved now (never a copy cached earlier in the same request). */
     private AppData loadMain() {
-        return dataStore.loadMain(INITIAL_STATE);
+        String supplier = com.carrental.backend.tenant.TenantContext.current();
+        if (isDefault(supplier)) return dataStore.loadMain(INITIAL_STATE);
+        String id = com.carrental.backend.tenant.SupplierService.documentId(supplier);
+        AppData doc = appDataRepository.findById(id)
+            .orElseThrow(() -> new IllegalStateException("No office data for supplier " + supplier));
+        appDataRepository.currentData(id).ifPresent(doc::setData);
+        return doc;
     }
 
     /**
@@ -259,11 +311,13 @@ public class StateService {
                 }
             }
             appData.setData(objectMapper.writeValueAsString(root));
-            dataStore.saveMain(appData);
+            save(appData, root);
             // Listeners (e.g. broker webhooks) must never make a save fail.
             for (ReservationChangedEvent e : changed) {
                 try { events.publishEvent(e); } catch (Exception ignored) { /* logged by the listener */ }
             }
+        } catch (com.carrental.backend.tenant.ChannelRegistry.ChannelTakenException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to apply changes: " + e.getMessage(), e);
         }
@@ -285,7 +339,7 @@ public class StateService {
             autoBackup(appData);
             removeReservation(root, id, null);
             appData.setData(objectMapper.writeValueAsString(root));
-            dataStore.saveMain(appData);
+            save(appData, root);
         } catch (Exception e) {
             throw new RuntimeException("Failed to remove the booking: " + e.getMessage(), e);
         }
@@ -358,7 +412,7 @@ public class StateService {
     public synchronized String clearSections(List<String> sections, String by) {
         AppData appData = loadMain();
         try {
-            String backupId = "backup-" + Instant.now().toString().replace(':', '-');
+            String backupId = backupPrefix(com.carrental.backend.tenant.TenantContext.current()) + "backup-" + Instant.now().toString().replace(':', '-');
             AppData backup = new AppData();
             backup.setId(backupId);
             backup.setData(appData.getData());
@@ -370,7 +424,7 @@ public class StateService {
                 if (empty != null) root.set(key, objectMapper.readTree(empty));
             }
             appData.setData(objectMapper.writeValueAsString(root));
-            dataStore.saveMain(appData);
+            save(appData, root);
             return backupId;
         } catch (Exception e) {
             throw new RuntimeException("Failed to clear data: " + e.getMessage(), e);
@@ -380,11 +434,15 @@ public class StateService {
     /** Backup copies with what they hold, newest first. */
     public List<Map<String, Object>> listBackups() {
         List<Map<String, Object>> out = new java.util.ArrayList<>();
-        for (String id : appDataRepository.backupIds()) {
+        String supplier = com.carrental.backend.tenant.TenantContext.current();
+        List<String> ids = isDefault(supplier) ? appDataRepository.backupIds()
+            : java.util.stream.Stream.concat(appDataRepository.idsLike(backupPrefix(supplier) + "auto-%").stream(),
+                appDataRepository.idsLike(backupPrefix(supplier) + "backup-%").stream()).sorted(java.util.Comparator.reverseOrder()).toList();
+        for (String id : ids) {
             appDataRepository.findById(id).ifPresent(b -> {
                 Map<String, Object> row = new java.util.LinkedHashMap<>();
                 row.put("id", id);
-                row.put("kind", id.startsWith("auto-") ? "automatic" : "manual");
+                row.put("kind", id.startsWith(backupPrefix(supplier) + "auto-") ? "automatic" : "manual");
                 try {
                     JsonNode d = objectMapper.readTree(b.getData());
                     int[] bookings = {0};
@@ -403,16 +461,22 @@ public class StateService {
 
     /** Replaces the live data with a backup copy, after keeping the current data as a backup too. */
     public synchronized String restoreBackup(String id) {
-        if (id == null || !(id.startsWith("auto-") || id.startsWith("backup-"))) throw new IllegalArgumentException("Unknown backup");
+        // Only this supplier's own copies: UR-Drive Jordan's start with auto- / backup-, another supplier's with its own prefix.
+        String prefix = backupPrefix(com.carrental.backend.tenant.TenantContext.current());
+        if (id == null || !(id.startsWith(prefix + "auto-") || id.startsWith(prefix + "backup-"))) throw new IllegalArgumentException("Unknown backup");
         AppData source = appDataRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Backup not found"));
         AppData main = loadMain();
-        String safetyId = "backup-before-restore-" + Instant.now().toString().replace(':', '-');
+        String safetyId = prefix + "backup-before-restore-" + Instant.now().toString().replace(':', '-');
         AppData safety = new AppData();
         safety.setId(safetyId);
         safety.setData(main.getData());
         appDataRepository.save(safety);
         main.setData(source.getData());
-        dataStore.saveMain(main);
+        try {
+            save(main, objectMapper.readTree(source.getData()));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalArgumentException("Backup is not readable");
+        }
         return safetyId;
     }
 

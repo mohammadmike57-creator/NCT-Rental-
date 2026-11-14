@@ -2,7 +2,7 @@
 import { isPrepaid as bookingIsPrepaid } from '../services/paymentType';
 import React from 'react';
 import { Reservation, CompanyDetails, RentalSource } from '../types';
-import { URDRIVE_LOGO_B64 } from '../constants';
+import { documentLogo } from '../services/brand';
 import { MailIcon, UserIcon, CarIcon, CalendarIcon, PdfIcon } from './icons';
 import { Button } from './ui/Crm';
 import { deliverCustomerEmail } from '../services/emailBrand';
@@ -128,7 +128,9 @@ const Receipt: React.FC<ReceiptProps> = ({ reservation, companyDetails, sources,
             <div className="printable-area">
                 <header className="flex justify-between items-start pb-6 border-b-2 border-slate-900">
                     <div>
-                        <img src={URDRIVE_LOGO_B64} alt={`${companyDetails.name} Logo`} className="h-10 mb-3" />
+                        {documentLogo(companyDetails)
+                          ? <img src={documentLogo(companyDetails)} alt={`${companyDetails.name} Logo`} className="h-10 mb-3" />
+                          : <p className="text-xl font-bold text-slate-900 mb-3">{companyDetails.name}</p>}
                         <div className="text-sm text-slate-500 font-medium">
                             <p className="font-black text-xl text-slate-900 uppercase tracking-tight">{companyDetails.name}</p>
                             <p>{companyDetails.address}</p>

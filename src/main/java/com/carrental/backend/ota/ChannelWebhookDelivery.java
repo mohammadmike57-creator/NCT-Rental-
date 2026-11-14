@@ -12,7 +12,14 @@ import java.time.Instant;
     @Index(name = "idx_wh_due", columnList = "status,nextAttemptAt"),
     @Index(name = "idx_wh_channel", columnList = "channelId,createdAt")})
 @Getter @Setter
-public class ChannelWebhookDelivery {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class ChannelWebhookDelivery implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     public enum Status { PENDING, DELIVERED, FAILED }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;

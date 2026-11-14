@@ -63,7 +63,10 @@ public class MediaController {
 
     @GetMapping("/{id}")
     public ResponseEntity<byte[]> get(@PathVariable String id) {
+        // Images open in pages without a sign-in (their links are long random ids nobody can guess). When the
+        // request is signed in, another supplier's file is "not found".
         return repository.findById(id)
+            .filter(f -> !com.carrental.backend.tenant.TenantContext.isBound() || com.carrental.backend.tenant.SupplierScope.mine(f.getSupplierId()))
             .map(f -> ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(f.getContentType()))
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable())

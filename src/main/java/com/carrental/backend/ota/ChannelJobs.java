@@ -76,14 +76,17 @@ public class ChannelJobs {
         try {
             for (ChannelSnapshot ch : channels.all()) {
                 if ("paused".equalsIgnoreCase(ch.status()) || ch.urlCode().isBlank()) continue;
-                try {
-                    ChannelBookingService.Ctx c = core.context(ch, false);
-                    if (c.sandbox()) continue;
-                    core.markNoShows(c);
-                    pushInventory(c, false);
-                } catch (Exception e) {
-                    log.warn("Channel jobs for {}: {}", ch.name(), e.getMessage());
-                }
+                // Each channel's work runs as its own supplier, with that supplier's data only.
+                com.carrental.backend.tenant.TenantContext.run(ch.supplierId(), () -> {
+                    try {
+                        ChannelBookingService.Ctx c = core.context(ch, false);
+                        if (c.sandbox()) return;
+                        core.markNoShows(c);
+                        pushInventory(c, false);
+                    } catch (Exception e) {
+                        log.warn("Channel jobs for {}: {}", ch.name(), e.getMessage());
+                    }
+                });
             }
         } catch (Exception e) {
             log.warn("Channel jobs: {}", e.getMessage());

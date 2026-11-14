@@ -84,6 +84,28 @@ public class JwtUtil {
                 .compact();
     }
 
+    /** Claim of a platform support sign-in: the supplier it opens, read-only, for a short time. */
+    public static final String SUPPORT_CLAIM = "support";
+
+    /** A short read-only sign-in for a platform super admin into one supplier's data (see PlatformController). */
+    public String generateSupportToken(String email, String supplierId, int minutes) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(SUPPORT_CLAIM, supplierId);
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(email)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + minutes * 60_000L))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /** The supplier a support sign-in opens, or null for an ordinary sign-in. */
+    public String supportSupplier(String token) {
+        Object s = extractClaim(token, c -> c.get(SUPPORT_CLAIM));
+        return s instanceof String v && !v.isBlank() ? v : null;
+    }
+
     public Boolean validateToken(String token, UserDetails userDetails) {
         final String email = extractEmail(token);
         return (email.equals(userDetails.getUsername()) && !isTokenExpired(token));

@@ -61,6 +61,9 @@ public class PaymentPageController {
                 "We could not show the payment details right now. If your payment went through, Stripe has sent a receipt to your email address.", null);
         }
         Optional<Payment> record = payments.findByStripeCheckoutSessionId(session.getId());
+        // The page carries the name of the supplier the payment belongs to.
+        if (record.isPresent() && record.get().getSupplierId() != null)
+            company = com.carrental.backend.tenant.TenantContext.call(record.get().getSupplierId(), this::companyName);
         boolean paid = "paid".equals(session.getPaymentStatus()) || "no_payment_required".equals(session.getPaymentStatus());
         if (paid) {
             record.filter(p -> p.getStatus() != Payment.PaymentStatus.SUCCEEDED).ifPresent(p -> {

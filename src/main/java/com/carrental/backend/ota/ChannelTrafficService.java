@@ -37,6 +37,8 @@ public class ChannelTrafficService {
     private static final Pattern RSV = Pattern.compile("RSV-\\d{4}-\\d{6}");
     private static final Set<String> SEARCHES = Set.of("OTA_VehAvailRate", "XML Availability", "REST availability");
     private static final Set<String> BOOKINGS = Set.of("OTA_VehRes", "XML ReservationCreate", "REST create");
+    /** Calls turned away before any work: wrong or missing key, too many failed sign-ins, over the rate limit, blocked address. */
+    private static final Set<String> REJECTED = Set.of("AUTH_FAILED", "RATE_LIMIT_EXCEEDED", "PERMISSION_DENIED");
 
     private final ChannelMessageRepository messages;
     private final int retentionDays;
@@ -186,6 +188,7 @@ public class ChannelTrafficService {
         Instant since = Instant.now().minus(h, ChronoUnit.HOURS);
         List<Object[]> rows = messages.statsRows(channelId, since);
         long total = rows.size(), errors = 0, searches = 0, bookings = 0, sum = 0, max = 0;
+        long test = 0, rejected = 0, pings = 0, liveErrors = 0;   // what is not a real live request: tests (sandbox, console, certification), turned away, service checks
         List<Long> durations = new ArrayList<>();
         Map<String, long[]> byOp = new TreeMap<>();          // calls, errors, total ms
         Map<String, Long> byError = new TreeMap<>();
@@ -212,6 +215,11 @@ public class ChannelTrafficService {
             long[] o = byOp.computeIfAbsent(op, k -> new long[3]);
             o[0]++; o[2] += ms;
             if (!ok) { errors++; o[1]++; if (err != null) byError.merge(err, 1L, Long::sum); }
+            boolean sandboxed = r.length > 5 && Boolean.TRUE.equals(r[5]);
+            if (sandboxed) test++;
+            else if (!ok && err != null && REJECTED.contains(err)) rejected++;
+            else if (op != null && op.toLowerCase(java.util.Locale.ROOT).contains("ping")) pings++;
+            else if (!ok) liveErrors++;
             if (SEARCHES.contains(op)) searches++;
             if (BOOKINGS.contains(op) && ok) bookings++;
             long back = unit.between(at.truncatedTo(unit), nowT);     // 0 = the current hour / day
@@ -225,6 +233,12 @@ public class ChannelTrafficService {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("hours", h);
         out.put("calls", total);
+        // Real requests from the broker: live, accepted, not a service check.
+        out.put("liveCalls", total - test - rejected - pings);
+        out.put("liveErrors", liveErrors);
+        out.put("testCalls", test);
+        out.put("rejectedCalls", rejected);
+        out.put("pingCalls", pings);
         out.put("errors", errors);
         out.put("errorRate", total == 0 ? 0 : Math.round(errors * 1000.0 / total) / 10.0);
         out.put("avgMs", total == 0 ? 0 : sum / total);

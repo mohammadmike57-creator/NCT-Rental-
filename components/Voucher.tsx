@@ -4,7 +4,7 @@ import { carPhotoFor } from '../services/carPhoto';
 import { AppData, AvailableExtra, ReservationExtra, Reservation, CompanyDetails, CarView, RentalSource, PaymentType, RentalLocation, CarExchange, TrafficTicket, DamageMarker, Fleet, ReturnCharges } from '../types';
 import { VehicleArt, vehicleKind } from './VehicleGraphics';
 import { ShieldExclamationIcon, PdfIcon, MailIcon } from './icons';
-import { URDRIVE_LOGO_B64 } from '../constants';
+import { documentLogo } from '../services/brand';
 import { downloadReceiptPdf } from '../services/receiptPdf';
 import { calculateDaysWithGrace, isDriverExtra, AMEND_FIELDS, AMEND_SAVED, AMEND_LABEL, emailCheck, kmOutOk, kmInOk, chargesOk, signedCount, countChecked as countTicked, firstMissingStep } from './voucher/agreementRules';
 import { recordActivity, sendCustomerEmail } from '../services/api';
@@ -410,7 +410,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const buildAgreementHtml = (r: Reservation = localReservation): string => buildAgreementDoc({
     reservation: r,
     company: companyDetails,
-    logo: URDRIVE_LOGO_B64,
+    logo: documentLogo(companyDetails),
     checklistItems,
     rentalDays,
     baseRentalFee,
@@ -423,7 +423,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
   const buildTermination = (r: Reservation = localReservation): string => buildTerminationHtml({
     reservation: r,
     company: companyDetails,
-    logo: URDRIVE_LOGO_B64,
+    logo: documentLogo(companyDetails),
     rentalDays,
     baseRentalFee,
     checklistItems,
@@ -444,13 +444,13 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
     downloadReceiptPdf(localReservation, calculateDaysWithGrace(localReservation.startDate, localReservation.endDate));
 
   const handlePreviewCharges = () => {
-    const html = buildReturnChargesHtml(localReservation, { ...charges, documentNumber: charges.documentNumber || 'PREVIEW' }, companyDetails, URDRIVE_LOGO_B64);
+    const html = buildReturnChargesHtml(localReservation, { ...charges, documentNumber: charges.documentNumber || 'PREVIEW' }, companyDetails, documentLogo(companyDetails));
     const w = window.open('', '_blank', 'width=900,height=1000');
     if (w) { w.document.write(html); w.document.close(); w.focus(); }
   };
   const handleDownloadChargesPDF = () => {
     if (!localReservation.returnCharges) return;
-    if (!printHtml(buildReturnChargesHtml(localReservation, localReservation.returnCharges, companyDetails, URDRIVE_LOGO_B64))) alert('Allow pop-ups for this site to print.');
+    if (!printHtml(buildReturnChargesHtml(localReservation, localReservation.returnCharges, companyDetails, documentLogo(companyDetails)))) alert('Allow pop-ups for this site to print.');
   };
 
   // Emails the signed agreement (as a PDF) to the customer right after check-out; at check-in also the
@@ -1179,7 +1179,7 @@ const Voucher: React.FC<VoucherProps> = ({ reservation, sources, rentalLocations
       <div className="relative bg-slate-50 rounded-none sm:rounded-xl shadow-2xl max-w-7xl w-full h-[100dvh] sm:h-[96vh] max-h-[100dvh] sm:max-h-[96vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 sm:px-5 py-3.5 flex items-center gap-4">
-          <img src={URDRIVE_LOGO_B64} alt={companyDetails.name} className="h-6 hidden sm:block" />
+          {documentLogo(companyDetails) && <img src={documentLogo(companyDetails)} alt={companyDetails.name} className="h-6 hidden sm:block" />}
           <div className="hidden sm:block w-px h-8 bg-slate-200" />
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold text-slate-900 truncate flex items-center gap-2">Rental agreement<span lang="ar" dir="rtl" className="ar-ui !text-[15px] !text-slate-700">عقد الإيجار</span>{localReservation.awaitingConfirmation && <Badge tone="warning">Awaiting confirmation</Badge>}</h3>

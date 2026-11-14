@@ -31,6 +31,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private com.carrental.backend.staff.PresenceService presence;
 
+    @Autowired
+    private com.carrental.backend.tenant.PlatformSettings platform;
+
+    @Autowired
+    private com.carrental.backend.tenant.SupplierService suppliers;
+
+    /** Set on a request made with a platform support sign-in (value: the supplier being viewed). */
+    public static final String SUPPORT_ATTR = "platform.support";
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -82,7 +91,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    String support = jwtUtil.supportSupplier(jwt);
+                    if (support != null) {
+                        // Platform support: a super admin of UR-Drive Jordan reads one supplier's data, nothing else.
+                        boolean ownUrd = userDetails.getAuthorities().stream()
+                            .anyMatch(a -> (CustomUserDetailsService.SUPPLIER_AUTHORITY + com.carrental.backend.tenant.TenantContext.DEFAULT).equals(a.getAuthority()));
+                        if (!ownUrd || !platform.isSuperAdmin(email) || !suppliers.isActive(support)) {
+                            filterChain.doFilter(request, response);   // not signed in
+                            return;
+                        }
+                        if (!request.getMethod().equalsIgnoreCase("GET") && !requestUri.equals("/api/account/signed-out")) {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"Support access is read-only. Nothing can be changed.\"}");
+                            return;
+                        }
+                        java.util.List<org.springframework.security.core.GrantedAuthority> capped = new java.util.ArrayList<>();
+                        java.util.Set<String> allowed = suppliers.planOf(support).permissions().stream().map(Enum::name).collect(java.util.stream.Collectors.toSet());
+                        userDetails.getAuthorities().stream().filter(a -> allowed.contains(a.getAuthority())).forEach(capped::add);
+                        UsernamePasswordAuthenticationToken supportAuth = new UsernamePasswordAuthenticationToken(userDetails, null, capped);
+                        supportAuth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(supportAuth);
+                        com.carrental.backend.tenant.TenantContext.bind(support);
+                        request.setAttribute(SUPPORT_ATTR, support);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    // The supplier comes from the account only; nothing the browser sends can change it.
+                    userDetails.getAuthorities().stream().map(a -> a.getAuthority())
+                        .filter(a -> a.startsWith(CustomUserDetailsService.SUPPLIER_AUTHORITY)).findFirst()
+                        .ifPresent(a -> com.carrental.backend.tenant.TenantContext.bind(a.substring(CustomUserDetailsService.SUPPLIER_AUTHORITY.length())));
                     // Any signed-in request means the app is open; a change (not a read) means they're working.
                     // Signing out is handled by its own endpoint.
                     if (!requestUri.equals("/api/account/signed-out")) presence.seen(email, !request.getMethod().equalsIgnoreCase("GET"));

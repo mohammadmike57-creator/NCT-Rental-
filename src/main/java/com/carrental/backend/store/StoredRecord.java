@@ -10,7 +10,14 @@ import java.util.Objects;
 @Entity
 @Table(name = "store_records", indexes = @Index(name = "idx_store_records_section", columnList = "section,position"))
 @IdClass(StoredRecord.Key.class)
-public class StoredRecord {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class StoredRecord implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     @Id
     @Column(length = 40)
     private String section;

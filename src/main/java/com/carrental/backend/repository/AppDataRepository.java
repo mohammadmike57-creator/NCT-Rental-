@@ -24,6 +24,14 @@ public interface AppDataRepository extends JpaRepository<AppData, String> {
     @org.springframework.data.jpa.repository.Query("select a.data from AppData a where a.id = 'main'")
     Optional<String> currentMainData();
 
+    /** The saved data of one row read straight from the database (see currentMainData). */
+    @org.springframework.data.jpa.repository.Query("select a.data from AppData a where a.id = :id")
+    Optional<String> currentData(@org.springframework.data.repository.query.Param("id") String id);
+
+    /** Row ids starting with {@code prefix} (a LIKE pattern ending in %), newest first. */
+    @org.springframework.data.jpa.repository.Query("select a.id from AppData a where a.id like :prefix order by a.id desc")
+    java.util.List<String> idsLike(@org.springframework.data.repository.query.Param("prefix") String prefix);
+
     default Optional<AppData> findMain() {
         return findById("main");
     }

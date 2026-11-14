@@ -50,7 +50,7 @@ public class ChannelDeliveryService {
                 .timeout(Duration.ofSeconds(ch.timeoutSeconds()))
                 .header("Content-Type", "application/xml; charset=UTF-8")
                 .header("Accept", "application/xml, text/xml, */*")
-                .header("User-Agent", "NCT-Rental-ChannelManager/1.0")
+                .header("User-Agent", "Rental-ChannelManager/1.0")
                 .header("X-Message-Type", "RateSheet")
                 .header("X-Rate-Version", String.valueOf(ch.publishedVersion()))
                 .POST(HttpRequest.BodyPublishers.ofByteArray(bytes));

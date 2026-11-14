@@ -1,5 +1,5 @@
 import { CompanyDetails, Reservation } from '../types';
-import { URDRIVE_LOGO_B64 } from '../constants';
+import { documentLogo } from './brand';
 import { sendCustomerEmail, EmailOutcome } from './api';
 import { agreementHtmlToPdfBase64 } from './agreementPdf';
 import { terminationFileName, terminationNumber } from './terminationDoc';
@@ -41,7 +41,7 @@ export async function emailAgreementDocuments({ reservation: r, kind, company, a
 
   const attachments: Attachment[] = [await attach(agreementHtml, `Rental-Agreement-${r.bookingId}.pdf`)];
   if (!isCheckout && terminationHtml) attachments.push(await attach(terminationHtml, terminationFileName(r.bookingId)));
-  if (rc) attachments.push(await attach(buildReturnChargesHtml(r, rc, company, URDRIVE_LOGO_B64), chargesFileName(rc, r.bookingId)));
+  if (rc) attachments.push(await attach(buildReturnChargesHtml(r, rc, company, documentLogo(company)), chargesFileName(rc, r.bookingId)));
 
   const days = rentalDaysOf(r.startDate, r.endDate);
   const usd = (n: number) => formatMoney(n, 'USD');

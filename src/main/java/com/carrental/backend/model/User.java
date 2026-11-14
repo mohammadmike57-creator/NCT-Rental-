@@ -6,7 +6,28 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
-public class User {
+@EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class User implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this person works for; they see and change that supplier's data only. */
+    @Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
+    /** Sent to the app with the account (not stored here): the supplier's name and package, and what the package allows. */
+    @Transient private String supplierName;
+    @Transient private String supplierPlan;
+    @Transient private String supplierCode;
+    public String getSupplierCode() { return supplierCode; }
+    public void setSupplierCode(String v) { this.supplierCode = v; }
+    @Transient private List<UserPermission> planPermissions;
+    public String getSupplierName() { return supplierName; }
+    public void setSupplierName(String v) { this.supplierName = v; }
+    public String getSupplierPlan() { return supplierPlan; }
+    public void setSupplierPlan(String v) { this.supplierPlan = v; }
+    public List<UserPermission> getPlanPermissions() { return planPermissions; }
+    public void setPlanPermissions(List<UserPermission> v) { this.planPermissions = v; }
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;

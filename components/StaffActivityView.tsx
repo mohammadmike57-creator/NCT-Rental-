@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { User } from '../types';
-import { fetchActivity, fetchActivitySummary, StaffActivityEntry, StaffActivitySummary } from '../services/api';
+import { fetchActivity, fetchActivitySummary, recordActivity, StaffActivityEntry, StaffActivitySummary } from '../services/api';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, EmptyState, inputCls } from './ui/Crm';
 
 interface Props {
@@ -20,6 +20,8 @@ const CATEGORY: Record<string, { label: string; dot: string; chip: string; icon:
   fleet: { label: 'Fleet', dot: 'bg-orange-500', chip: 'bg-orange-50 text-orange-700 ring-orange-200', icon: 'M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25' },
   screen: { label: 'Screens & clicks', dot: 'bg-cyan-500', chip: 'bg-cyan-50 text-cyan-700 ring-cyan-200', icon: 'M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59' },
   system: { label: 'System errors', dot: 'bg-red-600', chip: 'bg-red-50 text-red-700 ring-red-200', icon: 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z' },
+  security: { label: 'Security & exports', dot: 'bg-amber-600', chip: 'bg-amber-50 text-amber-800 ring-amber-200', icon: 'M12 3l7.5 3v5.25c0 4.6-3.2 8.6-7.5 9.75-4.3-1.15-7.5-5.15-7.5-9.75V6L12 3z' },
+  platform: { label: 'Platform', dot: 'bg-slate-700', chip: 'bg-slate-100 text-slate-700 ring-slate-200', icon: 'M3.75 21h16.5M4.5 21V7.5L12 3l7.5 4.5V21' },
   other: { label: 'Other', dot: 'bg-slate-300', chip: 'bg-slate-100 text-slate-600 ring-slate-200', icon: 'M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z' },
 };
 const meta = (c: string) => CATEGORY[c] || CATEGORY.other;
@@ -111,21 +113,26 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
     };
   }, [events]);
 
+  // Screen opens and clicks are many and rarely what you look for: they show only under their own filter.
+  const shown = useMemo(() => (category ? events : events.filter(e => e.category !== 'screen')), [events, category]);
+
   const groups = useMemo(() => {
     const g: { day: string; items: StaffActivityEntry[] }[] = [];
-    events.forEach(e => {
+    shown.forEach(e => {
       const key = new Date(e.occurredAt).toDateString();
       const last = g[g.length - 1];
       if (last && new Date(last.items[0].occurredAt).toDateString() === key) last.items.push(e);
       else g.push({ day: e.occurredAt, items: [e] });
     });
     return g;
-  }, [events]);
+  }, [shown]);
 
   const exportCsv = () => {
     const q = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const rows = [['Time', 'Staff', 'Email', 'Category', 'Action', 'Summary', 'Booking', 'Details'].join(',')]
-      .concat(events.map(e => [new Date(e.occurredAt).toLocaleString('en-GB'), e.userName || '', e.userEmail, meta(e.category).label, e.action, e.summary, e.bookingId || '', e.details || ''].map(q).join(',')));
+    const rows = [['Time', 'Staff', 'Email', 'Category', 'Action', 'Summary', 'Booking', 'Details', 'IP address', 'Browser', 'Request ID'].join(',')]
+      .concat(events.map(e => [new Date(e.occurredAt).toLocaleString('en-GB'), e.userName || '', e.userEmail, meta(e.category).label, e.action, e.summary, e.bookingId || '', e.details || '',
+        e.ipAddress || '', e.userAgent || '', e.requestId || ''].map(q).join(',')));
+    recordActivity('DATA_EXPORTED', 'other', `Exported ${events.length} activity log entries to a CSV file`);
     const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
@@ -160,7 +167,7 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
         {/* Staff list */}
-        <Panel title="Staff" subtitle={`${staff.length} accounts`} className="lg:sticky lg:top-4">
+        <Panel title="Staff" subtitle={`${staff.length} account${staff.length === 1 ? '' : 's'}`} className="lg:sticky lg:top-4">
           <ul className="max-h-[40vh] lg:max-h-[70vh] overflow-y-auto divide-y divide-slate-100">
             <li>
               <button onClick={() => setSelected('')} className={`w-full flex items-center gap-3 px-4 py-2.5 text-left border-l-2 ${!selected ? 'bg-indigo-50/60 border-indigo-600' : 'border-transparent hover:bg-slate-50'}`}>
@@ -205,7 +212,7 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
         >
           <Toolbar>
             <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => setCategory('')} className={`h-7 px-2.5 rounded-md text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${!category ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>Everything</button>
+              <button onClick={() => setCategory('')} className={`h-7 px-2.5 rounded-md text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${!category ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>All activity</button>
               {['agreement', 'reservation', 'charges', 'email', 'invoice', 'finance', 'auth', 'staff', 'settings', 'screen', 'system'].map(c => (
                 <button key={c} onClick={() => setCategory(category === c ? '' : c)} className={`h-7 px-2.5 rounded-md text-xs font-semibold ring-1 ring-inset whitespace-nowrap ${category === c ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>{meta(c).label}</button>
               ))}
@@ -217,8 +224,8 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
             <div className="m-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg p-4 text-[13px]">{error}</div>
           ) : loading && !events.length ? (
             <div className="py-14 text-center text-[13px] text-slate-500">Loading activity…</div>
-          ) : !events.length ? (
-            <EmptyState title="No activity in this period" hint="Try a longer period or clear the filters." />
+          ) : !shown.length ? (
+            <EmptyState title="No activity in this period" hint={events.length ? 'Only screen opens and clicks were recorded: choose Screens & clicks to see them.' : 'Try a longer period or clear the filters.'} />
           ) : (
             groups.map(g => (
               <div key={g.day}>
@@ -240,9 +247,14 @@ const StaffActivityView: React.FC<Props> = ({ users }) => {
                             {!selected && <button onClick={() => setSelected(e.userEmail)} className="font-semibold text-slate-700 hover:text-indigo-700 hover:underline">{e.userName || e.userEmail}</button>}
                             <span className="font-mono text-[11px] text-slate-400">{e.action}</span>
                             {e.bookingId && <button onClick={() => setQuery(e.bookingId!)} className="px-1.5 py-px rounded border border-slate-200 bg-slate-50 font-mono text-[11px] text-slate-600 hover:bg-slate-100">#{e.bookingId}</button>}
-                            {e.details && <button onClick={() => setOpenId(openId === e.id ? null : e.id)} className="text-indigo-600 font-semibold hover:underline">{openId === e.id ? 'Hide details' : 'Details'}</button>}
+                            {(e.details || e.ipAddress) && <button onClick={() => setOpenId(openId === e.id ? null : e.id)} className="text-indigo-600 font-semibold hover:underline">{openId === e.id ? 'Hide details' : 'Details'}</button>}
                           </div>
-                          {openId === e.id && e.details && <p className="mt-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2.5 whitespace-pre-wrap break-words">{e.details}</p>}
+                          {openId === e.id && (e.details || e.ipAddress) && (
+                            <div className="mt-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5 break-words">
+                              {e.details && <p className="whitespace-pre-wrap">{e.details}</p>}
+                              {e.ipAddress && <p className="text-slate-500"><span className="font-semibold text-slate-600">From</span> {e.ipAddress}{e.userAgent ? ` · ${e.userAgent}` : ''}{e.requestId ? <> · <span className="font-mono">{e.requestId}</span></> : null}</p>}
+                            </div>
+                          )}
                         </div>
                       </li>
                     );

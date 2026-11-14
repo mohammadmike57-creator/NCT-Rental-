@@ -247,43 +247,46 @@ public class OutboundConnectorService {
     public void tick() {
         LocalDate today = LocalDate.now(ZONE);
         int hour = java.time.LocalTime.now(ZONE).getHour();
-        for (OutboundConnector c : connectors.findByEnabledTrue()) {
-            try {
-                Optional<ChannelSnapshot> found = channels.find(c.getChannelId());
-                if (found.isEmpty() || "paused".equalsIgnoreCase(found.get().status())) continue;
-                ChannelSnapshot ch = found.get();
-                boolean dailyDue = c.getDailyHour() >= 0 && hour >= c.getDailyHour()
-                    && (c.getLastDailyAt() == null || LocalDate.ofInstant(c.getLastDailyAt(), ZONE).isBefore(today));
-                switch (c.getType()) {
-                    case RATE_FILE -> {
-                        boolean published = c.isOnPublish() && ch.publishedVersion() > c.getLastRateVersion() && ch.publishedVersion() > 0;
-                        if (published || (dailyDue && ch.publishedVersion() > 0)) {
-                            enqueue(c, published ? "rates.published" : "rates.daily", null, contentType(c), rateFile(ch, c));
-                            c.setLastRateVersion(ch.publishedVersion());
-                            if (dailyDue) c.setLastDailyAt(Instant.now());
-                            connectors.save(c);
-                        }
-                    }
-                    case ARI_PUSH -> {
-                        String body = availability(ch, c);
-                        String hash = OAuthService.hex(OAuthService.sha256(body.replaceAll("\"(generated_at|from|to)\":\"[^\"]*\"", "").getBytes(StandardCharsets.UTF_8)));
-                        boolean changed = !hash.equals(c.getLastPayloadHash());
-                        boolean spaced = c.getLastSentAt() == null || c.getLastSentAt().isBefore(Instant.now().minusSeconds(c.getMinIntervalSeconds()));
-                        if ((changed && spaced) || dailyDue) {
-                            enqueue(c, changed ? "availability.changed" : "availability.daily", null, contentType(c), body);
-                            c.setLastPayloadHash(hash);
-                            if (dailyDue) c.setLastDailyAt(Instant.now());
-                            c.setLastSentAt(Instant.now());
-                            connectors.save(c);
-                        }
-                    }
-                    case RES_NOTIFY -> { }
-                }
-            } catch (Exception e) {
-                log.warn("Connector {} tick: {}", c.getPublicId(), e.getMessage());
-            }
-        }
+        for (OutboundConnector c : connectors.findByEnabledTrue()) channels.asOwner(c.getChannelId(), () -> tickOne(c, today, hour));
         deliverDue();
+    }
+
+    /** One connector's scheduled work, as the supplier that owns its channel. */
+    private void tickOne(OutboundConnector c, LocalDate today, int hour) {
+        try {
+            Optional<ChannelSnapshot> found = channels.find(c.getChannelId());
+            if (found.isEmpty() || "paused".equalsIgnoreCase(found.get().status())) return;
+            ChannelSnapshot ch = found.get();
+            boolean dailyDue = c.getDailyHour() >= 0 && hour >= c.getDailyHour()
+                && (c.getLastDailyAt() == null || LocalDate.ofInstant(c.getLastDailyAt(), ZONE).isBefore(today));
+            switch (c.getType()) {
+                case RATE_FILE -> {
+                    boolean published = c.isOnPublish() && ch.publishedVersion() > c.getLastRateVersion() && ch.publishedVersion() > 0;
+                    if (published || (dailyDue && ch.publishedVersion() > 0)) {
+                        enqueue(c, published ? "rates.published" : "rates.daily", null, contentType(c), rateFile(ch, c));
+                        c.setLastRateVersion(ch.publishedVersion());
+                        if (dailyDue) c.setLastDailyAt(Instant.now());
+                        connectors.save(c);
+                    }
+                }
+                case ARI_PUSH -> {
+                    String body = availability(ch, c);
+                    String hash = OAuthService.hex(OAuthService.sha256(body.replaceAll("\"(generated_at|from|to)\":\"[^\"]*\"", "").getBytes(StandardCharsets.UTF_8)));
+                    boolean changed = !hash.equals(c.getLastPayloadHash());
+                    boolean spaced = c.getLastSentAt() == null || c.getLastSentAt().isBefore(Instant.now().minusSeconds(c.getMinIntervalSeconds()));
+                    if ((changed && spaced) || dailyDue) {
+                        enqueue(c, changed ? "availability.changed" : "availability.daily", null, contentType(c), body);
+                        c.setLastPayloadHash(hash);
+                        if (dailyDue) c.setLastDailyAt(Instant.now());
+                        c.setLastSentAt(Instant.now());
+                        connectors.save(c);
+                    }
+                }
+                case RES_NOTIFY -> { }
+            }
+        } catch (Exception e) {
+            log.warn("Connector {} tick: {}", c.getPublicId(), e.getMessage());
+        }
     }
 
     /** Sends a real message now (for the console's Test button) and reports what the broker answered. */
@@ -327,7 +330,7 @@ public class OutboundConnectorService {
             // Booking messages leave in order: a later change waits for an earlier one still pending.
             if (s.getReservationNumber() != null
                 && sends.existsByConnectorIdAndReservationNumberAndStatusAndIdLessThan(s.getConnectorId(), s.getReservationNumber(), ConnectorSend.Status.PENDING, s.getId())) continue;
-            attempt(c.get(), s);
+            channels.asOwner(s.getChannelId(), () -> attempt(c.get(), s));
         }
     }
 
@@ -345,9 +348,13 @@ public class OutboundConnectorService {
             Map<String, String> h = new LinkedHashMap<>();
             h.put("Content-Type", s.getContentType());
             h.put("Accept", "application/json, application/xml, text/xml, */*");
-            h.put("User-Agent", "UR-Drive-Connector/1.0");
-            h.put("X-URD-Event", s.getKind());
-            h.put("X-URD-Delivery-Id", "csend_" + s.getId());
+            h.put("User-Agent", "Rental-Connector/1.0");
+            h.put("X-Webhook-Event", s.getKind());
+            h.put("X-Webhook-Delivery-Id", "csend_" + s.getId());
+            if (com.carrental.backend.tenant.TenantContext.DEFAULT.equals(com.carrental.backend.tenant.TenantContext.current())) {
+                h.put("X-URD-Event", s.getKind());   // UR-Drive Jordan's original header names, kept for its brokers
+                h.put("X-URD-Delivery-Id", "csend_" + s.getId());
+            }
             h.put("Idempotency-Key", "csend_" + s.getId());
             String[] auth = authHeader(c);
             if (auth != null) h.put(auth[0], auth[1]);

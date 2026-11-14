@@ -59,7 +59,9 @@ const TrafficView: React.FC<{ aggregator: Aggregator }> = ({ aggregator }) => {
   }, [auto, load]);
 
   const tiles = useMemo(() => stats ? [
-    { label: 'Calls', value: stats.calls.toLocaleString('en-GB'), sub: RANGES.find(r => r[0] === hours)?.[1].toLowerCase() },
+    { label: 'Calls', value: stats.calls.toLocaleString('en-GB'), sub: typeof stats.liveCalls === 'number'
+      ? `${stats.liveCalls.toLocaleString('en-GB')} real · ${(stats.calls - stats.liveCalls).toLocaleString('en-GB')} tests & other`
+      : RANGES.find(r => r[0] === hours)?.[1].toLowerCase() },
     { label: 'Error rate', value: `${stats.errorRate}%`, sub: `${stats.errors} failed`, tone: stats.errorRate > 5 ? 'danger' as const : stats.errorRate > 1 ? 'warning' as const : 'default' as const },
     { label: 'Response time', value: `${stats.avgMs} ms`, sub: `p95 ${stats.p95Ms} ms · max ${stats.maxMs} ms`, tone: stats.p95Ms > 2000 ? 'warning' as const : 'default' as const },
     { label: 'Look-to-book', value: stats.lookToBook == null ? '—' : `${stats.lookToBook} : 1`, sub: `${stats.searches} searches · ${stats.bookings} bookings` },

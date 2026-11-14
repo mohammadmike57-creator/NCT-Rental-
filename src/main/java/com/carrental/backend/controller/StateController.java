@@ -20,6 +20,8 @@ public class StateController {
     private static final Logger logger = LoggerFactory.getLogger(StateController.class);
 
     private final StateService stateService;
+    private final com.carrental.backend.tenant.SupplierService suppliers;
+    private final com.carrental.backend.audit.ActivityService activity;
 
     @GetMapping
     public ResponseEntity<String> getState() {
@@ -40,9 +42,10 @@ public class StateController {
     }
 
     /** The signed-in person and their permissions, for the section checks. */
-    private static StateSectionGuard.Writer writer(Authentication auth) {
+    private StateSectionGuard.Writer writer(Authentication auth) {
         if (auth == null) return StateSectionGuard.Writer.of(null, java.util.Set.of());
-        return StateSectionGuard.Writer.of(auth.getName(), auth.getAuthorities().stream().map(a -> a.getAuthority()).toList());
+        return StateSectionGuard.Writer.of(auth.getName(), auth.getAuthorities().stream().map(a -> a.getAuthority()).toList(),
+            suppliers.planOf(com.carrental.backend.tenant.TenantContext.current()).blockedSections());
     }
 
     /** 200 always (the allowed part is saved); lists sections that were not changed for lack of permission. */
@@ -58,8 +61,10 @@ public class StateController {
     @GetMapping("/backup-file")
     public ResponseEntity<?> backupFile(Authentication auth) {
         if (!isAdmin(auth)) return ResponseEntity.status(403).body(Map.of("error", "Only an administrator can download a backup."));
-        String name = "nct-backup-" + java.time.LocalDate.now(java.time.ZoneId.of("Asia/Amman")) + ".json";
+        boolean primary = com.carrental.backend.tenant.TenantContext.DEFAULT.equals(com.carrental.backend.tenant.TenantContext.current());
+        String name = (primary ? "nct-backup-" : "backup-") + java.time.LocalDate.now(java.time.ZoneId.of("Asia/Amman")) + ".json";
         logger.warn("Data backup downloaded by {}", auth.getName());
+        activity.record(auth.getName(), "DATA_EXPORTED", "security", "Downloaded a full backup file of the company's data", null, null);
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "\"")
                 .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "no-store")

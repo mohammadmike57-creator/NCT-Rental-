@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { sessionToken } from '../services/session';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { YearData, ReservationStatus, CompanyDetails, AppData, FranchisePayment, User, UserPermission, TrafficTicket, VehicleDamage } from '../types';
@@ -6,6 +7,7 @@ import { countsInSummary } from '../services/revenue';
 import { allRevenueEvents, applyMonthOverrides, monthlyBreakdown, RevenueEvent } from '../services/revenueByMonth';
 import CommissionAddOns from './CommissionAddOns';
 import { MONTHS, COMMISSION_RATE, NCT_LOGO_B64, USD_TO_JOD_RATE } from '../constants';
+import { isPrimarySupplier } from '../services/brand';
 import { addLogo } from '../services/pdfImage';
 import { PdfIcon, CurrencyDollarIcon, CloseIcon, CreditCardIcon, AlertIcon } from './icons';
 import { Page, PageHeader, StatGrid, Panel, Tabs, Segmented, Badge, Button, Field, inputCls, selectCls, table } from './ui/Crm';
@@ -185,7 +187,7 @@ const StripePaymentModal: React.FC<{
         const usdAmount = draft.currency === 'JOD' ? draft.amount / USD_TO_JOD_RATE : draft.amount;
         const response = await fetch(`${API_URL}/stripe/create-payment-link`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken()}` },
           body: JSON.stringify({ amount: usdAmount, description: `Franchise fee - ${draft.month} ${year} (${draft.currency} ${draft.amount.toFixed(2)})` }),
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -364,7 +366,7 @@ const SummaryTable: React.FC<SummaryTableProps> = ({ allData, yearData, year, co
 
   // ---- PDF -------------------------------------------------------------
   const pdfHeader = async (doc: jsPDF, title: string) => {
-    await addLogo(doc, NCT_LOGO_B64, 14, 12, 18, 18);
+    if (isPrimarySupplier()) await addLogo(doc, NCT_LOGO_B64, 14, 12, 18, 18);   // UR-Drive Jordan's statement only
     doc.setFontSize(15);
     doc.setTextColor(15, 23, 42);
     doc.text(companyDetails.name, 36, 19);

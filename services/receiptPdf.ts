@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Reservation } from '../types';
-import { URDRIVE_LOGO_B64 } from '../constants';
+import { documentLogo } from './brand';
 import { addLogo } from './pdfImage';
 
 const usd = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -13,7 +13,8 @@ export async function downloadReceiptPdf(r: Reservation, rentalDays: number): Pr
   const baseRentalFee = r.baseAmount ?? ((r.amount || 0) - extrasTotal);
   const totalCharges = baseRentalFee + extrasTotal;
 
-  await addLogo(doc, URDRIVE_LOGO_B64, 14, 15, 60, 10);
+  const logo = documentLogo();
+  if (logo) await addLogo(doc, logo, 14, 15, 60, 10);
   doc.setFontSize(22);
   doc.text('Receipt', 200, 22, { align: 'right' });
   doc.setFontSize(10);

@@ -105,7 +105,7 @@ const Monogram: React.FC<{ a: Aggregator; size?: 'sm' | 'md' }> = ({ a, size = '
 
 /** Live figures for one broker, last 7 days (shown in its header). */
 const ChannelKpis: React.FC<{ a: Aggregator }> = ({ a }) => {
-  const [k, setK] = useState<{ calls: number; errors: number; bookings: number; value: Record<string, number> } | null>(null);
+  const [k, setK] = useState<{ calls: number; total: number; test: number; rejected: number; pings: number; errors: number; bookings: number; value: Record<string, number> } | null>(null);
   useEffect(() => {
     let on = true; setK(null);
     const since = Date.now() - 7 * 86400000;
@@ -114,22 +114,28 @@ const ChannelKpis: React.FC<{ a: Aggregator }> = ({ a }) => {
       const live = (Array.isArray(bk) ? bk : []).filter(b => !b.sandbox && new Date(b.createdAt || 0).getTime() >= since);
       const value: Record<string, number> = {};
       live.filter(b => b.status !== 'CANCELLED' && b.status !== 'NO_SHOW').forEach(b => { value[b.currency || 'USD'] = (value[b.currency || 'USD'] || 0) + (b.total || 0); });
-      setK({ calls: st && typeof st.calls === 'number' ? st.calls : 0, errors: st && typeof st.errors === 'number' ? st.errors : 0, bookings: live.length, value });
+      const total = st && typeof st.calls === 'number' ? st.calls : 0;
+      // "Requests" counts only the broker's real live requests; tests, turned-away calls and service checks are listed apart.
+      setK({ calls: st && typeof st.liveCalls === 'number' ? st.liveCalls : total, total, test: st?.testCalls || 0, rejected: st?.rejectedCalls || 0, pings: st?.pingCalls || 0,
+        errors: st && typeof st.liveErrors === 'number' ? st.liveErrors : st && typeof st.errors === 'number' ? st.errors : 0, bookings: live.length, value });
     });
     return () => { on = false; };
   }, [a.id]);
-  const cells = [
-    { l: 'Requests', v: k ? k.calls.toLocaleString() : '…' },
+  const cells: { l: string; v: string; bad?: boolean; sub?: string; hint?: string }[] = [
+    { l: 'Requests', v: k ? k.calls.toLocaleString() : '…',
+      sub: k && k.total !== k.calls ? [k.test && `${k.test.toLocaleString()} tests`, k.rejected && `${k.rejected.toLocaleString()} refused`, k.pings && `${k.pings.toLocaleString()} checks`].filter(Boolean).join(' · ') + ' apart' : '',
+      hint: k ? `Real live requests from the broker. All calls: ${k.total.toLocaleString()} (tests from the console, certification and test keys: ${k.test.toLocaleString()}; turned away for a wrong key, rate limit or blocked address: ${k.rejected.toLocaleString()}; service checks: ${k.pings.toLocaleString()}).` : '' },
     { l: 'Bookings', v: k ? String(k.bookings) : '…' },
     { l: 'Booked value', v: k ? (Object.entries(k.value).map(([c, n]) => `${Math.round(n).toLocaleString()} ${c}`)[0] || '0') : '…' },
-    { l: 'Error rate', v: k ? (k.calls ? `${((k.errors / k.calls) * 100).toFixed(1)}%` : '—') : '…', bad: !!k && k.calls > 0 && k.errors / k.calls > 0.05 },
+    { l: 'Error rate', v: k ? (k.calls ? `${((k.errors / k.calls) * 100).toFixed(1)}%` : '—') : '…', bad: !!k && k.calls > 0 && k.errors / k.calls > 0.05, hint: 'Failed real requests out of all real requests (tests and refused calls not included).' },
   ];
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-slate-100 border-t border-slate-100">
       {cells.map(c => (
-        <div key={c.l} className="px-4 py-2.5">
+        <div key={c.l} className="px-4 py-2.5" title={c.hint || undefined}>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{c.l} <span className="normal-case tracking-normal font-normal">· 7 days</span></p>
           <p className={`text-[16px] font-semibold tabular-nums ${c.bad ? 'text-rose-600' : 'text-slate-900'}`}>{c.v}</p>
+          {c.sub && <p className="text-[10.5px] leading-snug text-slate-400" data-testid="requests-breakdown">{c.sub}</p>}
         </div>
       ))}
     </div>

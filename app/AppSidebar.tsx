@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { CompanyDetails, User, UserPermission } from '../types';
 import { NCT_LOGIN_LOGO_B64 } from '../constants';
+import { brandColor, initialsOf, isPrimarySupplier } from '../services/brand';
+import { mediaUrl } from '../services/api';
 import { ChevronDownIcon, CloseIcon, LogoutIcon, UserCircleIcon } from '../components/icons';
 import { SidebarLink } from './navigation';
 import { hasPermission } from './permissions';
@@ -42,9 +44,14 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isSidebarOpen, setIsSidebarOpen
   <aside className={`absolute md:relative z-40 md:z-auto w-60 ${sidebarCollapsed ? 'md:w-[68px]' : ''} bg-slate-900 text-white flex-shrink-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col h-full border-r border-slate-800`}>
      <div className="flex items-center justify-between px-4 h-14 border-b border-white/5 flex-shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-            <img src={NCT_LOGIN_LOGO_B64} alt="NCT Rental" className="h-8 w-8 rounded-lg shrink-0 shadow-sm" />
+            {/* UR-Drive Jordan keeps its look; another supplier shows its own logo (or initials in its colour) and name. */}
+            {isPrimarySupplier()
+              ? <img src={NCT_LOGIN_LOGO_B64} alt="NCT Rental" className="h-8 w-8 rounded-lg shrink-0 shadow-sm" />
+              : companyDetails.logoUrl
+                ? <span className="h-8 w-8 rounded-lg shrink-0 bg-white inline-flex items-center justify-center overflow-hidden" data-testid="brand-logo"><img src={mediaUrl(companyDetails.logoUrl)} alt={companyDetails.name} className="max-h-7 max-w-7 object-contain" /></span>
+                : <span className="h-8 w-8 rounded-lg shrink-0 inline-flex items-center justify-center text-[12px] font-bold text-white" style={{ background: brandColor(companyDetails) }} data-testid="brand-logo">{initialsOf(companyDetails.name || '')}</span>}
             <div className={`min-w-0 leading-tight ${sidebarCollapsed ? 'md:hidden' : ''}`}>
-                <h1 className="text-[15px] font-semibold text-white tracking-tight">NCT Rental</h1>
+                <h1 className="text-[15px] font-semibold text-white tracking-tight truncate" title={isPrimarySupplier() ? 'NCT Rental' : companyDetails.name}>{isPrimarySupplier() ? 'NCT Rental' : companyDetails.name}</h1>
                 <p className="text-[10.5px] text-slate-400 truncate">Rental management</p>
             </div>
         </div>

@@ -29,7 +29,7 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
   ],
   webServer: {
-    command: `java -jar target/backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=e2e --server.port=${PORT} --spring.datasource.url=jdbc:h2:mem:e2e;DB_CLOSE_DELAY=-1`,
+    command: `java -jar target/backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=e2e --server.port=${PORT} --platform.multi-supplier=true --platform.super-admins=e2e-admin@example.test --spring.datasource.url=jdbc:h2:mem:e2e;DB_CLOSE_DELAY=-1`,
     url: `http://localhost:${PORT}/`,
     timeout: 120_000,
     reuseExistingServer: false,

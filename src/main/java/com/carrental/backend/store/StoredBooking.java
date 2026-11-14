@@ -10,7 +10,14 @@ import java.time.Instant;
     @Index(name = "idx_store_bookings_booking_id", columnList = "bookingId"),
     @Index(name = "idx_store_bookings_month", columnList = "yearKey,monthKey")
 })
-public class StoredBooking {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class StoredBooking implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     @Id
     @Column(length = 120)
     private String id;

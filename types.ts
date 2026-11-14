@@ -446,6 +446,10 @@ export interface CompanyDetails {
   agreementTermsAr?: string;
   agreementTermsUpdatedAt?: string;
   agreementTermsUpdatedBy?: string;
+  /** Branding: the company's own logo (stored image path or data URL), main colour (#rrggbb) and sign-in line. */
+  logoUrl?: string;
+  brandColor?: string;
+  signInTagline?: string;
 }
 
 export type MonthlyReservations = Reservation[];
@@ -465,6 +469,14 @@ export interface User {
   username: string;
   password?: string;
   permissions: UserPermission[];
+  /** From the server with the account: the supplier's name and package, and what the package allows. */
+  supplierName?: string;
+  supplierPlan?: 'FULL' | 'CRM' | 'XML';
+  /** The supplier's code (its branded sign-in link is /s/{code}). */
+  supplierCode?: string;
+  /** The supplier this person works for ("urd" or empty: UR-Drive Jordan). */
+  supplierId?: string;
+  planPermissions?: UserPermission[];
   nationalId: string;
   sscNumber?: string;
   hireDate: string;

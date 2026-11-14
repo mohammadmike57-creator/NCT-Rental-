@@ -20,7 +20,7 @@ public class ActivityService {
 
     private static final Logger log = LoggerFactory.getLogger(ActivityService.class);
     private static final Pattern ACTION = Pattern.compile("^[A-Z][A-Z0-9_]{1,63}$");
-    public static final Set<String> CATEGORIES = Set.of("auth", "reservation", "agreement", "charges", "invoice", "email", "fleet", "finance", "settings", "staff", "screen", "other");
+    public static final Set<String> CATEGORIES = Set.of("auth", "reservation", "agreement", "charges", "invoice", "email", "fleet", "finance", "settings", "staff", "screen", "platform", "security", "other");
 
     private final StaffActivityRepository repo;
     private final UserRepository users;
@@ -46,14 +46,29 @@ public class ActivityService {
             a.setSummary(clip(nz(summary), 500));
             a.setBookingId(bookingId == null || bookingId.isBlank() ? null : clip(bookingId, 64));
             a.setDetails(details == null || details.isBlank() ? null : clip(details, 4000));
+            stampRequest(a);
             repo.save(a);
         } catch (Exception e) {
             log.warn("Could not record activity {}: {}", action, e.getMessage());
         }
     }
 
+    /** IP address, browser and request id of the request the action belongs to (none for background work). */
+    static void stampRequest(StaffActivity a) {
+        if (!(org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()
+                instanceof org.springframework.web.context.request.ServletRequestAttributes sra)) return;
+        jakarta.servlet.http.HttpServletRequest r = sra.getRequest();
+        String fwd = r.getHeader("X-Forwarded-For");
+        String ip = fwd != null && !fwd.isBlank() ? fwd.split(",")[0].trim() : r.getRemoteAddr();
+        a.setIpAddress(ip == null ? null : clip(ip, 64));
+        String ua = r.getHeader("User-Agent");
+        a.setUserAgent(ua == null ? null : clip(ua, 300));
+        Object rid = r.getAttribute(com.carrental.backend.platform.CorrelationFilter.ATTR);
+        a.setRequestId(rid instanceof String s ? clip(s, 100) : null);
+    }
+
     public List<StaffActivity> search(String user, String category, String bookingId, String q, Instant from, Instant to, int limit) {
-        Specification<StaffActivity> spec = (root, query, cb) -> cb.conjunction();
+        Specification<StaffActivity> spec = com.carrental.backend.tenant.SupplierScope.mine();   // this supplier's activity only
         if (user != null && !user.isBlank()) spec = spec.and((r, qq, cb) -> cb.equal(cb.lower(r.get("userEmail")), user.toLowerCase()));
         if (category != null && !category.isBlank()) spec = spec.and((r, qq, cb) -> cb.equal(r.get("category"), category));
         if (bookingId != null && !bookingId.isBlank()) spec = spec.and((r, qq, cb) -> cb.equal(r.get("bookingId"), bookingId));
@@ -72,7 +87,7 @@ public class ActivityService {
     public List<Map<String, Object>> summary(int days) {
         Instant since = Instant.now().minus(Math.max(1, Math.min(days, 366)), ChronoUnit.DAYS);
         Map<String, Map<String, Object>> byUser = new LinkedHashMap<>();
-        for (Object[] row : repo.summarySince(since)) {
+        for (Object[] row : repo.summarySince(since, com.carrental.backend.tenant.SupplierScope.current())) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("userEmail", row[0]);
             m.put("userName", row[1]);
@@ -81,7 +96,7 @@ public class ActivityService {
             m.put("byCategory", new LinkedHashMap<String, Long>());
             byUser.put(String.valueOf(row[0]), m);
         }
-        for (Object[] row : repo.categoriesSince(since)) {
+        for (Object[] row : repo.categoriesSince(since, com.carrental.backend.tenant.SupplierScope.current())) {
             Map<String, Object> m = byUser.get(String.valueOf(row[0]));
             if (m != null) {
                 @SuppressWarnings("unchecked") Map<String, Long> c = (Map<String, Long>) m.get("byCategory");

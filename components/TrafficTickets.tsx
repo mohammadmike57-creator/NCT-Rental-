@@ -5,6 +5,7 @@ import ConfirmationDialog from './ConfirmationDialog';
 import SecurityKeyModal from './SecurityKeyModal';
 import { brandFields, deliverCustomerEmail, supportLine } from '../services/emailBrand';
 import { Page, PageHeader, StatGrid, Panel, Toolbar, Segmented, Badge, Button, Field, EmptyState, DetailList, SectionLabel, Dialog, Drawer, inputCls, selectCls, textareaCls, table } from './ui/Crm';
+import { displayDay, displayDayTime } from '../services/displayDate';
 
 interface TrafficTicketsProps {
   tickets: TrafficTicket[];
@@ -490,12 +491,12 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
                     const isEditing = editingId === ticket.id;
                     return (
                       <tr key={ticket.id} className={`${table.row} cursor-pointer ${isEditing || viewId === ticket.id ? 'bg-indigo-50/40' : ''}`} onClick={() => setViewId(ticket.id)}>
-                        <td className={`${table.td} whitespace-nowrap text-slate-700 tabular-nums`}>{ticket.ticketDate}</td>
+                        <td className={`${table.td} whitespace-nowrap text-slate-700 tabular-nums`}>{ticket.ticketDate ? displayDay(ticket.ticketDate) : <span className="text-slate-300">-</span>}</td>
                         <td className={`${table.td} min-w-[160px]`}>
                           <p className="font-semibold text-slate-900">{res?.personName || <span className="text-slate-400 font-normal">Unknown renter</span>}</p>
                           <p className="text-xs text-slate-500"><span className="font-mono">#{ticket.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
                         </td>
-                        <td className={`${table.td} whitespace-nowrap text-xs text-slate-600 tabular-nums`}>{res ? <>{res.startDate}<br />{res.endDate}</> : <span className="text-slate-400">-</span>}</td>
+                        <td className={`${table.td} whitespace-nowrap text-xs text-slate-600 tabular-nums`}>{res ? <>{displayDayTime(res.startDate)}<br />{displayDayTime(res.endDate)}</> : <span className="text-slate-400">-</span>}</td>
                         <td className={`${table.td} whitespace-nowrap text-right font-semibold text-slate-900 tabular-nums`}>{money(ticket.amount)} JOD</td>
                         <td className={`${table.td} whitespace-nowrap`}>{statusPill(ticket.status)}</td>
                         <td className={`${table.td} text-slate-600 max-w-[240px]`}><p className="truncate" title={ticket.details}>{ticket.details || <span className="text-slate-300">-</span>}</p></td>
@@ -516,7 +517,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold text-slate-900 truncate">{res?.personName || 'Unknown renter'}</p>
                       <p className="text-xs text-slate-500 truncate"><span className="font-mono">#{ticket.bookingId}</span>{res?.carModel ? ` · ${res.carModel}` : ''}</p>
-                      <p className="text-xs text-slate-500 tabular-nums">{ticket.ticketDate}</p>
+                      <p className="text-xs text-slate-500 tabular-nums">{displayDay(ticket.ticketDate)}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-[13px] font-semibold text-slate-900 tabular-nums">{money(ticket.amount)} JOD</p>
@@ -559,7 +560,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
               <DetailList rows={[
                 { label: 'Renter', value: drawerRes?.personName || <span className="text-slate-400">Unknown</span> },
                 { label: 'Vehicle', value: drawerRes?.carModel || '-' },
-                { label: 'Rental period', value: <span className="tabular-nums">{drawerRes ? `${drawerRes.startDate} – ${drawerRes.endDate}` : '-'}</span> },
+                { label: 'Rental period', value: <span className="tabular-nums">{drawerRes ? `${displayDayTime(drawerRes.startDate)} – ${displayDayTime(drawerRes.endDate)}` : '-'}</span> },
                 { label: 'Renter email', value: drawerRes?.customerEmail || <span className="text-slate-400">Not on voucher</span> },
               ]} />
             </div>
@@ -574,7 +575,7 @@ const TrafficTickets: React.FC<TrafficTicketsProps> = ({ tickets, allData, onAdd
                 </div>
               ) : (
                 <DetailList rows={[
-                  { label: 'Ticket date', value: <span className="tabular-nums">{drawerTicket.ticketDate}</span> },
+                  { label: 'Ticket date', value: <span className="tabular-nums">{displayDay(drawerTicket.ticketDate)}</span> },
                   { label: 'Amount', value: <span className="tabular-nums">{money(drawerTicket.amount)} JOD</span> },
                   { label: 'Status', value: statusPill(drawerTicket.status) },
                   { label: 'Details', value: drawerTicket.details || <span className="text-slate-400">-</span> },

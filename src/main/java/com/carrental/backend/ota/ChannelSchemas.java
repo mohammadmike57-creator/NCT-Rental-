@@ -11,7 +11,7 @@ final class ChannelSchemas {
 
     private static final String NATIVE_XSD = """
         <?xml version="1.0" encoding="UTF-8"?>
-        <!-- UR-Drive Jordan native XML booking API, version 1. Messages are POSTed to /xml/v1/{Operation}. -->
+        <!-- Native XML car rental booking API, version 1. Messages are POSTed to /xml/v1/{Operation}. -->
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified" version="1.0">
 
           <!-- ============================================================ common -->
@@ -622,6 +622,11 @@ final class ChannelSchemas {
 
     /** WSDL 1.1, document/literal over SOAP 1.1 and 1.2, one operation per OTA message pair. */
     static String wsdl(String address) {
+        return wsdl(address, null);
+    }
+
+    /** {@code supplier}: the name of the channel's own supplier, shown in the description (none: a neutral text). */
+    static String wsdl(String address, String supplier) {
         String ota = OtaXml.OTA_NAMESPACE;
         StringBuilder types = new StringBuilder(), messages = new StringBuilder(), ops = new StringBuilder(),
             b11 = new StringBuilder(), b12 = new StringBuilder();
@@ -648,16 +653,16 @@ final class ChannelSchemas {
         String addr = OtaXml.escape(address);
         return """
             <?xml version="1.0" encoding="UTF-8"?>
-            <wsdl:definitions name="NctRentalOtaVehicle"
-                targetNamespace="urn:nct-rental:ota:soap"
-                xmlns:tns="urn:nct-rental:ota:soap"
+            <wsdl:definitions name="OtaVehicle"
+                targetNamespace="urn:ota-vehicle:soap"
+                xmlns:tns="urn:ota-vehicle:soap"
                 xmlns:ota="%1$s"
                 xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
                 xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
                 xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
                 xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <wsdl:documentation>
-                UR-Drive Jordan OpenTravel (OTA 2003/05) car rental booking service. Message bodies follow the OpenTravel
+                __SUPPLIER__OpenTravel (OTA 2003/05) car rental booking service. Message bodies follow the OpenTravel
                 schemas for each RQ/RS pair. Authenticate with WS-Security UsernameToken (Username = channel code,
                 Password = API key), POS/Source/RequestorID MessagePassword, or the X-Api-Key HTTP header.
               </wsdl:documentation>
@@ -678,6 +683,7 @@ final class ChannelSchemas {
                 <wsdl:port name="OtaVehicleSoap12Port" binding="tns:OtaVehicleSoap12"><soap12:address location="%7$s"/></wsdl:port>
               </wsdl:service>
             </wsdl:definitions>
-            """.formatted(ota, types, messages, ops, b11, b12, addr);
+            """.formatted(ota, types, messages, ops, b11, b12, addr)
+            .replace("__SUPPLIER__", supplier == null || supplier.isBlank() ? "" : OtaXml.escape(supplier.trim()) + " ");
     }
 }

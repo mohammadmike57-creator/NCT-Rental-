@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { AllData } from '../types';
 import { API_BASE } from '../services/apiBase';
+import { endSupportView, isSupportView, sessionToken } from './session';
 
 export const API_URL = API_BASE;
 
@@ -13,6 +14,13 @@ axios.interceptors.response.use(
     const status = error?.response?.status;
     const url: string = error?.config?.url || '';
     const isLoginCall = url.includes('/auth/');
+    if (status === 401 && !isLoginCall && url.startsWith(API_URL) && isSupportView() && !sessionExpiredHandled) {
+      // The support view ended (time up, or the supplier was paused): back to the admin portal, own sign-in untouched.
+      sessionExpiredHandled = true;
+      endSupportView();
+      window.location.href = '/admin';
+      return Promise.reject(error);
+    }
     if (status === 401 && !isLoginCall && url.startsWith(API_URL) && localStorage.getItem('token') && !sessionExpiredHandled) {
       sessionExpiredHandled = true;
       localStorage.removeItem('token');
@@ -23,7 +31,7 @@ axios.interceptors.response.use(
   }
 );
 
-const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+const authHeaders = () => ({ Authorization: `Bearer ${sessionToken()}` });
 
 const keepSession = (data: any) => {
   const user = data.user;
@@ -89,7 +97,7 @@ export const onAuthStateChangedListener = (callback: (user: any) => void) => {
 let lastStateText: string | null = null;
 
 const getStateText = async (): Promise<string | null> => {
-  const currentToken = localStorage.getItem('token');
+  const currentToken = sessionToken();
   if (!currentToken) return null;
   const response = await axios.get(`${API_URL}/api/state`, {
     params: { ts: Date.now() },
@@ -215,7 +223,7 @@ const reportSkipped = (sections: string[]) => {
 };
 
 const sendAll = async (data: Partial<AllData>, opts: SaveOptions = {}) => {
-  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+  const headers = { Authorization: `Bearer ${sessionToken()}` };
   // Never save before this screen has loaded the server's data: the screen would still hold
   // the built-in starting values, and saving them would overwrite the real data.
   if (!serverState) { console.warn('Save skipped: server data not loaded yet'); return; }
@@ -406,6 +414,8 @@ export interface ChannelTrafficStats {
   series: { at: string; calls: number; errors: number }[];
   /** What the broker actually sends: release address, SOAP version, message Version. */
   protocols?: { protocol: string; calls: number; lastSeen: string }[];
+  /** calls split up: real live requests, tests (sandbox, console, certification), turned away (key, rate limit, address), service checks (ping). */
+  liveCalls?: number; liveErrors?: number; testCalls?: number; rejectedCalls?: number; pingCalls?: number;
 }
 export interface ChannelConsoleResult { status: number; durationMs: number; requestId: string; contentType?: string; body: string }
 export const fetchChannelTraffic = async (channelId: string, f: { hours?: number; operation?: string; result?: string; q?: string; limit?: number }): Promise<ChannelTrafficRow[]> =>
@@ -563,13 +573,17 @@ export interface StaffActivityEntry {
   summary: string;
   bookingId?: string;
   details?: string;
+  /** Where it came from: address, browser and request id. */
+  ipAddress?: string;
+  userAgent?: string;
+  requestId?: string;
 }
 export type ActivityCategory = 'auth' | 'reservation' | 'agreement' | 'charges' | 'invoice' | 'email' | 'fleet' | 'finance' | 'settings' | 'staff' | 'screen' | 'other';
 
 /** Records something the signed-in user did. Fire-and-forget: never blocks or breaks the action. */
 export const recordActivity = (action: string, category: ActivityCategory, summary: string, bookingId?: string, details?: string) => {
   try {
-    if (!localStorage.getItem('token')) return;
+    if (!sessionToken() || isSupportView()) return;
   } catch { return; }
   axios.post(`${API_URL}/api/activity`, { action, category, summary, bookingId, details }, { headers: authHeaders(), timeout: 15000 }).catch(() => { /* offline: skip */ });
 };
@@ -579,8 +593,8 @@ export interface ActivityEvent { action: string; category: ActivityCategory; sum
 /** Records several events at once. keepalive lets the last batch go out while the page is closing. */
 export const recordActivityBatch = (events: ActivityEvent[], keepalive = false) => {
   let token: string | null = null;
-  try { token = localStorage.getItem('token'); } catch { return; }
-  if (!token || !events.length) return;
+  try { token = sessionToken(); } catch { return; }
+  if (!token || !events.length || isSupportView()) return;
   fetch(`${API_URL}/api/activity/batch`, { method: 'POST', keepalive, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(events) }).catch(() => { /* offline: skip */ });
 };
 
@@ -590,7 +604,7 @@ export const recordActivityBatch = (events: ActivityEvent[], keepalive = false) 
  */
 export const reportScreenError = async (error: Error, componentStack: string): Promise<string | undefined> => {
   let token: string | null = null;
-  try { token = localStorage.getItem('token'); } catch { return undefined; }
+  try { token = sessionToken(); } catch { return undefined; }
   if (!token) return undefined;
   let screen = '';
   try { screen = localStorage.getItem('nct.mainView') || ''; } catch { /* storage unavailable */ }
@@ -613,7 +627,7 @@ export const reportScreenError = async (error: Error, componentStack: string): P
 
 /** "Still here": keeps the signed-in user's Last seen current on the server. */
 export const sendHeartbeat = (deviceType: 'mobile' | 'desktop', screen?: string) => {
-  try { if (!localStorage.getItem('token')) return; } catch { return; }
+  try { if (!sessionToken() || isSupportView()) return; } catch { return; }
   axios.post(`${API_URL}/api/account/heartbeat`, { deviceType, screen }, { headers: authHeaders(), timeout: 15000 }).catch(() => { /* offline: skip */ });
 };
 

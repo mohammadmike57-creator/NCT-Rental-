@@ -43,8 +43,24 @@ public class MailSettingsService {
     @Value("${mail.smtp.reply-to:}") String envReplyTo;
     @org.springframework.beans.factory.annotation.Autowired com.carrental.backend.config.ServerSecret serverSecret;
 
+    /**
+     * The email settings of the supplier this request works for. UR-Drive Jordan keeps its original row (id 1) and
+     * the server's own email settings as fallback; another supplier sends only with the settings it saved itself, so
+     * its emails never go out under someone else's name.
+     */
+    private java.util.Optional<MailSettings> row() {
+        String supplier = com.carrental.backend.tenant.TenantContext.current();
+        if (com.carrental.backend.tenant.TenantContext.DEFAULT.equals(supplier)) return repo.findById(1L);
+        return repo.findFirstBySupplierId(supplier);
+    }
+
+    private static boolean isDefaultSupplier() {
+        return com.carrental.backend.tenant.TenantContext.DEFAULT.equals(com.carrental.backend.tenant.TenantContext.current());
+    }
+
     public MailConfig effective() {
-        return repo.findById(1L)
+        if (!isDefaultSupplier() && row().isEmpty()) return new MailConfig(false, "", 587, "", "", "", "", "STARTTLS", "", "none");
+        return row()
             .map(s -> new MailConfig(s.isEnabled(), nz(s.getHost()), s.getPort() == null ? 587 : s.getPort(), nz(s.getUsername()),
                 decrypt(s.getPasswordEncrypted()), notBlank(s.getFromAddress()) ? s.getFromAddress() : nz(s.getUsername()),
                 notBlank(s.getFromName()) ? s.getFromName() : envFromName, notBlank(s.getSecurity()) ? s.getSecurity() : "STARTTLS", nz(s.getReplyTo()), "app"))
@@ -70,7 +86,7 @@ public class MailSettingsService {
         m.put("replyTo", c.replyTo());
         m.put("source", c.source());
         m.put("configured", c.usable());
-        repo.findById(1L).ifPresent(s -> {
+        row().ifPresent(s -> {
             m.put("updatedBy", s.getUpdatedBy());
             m.put("updatedAt", s.getUpdatedAt() == null ? null : s.getUpdatedAt().toString());
         });
@@ -78,7 +94,7 @@ public class MailSettingsService {
     }
 
     public Map<String, Object> save(Map<String, Object> req, String by) {
-        MailSettings s = repo.findById(1L).orElseGet(MailSettings::new);
+        MailSettings s = row().orElseGet(MailSettings::new);
         String host = str(req.get("host"));
         String username = str(req.get("username"));
         String security = "SSL".equalsIgnoreCase(str(req.get("security"))) ? "SSL" : "STARTTLS";
@@ -93,7 +109,8 @@ public class MailSettingsService {
         if (notBlank(fromAddress) && !fromAddress.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) throw new IllegalArgumentException("The sender address is not a valid email.");
         String replyTo = str(req.get("replyTo"));
         if (notBlank(replyTo) && !replyTo.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) throw new IllegalArgumentException("The reply-to address is not a valid email.");
-        s.setId(1L);
+        if (s.getId() == null || (!isDefaultSupplier() && s.getSupplierId() == null)) s.setId(isDefaultSupplier() ? 1L : repo.maxId() + 1);
+        s.setSupplierId(com.carrental.backend.tenant.TenantContext.current());
         s.setEnabled(enabled);
         s.setHost(host);
         s.setPort(port);

@@ -6,7 +6,14 @@ import java.time.Instant;
 /** An uploaded image (e.g. a fleet vehicle photo). Stored base64 so it works on any database. */
 @Entity
 @Table(name = "media_files")
-public class MediaFile {
+@jakarta.persistence.EntityListeners(com.carrental.backend.tenant.SupplierStamp.class)
+public class MediaFile implements com.carrental.backend.tenant.TenantOwned {
+    /** The supplier this record belongs to (filled from the request's supplier when saved). */
+    @jakarta.persistence.Column(name = "supplier_id", length = 40)
+    private String supplierId;
+    @Override public String getSupplierId() { return supplierId; }
+    @Override public void setSupplierId(String supplierId) { this.supplierId = supplierId; }
+
     @Id
     private String id;
 

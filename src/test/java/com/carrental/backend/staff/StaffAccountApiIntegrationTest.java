@@ -49,7 +49,8 @@ class StaffAccountApiIntegrationTest {
         admin.setPassword(encoder.encode("Admin-Pass-1"));
         admin.setStatus(UserStatus.ACTIVE);
         admin.setWebAppAccess(true);
-        admin.setPermissions(List.of(UserPermission.ACTION_ADMIN_MANAGE_USERS, UserPermission.VIEW_ADMIN_PANEL));
+        // A real administrator: may give any permission (nobody can give what they do not have themselves).
+        admin.setPermissions(new java.util.ArrayList<>(List.of(UserPermission.values())));
         users.save(admin);
         adminToken = "Bearer " + jwt.generateToken("admin@nct.test");
     }
