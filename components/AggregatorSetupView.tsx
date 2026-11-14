@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon,
   ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon, PlayCircleIcon } from './icons';
@@ -31,6 +31,7 @@ import LanguagesView from './channel/LanguagesView';
 import OutboundView from './channel/OutboundView';
 import DeveloperView from './channel/DeveloperView';
 import VideoGuideView from './channel/VideoGuideView';
+import { showActionFeedback } from './ui/ActionFeedback';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../services/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -42,7 +43,6 @@ interface AggregatorSetupViewProps {
   availableExtras: AvailableExtra[];
   stopSales: StopSale[];
   onUpdateStopSales: (stopSales: StopSale[]) => void;
-  showConfirmation: (message: string) => void;
   currentUserName?: string;
   rentalLocations?: RentalLocation[];
   companyDetails?: CompanyDetails;
@@ -221,7 +221,7 @@ export const relativeTime = (iso?: string) => {
 };
 
 const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
-  aggregators, onUpdateAggregators, fleet, availableExtras, stopSales, onUpdateStopSales, showConfirmation, currentUserName,
+  aggregators, onUpdateAggregators, fleet, availableExtras, stopSales, onUpdateStopSales, currentUserName,
   rentalLocations = [], companyDetails,
 }) => {
   const [selectedAggregatorId, setSelectedAggregatorId] = useState<string | null>(aggregators.length > 0 ? aggregators[0].id : null);
@@ -317,7 +317,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     setIsAddingPartner(false);
     setSelectedAggregatorId(newAggregator.id);
     setActiveTab(source ? 'Overview' : 'Connection');
-    showConfirmation(source
+    notify(source
       ? `Channel ${name} created from ${source.name}: branches, rules, covers, extras, terms and draft rates copied. Review and publish the rates, then create its API key.`
       : `Channel ${name} created in testing mode. Configure the connection to go live.`);
   };
@@ -327,23 +327,44 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       const remaining = aggregators.filter(a => a.id !== agg.id);
       onUpdateAggregators(remaining);
       if (selectedAggregatorId === agg.id) setSelectedAggregatorId(remaining[0]?.id ?? null);
-      showConfirmation(`${agg.name} deleted.`);
+      notify(`${agg.name} deleted.`);
     }
   };
 
+  // Every action in OTA XML ends with a centred confirmation (components/ui/ActionFeedback). A save that
+  // has no message of its own gets "Changes saved" a moment later, unless the screen sends its own message.
+  const pendingSaved = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notify = useCallback((message: string) => {
+    if (pendingSaved.current) { clearTimeout(pendingSaved.current); pendingSaved.current = null; }
+    showActionFeedback(message);
+  }, []);
+  useEffect(() => () => { if (pendingSaved.current) clearTimeout(pendingSaved.current); }, []);
   const handleUpdateAggregator = (updated: Aggregator) => {
     onUpdateAggregators(aggregators.map(a => (a.id === updated.id ? updated : a)));
+    if (pendingSaved.current) clearTimeout(pendingSaved.current);
+    pendingSaved.current = setTimeout(() => {
+      pendingSaved.current = null;
+      showActionFeedback({ tone: 'success', title: 'Changes saved', detail: `${updated.name} is up to date.` });
+    }, 350);
+  };
+  /** Typing the rental terms saves quietly (the header shows "Saved"); a confirmation on every pause would get in the way. */
+  const updateQuietly = (updated: Aggregator) => onUpdateAggregators(aggregators.map(a => (a.id === updated.id ? updated : a)));
+  const updateStopSales = (next: StopSale[]) => {
+    onUpdateStopSales(next);
+    showActionFeedback(next.length >= stopSales.length
+      ? { tone: 'success', title: 'Stop sale added', detail: 'Brokers no longer see these cars for those dates.' }
+      : { tone: 'success', title: 'Stop sale removed', detail: 'The cars are offered to brokers again.' });
   };
 
   const sendRates = async (agg: Aggregator) => {
     setSending(true);
     try {
       const result = await deliverChannelRates(agg.id);
-      showConfirmation(result.success
+      notify(result.success
         ? `Rates v${result.version} delivered to ${agg.name} (HTTP ${result.httpStatus}).`
         : `Delivery to ${agg.name} failed: ${result.error || 'unknown error'}. See the delivery log.`);
     } catch (e: any) {
-      showConfirmation(`Could not reach the server to deliver rates to ${agg.name}.`);
+      notify(`Could not reach the server to deliver rates to ${agg.name}.`);
     } finally {
       setSending(false);
       setDeliveryRefresh(n => n + 1);
@@ -357,7 +378,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     try {
       await saveAllData({ aggregators: list });
     } catch {
-      showConfirmation(`Version saved locally but could not be stored on the server yet; it will sync automatically. Delivery to ${updated.name} was not attempted.`);
+      notify(`Version saved locally but could not be stored on the server yet; it will sync automatically. Delivery to ${updated.name} was not attempted.`);
       return;
     }
     if (updated.connectionDetails?.apiUrl && channelStatus(updated) !== 'paused') {
@@ -394,7 +415,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       }
     }
     setDeliveryRefresh(n => n + 1);
-    showConfirmation(`Multi-channel update applied to ${updated.length} channel${updated.length === 1 ? '' : 's'}.`);
+    notify(`Multi-channel update applied to ${updated.length} channel${updated.length === 1 ? '' : 's'}.`);
     return out;
   };
 
@@ -543,19 +564,19 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       ) : mode === 'developer' ? (
         <DeveloperView />
       ) : mode === 'rates' ? (
-        <RateRulesView aggregators={aggregators} fleet={fleet} currentUserName={currentUserName} onUpdateAggregator={handleUpdateAggregator} showConfirmation={showConfirmation} />
+        <RateRulesView aggregators={aggregators} fleet={fleet} currentUserName={currentUserName} onUpdateAggregator={handleUpdateAggregator} showConfirmation={notify} />
       ) : mode === 'dashboard' ? (
         <ChannelDashboardView aggregators={aggregators} onOpenChannel={openChannel} />
       ) : mode === 'reservations' ? (
         <XmlReservationsView aggregators={aggregators} />
       ) : mode === 'keys' ? (
-        <ApiKeysView aggregators={aggregators} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation}
+        <ApiKeysView aggregators={aggregators} onUpdate={handleUpdateAggregator} showConfirmation={notify}
           onOpenChannel={id => openChannel(id, 'Connection')} />
       ) : mode === 'multi' ? (
         <MultiChannelEditor aggregators={aggregators} fleet={fleet} availableExtras={availableExtras} stopSales={stopSales}
           currentUserName={currentUserName} onApply={applyBulk} />
       ) : showStopSale ? (
-        <ManageStopSaleView stopSales={stopSales} onUpdate={onUpdateStopSales} fleet={fleet} channels={aggregators.map(a => ({ id: a.id, name: a.name }))} />
+        <ManageStopSaleView stopSales={stopSales} onUpdate={updateStopSales} fleet={fleet} channels={aggregators.map(a => ({ id: a.id, name: a.name }))} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)] gap-4 items-start">
           {/* Navigator: the brokers, then the sections of the selected one */}
@@ -708,8 +729,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 {activeTab === 'Connection' && (
                   <>
                     <ConnectionProfileView aggregator={sel} fleet={fleet} currentUserName={currentUserName}
-                      onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
-                    <ManageConnectionView aggregator={sel} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                      onUpdate={handleUpdateAggregator} showConfirmation={notify} />
+                    <ManageConnectionView aggregator={sel} onUpdate={handleUpdateAggregator} showConfirmation={notify} />
                   </>
                 )}
                 {activeTab === 'Rates' && (
@@ -718,7 +739,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                     onUpdateAggregator={handleUpdateAggregator}
                     fleet={fleet}
                     stopSales={stopSales}
-                    showConfirmation={showConfirmation}
+                    showConfirmation={notify}
                     currentUserName={currentUserName}
                     onPublished={handlePublished}
                   />
@@ -745,28 +766,28 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 )}
                 {activeTab === 'Terms & Conditions' && (
                   <Panel padded>
-                    <ManageTermsView terms={sel.termsAndConditions} onUpdate={terms => handleUpdateAggregator({ ...sel, termsAndConditions: terms })} />
+                    <ManageTermsView terms={sel.termsAndConditions} onUpdate={terms => updateQuietly({ ...sel, termsAndConditions: terms })} />
                   </Panel>
                 )}
                 {activeTab === 'Booking API' && (
-                  <BookingApiView aggregator={sel} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                  <BookingApiView aggregator={sel} fleet={fleet} rentalLocations={rentalLocations} onUpdate={handleUpdateAggregator} showConfirmation={notify} />
                 )}
                 {activeTab === 'Price rules' && (
                   <PriceRulesView key={sel.id} aggregator={sel} fleet={fleet} currentUserName={currentUserName}
-                    onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                    onUpdate={handleUpdateAggregator} showConfirmation={notify} />
                 )}
-                {activeTab === 'Outbound' && <OutboundView key={sel.id} aggregator={sel} showConfirmation={showConfirmation} />}
+                {activeTab === 'Outbound' && <OutboundView key={sel.id} aggregator={sel} showConfirmation={notify} />}
                 {activeTab === 'Languages' && (
-                  <LanguagesView key={sel.id} aggregator={sel} fleet={fleet} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                  <LanguagesView key={sel.id} aggregator={sel} fleet={fleet} onUpdate={handleUpdateAggregator} showConfirmation={notify} />
                 )}
-                {activeTab === 'API v3' && <ApiV3View aggregator={sel} showConfirmation={showConfirmation} />}
-                {activeTab === 'Security' && <ChannelSecurityView aggregator={sel} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />}
+                {activeTab === 'API v3' && <ApiV3View aggregator={sel} showConfirmation={notify} />}
+                {activeTab === 'Security' && <ChannelSecurityView aggregator={sel} onUpdate={handleUpdateAggregator} showConfirmation={notify} />}
                 {activeTab === 'Bookings' && <ChannelBookingsView aggregator={sel} />}
                 {activeTab === 'Traffic' && <TrafficView aggregator={sel} />}
                 {activeTab === 'Test console' && <ConsoleView aggregator={sel} fleet={fleet} />}
                 {activeTab === 'Go-live' && (
                   <GoLiveView aggregator={sel} fleet={fleet} company={companyDetails || ({ name: 'NCT Rental' } as CompanyDetails)}
-                    currentUserName={currentUserName} onUpdate={handleUpdateAggregator} showConfirmation={showConfirmation} />
+                    currentUserName={currentUserName} onUpdate={handleUpdateAggregator} showConfirmation={notify} />
                 )}
                 {activeTab === 'XML Feed' && (
                   <XMLPreviewView aggregator={sel} fleet={fleet} stopSales={stopSalesFor(stopSales, sel.id)} />

@@ -33,6 +33,7 @@ import AppSidebar from './app/AppSidebar';
 import AppHeader from './app/AppHeader';
 import PhoneTabBar from './app/PhoneTabBar';
 import GuidePlayer from './app/GuidePlayer';
+import ActionFeedback from './components/ui/ActionFeedback';
 
 const USERS_CACHE_KEY = 'NCT_USERS_CACHE';
 
@@ -1417,7 +1418,6 @@ export const App: React.FC = () => {
             availableExtras={availableExtras}
             stopSales={stopSales}
             onUpdateStopSales={setStopSales}
-            showConfirmation={showConfirmation}
             currentUserName={currentUser?.fullName || currentUser?.username}
             rentalLocations={rentalLocations}
             companyDetails={companyDetails}
@@ -1616,6 +1616,8 @@ export const App: React.FC = () => {
       <Notifications notifications={notifications} onDismiss={(id) => setNotifications(prev => prev.filter(n => n.id !== id))} />
       {/* The video guide keeps playing in its floating window on every screen. */}
       <GuidePlayer />
+      {/* Centred confirmation after an action (OTA XML: saved, published, created…). */}
+      <ActionFeedback />
 
     </div>
   );
