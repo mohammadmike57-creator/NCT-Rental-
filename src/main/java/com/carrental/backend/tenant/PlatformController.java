@@ -85,7 +85,7 @@ public class PlatformController {
 
     @GetMapping("/api/platform/me")
     public ResponseEntity<?> me(Authentication auth) {
-        if (!allowed(auth)) return notFound();
+        if (!allowed(auth)) return denied(auth);
         Map<String, Object> m = new LinkedHashMap<>();
         User u = users.findByEmail(auth.getName()).orElse(null);
         m.put("email", auth.getName());
@@ -352,8 +352,24 @@ public class PlatformController {
     // ------------------------------------------------------------------ helpers
 
     private boolean allowed(Authentication auth) {
-        return auth != null && platform.multiSupplier() && platform.isSuperAdmin(auth.getName())
+        return auth != null && platform.multiSupplier() && isListed(auth)
             && TenantContext.DEFAULT.equals(TenantContext.current());
+    }
+
+    /** The account is named in PLATFORM_SUPER_ADMINS by its email or by its username. */
+    private boolean isListed(Authentication auth) {
+        String email = auth.getName();
+        if (platform.isSuperAdmin(email)) return true;
+        return users.findByEmail(email).map(u -> platform.isSuperAdmin(u.getUsername())).orElse(false);
+    }
+
+    /** Tells the signed-in person why the portal is closed to them, so they can fix the setting. */
+    private ResponseEntity<?> denied(Authentication auth) {
+        if (auth == null) return ResponseEntity.status(401).body(Map.of("error", "Sign in first"));
+        String reason = !platform.multiSupplier() ? "off"
+            : !TenantContext.DEFAULT.equals(TenantContext.current()) ? "supplier"
+            : "not-listed";
+        return ResponseEntity.status(403).body(Map.of("error", "No access", "reason", reason, "signedInAs", auth.getName()));
     }
 
     private void apply(Supplier s, SupplierForm f) {

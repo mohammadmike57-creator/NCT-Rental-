@@ -22,13 +22,16 @@ public class PlatformSettings {
     public PlatformSettings(@Value("${platform.multi-supplier:${MULTI_SUPPLIER:false}}") boolean multiSupplier,
                             @Value("${platform.super-admins:${PLATFORM_SUPER_ADMINS:}}") String superAdmins) {
         this.multiSupplier = multiSupplier;
-        this.superAdmins = Arrays.stream(superAdmins.split(","))
-            .map(s -> s.trim().toLowerCase(Locale.ROOT)).filter(s -> !s.isEmpty()).collect(Collectors.toUnmodifiableSet());
+        // Commas, semicolons or spaces between entries; quotes pasted around the value are ignored.
+        this.superAdmins = Arrays.stream(superAdmins.split("[,;\\s]+"))
+            .map(s -> s.replaceAll("[\"']", "").trim().toLowerCase(Locale.ROOT)).filter(s -> !s.isEmpty()).collect(Collectors.toUnmodifiableSet());
     }
 
     public boolean multiSupplier() { return multiSupplier; }
 
-    public boolean isSuperAdmin(String email) {
-        return email != null && superAdmins.contains(email.trim().toLowerCase(Locale.ROOT));
+    /** True when any of the account's names (its email, or its username) is listed. */
+    public boolean isSuperAdmin(String... names) {
+        for (String n : names) if (n != null && superAdmins.contains(n.trim().toLowerCase(Locale.ROOT))) return true;
+        return false;
     }
 }

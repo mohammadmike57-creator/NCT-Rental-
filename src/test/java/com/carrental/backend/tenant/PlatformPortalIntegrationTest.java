@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
     "stripe.secret.key=sk_test_dummy",
     "stripe.price.id=price_dummy",
     "platform.multi-supplier=true",
-    "platform.super-admins=boss@urd.test",
+    "platform.super-admins=\"boss@urd.test\"; ops",   // quotes and semicolons as pasted in a dashboard; "ops" is a username
     "app.base-url=https://portal.example.test",
     "spring.datasource.url=jdbc:h2:mem:platform-portal;DB_CLOSE_DELAY=-1"
 })
@@ -70,8 +70,16 @@ class PlatformPortalIntegrationTest {
     void onlyTheSuperAdminSeesThePortal() throws Exception {
         JsonNode me = json(get("/api/platform/me"), boss);
         assertEquals(3, me.path("plans").size());
-        assertEquals(404, status(get("/api/platform/me"), clerk));
+        // The person refused is told why and as whom, so the setting can be fixed.
+        MvcResult refused = mvc.perform(get("/api/platform/me").header("Authorization", clerk)).andReturn();
+        assertEquals(403, refused.getResponse().getStatus());
+        JsonNode why = M.readTree(refused.getResponse().getContentAsString());
+        assertEquals("not-listed", why.path("reason").asText());
+        assertEquals("clerk@urd.test", why.path("signedInAs").asText());
         assertEquals(404, status(get("/api/platform/overview"), clerk));
+        // Listed by username rather than email works too.
+        account("ops@urd.test", UserPermission.values());
+        assertEquals(200, status(get("/api/platform/me"), login("ops@urd.test", PASS)));
         assertEquals(401, mvc.perform(get("/api/platform/me")).andReturn().getResponse().getStatus());
     }
 

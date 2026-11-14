@@ -27,6 +27,7 @@ const hasToken = () => { try { return !!localStorage.getItem('token'); } catch {
 const AdminPortal: React.FC = () => {
   const [route, setRoute] = useState<Route>(() => parse(window.location.pathname));
   const [me, setMe] = useState<PlatformMe | null>(null);
+  const [why, setWhy] = useState<{ reason?: string; signedInAs?: string }>({});
   const [state, setState] = useState<'loading' | 'ready' | 'denied' | 'signin'>(hasToken() ? 'loading' : 'signin');
   const [wizard, setWizard] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -36,7 +37,7 @@ const AdminPortal: React.FC = () => {
     document.title = 'Admin Portal';
     if (!hasToken()) return;
     platformMe().then(m => { setMe(m); setState('ready'); })
-      .catch(e => setState(e?.response?.status === 401 ? 'signin' : 'denied'));
+      .catch(e => { setWhy(e?.response?.data || {}); setState(e?.response?.status === 401 ? 'signin' : 'denied'); });
   }, []);
   useEffect(() => {
     const pop = () => setRoute(parse(window.location.pathname));
@@ -52,14 +53,19 @@ const AdminPortal: React.FC = () => {
   }, []);
   const signOut = () => { try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch { /* nothing stored */ } window.location.href = '/admin'; };
 
-  if (state === 'signin') return <Suspense fallback={null}><LoginScreen users={[]} /></Suspense>;
+  if (state === 'signin') return <Suspense fallback={null}><LoginScreen users={[]} admin /></Suspense>;
   if (state === 'loading') return <div className="min-h-screen bg-[#F5F6F8] flex items-center justify-center"><span className="w-6 h-6 rounded-full border-2 border-slate-300 border-t-teal-600 animate-spin" aria-label="Loading" /></div>;
   if (state === 'denied' || !me) return (
     <div className="min-h-screen bg-[#0B1220] flex items-center justify-center p-6" data-testid="portal-denied">
       <div className="max-w-md w-full bg-white rounded-3xl p-8 text-center shadow-2xl">
         <span className="inline-flex w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 items-center justify-center">{Icon.shield('w-6 h-6')}</span>
         <h1 className="mt-4 text-[20px] font-semibold text-slate-900">No access to the admin portal</h1>
-        <p className="mt-2 text-[13.5px] text-slate-600">This portal is for platform administrators. Your account works in your company's workspace.</p>
+        <p className="mt-2 text-[13.5px] text-slate-600">
+          {why.reason === 'off' ? 'The admin portal is switched off on the server (MULTI_SUPPLIER is not true).'
+            : why.reason === 'not-listed' ? 'This account is not listed as a platform administrator (PLATFORM_SUPER_ADMINS).'
+            : "This portal is for platform administrators. Your account works in your company's workspace."}
+        </p>
+        {why.signedInAs && <p className="mt-3 text-[12.5px] text-slate-500" data-testid="portal-signed-in-as">Signed in as <b className="text-slate-800 break-all">{why.signedInAs}</b></p>}
         <div className="mt-6 flex justify-center gap-2">
           <a href="/" className="inline-flex items-center h-10 px-4 rounded-lg bg-teal-700 text-white text-[13px] font-medium hover:bg-teal-800">Open my workspace</a>
           <button type="button" onClick={signOut} className="inline-flex items-center h-10 px-4 rounded-lg ring-1 ring-inset ring-slate-300 text-[13px] font-medium text-slate-700 hover:bg-slate-50">Sign out</button>

@@ -6,6 +6,8 @@ import { API_BASE } from '../services/apiBase';
 
 interface LoginScreenProps {
   users: User[];
+  /** The platform admin portal's own sign-in (/admin): labelled for administrators, no supplier branding. */
+  admin?: boolean;
 }
 
 /**
@@ -97,7 +99,7 @@ const brandCode = (): string | null => {
   return m ? m[1] : null;
 };
 
-const LoginScreen: React.FC<LoginScreenProps> = () => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ admin = false }) => {
   const [brand, setBrand] = useState<Brand | null>(null);
   useEffect(() => {
     const code = brandCode();
@@ -209,14 +211,19 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
               : <span style={{ width: 40, height: 40, borderRadius: 10, background: brand.brandColor || '#4f46e5', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
                   {brand.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()}</span>
             : <img src={NCT_LOGIN_LOGO_B64} alt="" />}
-          <div><div className="lg-brand-name">{brand ? brand.name : 'NCT Rental'}</div></div>
+          <div>
+            <div className="lg-brand-name">{admin ? 'Admin Portal' : brand ? brand.name : 'NCT Rental'}</div>
+            {admin && <div className="lg-brand-sub">Platform administration</div>}
+          </div>
         </div>
         <div className="lg-hero">
-          <h1 className="lg-in lg-d2">Every rental, <em>from counter to return.</em></h1>
+          {admin
+            ? <h1 className="lg-in lg-d2">Every supplier, <em>from one place.</em></h1>
+            : <h1 className="lg-in lg-d2">Every rental, <em>from counter to return.</em></h1>}
           <div className="lg-ticker lg-in lg-d4">
             <span><i />All systems running</span>
             <span>Amman <b className="lg-clock">{clock}</b></span>
-            {!brand && <span>Queen Alia Airport · City Center</span>}
+            {!brand && !admin && <span>Queen Alia Airport · City Center</span>}
           </div>
         </div>
       </section>
@@ -236,8 +243,8 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
             </>
           ) : (
             <>
-          <h2 className="lg-in lg-d3">Welcome back</h2>
-          <p className="lg-lead lg-in lg-d4">{brand?.signInTagline || (brand ? `Sign in to ${brand.name}` : 'Sign in to your staff account')}</p>
+          <h2 className="lg-in lg-d3">{admin ? 'Admin sign-in' : 'Welcome back'}</h2>
+          <p className="lg-lead lg-in lg-d4">{admin ? 'For platform administrators only. Use the account set up as administrator.' : brand?.signInTagline || (brand ? `Sign in to ${brand.name}` : 'Sign in to your staff account')}</p>
 
           <div className="lg-field lg-in lg-d5">
             <input id="username-input" name="username" type="text" placeholder=" " autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false}
