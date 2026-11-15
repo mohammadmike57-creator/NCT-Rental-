@@ -3,6 +3,7 @@ import { Aggregator, Fleet } from '../../types';
 import { sendChannelConsole } from '../../services/api';
 import { Button, selectCls, inputCls } from '../ui/Crm';
 import CodeView, { checkMessage, detectLang, formatCode } from './CodeView';
+import { hasUnpublishedChanges } from '../../services/channelManager';
 
 type Format = 'OTA' | 'SOAP' | 'XML' | 'REST';
 type Template = { id: string; label: string; format: Format; operation?: string; method?: string; body: string };
@@ -310,6 +311,15 @@ const ConsoleView: React.FC<{ aggregator: Aggregator; fleet: Fleet }> = ({ aggre
             {/* Response */}
             <div className="min-w-0 space-y-2">
               {error && <p className="rounded-lg bg-rose-50 ring-1 ring-inset ring-rose-200 px-3 py-2 text-[12px] text-rose-700">{error}</p>}
+              {res && /No rates are published|No vehicles available/.test(res.body) && (
+                <p className="rounded-lg bg-amber-50 ring-1 ring-inset ring-amber-200 px-3 py-2 text-[12px] text-amber-900" data-testid="console-rates-hint">
+                  {!(aggregator.ratePlanHistory || []).length
+                    ? <>Nothing is published on this channel yet. The broker only gets <b>published</b> rates: add rates on the <b>Rates</b> tab and press <b>Publish</b>.</>
+                    : hasUnpublishedChanges(aggregator)
+                      ? <>This channel has <b>unpublished rate changes</b>. The broker (and this console) only see the published rates: press <b>Re-publish</b> on the <b>Rates</b> tab.</>
+                      : <>No published rate period or free car covers these dates. Check the periods on the <b>Rates</b> tab, the car groups (SIPP codes) of your fleet and any stop sales.</>}
+                </p>
+              )}
               <CodeView code={res?.body} summary readable defaultView="readable" download={res ? `${res.label.replace(/\W+/g, '-').toLowerCase()}-${res.requestId}.${detectLang(res.body) === 'json' ? 'json' : 'xml'}` : undefined}
                 title={res ? 'Response' : 'Response'} height="30rem" empty="Send a message (Ctrl + Enter) to see the answer here."
                 meta={res && <>

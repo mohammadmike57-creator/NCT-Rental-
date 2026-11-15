@@ -2,10 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { Aggregator, Fleet, StopSale } from '../types';
 import { CodeBracketIcon } from './icons';
 import CodeView from './channel/CodeView';
+import { displayDay } from '../services/displayDate';
 import { Panel, Toolbar, Segmented, Badge, Field, EmptyState, inputCls, selectCls, table } from './ui/Crm';
 import {
   buildQuote, channelCurrency, checkWellFormed, fingerprint, formatMoney, generateRateSheetXml,
-  generateVehAvailRateXml, publishedView, rentalDays, submissionVersion, todayIso,
+  findPlanForDate, generateVehAvailRateXml, publishedView, rentalDays, submissionVersion, todayIso,
 } from '../services/channelManager';
 
 interface XMLPreviewViewProps {
@@ -45,8 +46,16 @@ const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ aggregator: channel, fl
   const hasPublished = (channel.ratePlanHistory || []).length > 0;
   const [source, setSource] = useState<'published' | 'draft'>(hasPublished ? 'published' : 'draft');
   const aggregator = useMemo(() => (source === 'published' ? publishedView(channel) : channel), [source, channel]);
-  const [pickUp, setPickUp] = useState(defaultPickUp);
-  const [dropOff, setDropOff] = useState(() => plusDays(defaultPickUp(), 3));
+  // Start on a date the rates cover: a week ahead, or the start of the next rate period when that week has none.
+  const [pickUp, setPickUp] = useState(() => {
+    const d = defaultPickUp();
+    const plans = (hasPublished ? publishedView(channel) : channel).currentRatePlans || [];
+    // Stay on that date when the draft covers it: the screen then says the new rates are not published yet.
+    if (!plans.length || findPlanForDate(plans, d.slice(0, 10)) || findPlanForDate(channel.currentRatePlans || [], d.slice(0, 10))) return d;
+    const next = plans.map(p => p.startDate).filter(x => x && x >= d.slice(0, 10)).sort()[0];
+    return next ? `${next}T10:00` : d;
+  });
+  const [dropOff, setDropOff] = useState(() => plusDays(pickUp, 3));
   const [extraIds, setExtraIds] = useState<string[]>([]);
 
   const currency = channelCurrency(aggregator);
@@ -134,9 +143,26 @@ const XMLPreviewView: React.FC<XMLPreviewViewProps> = ({ aggregator: channel, fl
               </div>
             )}
           </div>
-          {quote.length === 0 ? (
-            <EmptyState className="!py-8" title="No vehicles would be returned" hint={`No rate period covers ${pickUp.slice(0, 10)} — the partner would receive no vehicles.`} />
-          ) : (
+          {quote.length === 0 ? (() => {
+            const date = pickUp.slice(0, 10);
+            const draftCovers = !!findPlanForDate(channel.currentRatePlans || [], date);
+            const plans = aggregator.currentRatePlans || [];
+            const next = plans.map(p => p.startDate).filter(x => x && x > date).sort()[0];
+            if (source === 'published' && draftCovers) return (
+              <EmptyState className="!py-8" title="Your new rates are not published yet"
+                hint={`The draft has rates for ${displayDay(date)}, but the broker only gets published rates. Publish them on the Rates tab.`}
+                action={<button type="button" onClick={() => setSource('draft')} className="h-8 px-3 rounded-md text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700">Preview the draft</button>} />
+            );
+            if (!plans.length) return (
+              <EmptyState className="!py-8" title={source === 'published' ? 'Nothing is published yet' : 'No rates yet'}
+                hint={source === 'published' ? 'Add rates on the Rates tab and press Publish: the broker receives no vehicles until then.' : 'Add a rate period on the Rates tab.'} />
+            );
+            return (
+              <EmptyState className="!py-8" title="No vehicles would be returned"
+                hint={`No ${source === 'published' ? 'published ' : ''}rate period covers ${displayDay(date)}, so the broker would receive no vehicles for it.`}
+                action={next ? <button type="button" onClick={() => { const d = `${next}T10:00`; setPickUp(d); setDropOff(plusDays(d, 3)); }} className="h-8 px-3 rounded-md text-xs font-semibold ring-1 ring-inset ring-slate-300 text-slate-700 hover:bg-slate-50">Try {displayDay(next)}</button> : undefined} />
+            );
+          })() : (
             <>
               <table className={`hidden md:table ${table.wrap}`}>
                 <thead className={table.head}>
