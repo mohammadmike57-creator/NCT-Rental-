@@ -180,13 +180,14 @@ ${section(3, 'Operations', `
 ${section(4, 'OTA XML messages', `
   <h3>Availability — OTA_VehAvailRateRQ</h3>
   ${code(`<OTA_VehAvailRateRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="A1">
+  <POS><Source ISOCountry="JO"><RequestorID Type="4" ID="${ch}"/></Source></POS>
   <VehAvailRQCore>
     <VehRentalCore PickUpDateTime="${y}-05-01T10:00:00" ReturnDateTime="${y}-05-04T10:00:00">
       <PickUpLocation LocationCode="${loc}"/><ReturnLocation LocationCode="${loc}"/>
     </VehRentalCore>
     <DriverType Age="35"/>
+    <SpecialEquipPrefs><SpecialEquipPref EquipType="7" Quantity="1"/></SpecialEquipPrefs>
   </VehAvailRQCore>
-  <SpecialEquipPrefs><SpecialEquipPref EquipType="7" Quantity="1"/></SpecialEquipPrefs>
 </OTA_VehAvailRateRQ>`)}
   <p>Each <code>VehAvail</code> returns <code>Status</code> (Available / Closed), the price, <code>TotalCharge</code>, the offer id in <code>&lt;Reference Type="16" ID="OFF-…" DateTime="expiry"/&gt;</code> and, in <code>VehAvailInfo/TPA_Extensions</code>, the number of cars available, the deposit, the excess, the payment type and the cancellation policy.</p>
   <h3>Book — OTA_VehResRQ</h3>
@@ -194,6 +195,7 @@ ${section(4, 'OTA XML messages', `
 Idempotency-Key: ${ch}-VOUCHER-99881
 
 <OTA_VehResRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="R1">
+  <POS><Source ISOCountry="JO"><RequestorID Type="4" ID="${ch}"/></Source></POS>
   <VehResRQCore>
     <Customer><Primary BirthDate="1990-05-01">
       <PersonName><GivenName>John</GivenName><Surname>Doe</Surname></PersonName>
@@ -223,14 +225,14 @@ Idempotency-Key: ${ch}-VOUCHER-99881
     <CancellationPolicy Code="${policy}"/></TPA_Extensions>
 </OTA_VehResRS>`)}
   <h3>Retrieve, modify, cancel</h3>
-  ${code(`<OTA_VehRetResRQ><VehRetResRQCore><UniqueID Type="14" ID="RSV-${y - 1}-000123"/>
+  ${code(`<OTA_VehRetResRQ xmlns="http://www.opentravel.org/OTA/2003/05"><POS><Source ISOCountry="JO"><RequestorID Type="4" ID="${ch}"/></Source></POS><VehRetResRQCore><UniqueID Type="14" ID="RSV-${y - 1}-000123"/>
   <PersonName><Surname>Doe</Surname></PersonName></VehRetResRQCore></OTA_VehRetResRQ>
 
-<OTA_VehModifyRQ><VehModifyRQCore ModifyType="Modify"><UniqueID Type="14" ID="RSV-${y - 1}-000123"/>
+<OTA_VehModifyRQ xmlns="http://www.opentravel.org/OTA/2003/05"><POS><Source ISOCountry="JO"><RequestorID Type="4" ID="${ch}"/></Source></POS><VehModifyRQCore ModifyType="Modify"><UniqueID Type="14" ID="RSV-${y - 1}-000123"/>
   <VehRentalCore PickUpDateTime="${y}-05-01T10:00:00" ReturnDateTime="${y}-05-05T10:00:00"/>
 </VehModifyRQCore></OTA_VehModifyRQ>
 
-<OTA_VehCancelRQ><VehCancelRQCore CancelType="Cancel"><UniqueID Type="14" ID="RSV-${y - 1}-000123"/>
+<OTA_VehCancelRQ xmlns="http://www.opentravel.org/OTA/2003/05"><POS><Source ISOCountry="JO"><RequestorID Type="4" ID="${ch}"/></Source></POS><VehCancelRQCore CancelType="Cancel"><UniqueID Type="14" ID="RSV-${y - 1}-000123"/>
   <PersonName><Surname>Doe</Surname></PersonName></VehCancelRQCore></OTA_VehCancelRQ>`)}
   <p>UniqueID may also carry your own reference. When a surname is sent it must match the booking.</p>
   <h3>Errors</h3>
@@ -420,6 +422,7 @@ ${section(15, 'Rate rules, cancellation schedule and currencies', `
   <h3>Rate rules before booking</h3>
   <p>Before the customer pays, ask for the full terms of the offer: <code>OTA_VehRateRuleRQ</code> with <code>&lt;Reference Type="16" ID="OFF-…"/&gt;</code> (or an itinerary and <code>VehPref</code>). The answer has the price and breakdown, covers, every extra with its price, payment rules, the cancellation schedule, age limits, cut-off and maximum rental, both stations in full and our rental terms (<code>RentalTerms</code>).</p>
   ${code(`<OTA_VehRateRuleRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="RR1">
+  <POS><Source ISOCountry="JO"><RequestorID Type="4" ID="${ch}"/></Source></POS>
   <Reference Type="16" ID="OFF-3F2A9C1D7E5B4A60"/>
 </OTA_VehRateRuleRQ>`)}
   <h3>Cancellation schedule</h3>

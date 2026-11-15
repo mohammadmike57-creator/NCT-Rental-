@@ -1016,7 +1016,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "<OTA_VehLocSearchRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"/>",
+              "raw": "<OTA_VehLocSearchRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><POS><Source ISOCountry=\"JO\"><RequestorID Type=\"4\" ID=\"{{channel}}\"/></Source></POS><VehLocSearchCriterion><Address><CountryName Code=\"JO\"/></Address></VehLocSearchCriterion></OTA_VehLocSearchRQ>",
               "options": {
                 "raw": {
                   "language": "xml"
@@ -1067,7 +1067,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "<OTA_VehAvailRateRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehAvailRQCore><VehRentalCore PickUpDateTime=\"{{pickUpAt}}:00\" ReturnDateTime=\"{{returnAt}}:00\"><PickUpLocation LocationCode=\"{{pickUpLocation}}\"/><ReturnLocation LocationCode=\"{{pickUpLocation}}\"/></VehRentalCore><DriverType Age=\"35\"/></VehAvailRQCore></OTA_VehAvailRateRQ>",
+              "raw": "<OTA_VehAvailRateRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><POS><Source ISOCountry=\"JO\"><RequestorID Type=\"4\" ID=\"{{channel}}\"/></Source></POS><VehAvailRQCore><VehRentalCore PickUpDateTime=\"{{pickUpAt}}:00\" ReturnDateTime=\"{{returnAt}}:00\"><PickUpLocation LocationCode=\"{{pickUpLocation}}\"/><ReturnLocation LocationCode=\"{{pickUpLocation}}\"/></VehRentalCore><DriverType Age=\"35\"/></VehAvailRQCore></OTA_VehAvailRateRQ>",
               "options": {
                 "raw": {
                   "language": "xml"
@@ -1120,7 +1120,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "<OTA_VehResRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehResRQCore><Customer><Primary><PersonName><GivenName>John</GivenName><Surname>Doe</Surname></PersonName><Email>john.doe@example.com</Email></Primary></Customer></VehResRQCore><VehResRQInfo><Reference Type=\"16\" ID=\"{{offerId}}\"/><TPA_Extensions><BrokerReference>XML-{{$timestamp}}</BrokerReference></TPA_Extensions></VehResRQInfo></OTA_VehResRQ>",
+              "raw": "<OTA_VehResRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><POS><Source ISOCountry=\"JO\"><RequestorID Type=\"4\" ID=\"{{channel}}\"/></Source></POS><VehResRQCore><Customer><Primary><PersonName><GivenName>John</GivenName><Surname>Doe</Surname></PersonName><Email>john.doe@example.com</Email></Primary></Customer></VehResRQCore><VehResRQInfo><Reference Type=\"16\" ID=\"{{offerId}}\"/><TPA_Extensions><BrokerReference>XML-{{$timestamp}}</BrokerReference></TPA_Extensions></VehResRQInfo></OTA_VehResRQ>",
               "options": {
                 "raw": {
                   "language": "xml"
@@ -1173,7 +1173,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "<OTA_VehRetResRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehRetResRQCore><UniqueID Type=\"14\" ID=\"{{reservationId}}\"/></VehRetResRQCore></OTA_VehRetResRQ>",
+              "raw": "<OTA_VehRetResRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><POS><Source ISOCountry=\"JO\"><RequestorID Type=\"4\" ID=\"{{channel}}\"/></Source></POS><VehRetResRQCore><UniqueID Type=\"14\" ID=\"{{reservationId}}\"/></VehRetResRQCore></OTA_VehRetResRQ>",
               "options": {
                 "raw": {
                   "language": "xml"
@@ -1224,7 +1224,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "<OTA_VehCancelRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><VehCancelRQCore CancelType=\"Book\"><UniqueID Type=\"14\" ID=\"{{reservationId}}\"/></VehCancelRQCore></OTA_VehCancelRQ>",
+              "raw": "<OTA_VehCancelRQ xmlns=\"http://www.opentravel.org/OTA/2003/05\" Version=\"2024.1\"><POS><Source ISOCountry=\"JO\"><RequestorID Type=\"4\" ID=\"{{channel}}\"/></Source></POS><VehCancelRQCore CancelType=\"Book\"><UniqueID Type=\"14\" ID=\"{{reservationId}}\"/></VehCancelRQCore></OTA_VehCancelRQ>",
               "options": {
                 "raw": {
                   "language": "xml"

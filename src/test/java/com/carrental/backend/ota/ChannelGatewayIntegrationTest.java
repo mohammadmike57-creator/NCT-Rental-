@@ -153,6 +153,25 @@ class ChannelGatewayIntegrationTest {
     }
 
     @Test
+    void aSearchWithEquipmentWeDoNotSellStillShowsTheCarsButABookingIsRefused() throws Exception {
+        // Brokers often send standard equipment with every search; one we do not sell must not hide every car.
+        String rs = send("/ota/v1/BKG/OTA_VehAvailRate", avail("EQ").replace("EquipType=\"13\"", "EquipType=\"99\""));
+        assertTrue(rs.contains("<Success/>"), rs);
+        assertTrue(rs.contains("Type=\"16\" ID=\"OFF-"), "offers are still returned: " + rs);
+        assertTrue(rs.contains("Equipment not offered, prices are without it: 99"), rs);
+        assertFalse(rs.contains("<Errors>"), rs);
+        // A booking cannot be confirmed with equipment we do not have.
+        String direct = """
+            <OTA_VehResRQ xmlns="http://www.opentravel.org/OTA/2003/05"><VehResRQCore>
+              <VehRentalCore PickUpDateTime="%s-09-02T10:00:00" ReturnDateTime="%s-09-04T10:00:00"><PickUpLocation LocationCode="AMM"/></VehRentalCore>
+              <Customer><Primary><PersonName><Surname>Roe</Surname></PersonName></Primary></Customer><VehPref Code="SDAR"/>
+              <SpecialEquipPrefs><SpecialEquipPref EquipType="99" Quantity="1"/></SpecialEquipPrefs></VehResRQCore>
+              <VehResRQInfo><TPA_Extensions><BrokerReference>EQ-1</BrokerReference></TPA_Extensions></VehResRQInfo></OTA_VehResRQ>""".formatted(Y, Y);
+        String booked = send("/ota/v1/BKG/OTA_VehRes", direct);
+        assertTrue(booked.contains("Unknown extra 99"), booked);
+    }
+
+    @Test
     void otaSearchBookRetrieveModifyCancel() throws Exception {
         // Locations
         mvc.perform(post("/ota/v1/BKG/OTA_VehLocSearch").header("X-Api-Key", KEY).contentType(MediaType.APPLICATION_XML).content("<OTA_VehLocSearchRQ/>"))

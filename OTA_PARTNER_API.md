@@ -34,14 +34,15 @@ Base URL: `https://<api-host>/ota/v1/{channelCode}` — e.g. `/ota/v1/BKG`.
 
 ```xml
 <OTA_VehAvailRateRQ xmlns="http://www.opentravel.org/OTA/2003/05" EchoToken="abc123">
+  <POS><Source ISOCountry="JO"><RequestorID Type="4" ID="ABC"/></Source></POS>
   <VehAvailRQCore>
     <VehRentalCore PickUpDateTime="2026-11-03T10:00:00" ReturnDateTime="2026-11-06T10:00:00">
       <PickUpLocation LocationCode="AMM"/>
     </VehRentalCore>
+    <SpecialEquipPrefs>
+      <SpecialEquipPref EquipType="13" Quantity="1"/>
+    </SpecialEquipPrefs>
   </VehAvailRQCore>
-  <SpecialEquipPrefs>
-    <SpecialEquipPref EquipType="13" Quantity="1"/>
-  </SpecialEquipPrefs>
 </OTA_VehAvailRateRQ>
 ```
 

@@ -135,6 +135,25 @@ public class ChannelBookingService {
 
     // =========================================================== availability & offers
 
+    /**
+     * For a search: the same search without the extras this channel does not sell, and the codes left out.
+     * Brokers often send standard equipment preferences with every search; an extra we do not have must
+     * not hide every car. (A booking that asks for an unknown extra is still refused.)
+     */
+    public Map.Entry<Search, List<String>> withoutUnsoldExtras(Ctx c, Search s) {
+        if (s.extras() == null || s.extras().isEmpty()) return Map.entry(s, List.of());
+        Set<String> sold = new HashSet<>();
+        for (OtaXml.Extra e : OtaXml.extras(c.channel())) { sold.add(e.code().toUpperCase(Locale.ROOT)); sold.add(e.id().toUpperCase(Locale.ROOT)); }
+        List<ExtraRequest> keep = new ArrayList<>();
+        List<String> dropped = new ArrayList<>();
+        for (ExtraRequest e : s.extras()) {
+            if (sold.contains(e.code().toUpperCase(Locale.ROOT))) keep.add(e); else dropped.add(e.code());
+        }
+        if (dropped.isEmpty()) return Map.entry(s, List.of());
+        return Map.entry(new Search(s.pickupLocation(), s.returnLocation(), s.pickupAt(), s.returnAt(), s.driverAge(), s.driverCountry(),
+            s.vehicleGroup(), keep, s.coverages(), s.promoCode(), s.currency()), dropped);
+    }
+
     public List<Offer> search(Ctx c, Search s) {
         BookingValidation.validate(c, s);
         List<Offer> out = new ArrayList<>();
@@ -1073,6 +1092,7 @@ public class ChannelBookingService {
     }
 
     private ChannelOffer offerFor(Ctx c, String offerId) {
+        if (trim(offerId).isEmpty()) throw ChannelError.INVALID_REQUEST.ex("An offer id is required (from the availability answer)");
         ChannelOffer o = offers.findById(trim(offerId)).filter(x -> x.getChannelId().equals(c.channel().id()))
             .orElseThrow(() -> ChannelError.OFFER_EXPIRED.ex("Unknown or expired offer " + offerId));
         if (o.getStatus() == ChannelOffer.Status.CONVERTED) throw ChannelError.OFFER_EXPIRED.ex("Offer " + offerId + " was already booked");

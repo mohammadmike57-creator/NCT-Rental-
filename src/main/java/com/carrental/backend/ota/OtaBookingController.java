@@ -110,7 +110,8 @@ public class OtaBookingController {
             };
             case "OTA_VehAvailRateRQ" -> c -> {
                 OtaBookingXml.Parsed p = OtaBookingXml.parse(body, rq);
-                Search s = OtaBookingXml.search(p.root(), c.ctx().rules());
+                var sold = core.withoutUnsoldExtras(c.ctx(), OtaBookingXml.search(p.root(), c.ctx().rules()));
+                Search s = sold.getKey();
                 List<Offer> offers;
                 String warning = null;
                 try {
@@ -120,6 +121,10 @@ public class OtaBookingController {
                     if (e.error != ChannelError.NO_AVAILABILITY) throw e;
                     offers = List.of();
                     warning = e.getMessage();
+                }
+                if (!sold.getValue().isEmpty()) {
+                    String note = "Equipment not offered, prices are without it: " + String.join(", ", sold.getValue());
+                    warning = warning == null ? note : warning + ". " + note;
                 }
                 return OtaBookingXml.availability(p.echoToken(), prod(c), s, offers, OtaBookingXml.Supplier.of(c.ctx().channel(), requestedVendor(body)), warning);
             };

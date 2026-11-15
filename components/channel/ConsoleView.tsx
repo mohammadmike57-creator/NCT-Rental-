@@ -27,6 +27,8 @@ const templates = (a: Aggregator, fleet: Fleet): Template[] => {
     <DriverType Age="35"/>
   </VehAvailRQCore>
 </OTA_VehAvailRateRQ>`;
+  /** Point of sale: required by the OTA schema on every request except Ping. */
+  const pos = `<POS><Source ISOCountry="JO"><RequestorID Type="4" ID="${code}"/></Source></POS>`;
   const head = `<Header><RequestID>TEST-1</RequestID><ChannelCode>${code}</ChannelCode></Header>`;
   const itin = `<Itinerary>
     <PickupLocationCode>${loc}</PickupLocationCode><PickupDateTime>${from}</PickupDateTime>
@@ -34,13 +36,15 @@ const templates = (a: Aggregator, fleet: Fleet): Template[] => {
   </Itinerary>`;
   return [
     { id: 'ota-ping', label: 'OTA · Ping', format: 'OTA', body: `<OTA_PingRQ xmlns="${NS}" EchoToken="P1"><EchoData>Hello</EchoData></OTA_PingRQ>` },
-    { id: 'ota-loc', label: 'OTA · Location search', format: 'OTA', body: `<OTA_VehLocSearchRQ xmlns="${NS}" EchoToken="L1"/>` },
-    { id: 'ota-locd', label: 'OTA · Location detail', format: 'OTA', body: `<OTA_VehLocDetailRQ xmlns="${NS}"><Location LocationCode="${loc}"/></OTA_VehLocDetailRQ>` },
+    { id: 'ota-loc', label: 'OTA · Location search', format: 'OTA', body: `<OTA_VehLocSearchRQ xmlns="${NS}" EchoToken="L1">${pos}<VehLocSearchCriterion><Address><CountryName Code="JO"/></Address></VehLocSearchCriterion></OTA_VehLocSearchRQ>` },
+    { id: 'ota-locd', label: 'OTA · Location detail', format: 'OTA', body: `<OTA_VehLocDetailRQ xmlns="${NS}">${pos}<Location LocationCode="${loc}"/></OTA_VehLocDetailRQ>` },
     { id: 'ota-avail', label: 'OTA · Availability & rates', format: 'OTA', body: avail },
     { id: 'ota-rule', label: 'OTA · Rate rules (offer)', format: 'OTA', body: `<OTA_VehRateRuleRQ xmlns="${NS}" EchoToken="RR1">
+  ${pos}
   <Reference Type="16" ID="{{OFFER}}"/>
 </OTA_VehRateRuleRQ>` },
     { id: 'ota-res', label: 'OTA · Book (offer)', format: 'OTA', body: `<OTA_VehResRQ xmlns="${NS}" EchoToken="R1">
+  ${pos}
   <VehResRQCore>
     <Customer><Primary BirthDate="1990-05-01">
       <PersonName><GivenName>John</GivenName><Surname>Doe</Surname></PersonName>
@@ -53,12 +57,12 @@ const templates = (a: Aggregator, fleet: Fleet): Template[] => {
     <TPA_Extensions><BrokerReference>TEST-${Date.now().toString().slice(-6)}</BrokerReference></TPA_Extensions>
   </VehResRQInfo>
 </OTA_VehResRQ>` },
-    { id: 'ota-ret', label: 'OTA · Retrieve', format: 'OTA', body: `<OTA_VehRetResRQ xmlns="${NS}"><VehRetResRQCore><UniqueID Type="14" ID="{{RESERVATION}}"/></VehRetResRQCore></OTA_VehRetResRQ>` },
-    { id: 'ota-mod', label: 'OTA · Modify (one more day)', format: 'OTA', body: `<OTA_VehModifyRQ xmlns="${NS}"><VehModifyRQCore ModifyType="Modify">
+    { id: 'ota-ret', label: 'OTA · Retrieve', format: 'OTA', body: `<OTA_VehRetResRQ xmlns="${NS}">${pos}<VehRetResRQCore><UniqueID Type="14" ID="{{RESERVATION}}"/></VehRetResRQCore></OTA_VehRetResRQ>` },
+    { id: 'ota-mod', label: 'OTA · Modify (one more day)', format: 'OTA', body: `<OTA_VehModifyRQ xmlns="${NS}">${pos}<VehModifyRQCore ModifyType="Modify">
   <UniqueID Type="14" ID="{{RESERVATION}}"/>
   <VehRentalCore PickUpDateTime="${from}" ReturnDateTime="${day(4)}T10:00:00"/>
 </VehModifyRQCore></OTA_VehModifyRQ>` },
-    { id: 'ota-can', label: 'OTA · Cancel', format: 'OTA', body: `<OTA_VehCancelRQ xmlns="${NS}"><VehCancelRQCore CancelType="Cancel"><UniqueID Type="14" ID="{{RESERVATION}}"/></VehCancelRQCore></OTA_VehCancelRQ>` },
+    { id: 'ota-can', label: 'OTA · Cancel', format: 'OTA', body: `<OTA_VehCancelRQ xmlns="${NS}">${pos}<VehCancelRQCore CancelType="Cancel"><UniqueID Type="14" ID="{{RESERVATION}}"/></VehCancelRQCore></OTA_VehCancelRQ>` },
     { id: 'soap-avail', label: 'SOAP 1.1 · Availability', format: 'SOAP', body: `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
     xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
   <soapenv:Header><wsse:Security><wsse:UsernameToken>
