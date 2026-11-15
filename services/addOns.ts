@@ -1,6 +1,7 @@
 import { PriceChange, Reservation, ReservationExtra, ReservationStatus, TrafficTicket, VehicleDamage } from '../types';
 import { bookingKey } from './duplicates';
 import { lateFeeOf } from './lateReturn';
+import { displayDayTime } from './displayDate';
 
 /**
  * Reservation add-ons: everything that changed what a booking costs after it was made.
@@ -127,7 +128,7 @@ export function addOnsOf(res: Reservation, tickets: TrafficTicket[] = [], damage
     const later = x.paymentMethod === 'payLater';
     price({
       id: `ex-${i}`, kind: 'extension', at: x.extensionDate,
-      title: `Extended ${x.days} day${x.days === 1 ? '' : 's'} to ${(x.newEndDate || '').replace('T', ' ').slice(0, 16)}`,
+      title: `Extended ${x.days} day${x.days === 1 ? '' : 's'} to ${displayDayTime(x.newEndDate)}`,
       detail: [`${(x.dailyRate || 0).toFixed(2)} a day`, x.extras?.length ? `extras: ${extraNames(x.extras).join(', ')}` : '', later ? 'pay on return' : 'paid at extension'].filter(Boolean).join(' · '),
       amount: x.cost || 0, currency: 'USD', status: later ? (unpaidExt > 0 && !res.deferredPaymentCollectedOn ? 'outstanding' : 'paid') : 'paid', source: 'agreement',
     });

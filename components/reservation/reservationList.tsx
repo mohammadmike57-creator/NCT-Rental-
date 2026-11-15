@@ -2,6 +2,7 @@ import React from 'react';
 import * as XLSX from 'xlsx';
 import { Reservation, ReservationStatus } from '../../types';
 import { ClockIcon } from '../icons';
+import { KIND_LABEL, addOnsOf } from '../../services/addOns';
 
 /** Where a booking is in the rental: waiting for pickup, on rent, closed, pending or cancelled (no-shows count as cancelled). */
 export type Stage = 'ready' | 'onrent' | 'closed' | 'pending' | 'cancelled';
@@ -57,7 +58,13 @@ const durationDays = (start: string, end: string) => {
 };
 
 /** The rows of the reservations export (Excel and CSV share them). */
-export const exportRows = (list: Reservation[], sourceName: (id: string) => string) => list.map(res => ({
+const money2 = (n: number) => Math.round((n || 0) * 100) / 100;
+const signed2 = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}`;
+
+export const exportRows = (list: Reservation[], sourceName: (id: string) => string) => list.map(res => {
+  const s = addOnsOf(res);
+  const priceAddOns = s.entries.filter(e => e.group === 'price');
+  return {
   'Person Name': res.personName,
   'Booking ID': res.bookingId,
   'Source': sourceName(res.source || ''),
@@ -67,10 +74,15 @@ export const exportRows = (list: Reservation[], sourceName: (id: string) => stri
   'Return Date': res.endDate,
   'Days': durationDays(res.startDate, res.endDate),
   'Status': res.status,
+  'Amount (USD)': money2(res.amount),
+  'Original amount (USD)': money2(s.originalPrice),
+  'Add-ons (USD)': money2(s.priceChange),
+  'Add-ons': priceAddOns.map(e => `${KIND_LABEL[e.kind]}: ${e.title} ${signed2(e.amount)}`).join('; '),
   'Location': res.locationName,
   'Contact': res.contactNumber,
   'Notes': res.notes,
-}));
+  };
+});
 
 export const downloadExcel = (rows: Record<string, unknown>[], name: string) => {
   const workbook = XLSX.utils.book_new();

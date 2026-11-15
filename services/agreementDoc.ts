@@ -6,6 +6,7 @@ import { parseTerms, parseTermsAr } from './agreementTerms';
 import { code39Svg } from './barcode';
 import { counterPayment, DEPOSIT_HOLD_LABEL } from './counterPayment';
 import { lateFeeOf } from './lateReturn';
+import { KIND_LABEL, STATUS_LABEL, addOnsOf } from './addOns';
 
 export const PICKUP_TERMS = "By signing, the Renter acknowledges receipt of the vehicle in the condition documented above and agrees to the rental terms and conditions. The Renter accepts financial responsibility for all charges, traffic violations, damages and losses during the rental period. The Company Representative confirms the vehicle's condition and rental details are accurate at pickup.";
 export const PICKUP_TERMS_AR = 'بتوقيعه، يقرّ المستأجر باستلام المركبة بالحالة الموثقة أعلاه ويوافق على شروط وأحكام التأجير، ويتحمّل المسؤولية المالية عن جميع الرسوم والمخالفات المرورية والأضرار والخسائر خلال فترة الإيجار. ويؤكد ممثل الشركة صحة حالة المركبة وبيانات الإيجار عند التسليم.';
@@ -80,6 +81,14 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
   const late = closed && lateFeeOf(r) && !lateFeeOf(r)!.isWaived && lateFeeOf(r)!.status !== 'WAIVED' ? lateFeeOf(r) : undefined;
   const pay = counterPayment(r, !!i.prepaid, i.baseRentalFee, extrasTotal);
   const rentalTotal = pay.total + (late ? late.amount : 0);
+  // Every change made after the booking (extensions, upgrades, extras, price edits, fees): already counted in
+  // the totals above, listed here so the agreement shows each one with its date and amount.
+  const addOns = addOnsOf(r).entries.filter(e => e.group === 'price' || e.kind === 'cancellation' || e.kind === 'noshow');
+  const ADDON_AR: Record<string, string> = { extras: 'إضافات', upgrade: 'ترقية', extension: 'تمديد', manual: 'تعديل السعر', cancellation: 'رسوم الإلغاء', noshow: 'رسوم عدم الحضور' };
+  const addOnTable = addOns.length ? `<table class="items addons" data-addons="${addOns.length}" style="margin-top:6px">
+        <tr><th>${L('Add-ons since booking', 'الإضافات بعد الحجز')}</th><th>${L('Date', 'التاريخ')}</th><th class="num">${L('Status', 'الحالة')}</th><th class="num">${L('Amount', 'المبلغ')}</th></tr>
+        ${addOns.map(e => `<tr><td><b>${L(esc(KIND_LABEL[e.kind]), ADDON_AR[e.kind] || '')}</b> ${esc(e.title)}${e.detail ? ` <span class="rcd">${esc(e.detail)}</span>` : ''}</td><td>${day(e.at)}</td><td class="num">${esc(STATUS_LABEL[e.status])}</td><td class="num">${e.amount < 0 ? '− ' : ''}${esc(formatMoney(Math.abs(e.amount), e.currency))}</td></tr>`).join('')}
+      </table>` : '';
   const rc = r.returnCharges && r.returnCharges.items.length ? r.returnCharges : undefined;
   const photos = rc ? rc.items.flatMap((it, n) => (it.photos || []).map((src, j) => ({ src, cap: `${n + 1}${(it.photos!.length > 1) ? String.fromCharCode(97 + j) : ''} · ${it.description || CHARGE_KIND_LABEL[it.kind]}` }))).slice(0, 6) : [];
 
@@ -547,6 +556,7 @@ export function buildAgreementHtml(i: AgreementDocInput): string {
         <tr class="sub"><td colspan="3">${L('Security deposit (refundable)', 'مبلغ التأمين (مسترد)')}</td><td class="num">${(r.securityDeposit || 0) > 0 ? `${usd(r.securityDeposit || 0)}${r.depositHoldMethod ? ` · held by ${esc(DEPOSIT_HOLD_LABEL[r.depositHoldMethod].toLowerCase())}${r.depositAuthNumber ? ` (auth ${esc(r.depositAuthNumber)})` : ''}` : ''}` : 'None · لا يوجد'}</td></tr>
         ${(r.excess || 0) > 0 ? `<tr class="sub"><td colspan="3">${L('Damage excess (your maximum liability)', 'مبلغ التحمّل (الحد الأقصى لمسؤوليتك)')}</td><td class="num">${usd(r.excess || 0)}</td></tr>` : ''}
       </table>
+      ${addOnTable}
       <div class="settle info">${paymentLine}${r.paymentMethod && r.paymentMethod !== 'prepaid' ? ` · ${esc(PAY_METHOD[r.paymentMethod] || r.paymentMethod)}` : ''}${cardRef && r.paymentMethod !== 'prepaid' ? ` ${cardRef}` : ''}${r.unpaidExtensionAmount ? ` · ${usd(r.unpaidExtensionAmount)} extension due` : ''}</div>
     </div>
     ${sideNotes ? `<div class="card">${closed ? H('10', 'Notes', 'ملاحظات') : H('10', 'Check-out notes', 'ملاحظات التسليم')}${closed
