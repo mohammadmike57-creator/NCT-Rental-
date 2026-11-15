@@ -6,6 +6,7 @@ import { API_URL } from '../services/api';
 import { Panel, Button, inputCls, selectCls, labelCls } from './ui/Crm';
 import { keyMessage } from './channel/ApiKeysView';
 import { KNOWN_COVERAGE_TYPES, coverageTypeFor, isOtaCode } from '../services/otaCodes';
+import { displayStamp } from '../services/displayDate';
 
 /** OpenTravel releases a broker's specification can name; all share the 2003/05 namespace this system answers in. */
 const OTA_RELEASES = ['2003A', '2006B', '2008B', '2010B', '2012B', '2014B', '2015B', '2016B', '2017B', '2018A', '2019A', '2024A'];
@@ -272,7 +273,7 @@ const ManageConnectionView: React.FC<ManageConnectionViewProps> = ({ aggregator,
             <p className="text-[13px] font-semibold text-slate-900">API key</p>
             <p className="text-xs text-slate-500">
               {aggregator.feedKeyHash
-                ? <>Active key ending in <span className="font-mono font-semibold">…{aggregator.feedKeyHint}</span>{aggregator.feedKeyCreatedAt && <> · created {new Date(aggregator.feedKeyCreatedAt).toLocaleDateString()}</>}. Sent as <span className="font-mono">Authorization: Bearer &lt;key&gt;</span> or <span className="font-mono">X-Api-Key</span>.</>
+                ? <>Active key ending in <span className="font-mono font-semibold">…{aggregator.feedKeyHint}</span>{aggregator.feedKeyCreatedAt && <> · created {displayStamp(aggregator.feedKeyCreatedAt)}</>}. Sent as <span className="font-mono">Authorization: Bearer &lt;key&gt;</span> or <span className="font-mono">X-Api-Key</span>.</>
                 : 'No key yet. The broker\'s requests are refused until you create one.'}
             </p>
           </div>

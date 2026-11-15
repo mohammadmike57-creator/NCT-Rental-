@@ -11,7 +11,17 @@ export const CONNECTION_STATES: { id: ConnectionState; label: string; hint: stri
   { id: 'live', label: 'Live', hint: 'Real bookings are flowing.', tone: 'success' },
   { id: 'suspended', label: 'Suspended', hint: 'Connection stopped by either side.', tone: 'danger' },
 ];
-export const connectionStateOf = (a: Aggregator) => CONNECTION_STATES.find(s => s.id === (a.connectionProfile?.state || 'not_connected'))!;
+/**
+ * The broker connection as shown on screen. When nobody has recorded it in the connection profile yet,
+ * it follows the channel itself: a live channel is shown as live rather than "not connected".
+ */
+export const connectionStateOf = (a: Aggregator): (typeof CONNECTION_STATES)[number] & { inferred?: boolean } => {
+  const set = a.connectionProfile?.state;
+  if (set) return CONNECTION_STATES.find(s => s.id === set)!;
+  const live = CONNECTION_STATES.find(s => s.id === 'live')!;
+  if (a.status === 'active') return { ...live, hint: 'Taken from the channel status (live). Record the broker connection on the Connection tab.', inferred: true };
+  return { ...CONNECTION_STATES[0], inferred: true };
+};
 
 const DIRECTIONS: [NonNullable<ChannelConnectionProfile['direction']>, string][] = [
   ['broker_calls_us', 'The broker calls our API (search, book, modify, cancel)'],

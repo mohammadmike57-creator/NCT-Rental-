@@ -3,6 +3,7 @@ import { Aggregator } from '../../types';
 import { deleteChannelBooking, fetchChannelBookings, ChannelBookingRow } from '../../services/api';
 import { confirmDeleteBooking } from './ChannelBookingsView';
 import { Panel, Badge, Button, StatGrid, EmptyState, Tabs, Plate, table, inputCls, selectCls } from '../ui/Crm';
+import { TrashIcon } from '../icons';
 
 const TONE: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'muted'> = {
   CONFIRMED: 'info', PENDING: 'warning', IN_PROGRESS: 'success', COMPLETED: 'muted', CANCELLED: 'danger', NO_SHOW: 'danger',
@@ -142,7 +143,7 @@ const XmlReservationsView: React.FC<{ aggregators: Aggregator[] }> = ({ aggregat
                         if (!confirmDeleteBooking(r)) return;
                         try { await deleteChannelBooking(r.channelId, r.reservationNumber); load(); }
                         catch (e: any) { alert(e.message || 'Could not delete the booking.'); }
-                      }} className="h-8 px-2.5 rounded-md text-xs font-semibold text-rose-600 hover:bg-rose-50" title="Delete this booking from the records" aria-label={`Delete ${r.reservationNumber}`}>Delete</button>
+                      }} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete this booking from the records" aria-label={`Delete ${r.reservationNumber}`}><TrashIcon className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}

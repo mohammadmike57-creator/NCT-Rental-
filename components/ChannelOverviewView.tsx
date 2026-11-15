@@ -7,6 +7,7 @@ import {
 } from '../services/channelManager';
 import type { ChannelTab } from './AggregatorSetupView';
 import { Panel, Badge, Button, EmptyState, table } from './ui/Crm';
+import { displayStamp } from '../services/displayDate';
 
 interface ChannelOverviewViewProps {
   aggregator: Aggregator;
@@ -129,7 +130,7 @@ const ChannelOverviewView: React.FC<ChannelOverviewViewProps> = ({ aggregator, f
           </dl>
           <div className="pt-3 border-t border-slate-100 space-y-2 text-[13px] [&>div]:gap-3 [&>div>span:last-child]:text-right [&>div>span:last-child]:tabular-nums">
             <div className="flex justify-between"><span className="text-slate-500">Published version</span><span className="font-semibold text-slate-800">{latest ? `v${submissionVersion(aggregator, 0)}` : '—'}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Published</span><span className="font-medium text-slate-800">{latest ? new Date(latest.submittedAt).toLocaleString() : 'Never'}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Published</span><span className="font-medium text-slate-800">{latest ? displayStamp(latest.submittedAt) : 'Never'}</span></div>
             {latest?.publishedBy && <div className="flex justify-between"><span className="text-slate-500">By</span><span className="font-medium text-slate-800">{latest.publishedBy}</span></div>}
             <div className="flex justify-between"><span className="text-slate-500">Rate state</span>
               <span className={`font-semibold ${pending ? 'text-amber-600' : 'text-emerald-700'}`}>{pending ? 'Unpublished changes' : 'In sync'}</span>

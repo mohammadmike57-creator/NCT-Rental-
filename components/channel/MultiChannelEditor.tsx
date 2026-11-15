@@ -332,7 +332,7 @@ const MultiChannelEditor: React.FC<Props> = ({ aggregators, fleet, availableExtr
           {view === 'stopSales' && (
             <ManageStopSaleView stopSales={draft.stopSales} fleet={fleet} listTitle="Blocks to add" onUpdate={l => edit('stopSales', 'stopSales', l)}
               intro={<div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-[13px] text-amber-800">
-                These blocks are added when you apply, and close the car or category on the channels you choose there only. Blocks for every channel stay under <b>Global Stop Sale</b>.
+                These stop sales are added when you apply, and close the car or category on the channels you choose there only. Stop sales for every channel stay on the <b>Stop sales</b> screen.
               </div>} />
           )}
 

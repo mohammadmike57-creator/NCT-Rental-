@@ -3,6 +3,7 @@ import { Aggregator } from '../types';
 import { ChevronRightIcon, ClockIcon } from './icons';
 import { channelCurrency, diffPlans, formatMoney, submissionVersion, tierLabel } from '../services/channelManager';
 import { Badge, EmptyState } from './ui/Crm';
+import { displayStamp } from '../services/displayDate';
 
 interface RateHistoryViewProps {
   aggregator: Aggregator;
@@ -49,7 +50,7 @@ const RateHistoryView: React.FC<RateHistoryViewProps> = ({ aggregator }) => {
                       {submission.checksum && <span className="font-mono text-[10px] text-slate-400 font-normal">#{submission.checksum}</span>}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
-                      {date.toLocaleDateString()} {date.toLocaleTimeString()}
+                      {displayStamp(date)}
                       {submission.publishedBy && <> · {submission.publishedBy}</>}
                       {' · '}{(submission.ratePlans || []).length} period{(submission.ratePlans || []).length === 1 ? '' : 's'} · {currency}
                     </p>

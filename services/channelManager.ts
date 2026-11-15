@@ -22,13 +22,11 @@ export const acceptedVendorCodes = (code: string, supplierName: string): string[
 };
 export const channelLocationCode = (agg: Aggregator) => (agg.locationCode || 'AMM').toUpperCase();
 
+/** Money on the OTA XML screens, written the same way everywhere: "1,240.00 JOD", "35.00 USD". */
 export const formatMoney = (amount: number | null | undefined, currency: string): string => {
   const value = Number(amount ?? 0);
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2 }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
+  const n = (Number.isFinite(value) ? value : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${n} ${(currency || '').toUpperCase()}`.trim();
 };
 
 // Infinity does not survive JSON, so an open-ended tier comes back as null.

@@ -176,6 +176,15 @@ export const when = (iso?: string | null): string => {
 };
 export const date = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 export const num = (n?: number | null) => (n ?? 0).toLocaleString('en-GB');
+/** "Jordan (JO)" from a two-letter code; the code itself when the browser has no name for it. */
+export const countryName = (code?: string | null): string => {
+  const c = (code || '').trim().toUpperCase();
+  if (!c) return '';
+  try {
+    const name = new Intl.DisplayNames(['en'], { type: 'region' }).of(c);
+    return name && name !== c ? `${name} (${c})` : c;
+  } catch { return c; }
+};
 
 /** Copies text; returns false when the browser refuses (the text is then selected for Ctrl+C). */
 export const copyText = async (text: string, select?: HTMLInputElement | null): Promise<boolean> => {

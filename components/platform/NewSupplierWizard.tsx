@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { checkSlug, createSupplier, Invitation, PlanId, problem, SupplierForm } from '../../services/platformApi';
 import { PlanCards, PLAN_FEATURES } from './PlanCards';
-import { Btn, copyText, cx, ErrorNote, Field, Icon, input, PlanPill, textarea, Toggle } from './ui';
+import { Btn, copyText, countryName, cx, ErrorNote, Field, Icon, input, PlanPill, textarea, Toggle } from './ui';
 import { cleanSlug, SignInAddressField, SignInAddressLine } from './SignInAddress';
 
 const STEPS = ['Company', 'Package', 'Contacts & access', 'Owner', 'Review'] as const;
@@ -232,23 +232,29 @@ const NewSupplierWizard: React.FC<{ onClose: () => void; onCreated: (id: string)
   );
 };
 
+/** One value per line; nothing when all are empty. */
+const lines = (vals: (string | undefined)[]) => {
+  const v = vals.filter(Boolean);
+  return v.length ? v.map((x, i) => <span key={i} className="block">{x}</span>) : undefined;
+};
+
 const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
-  <div className="grid grid-cols-[140px_1fr] gap-3 py-2 text-[13px] border-b border-slate-100 last:border-0">
-    <span className="text-slate-500">{label}</span><span className="text-slate-900 min-w-0 break-words">{value || <span className="text-slate-400">—</span>}</span>
+  <div className="grid grid-cols-[120px_1fr] gap-3 py-2 text-[13px] border-b border-slate-100 last:border-0">
+    <span className="text-slate-500">{label}</span><span className="text-slate-900 min-w-0 [overflow-wrap:anywhere]">{value || <span className="text-slate-400">—</span>}</span>
   </div>
 );
 
 const Review: React.FC<{ f: SupplierForm }> = ({ f }) => (
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4">
     <div className="rounded-2xl border border-slate-200 px-4 py-2">
       <Row label="Company" value={<><b>{f.name}</b> <span className="ml-1 font-mono text-[12px] text-slate-500">{(f.code || '').toUpperCase()}</span></>} />
       <Row label="Sign-in address" value={<span className="font-mono text-[12.5px]">{`${window.location.host}/s/${f.slug || ''}`}</span>} />
       <Row label="Legal name" value={f.legalName} />
-      <Row label="Country · currency" value={[f.country, f.currency].filter(Boolean).join(' · ')} />
+      <Row label="Country · currency" value={[countryName(f.country), f.currency].filter(Boolean).join(' · ')} />
       <Row label="Time zone" value={f.timeZone} />
       <Row label="Website" value={f.website} />
-      <Row label="Contact" value={[f.contactName, f.contactEmail, f.contactPhone].filter(Boolean).join(' · ')} />
-      <Row label="Support" value={[f.supportEmail, f.supportPhone].filter(Boolean).join(' · ')} />
+      <Row label="Contact" value={lines([f.contactName, f.contactEmail, f.contactPhone])} />
+      <Row label="Support" value={lines([f.supportEmail, f.supportPhone])} />
     </div>
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-200 p-4">

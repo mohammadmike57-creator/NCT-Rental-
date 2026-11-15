@@ -10,6 +10,7 @@ import {
   channelCurrency, diffPlans, fingerprint, generateRateSheetXml, hasUnpublishedChanges,
   nextVersion, todayIso, validateChannel,
 } from '../services/channelManager';
+import { displayStamp } from '../services/displayDate';
 
 interface ManageRatePlansViewProps {
   aggregator: Aggregator;
@@ -147,7 +148,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
       <div className={`rounded-xl border px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] ${pending ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
         <Badge tone={pending ? 'warning' : 'success'}>{pending ? 'Unpublished changes' : 'Rates in sync with last publish'}</Badge>
         {pending && latest && <span className="text-amber-800 tabular-nums">{diff.increased} up · {diff.decreased} down · {diff.added} added · {diff.removed} removed</span>}
-        <span className="text-slate-500 tabular-nums">{latest ? `Last published ${new Date(latest.submittedAt).toLocaleString()}` : 'Never published'}</span>
+        <span className="text-slate-500 tabular-nums">{latest ? `Last published ${displayStamp(latest.submittedAt)}` : 'Never published'}</span>
         {rateIssues.length > 0 && <span className="sm:ml-auto text-rose-700 font-semibold tabular-nums">{validation.errors} error{validation.errors === 1 ? '' : 's'} · {validation.warnings} warning{validation.warnings === 1 ? '' : 's'}</span>}
       </div>
 

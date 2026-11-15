@@ -4,6 +4,7 @@ import { ChannelDeliveryLog, fetchChannelDeliveries } from '../services/api';
 import { RefreshIcon, PaperAirplaneIcon } from './icons';
 import { channelStatus, submissionVersion } from '../services/channelManager';
 import { Badge, Button, EmptyState, table } from './ui/Crm';
+import { displayStamp } from '../services/displayDate';
 
 interface ChannelDeliveryLogViewProps {
   aggregator: Aggregator;
@@ -73,7 +74,7 @@ const ChannelDeliveryLogView: React.FC<ChannelDeliveryLogViewProps> = ({ aggrega
               {rows.map(r => (
                 <React.Fragment key={r.id}>
                   <tr className={`${table.row} cursor-pointer`} onClick={() => setExpanded(expanded === r.id ? null : r.id)}>
-                    <td className={`${table.td} whitespace-nowrap text-slate-600 tabular-nums`}>{new Date(r.createdAt).toLocaleString()}</td>
+                    <td className={`${table.td} whitespace-nowrap text-slate-600 tabular-nums`}>{displayStamp(r.createdAt, true)}</td>
                     <td className={table.td}>
                       <Badge tone={r.direction === 'OUTBOUND' ? 'info' : 'muted'}>{r.direction === 'OUTBOUND' ? 'Sent' : 'Received'}</Badge>
                     </td>
@@ -106,7 +107,7 @@ const ChannelDeliveryLogView: React.FC<ChannelDeliveryLogViewProps> = ({ aggrega
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
                     <Badge tone={r.direction === 'OUTBOUND' ? 'info' : 'muted'} dot={false} className="!px-1.5 !py-0 !text-[10px]">{r.direction === 'OUTBOUND' ? 'Sent' : 'Received'}</Badge>
-                    <span className="tabular-nums">{new Date(r.createdAt).toLocaleString()}</span>
+                    <span className="tabular-nums">{displayStamp(r.createdAt, true)}</span>
                     <span className="ml-auto tabular-nums">{r.durationMs} ms</span>
                   </div>
                   {r.error && <p className="mt-1 text-xs text-rose-600 break-words">{r.error}</p>}

@@ -6,7 +6,7 @@ import {
 import { showActionFeedback } from '../ui/ActionFeedback';
 import { PlanCards, PLAN_FEATURES } from './PlanCards';
 import { SignInAddressField, SignInAddressLine } from './SignInAddress';
-import { Btn, Card, copyText, cx, date, ErrorNote, Field, Icon, input, Modal, Monogram, num, PlanPill, Stat, StatusPill, textarea, Toggle, when } from './ui';
+import { Btn, Card, copyText, countryName, cx, date, ErrorNote, Field, Icon, input, Modal, Monogram, num, PlanPill, Stat, StatusPill, textarea, Toggle, when } from './ui';
 
 type Tab = 'overview' | 'package' | 'people' | 'history';
 
@@ -83,7 +83,7 @@ const SupplierPage: React.FC<{ id: string; onBack: () => void }> = ({ id, onBack
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
             <Card title="Company" className="xl:col-span-1">
               <Detail rows={[['Legal name', s.legalName], ['Supplier code', <span className="font-mono">{s.code}</span>],
-                ['Country', s.country], ['Currency', s.currency],
+                ['Country', countryName(s.country)], ['Currency', s.currency],
                 ['Time zone', s.timeZone], ['Website', s.website], ['Address', s.address]]} />
             </Card>
             <Card title="Contacts">

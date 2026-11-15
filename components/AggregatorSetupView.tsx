@@ -35,6 +35,7 @@ import { showActionFeedback } from './ui/ActionFeedback';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../services/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
+import { displayDay } from '../services/displayDate';
 
 interface AggregatorSetupViewProps {
   aggregators: Aggregator[];
@@ -223,7 +224,7 @@ export const relativeTime = (iso?: string) => {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.round(hours / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return displayDay(iso.slice(0, 10));
 };
 
 const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
@@ -448,7 +449,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   /** Small status hint next to a section in the broker menu. */
   const sectionHint = (a: Aggregator, t: ChannelTab): { text: string; tone: string } | null => {
     if (t === 'Go-live') return a.goLive?.approvedAt ? { text: 'Done', tone: 'bg-emerald-100 text-emerald-700' } : channelStatus(a) === 'active' ? null : { text: 'To do', tone: 'bg-slate-100 text-slate-500' };
-    if (t === 'Connection') { const cs = connectionStateOf(a); return cs.tone === 'success' ? null : { text: cs.label.replace('Not connected', 'Not set'), tone: 'bg-slate-100 text-slate-500' }; }
+    if (t === 'Connection') { const cs = connectionStateOf(a); if (cs.inferred) return { text: 'Not set', tone: 'bg-slate-100 text-slate-500' }; return cs.tone === 'success' ? null : { text: cs.label, tone: 'bg-slate-100 text-slate-500' }; }
     if (t === 'Booking API') return (a.bookingRules?.locations || []).length ? null : { text: 'No branches', tone: 'bg-amber-100 text-amber-700' };
     if (t === 'Extras') return (a.extras || []).length ? { text: String(a.extras!.length), tone: 'bg-slate-100 text-slate-500' } : null;
     return null;

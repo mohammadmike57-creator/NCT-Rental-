@@ -47,7 +47,7 @@ const ActivityPage: React.FC = () => {
                           r.action.includes('SUPPORT') ? 'bg-amber-100 text-amber-800' : /PAUSED|CLOSED|DISABLED/.test(r.action) ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600')}>
                           {r.action.replace(/^SUPPLIER_/, '').replace(/_/g, ' ')}</span>{r.summary}
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{r.by}</td>
+                      <td className="px-5 py-3 text-slate-600 max-w-[220px] truncate" title={r.by}>{r.by}</td>
                     </tr>
                   ))}
               </tbody>
