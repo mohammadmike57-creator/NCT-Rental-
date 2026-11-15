@@ -329,7 +329,12 @@ const ReservationTable: React.FC<ReservationTableProps> = (props) => {
   };
 
   const exportName = `Reservations_${selectedMonth}_${selectedYear}`;
-  const handleExportExcel = () => { if (filteredReservations.length) downloadExcel(exportRows(filteredReservations, getSourceName), exportName); };
+  const handleExportExcel = () => {
+    if (!filteredReservations.length) return;
+    import('../services/reservationExcel').then(m => m.downloadReservationExcel(filteredReservations, exportName, {
+      companyName: props.companyDetails?.name, scope: `${selectedMonth} ${selectedYear}`, sourceName: getSourceName,
+    })).catch(() => downloadExcel(exportRows(filteredReservations, getSourceName), exportName));
+  };
   const handleExportCSV = () => { if (filteredReservations.length) downloadCsv(exportRows(filteredReservations, getSourceName), exportName); };
 
   const upgradePermission = hasPermission(UserPermission.ACTION_RESERVATIONS_UPGRADE_VEHICLE);

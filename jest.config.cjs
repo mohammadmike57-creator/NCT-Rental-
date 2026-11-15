@@ -12,6 +12,8 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    // ExcelJS's browser build is minified ESM-in-UMD; tests use its Node build.
+    '^exceljs$': '<rootDir>/node_modules/exceljs/excel.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(jpg|jpeg|png|gif|svg)$': '<rootDir>/__mocks__/fileMock.js',
   },

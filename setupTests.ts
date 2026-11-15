@@ -10,33 +10,36 @@ jest.mock('./services/api', () => ({
   fetchUsers: jest.fn(),
 }));
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
+// Browser stand-ins, only for tests that run in the simulated browser (jsdom); Node tests skip them.
+if (typeof window !== 'undefined') {
+  // Mock window.matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
 
-// Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  takeRecords() { return []; }
-  unobserve() {}
-} as any;
+  // Mock IntersectionObserver
+  global.IntersectionObserver = class IntersectionObserver {
+    constructor() {}
+    disconnect() {}
+    observe() {}
+    takeRecords() { return []; }
+    unobserve() {}
+  } as any;
 
-// Mock HTML Canvas API for jsPDF
-HTMLCanvasElement.prototype.getContext = jest.fn();
-HTMLCanvasElement.prototype.toDataURL = jest.fn();
+  // Mock HTML Canvas API for jsPDF
+  HTMLCanvasElement.prototype.getContext = jest.fn();
+  HTMLCanvasElement.prototype.toDataURL = jest.fn();
+}
 
 // Global test utilities
 global.console = {
