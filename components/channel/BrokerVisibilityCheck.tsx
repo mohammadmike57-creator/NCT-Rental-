@@ -97,8 +97,17 @@ const BrokerVisibilityCheck: React.FC<{ aggregator: Aggregator; fleet: Fleet; st
       out.push({ tone: noCars.length === groups.length ? 'danger' : 'warning', title: noCars.length === groups.length ? 'No car in your fleet matches the car groups in your rates' : `${noCars.length} of ${groups.length} car groups in your rates have no car in the fleet`,
         detail: <>Rates for <b>{noCars.join(', ')}</b>, but no car in Fleet Management has {noCars.length === 1 ? 'that SIPP code' : 'those SIPP codes'}, so {noCars.length === 1 ? 'it is' : 'they are'} sent as not available. Your fleet has: {fleetSippCodes(fleet).join(', ') || 'no SIPP codes'}.</> });
     }
-    const unpriced = published.flatMap(p => (p.sippRates || []).filter(r => !findTier(r, 1) && !findTier(r, 3)).map(r => `${r.sippCode} (${p.name})`));
-    if (unpriced.length) out.push({ tone: 'warning', title: 'Some rates have no price for short rentals', detail: `No price band for 1–3 day rentals: ${unpriced.slice(0, 6).join(', ')}.`, tab: 'Rates', action: 'Open Rates' });
+    // Rental lengths (1–30 days) with no price: a broker searching for them gets no car.
+    const ranges = (ds: number[]) => {
+      const out2: string[] = [];
+      for (let i = 0; i < ds.length; i++) { let j = i; while (j + 1 < ds.length && ds[j + 1] === ds[j] + 1) j++; out2.push(ds[j] === 30 ? `${ds[i]}+ days` : ds[i] === ds[j] ? `${ds[i]} day${ds[i] === 1 ? '' : 's'}` : `${ds[i]}–${ds[j]} days`); i = j; }
+      return out2.join(', ');
+    };
+    const gaps = published.filter(p => p.endDate >= today).flatMap(p => (p.sippRates || []).map(r => {
+      const missing = Array.from({ length: 30 }, (_, i) => i + 1).filter(d => { const t = findTier(r, d); return !t || !(Number(t.dailyPrice) > 0); });
+      return missing.length ? `${(r.sippCode || '').toUpperCase()} in ${p.name}: ${ranges(missing)}` : '';
+    })).filter(Boolean);
+    if (gaps.length) out.push({ tone: 'danger', title: 'Some rental lengths have no price', detail: <>A broker searching for these lengths gets no car: {gaps.slice(0, 6).join(' · ')}{gaps.length > 6 ? ` and ${gaps.length - 6} more` : ''}. Fill in every rental-length band on the Rates tab, then publish.</>, tab: 'Rates', action: 'Open Rates' });
     // 4. Branches, key, status
     const branches = a.bookingRules?.locations || [];
     if (!branches.length) out.push({ tone: 'danger', title: 'No branches are set up for this broker', detail: 'Searches are refused until a branch with its code is added.', tab: 'Booking API', action: 'Open Booking API' });
@@ -116,7 +125,7 @@ const BrokerVisibilityCheck: React.FC<{ aggregator: Aggregator; fleet: Fleet; st
         const when = `${displayStamp(last.at)}${last.location ? ` · ${last.location}` : ''}${last.pickUp ? ` · ${displayDay(last.pickUp.slice(0, 10), false)} → ${last.dropOff ? displayDay(last.dropOff.slice(0, 10), false) : '?'}` : ''}`;
         if (last.error) out.push({ tone: 'danger', title: 'The broker\'s last search was refused', detail: <><span className="tabular-nums">{when}</span>: {last.error}{last.location && branches.length && !branches.some(b => (b.code || '').toUpperCase() === last.location!.toUpperCase()) ? <> — <b>{last.location}</b> is not one of your branch codes ({branches.map(b => b.code).join(', ')}).</> : null}</> });
         else if (!last.available) out.push({ tone: 'danger', title: 'The broker\'s last search got no available car', detail: <><span className="tabular-nums">{when}</span>: {last.groups} car group{last.groups === 1 ? '' : 's'} in the answer, none available{last.warnings.length ? <>. Our answer said: <i>{last.warnings.join('; ')}</i></> : ''}.</> });
-        else out.push({ tone: 'ok', title: 'The broker\'s last search got cars', detail: <><span className="tabular-nums">{when}</span>: {last.available} of {last.groups} car group{last.groups === 1 ? '' : 's'} available. If they still do not show on the broker\'s side, the broker must map your car groups and branch on its side.</> });
+        else out.push({ tone: 'ok', title: 'The broker\'s last search got cars', detail: <><span className="tabular-nums">{when}</span>: {last.available} of {last.groups} car group{last.groups === 1 ? '' : 's'} available. If they still do not show on the broker’s side, the broker must map your car groups and branch on its side.</> });
       }
       const codes = new Map<string, { n: number; msg?: string }>();
       live.filter(r => !r.success && r.errorCode).forEach(r => { const c = codes.get(r.errorCode!) || { n: 0, msg: r.errorMessage }; c.n++; codes.set(r.errorCode!, c); });

@@ -141,7 +141,10 @@ export const ChannelsEditor: React.FC<{ aggregators: Aggregator[]; published: bo
                           {PRICE_CHANNELS.map(([k, l]) => <option key={k} value={k}>{l.replace(/s$/, '').replace('accounts', 'account')}</option>)}
                         </select>
                       </td>
-                      <td className="px-5 py-3 text-[12px] text-slate-600 max-w-[340px]">{MODES.find(m => m[0] === mode)![2]}</td>
+                      <td className="px-5 py-3 text-[12px] text-slate-600 max-w-[340px]">
+                        {MODES.find(m => m[0] === mode)![2]}
+                        {!(a.ratePlanHistory || []).length && <span className="mt-1 block font-semibold text-rose-700">No published rates on this channel: the broker gets no cars until rates are added and published on its Rates tab.</span>}
+                      </td>
                     </tr>
                   );
                 })}

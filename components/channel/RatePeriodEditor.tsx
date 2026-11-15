@@ -25,6 +25,9 @@ const groupInfo = (fleet: Fleet) => {
  * One rate period as a grid: the period's dates on top, its rental-length bands as columns and every car group
  * as a row with a daily price per band, as in the big rental systems.
  */
+/** Usual discount of each longer rental-length band against the first one (band 1 = 0%). */
+const LENGTH_OFF = [0, 0.05, 0.10, 0.15, 0.17, 0.20, 0.22];
+
 const RatePeriodEditor: React.FC<{
   plan: RatePlan;
   otherPlans?: RatePlan[];
@@ -37,9 +40,16 @@ const RatePeriodEditor: React.FC<{
   const [name, setName] = useState(plan.name);
   const [start, setStart] = useState(plan.startDate);
   const [end, setEnd] = useState(plan.endDate);
-  const [bands, setBands] = useState<Band[]>(() => bandsOf(plan));
+  // A period saved without a price for longer rentals ends in a closed band: show an empty open-ended
+  // column after it ("3+ days") to fill in, instead of refusing the period as it is.
+  const initialBands = useMemo(() => {
+    const b = bandsOf(plan);
+    const last = b[b.length - 1];
+    return last && last.toDay != null ? [...b, { fromDay: last.toDay + 1, toDay: null }] : b;
+  }, [plan]);
+  const [bands, setBands] = useState<Band[]>(initialBands);
   const [groups, setGroups] = useState<string[]>(() => (plan.sippRates || []).map(r => r.sippCode));
-  const [prices, setPrices] = useState<PriceMatrix>(() => matrixOf(plan, bandsOf(plan)));
+  const [prices, setPrices] = useState<PriceMatrix>(() => matrixOf(plan, initialBands));
   const [pct, setPct] = useState('');
   const [copyFrom, setCopyFrom] = useState('');
 
@@ -87,8 +97,7 @@ const RatePeriodEditor: React.FC<{
     const row = [...(p[g] || [])];
     const first = row.find(v => v != null);
     if (first == null) return p;
-    const off = [0, 0.05, 0.10, 0.15, 0.17, 0.20, 0.22];
-    return { ...p, [g]: bands.map((_, i) => row[i] ?? roundPrice(first * (1 - (off[i] ?? 0.22)), 'cents')) };
+    return { ...p, [g]: bands.map((_, i) => row[i] ?? roundPrice(first * (1 - (LENGTH_OFF[i] ?? 0.22)), 'cents')) };
   });
   const adjustAll = () => {
     const n = Number(pct);
@@ -112,7 +121,10 @@ const RatePeriodEditor: React.FC<{
   const inversions = draft.sippRates.flatMap(r => tierInversions(r).map(m => `${r.sippCode}: ${m}`));
   const dateIssue = !start || !end ? 'Enter the start and end dates.' : start > end ? 'The period ends before it starts.' : '';
   const overlap = otherPlans.find(p => p.id !== plan.id && start && end && p.startDate <= end && start <= p.endDate);
-  const blocking = [...bandIssues, ...(dateIssue ? [dateIssue] : []), ...(!name.trim() ? ['Give the period a name.'] : []), ...(groups.length ? [] : ['Add at least one car group.'])];
+  // Missing prices never stop saving: they are only pointed out (rentals without a price get no car).
+  const openEndNote = bandIssues.filter(m => m.startsWith('Rentals longer than'));
+  const priceNotes = openEndNote;
+  const blocking = [...bandIssues.filter(m => !m.startsWith('Rentals longer than')), ...(dateIssue ? [dateIssue] : []), ...(!name.trim() ? ['Give the period a name.'] : []), ...(groups.length ? [] : ['Add at least one car group.'])];
   const sevenDay = (g: string) => {
     const i = bands.findIndex(b => b.fromDay <= 7 && (b.toDay == null || b.toDay >= 7));
     const v = i >= 0 ? prices[g]?.[i] : null;
@@ -226,10 +238,17 @@ const RatePeriodEditor: React.FC<{
             <span className="ml-auto text-[11px] text-slate-400">Empty cell = that rental length is not sold for that group.</span>
           </div>
 
-          {(blocking.length > 0 || inversions.length > 0 || empty > 0) && (
+          {(blocking.length > 0 || priceNotes.length > 0 || inversions.length > 0 || empty > 0) && (
             <ul className="space-y-1 text-xs">
               {blocking.map((m, i) => <li key={`b${i}`} className="px-3 py-1.5 rounded-md border bg-rose-50 border-rose-200 text-rose-800">{m}</li>)}
-              {empty > 0 && <li className="px-3 py-1.5 rounded-md border bg-amber-50 border-amber-200 text-amber-900">{empty} empty price{empty === 1 ? '' : 's'}: those rental lengths cannot be booked for that group. Use <b>Auto</b> to fill a row.</li>}
+              {priceNotes.map((m, i) => <li key={`p${i}`} className="px-3 py-1.5 rounded-md border bg-amber-50 border-amber-200 text-amber-900">{m}</li>)}
+              {empty > 0 && (
+                <li className="px-3 py-1.5 rounded-md border bg-amber-50 border-amber-200 text-amber-900">
+                  <b>Brokers get no car for rental lengths without a price:</b>{' '}
+                  {groups.filter(g => bands.some((_, i) => prices[g]?.[i] == null)).map(g => `${g}: ${bands.filter((_, i) => prices[g]?.[i] == null).map(bandLabel).join(', ')}`).join(' · ')}.
+                  {' '}Fill them in (<b>Auto</b> fills a row), or remove the bands you do not sell.
+                </li>
+              )}
               {inversions.slice(0, 4).map((m, i) => <li key={`i${i}`} className="px-3 py-1.5 rounded-md border bg-amber-50 border-amber-200 text-amber-900">{m}</li>)}
             </ul>
           )}

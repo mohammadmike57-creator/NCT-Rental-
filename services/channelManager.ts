@@ -153,12 +153,12 @@ const validateTiers = (planName: string, rate: SippRate, push: (l: IssueLevel, a
     const prevEnd = prev.toDay as number;
     const curStart = cur.fromDay ?? 0;
     if (curStart <= prevEnd) push('error', 'Rates', `${where}: tiers ${tierLabel(prev)} and ${tierLabel(cur)} overlap.`);
-    else if (curStart > prevEnd + 1) push('warning', 'Rates', `${where}: no price for ${prevEnd + 1}–${curStart - 1} day rentals.`);
+    else if (curStart > prevEnd + 1) push('warning', 'Rates', `${where}: no price for ${prevEnd + 1}–${curStart - 1} day rentals, so brokers get no car for them.`);
   }
   tierInversions(rate).forEach(m => push('warning', 'Rates', `${where}: ${m}`));
   const last = tiers[tiers.length - 1];
   if (!isOpenEnded(last.toDay)) {
-    push('warning', 'Rates', `${where}: rentals longer than ${last.toDay} days cannot be priced (last tier is not open-ended).`);
+    push('warning', 'Rates', `${where}: no price for rentals longer than ${last.toDay} day${last.toDay === 1 ? '' : 's'}, so brokers get no car for them.`);
   }
 };
 

@@ -4,7 +4,7 @@ import { Button, EmptyState } from '../ui/Crm';
 import { saveAllData, loadedSection } from '../../services/api';
 import { LengthBand, DynamicPricingConfig, DynamicPricingState, PRICE_CHANNELS, SeasonKind, SeasonRule, describeAdjust, emptyPricingState } from '../../services/dynamicPricing';
 import { Card, Delta, Icons, Icons2, Popover, SectionHead, Stepper, Toggle, toneOf, toneText } from './pricingKit';
-import { fleetSippCodes } from '../../services/channelManager';
+import { fleetSippCodes, hasUnpublishedChanges } from '../../services/channelManager';
 import { LeadTimeEditor } from './rates/LeadTimeEditor';
 import { ChannelsEditor, LimitsEditor } from './rates/LimitsAndChannels';
 import { HistoryPanel, PreviewPanel } from './rates/PreviewAndHistory';
@@ -26,7 +26,9 @@ const RateRulesView: React.FC<{
   currentUserName?: string;
   onUpdateAggregator: (a: Aggregator) => void;
   showConfirmation: (m: string) => void;
-}> = ({ aggregators, fleet, currentUserName, onUpdateAggregator, showConfirmation }) => {
+  /** Opens a channel's own Rates tab (where its rates are added and published). */
+  onOpenRates?: (channelId: string) => void;
+}> = ({ aggregators, fleet, currentUserName, onUpdateAggregator, showConfirmation, onOpenRates }) => {
   const [state, setState] = useState<DynamicPricingState>(() => loadedSection<DynamicPricingState>('channelPricing') || emptyPricingState());
   const [tab, setTab] = useState<Tab>('overview');
   const [editing, setEditing] = useState<SeasonRule | null>(null);
@@ -99,8 +101,26 @@ const RateRulesView: React.FC<{
 
   // ---------------------------------------------------------------- render
 
+  // Rate rules only change rates a channel already publishes: a channel without them gets no cars at all.
+  const noRates = aggregators.filter(a => !(a.ratePlanHistory || []).length);
+  const waiting = aggregators.filter(a => (a.ratePlanHistory || []).length && hasUnpublishedChanges(a));
+
   return (
     <div className="space-y-5">
+      {(noRates.length > 0 || waiting.length > 0) && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50/70 px-5 py-4" data-testid="rate-rules-base-warning">
+          <p className="text-[13px] font-semibold text-amber-900">Rate rules change the rates a channel already has. They do not add cars or rates.</p>
+          <p className="mt-0.5 text-[12.5px] text-amber-900/80">Each channel first needs its own rates, added and <b>published</b> on its Rates tab. Until then the broker receives no cars, whatever the rules here say.</p>
+          <ul className="mt-2.5 space-y-1.5">
+            {[...noRates.map(a => ({ a, text: 'no published rates: the broker gets no cars' })), ...waiting.map(a => ({ a, text: 'rate changes waiting to be published: the broker still gets the previous rates' }))].map(({ a, text }) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-amber-950">
+                <span><b>{a.name}</b> — {text}</span>
+                {onOpenRates && <button type="button" onClick={() => onOpenRates(a.id)} className="h-7 px-2.5 rounded-md bg-white ring-1 ring-inset ring-amber-300 text-[12px] font-semibold text-amber-900 hover:bg-amber-100">Open {a.name} → Rates</button>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {/* Workspace header: what is live, the draft, publish, and the sections */}
       <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-clip">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">

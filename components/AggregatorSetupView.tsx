@@ -572,7 +572,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       ) : mode === 'developer' ? (
         <DeveloperView />
       ) : mode === 'rates' ? (
-        <RateRulesView aggregators={aggregators} fleet={fleet} currentUserName={currentUserName} onUpdateAggregator={handleUpdateAggregator} showConfirmation={notify} />
+        <RateRulesView aggregators={aggregators} fleet={fleet} currentUserName={currentUserName} onUpdateAggregator={handleUpdateAggregator} showConfirmation={notify} onOpenRates={id => openChannel(id, 'Rates')} />
       ) : mode === 'dashboard' ? (
         <ChannelDashboardView aggregators={aggregators} onOpenChannel={openChannel} />
       ) : mode === 'reservations' ? (
