@@ -18,6 +18,7 @@ import ManageStopSaleView from './ManageStopSaleView';
 import XMLPreviewView from './XMLPreviewView';
 import RateHistoryView from './RateHistoryView';
 import ChannelOverviewView from './ChannelOverviewView';
+import BrokerVisibilityCheck from './channel/BrokerVisibilityCheck';
 import ChannelDeliveryLogView from './ChannelDeliveryLogView';
 import MultiChannelEditor, { BulkResult } from './channel/MultiChannelEditor';
 import XmlReservationsView from './channel/XmlReservationsView';
@@ -720,6 +721,9 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
               </div>
 
               <div className="space-y-4">
+                {activeTab === 'Overview' && (
+                  <BrokerVisibilityCheck aggregator={sel} fleet={fleet} stopSales={stopSalesFor(stopSales, sel.id)} onNavigate={setActiveTab} />
+                )}
                 {activeTab === 'Overview' && (
                   <ChannelReadiness aggregator={sel} fleet={fleet} validation={health[sel.id]}
                     onNavigate={t => (t === 'API keys' ? setMode('keys') : setActiveTab(t))} />
