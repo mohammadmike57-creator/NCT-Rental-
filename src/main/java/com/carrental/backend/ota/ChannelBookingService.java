@@ -781,9 +781,25 @@ public class ChannelBookingService {
     }
 
     /** The sell currency the broker asked for (null = the channel currency) and its rate. */
+    /** The Jordanian dinar's fixed official rate to the US dollar (1 JOD = 1.4104 USD; 1 USD = 0.709 JOD). */
+    static final BigDecimal JOD_TO_USD = new BigDecimal("1.4104");
+    static final BigDecimal USD_TO_JOD = new BigDecimal("0.709");
+
+    /**
+     * Multiplier from the channel's currency to the one asked for. A rate set on the channel comes first;
+     * without one, JOD and USD convert at the dinar's fixed official rate, so a broker asking in dollars
+     * (or dinars) still gets the cars. Any other currency needs a rate on the channel.
+     */
+    static BigDecimal pegged(String base, String asked) {
+        if ("JOD".equalsIgnoreCase(base) && "USD".equalsIgnoreCase(asked)) return JOD_TO_USD;
+        if ("USD".equalsIgnoreCase(base) && "JOD".equalsIgnoreCase(asked)) return USD_TO_JOD;
+        return null;
+    }
+
     private static BigDecimal rateFor(Ctx c, String currency) {
         if (currency == null || currency.isBlank() || currency.trim().equalsIgnoreCase(c.channel().currency())) return null;
         BigDecimal r = c.rules().currencies().get(currency.trim().toUpperCase(Locale.ROOT));
+        if (r == null) r = pegged(c.channel().currency(), currency.trim());
         if (r == null) {
             throw ChannelError.INVALID_REQUEST.ex("Currency " + currency.trim().toUpperCase(Locale.ROOT) + " is not offered on this channel"
                 + (c.rules().currencies().isEmpty() ? "" : " (offered: " + c.channel().currency() + ", " + String.join(", ", c.rules().currencies().keySet()) + ")"));

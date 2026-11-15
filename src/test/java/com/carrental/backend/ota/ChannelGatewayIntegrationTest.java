@@ -1474,6 +1474,25 @@ class ChannelGatewayIntegrationTest {
     }
 
     @Test
+    void aDinarChannelAskedInDollarsAnswersAtTheFixedRate() throws Exception {
+        // UR-Drive prices in JOD; a broker such as Hogicar asks in USD. Without a rate set on the channel the
+        // dinar's fixed official rate is used, instead of refusing the search.
+        rules((agg, r) -> { agg.put("currency", "JOD"); r.remove("currencies"); });
+        try {
+            String rq = avail("PEG").replace("<VehAvailRQCore>", "<POS><Source ISOCurrency=\"USD\"/></POS><VehAvailRQCore>");
+            String a = send("/ota/v1/BKG/OTA_VehAvailRate", rq);
+            assertTrue(a.contains("<Success/>") && !a.contains("<Errors>"), a);
+            assertTrue(a.contains("CurrencyCode=\"USD\""), a);
+            assertTrue(a.contains("RateConversion=\"1.4104\""), a);
+            // A rate set on the channel still comes first.
+            rules((agg, r) -> r.putObject("currencies").put("USD", 1.5));
+            assertTrue(send("/ota/v1/BKG/OTA_VehAvailRate", rq).contains("RateConversion=\"1.5\""));
+            // Any other currency without a rate is still refused clearly.
+            assertTrue(send("/ota/v1/BKG/OTA_VehAvailRate", rq.replace("ISOCurrency=\"USD\"", "ISOCurrency=\"GBP\"")).contains("Currency GBP is not offered"));
+        } finally { rules((agg, r) -> { agg.put("currency", "USD"); r.remove("currencies"); }); }
+    }
+
+    @Test
     void statementCanBeSettledInUsd() throws Exception {
         rules((agg, r) -> { agg.put("commissionPercent", 10).put("currency", "JOD"); r.putObject("currencies").put("USD", 1.41); });
         try { settleInUsd(); } finally { rules((agg, r) -> { agg.put("currency", "USD"); r.remove("currencies"); }); }

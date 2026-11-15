@@ -166,6 +166,7 @@ public class ChannelGatewayAdminController {
             if (currency == null || currency.isBlank() || currency.trim().equalsIgnoreCase(ch.currency())) return ResponseEntity.ok(st);
             String cur = currency.trim().toUpperCase(java.util.Locale.ROOT);
             java.math.BigDecimal rate = core.context(ch, false).rules().currencies().get(cur);
+            if (rate == null) rate = ChannelBookingService.pegged(ch.currency(), cur);
             if (rate == null) return ResponseEntity.badRequest().body(Map.of("error",
                 "No " + cur + " rate for this channel. Add it under Booking API → Currencies (" + cur + " per 1 " + ch.currency() + ")."));
             return ResponseEntity.ok(ChannelBookingService.settleIn(st, cur, rate));

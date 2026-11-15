@@ -496,6 +496,13 @@ export const CurrenciesSection: React.FC<{ base: string; currencies: Record<stri
       bodyClassName="p-4 space-y-3">
       <div className="flex flex-wrap gap-2">
         <span className="h-8 px-3 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 text-xs font-semibold font-mono inline-flex items-center">{base} · channel currency</span>
+        {(() => {
+          // JOD and USD convert at the dinar's fixed official rate unless a rate is set here.
+          const pegCur = base === 'JOD' ? 'USD' : base === 'USD' ? 'JOD' : null;
+          if (!pegCur || currencies[pegCur] != null) return null;
+          return <span className="h-8 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs inline-flex items-center" title="Used when a broker asks in this currency and no rate of your own is set">
+            <b className="font-mono mr-1">{pegCur}</b> automatic · fixed rate {base === 'JOD' ? '1 JOD = 1.4104 USD' : '1 USD = 0.709 JOD'}</span>;
+        })()}
         {entries.map(([c, rate]) => (
           <span key={c} className="h-8 pl-3 pr-1 rounded-lg border border-slate-200 bg-white text-xs inline-flex items-center gap-2">
             <span className="font-mono font-semibold text-slate-800">{c}</span>
