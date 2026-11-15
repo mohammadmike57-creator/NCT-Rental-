@@ -3,6 +3,7 @@ import { Aggregator, ChannelCommercialTerms, ChannelWeekday, Fleet } from '../..
 import { Badge, Button, Dialog, EmptyState, inputCls, selectCls } from '../ui/Crm';
 import { BuildStep, BuildUp, Delta, Icons, RuleCard, Seg, StateChip, Stepper, Toggle, money2, signed, toneOf, toneText } from './pricingKit';
 import { WEEKDAYS } from './CommercialRules';
+import { removeBrokerStopSale } from '../../services/channelManager';
 
 /**
  * The broker's commercial terms on top of the published rates: markup or discount, car-group terms,
@@ -154,6 +155,14 @@ const PriceRulesView: React.FC<{
     steps.push({ label: 'Broker net daily rate', detail: `${signed(res.pct)} in total${c.markupPerDay ? ` ${signed(c.markupPerDay, cur)}` : ''}`, amount: res.daily, kind: 'final' });
     return { ...res, steps };
   }, [t, exGroup, exDaily, exAhead, exDay, cur]);
+
+  // Removing a stop sale takes effect at once (live and draft): it must not wait for a Publish.
+  const removeStop = (b: NonNullable<Terms['blackouts']>[number], i: number) => {
+    setT(p => ({ ...p, blackouts: (p.blackouts || []).filter((_, j) => j !== i) }));
+    if (!b.from || !(published.blackouts || []).some(x => x.from === b.from && (x.to || x.from) === (b.to || b.from) && (x.note || '') === (b.note || ''))) return;
+    onUpdate(removeBrokerStopSale(aggregator, b, currentUserName));
+    showConfirmation?.(`Stop sale removed from ${aggregator.name}: the next search already uses it.`);
+  };
 
   const saveDraft = () => {
     onUpdate({ ...aggregator, commercialDraft: changed ? cleanTerms(t) : undefined });
@@ -474,7 +483,7 @@ const PriceRulesView: React.FC<{
                         </div>
                         <input value={b.note || ''} placeholder="Reason shown to the broker, e.g. Not sold for these dates" aria-label="Reason" onChange={e => upd({ note: e.target.value })} className={`${fieldCls} w-full`} />
                       </div>
-                      <button type="button" onClick={() => set('blackouts', bl.filter((_, j) => j !== i))} aria-label="Remove stop sale"
+                      <button type="button" onClick={() => removeStop(b, i)} aria-label="Remove stop sale"
                         className="justify-self-end grid place-items-center w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 [&>svg]:w-4 [&>svg]:h-4"><Icons.x /></button>
                     </li>
                   );

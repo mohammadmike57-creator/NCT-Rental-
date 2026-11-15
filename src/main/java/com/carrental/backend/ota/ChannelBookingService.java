@@ -508,13 +508,17 @@ public class ChannelBookingService {
         LocalDate start = c.rules().now().toLocalDate();
         out.put("from", start.toString()).put("to", start.plusDays(days - 1).toString());
         ArrayNode groups = out.putArray("groups");
+        // The broker's own stop sales (Price rules) close a day here too, as they do in a search.
+        ChannelCommercial com = ChannelCommercial.of(c.channel().raw().path("bookingRules"));
         for (VehicleGroup g : vehicleGroups(c)) {
             ObjectNode gn = groups.addObject();
             gn.put("vehicle_group", g.code()).put("name", g.name()).put("fleet_size", g.fleetSize());
             ArrayNode daysArr = gn.putArray("days");
             for (int i = 0; i < days; i++) {
                 LocalDate d = start.plusDays(i);
-                Avail a = check(c, g.code(), d.atTime(10, 0), d.plusDays(1).atTime(10, 0), null, null);
+                ChannelCommercial.Blackout stop = com.blackoutFor(g.code(), d, d.plusDays(1));
+                Avail a = stop != null ? new Avail(0, stop.note().isEmpty() ? "Not sold for these dates" : stop.note())
+                    : check(c, g.code(), d.atTime(10, 0), d.plusDays(1).atTime(10, 0), null, null);
                 ObjectNode dn = daysArr.addObject().put("date", d.toString()).put("available", a.count());
                 dn.put("status", a.count() > 0 ? "OPEN" : "CLOSED");
                 if (a.reason() != null) dn.put("reason", a.reason());

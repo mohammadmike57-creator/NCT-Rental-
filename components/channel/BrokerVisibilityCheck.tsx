@@ -30,7 +30,7 @@ const attr = (xml: string, name: string) => (new RegExp(`${name}="([^"]+)"`).exe
 const inner = (xml: string, tag: string) => (new RegExp(`<(?:\\w+:)?${tag}>([^<]*)</`).exec(xml) || [])[1];
 
 /** The broker's last real search and what our answer contained. */
-interface LastSearch { at: string; location?: string; pickUp?: string; dropOff?: string; groups: number; available: number; warnings: string[]; error?: string }
+interface LastSearch { at: string; location?: string; pickUp?: string; dropOff?: string; groups: number; available: number; warnings: string[]; closed: string[]; error?: string }
 
 function readSearch(row: ChannelTrafficRow, req = '', res = ''): LastSearch {
   const pickUp = attr(req, 'PickUpDateTime') || inner(req, 'PickupDateTime') || (/"pickup_at"\s*:\s*"([^"]+)"/.exec(req) || [])[1];
@@ -39,7 +39,9 @@ function readSearch(row: ChannelTrafficRow, req = '', res = ''): LastSearch {
   const groups = (res.match(/<(?:\w+:)?VehAvail>/g) || []).length || (res.match(/"vehicle_group"/g) || []).length;
   const available = (res.match(/Status="Available"/g) || []).length || (res.match(/"status"\s*:\s*"Available"/g) || []).length;
   const warnings = [...res.matchAll(/<(?:\w+:)?Warning\b[^>]*ShortText="([^"]+)"/g)].map(m => m[1]);
-  return { at: row.createdAt, location, pickUp, dropOff, groups, available, warnings, error: row.success ? undefined : `${row.errorCode}: ${row.errorMessage || ''}` };
+  // Why each car group was closed (OTA ClosedReason, native ClosedReason, JSON closed_reason).
+  const closed = Array.from(new Set([...res.matchAll(/<(?:\w+:)?ClosedReason>([^<]+)</g), ...res.matchAll(/"closed_reason"\s*:\s*"([^"]+)"/g)].map(m => m[1])));
+  return { at: row.createdAt, location, pickUp, dropOff, groups, available, warnings, closed, error: row.success ? undefined : `${row.errorCode}: ${row.errorMessage || ''}` };
 }
 
 const TONE: Record<Tone, { dot: string; ring: string; label: string }> = {
@@ -113,6 +115,11 @@ const BrokerVisibilityCheck: React.FC<{ aggregator: Aggregator; fleet: Fleet; st
     if (!branches.length) out.push({ tone: 'danger', title: 'No branches are set up for this broker', detail: 'Searches are refused until a branch with its code is added.', tab: 'Booking API', action: 'Open Booking API' });
     if (!a.feedKeyHash) out.push({ tone: 'danger', title: 'No live API key', detail: 'Create a key on the API keys screen and give it to the broker.' });
     if (a.status !== 'active') out.push({ tone: 'info', title: 'The channel is in Testing', detail: 'Searches are answered, but bookings are sandbox bookings until the channel goes live.', tab: 'Go-live', action: 'Open Go-live' });
+    // 4b. The broker's own stop sales (Price rules): they close car groups even when cars are free.
+    const brokerStops = (a.bookingRules?.commercial?.blackouts || []).filter(b => b.from && (b.to || b.from) >= today);
+    if (brokerStops.length) out.push({ tone: 'danger', title: `${brokerStops.length} stop sale${brokerStops.length === 1 ? '' : 's'} in this broker's Price rules`,
+      detail: <>These close cars for the broker even when they are free: {brokerStops.slice(0, 4).map((b, i) => <span key={i} className="block"><b>{displayDay(b.from)} → {displayDay(b.to || b.from)}</b> · {b.groups?.length ? b.groups.join(', ') : 'every car group'}{b.note ? <> · “{b.note}”</> : null}</span>)}Remove the stop sale under Price rules → Stop sales and publish, if it is not meant.</>,
+      tab: 'Price rules', action: 'Open Price rules' });
     // 5. Stop sales today
     const stops = (stopSales || []).filter(s => s.startDate <= today && s.endDate >= today);
     if (stops.length) out.push({ tone: 'info', title: `${stops.length} stop sale${stops.length === 1 ? '' : 's'} active today`, detail: 'Stopped cars or categories are sent as not available.' });
@@ -124,7 +131,7 @@ const BrokerVisibilityCheck: React.FC<{ aggregator: Aggregator; fleet: Fleet; st
       if (last) {
         const when = `${displayStamp(last.at)}${last.location ? ` · ${last.location}` : ''}${last.pickUp ? ` · ${displayDay(last.pickUp.slice(0, 10), false)} → ${last.dropOff ? displayDay(last.dropOff.slice(0, 10), false) : '?'}` : ''}`;
         if (last.error) out.push({ tone: 'danger', title: 'The broker\'s last search was refused', detail: <><span className="tabular-nums">{when}</span>: {last.error}{last.location && branches.length && !branches.some(b => (b.code || '').toUpperCase() === last.location!.toUpperCase()) ? <> — <b>{last.location}</b> is not one of your branch codes ({branches.map(b => b.code).join(', ')}).</> : null}</> });
-        else if (!last.available) out.push({ tone: 'danger', title: 'The broker\'s last search got no available car', detail: <><span className="tabular-nums">{when}</span>: {last.groups} car group{last.groups === 1 ? '' : 's'} in the answer, none available{last.warnings.length ? <>. Our answer said: <i>{last.warnings.join('; ')}</i></> : ''}.</> });
+        else if (!last.available) out.push({ tone: 'danger', title: 'The broker\'s last search got no available car', detail: <><span className="tabular-nums">{when}</span>: {last.groups} car group{last.groups === 1 ? '' : 's'} in the answer, none available{last.closed.length ? <>, closed because: <b>{last.closed.join('; ')}</b></> : ''}{last.warnings.length ? <>. Our answer said: <i>{last.warnings.join('; ')}</i></> : ''}.</> });
         else out.push({ tone: 'ok', title: 'The broker\'s last search got cars', detail: <><span className="tabular-nums">{when}</span>: {last.available} of {last.groups} car group{last.groups === 1 ? '' : 's'} available. If they still do not show on the broker’s side, the broker must map your car groups and branch on its side.</> });
       }
       const codes = new Map<string, { n: number; msg?: string }>();

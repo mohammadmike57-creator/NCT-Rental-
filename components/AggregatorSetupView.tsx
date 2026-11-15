@@ -19,6 +19,7 @@ import XMLPreviewView from './XMLPreviewView';
 import RateHistoryView from './RateHistoryView';
 import ChannelOverviewView from './ChannelOverviewView';
 import BrokerVisibilityCheck from './channel/BrokerVisibilityCheck';
+import BrokerStopSalesPanel from './channel/BrokerStopSalesPanel';
 import ChannelDeliveryLogView from './ChannelDeliveryLogView';
 import MultiChannelEditor, { BulkResult } from './channel/MultiChannelEditor';
 import XmlReservationsView from './channel/XmlReservationsView';
@@ -584,7 +585,10 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         <MultiChannelEditor aggregators={aggregators} fleet={fleet} availableExtras={availableExtras} stopSales={stopSales}
           currentUserName={currentUserName} onApply={applyBulk} />
       ) : showStopSale ? (
-        <ManageStopSaleView stopSales={stopSales} onUpdate={updateStopSales} fleet={fleet} channels={aggregators.map(a => ({ id: a.id, name: a.name }))} />
+        <div className="space-y-4">
+          <BrokerStopSalesPanel aggregators={aggregators} onUpdate={handleUpdateAggregator} currentUserName={currentUserName} notify={notify} />
+          <ManageStopSaleView stopSales={stopSales} onUpdate={updateStopSales} fleet={fleet} channels={aggregators.map(a => ({ id: a.id, name: a.name }))} />
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)] gap-4 items-start">
           {/* Navigator: the brokers, then the sections of the selected one */}

@@ -671,3 +671,30 @@ export const publishedView = (agg: Aggregator): Aggregator => ({
   ...agg,
   currentRatePlans: (agg.ratePlanHistory || [])[0]?.ratePlans || [],
 });
+
+/** A stop sale from a broker's Price rules (commercial terms). */
+export type BrokerStopSale = { from: string; to: string; groups?: string[]; note?: string };
+const sameStop = (x: BrokerStopSale, y: BrokerStopSale) =>
+  x.from === y.from && (x.to || x.from) === (y.to || y.from) && (x.note || '') === (y.note || '') && (x.groups || []).join(',') === (y.groups || []).join(',');
+
+/**
+ * Removes a broker stop sale everywhere at once: from the live Price rules (what searches use) and from the
+ * draft, recorded as a new version in the history. Removing a stop sale must not wait for a Publish.
+ */
+export const removeBrokerStopSale = (a: Aggregator, stop: BrokerStopSale, by?: string): Aggregator => {
+  const live = a.bookingRules?.commercial;
+  const inLive = !!live?.blackouts?.some(b => sameStop(b, stop));
+  const draft = a.commercialDraft;
+  const nextDraft = draft ? { ...draft, blackouts: (draft.blackouts || []).filter(b => !sameStop(b, stop)) } : draft;
+  if (!inLive) return { ...a, commercialDraft: nextDraft };
+  const version = (live?.version || 0) + 1, at = new Date().toISOString();
+  const { version: _v, publishedAt: _p, publishedBy: _b, ...terms } = live || {};
+  const nextTerms = { ...terms, blackouts: (live?.blackouts || []).filter(b => !sameStop(b, stop)) };
+  const note = `Stop sale ${stop.from}${stop.to && stop.to !== stop.from ? ` → ${stop.to}` : ''} removed`;
+  return {
+    ...a,
+    bookingRules: { ...(a.bookingRules || {}), commercial: { ...nextTerms, version, publishedAt: at, ...(by ? { publishedBy: by } : {}) } },
+    commercialDraft: nextDraft,
+    commercialHistory: [{ version, publishedAt: at, publishedBy: by, note, terms: nextTerms }, ...(a.commercialHistory || [])].slice(0, 30),
+  };
+};

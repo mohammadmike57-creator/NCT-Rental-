@@ -1474,6 +1474,21 @@ class ChannelGatewayIntegrationTest {
     }
 
     @Test
+    void aStopSaleInTheBrokersPriceRulesClosesTheInventoryToo() throws Exception {
+        // The search and the inventory must agree: a stop sale in Price rules closes the day in both.
+        String today = java.time.LocalDate.now().toString(), later = java.time.LocalDate.now().plusDays(5).toString();
+        rules((agg, r) -> r.putObject("commercial").putArray("blackouts").addObject().put("from", today).put("to", later).put("note", "Sold out"));
+        try {
+            String inv = mvc.perform(get("/partner/v1/BKG/inventory").param("days", "3").header("X-Api-Key", KEY))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            JsonNode day = M.readTree(inv).path("inventory").path("groups").get(0).path("days").get(1);
+            assertEquals("CLOSED", day.path("status").asText(), inv);
+            assertEquals(0, day.path("available").asInt());
+            assertEquals("Sold out", day.path("reason").asText());
+        } finally { rules((agg, r) -> r.remove("commercial")); }
+    }
+
+    @Test
     void aDinarChannelAskedInDollarsAnswersAtTheFixedRate() throws Exception {
         // UR-Drive prices in JOD; a broker such as Hogicar asks in USD. Without a rate set on the channel the
         // dinar's fixed official rate is used, instead of refusing the search.
