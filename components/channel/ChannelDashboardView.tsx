@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Aggregator, Fleet, StopSale } from '../../types';
-import { fetchChannelBookings, fetchChannelTrafficStats, fetchChannelWebhooks, ChannelBookingRow, ChannelTrafficStats, ChannelWebhookRow } from '../../services/api';
+import { replayWebhook, fetchChannelBookings, fetchChannelTrafficStats, fetchChannelWebhooks, ChannelBookingRow, ChannelTrafficStats, ChannelWebhookRow } from '../../services/api';
 import { Badge, Plate, table } from '../ui/Crm';
+import { showActionFeedback } from '../ui/ActionFeedback';
 import { CountUp, SlidingPill, GrowBar, Ring, useInView, useSpotlight } from './otaMotion';
 import { ArrowPathIcon, CalendarCheckIcon, CurrencyDollarIcon, ShieldCheckIcon, SearchIcon, CheckCircleIcon, AlertIcon, ChevronRightIcon, StopIcon, ServerIcon } from '../icons';
 import { connectionStateOf } from './ConnectionProfileView';
@@ -21,6 +22,8 @@ type Row = {
 
 export interface ChannelAlert { channelId: string; channel: string; tone: 'danger' | 'warning'; text: string; tab: ChannelTab }
 
+/** Failed status updates already resent automatically in this visit. */
+const AUTO_RETRIED = new Set<string>();
 const PERIODS: [number, string][] = [[24, 'Today'], [24 * 7, '7 days'], [24 * 30, '30 days']];
 const PERIOD_TEXT: Record<number, string> = { 24: 'the last 24 hours', [24 * 7]: 'the last 7 days', [24 * 30]: 'the last 30 days' };
 const BAR = ['bg-indigo-500', 'bg-sky-400', 'bg-amber-400', 'bg-violet-400', 'bg-rose-400', 'bg-emerald-400', 'bg-orange-400', 'bg-fuchsia-400'];
@@ -269,10 +272,41 @@ const ChannelDashboardView: React.FC<{
   }, [rows, hours]);
 
   const alerts = useMemo(() => channelAlerts(rows || []), [rows]);
+  /** Resends every failed status update of a broker, then reloads; says how many went through. */
+  const retry = async (id: string, name: string, hooks: ChannelWebhookRow[]) => {
+    const done = await Promise.all(hooks.map(h => replayWebhook(id, h.id).then(r => r?.status === 'DELIVERED').catch(() => false)));
+    const ok = done.filter(Boolean).length;
+    showActionFeedback(ok === hooks.length
+      ? { tone: 'success', title: 'Status updates delivered', detail: `${ok} update${ok === 1 ? '' : 's'} reached ${name}.` }
+      : { tone: 'error', title: `${hooks.length - ok} still failing`, detail: `${ok} of ${hooks.length} reached ${name}. Check the broker's webhook address under Technical → Booking API.` });
+    void load(true);
+  };
+  // Failed status updates are resent on their own when the dashboard opens (each one once per visit to the
+  // system, so a broker that is down is not called again and again); the button stays for another try.
+  useEffect(() => {
+    const due = (rows || []).map(r => ({ r, hooks: r.failedHooks.filter(h => !AUTO_RETRIED.has(`${r.a.id}:${h.id}`)) })).filter(x => x.hooks.length);
+    if (!due.length) return;
+    due.forEach(x => x.hooks.forEach(h => AUTO_RETRIED.add(`${x.r.a.id}:${h.id}`)));
+    void Promise.all(due.map(x => Promise.all(x.hooks.map(h => replayWebhook(x.r.a.id, h.id).then(d => d?.status === 'DELIVERED').catch(() => false)))))
+      .then(res => {
+        const sent = res.flat().length, ok = res.flat().filter(Boolean).length;
+        showActionFeedback(ok === sent
+          ? { tone: 'success', title: 'Fixed automatically', detail: `${ok} failed status update${ok === 1 ? ' was' : 's were'} resent and delivered.` }
+          : { tone: 'warning', title: `${ok} of ${sent} status updates resent`, detail: 'The others still fail: check the broker\'s webhook address (Technical → Booking API).' });
+        if (ok) void load(true);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
   /** Everything that needs a person, most urgent first, each with the one button that fixes it. */
   const todo = useMemo(() => {
     const out: { key: string; tone: 'danger' | 'warning' | 'info'; title: string; text: string; action: string; run: () => void }[] = [];
-    alerts.forEach((al, i) => out.push({ key: `al${i}`, tone: al.tone, title: al.channel, text: al.text, action: `Open ${al.tab}`, run: () => onOpenChannel(al.channelId, al.tab) }));
+    alerts.forEach((al, i) => {
+      const hooks = al.tab === 'Booking API' ? (rows || []).find(r => r.a.id === al.channelId)?.failedHooks || [] : [];
+      // Failed status updates are resent with one click; the broker's address is only opened if they fail again.
+      out.push(hooks.length
+        ? { key: `al${i}`, tone: al.tone, title: al.channel, text: al.text, action: 'Retry now', run: () => { void retry(al.channelId, al.channel, hooks); } }
+        : { key: `al${i}`, tone: al.tone, title: al.channel, text: al.text, action: `Open ${al.tab}`, run: () => onOpenChannel(al.channelId, al.tab) });
+    });
     if (fleet) aggregators.forEach(a => {
       const v = validateChannel(a, fleet);
       const first = v.issues.find(i => i.level === 'error');
@@ -284,7 +318,8 @@ const ChannelDashboardView: React.FC<{
     if (stops) out.push({ key: 'stops', tone: 'info', title: 'Stop sales', text: `${stops} stop sale${stops === 1 ? ' is' : 's are'} closing cars to brokers today.`, action: 'Review', run: () => onOpenModule?.('stopsale') });
     const rank = { danger: 0, warning: 1, info: 2 } as const;
     return out.sort((x, y) => rank[x.tone] - rank[y.tone]);
-  }, [alerts, aggregators, fleet, stopSales, onOpenChannel, onOpenModule]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts, aggregators, fleet, stopSales, onOpenChannel, onOpenModule, rows]);
 
   const latest = useMemo(() => (rows || []).flatMap(r => r.bookings.map(b => ({ b, a: r.a })))
     .sort((x, y) => (y.b.createdAt || '').localeCompare(x.b.createdAt || '')).slice(0, 7), [rows]);

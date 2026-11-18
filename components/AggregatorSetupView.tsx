@@ -35,6 +35,8 @@ import DeveloperView from './channel/DeveloperView';
 import VideoGuideView from './channel/VideoGuideView';
 import { showActionFeedback } from './ui/ActionFeedback';
 import { SlidingPill, Cascade, useSpotlight } from './channel/otaMotion';
+import { autoRepair } from '../services/channelRepair';
+import AutoRepairPanel from './channel/AutoRepairPanel';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../services/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -368,6 +370,16 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     showActionFeedback(message);
   }, []);
   useEffect(() => () => { if (pendingSaved.current) clearTimeout(pendingSaved.current); }, []);
+  // Auto-repair: whenever the channels load or change, the safe fixes (codes, rental-length bands; never a
+  // price) are applied and saved, and staff are told what was fixed. Running it again finds nothing.
+  useEffect(() => {
+    const fixed: string[] = [];
+    const next = aggregators.map(a => { const r = autoRepair(a); r.fixes.forEach(f => fixed.push(`${a.name}: ${f}`)); return r.agg; });
+    if (!fixed.length) return;
+    onUpdateAggregators(next);
+    showActionFeedback({ tone: 'success', title: `Fixed automatically · ${fixed.length}`, detail: fixed.length === 1 ? fixed[0] : `${fixed[0]} (+${fixed.length - 1} more, see Auto-repair on the Rates page)` });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregators]);
   const handleUpdateAggregator = (updated: Aggregator) => {
     onUpdateAggregators(aggregators.map(a => (a.id === updated.id ? updated : a)));
     if (pendingSaved.current) clearTimeout(pendingSaved.current);
@@ -790,6 +802,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
               </div>
 
               <Cascade k={`${sel.id}-${activeTab}`} className="space-y-4">
+                {activeTab === 'Overview' && <AutoRepairPanel aggregator={sel} onUpdate={handleUpdateAggregator} notify={notify} />}
                 {activeTab === 'Overview' && (
                   <BrokerVisibilityCheck aggregator={sel} fleet={fleet} stopSales={stopSalesFor(stopSales, sel.id)} onNavigate={setActiveTab} />
                 )}

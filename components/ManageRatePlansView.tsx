@@ -12,6 +12,7 @@ import {
 } from '../services/channelManager';
 import { displayStamp } from '../services/displayDate';
 import { RateSheet, carGroups } from './channel/CarGroup';
+import AutoRepairPanel from './channel/AutoRepairPanel';
 import { useSpotlight } from './channel/otaMotion';
 
 interface ManageRatePlansViewProps {
@@ -188,6 +189,8 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
         {rateIssues.length > 0 && <span className="sm:ml-auto text-rose-700 font-semibold tabular-nums">{validation.errors} error{validation.errors === 1 ? '' : 's'} · {validation.warnings} warning{validation.warnings === 1 ? '' : 's'}</span>}
       </div>
 
+      {ratePlans.length > 0 && <AutoRepairPanel aggregator={aggregator} onUpdate={onUpdateAggregator} notify={showConfirmation} />}
+
       {ratePlans.length > 0 && (
         <RateSheet groups={cars} plans={ratePlans} currency={currency} today={today}
           onOpen={id => { const p = ratePlans.find(x => x.id === id); if (p) setEditingPlan(p); }} />
@@ -330,9 +333,12 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                   <CheckCircleIcon className="w-4 h-4 shrink-0" /> Validation passed{validation.warnings ? ` with ${validation.warnings} warning${validation.warnings === 1 ? '' : 's'}` : ''}.
                 </p>
               ) : (
-                <p className="flex items-center gap-2 text-[13px] text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-                  <AlertIcon className="w-4 h-4 shrink-0" /> {validation.errors} blocking error{validation.errors === 1 ? '' : 's'} must be fixed before publishing.
-                </p>
+                <>
+                  <p className="flex items-center gap-2 text-[13px] text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                    <AlertIcon className="w-4 h-4 shrink-0" /> {validation.errors} blocking error{validation.errors === 1 ? '' : 's'} must be fixed before publishing.
+                  </p>
+                  <AutoRepairPanel aggregator={aggregator} onUpdate={onUpdateAggregator} notify={showConfirmation} compact />
+                </>
               )}
               {validation.issues.filter(i => i.level !== 'info').length > 0 && (
                 <PlanIssues issueCls={issueCls} issues={validation.issues.filter(i => i.level !== 'info').map(i => ({ level: i.level, message: `${i.area}: ${i.message}` }))} />

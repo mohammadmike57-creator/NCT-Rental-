@@ -663,6 +663,8 @@ export interface AggregatorExtra {
 export interface Aggregator {
     id: string;
     name: string;
+    /** What OTA XML repaired on its own (newest first, last 30): see services/channelRepair.ts. */
+    repairLog?: { at: string; text: string }[];
     connectionDetails: AggregatorConnectionDetails;
     currentRatePlans: RatePlan[];
     ratePlanHistory: RatePlanSubmission[];
