@@ -564,7 +564,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 }
 /* Rates: the car picture eases forward when its card is pointed at. */
 .ota-car-img { transition: transform .6s cubic-bezier(.16,1,.3,1); }
-.ota-car-card:hover .ota-car-img { transform: scale(1.06); }
-@media (prefers-reduced-motion: reduce) { .ota-car-card:hover .ota-car-img { transform: none; } }
+.ota-car-card:hover .ota-car-img, .ota-row:hover .ota-car-img { transform: scale(1.08); }
+@media (prefers-reduced-motion: reduce) { .ota-car-card:hover .ota-car-img, .ota-row:hover .ota-car-img { transform: none; } }
 
 

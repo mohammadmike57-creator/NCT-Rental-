@@ -11,7 +11,7 @@ import {
   nextVersion, todayIso, validateChannel,
 } from '../services/channelManager';
 import { displayStamp } from '../services/displayDate';
-import { CarRateCards, carGroups } from './channel/CarGroup';
+import { RateSheet, carGroups } from './channel/CarGroup';
 import { useSpotlight } from './channel/otaMotion';
 
 interface ManageRatePlansViewProps {
@@ -157,7 +157,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
       </div>
 
       {ratePlans.length > 0 && (
-        <CarRateCards groups={cars} plans={ratePlans} currency={currency} today={today}
+        <RateSheet groups={cars} plans={ratePlans} currency={currency} today={today}
           onOpen={id => { const p = ratePlans.find(x => x.id === id); if (p) setEditingPlan(p); }} />
       )}
 
