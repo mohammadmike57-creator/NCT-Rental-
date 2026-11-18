@@ -155,3 +155,30 @@ export const GrowBar: React.FC<{ value: number; className?: string; track?: stri
     </span>
   );
 };
+
+/**
+ * Page change, "card cascade": when `k` changes (a new page or section), the cards on screen drop in one after
+ * another from top to bottom. Cards that animate themselves (`ota-pop`) and those still below the screen are left
+ * alone, so it stays quick however long the page is.
+ */
+export const Cascade: React.FC<{ k: string; children: React.ReactNode; className?: string }> = ({ k, children, className = '' }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root || reducedMotion() || typeof root.animate !== 'function') return;
+    const bottom = window.innerHeight + 40;
+    const picked: HTMLElement[] = [];
+    for (const el of Array.from(root.querySelectorAll<HTMLElement>('section, table, [class*="rounded-xl"], [class*="rounded-2xl"], [class*="rounded-lg"][class*="border"]'))) {
+      if (el.closest('.ota-pop, .ota-pending') || picked.some(p => p.contains(el))) continue;
+      const r = el.getBoundingClientRect();
+      if (r.height < 24 || r.top > bottom) continue;
+      picked.push(el);
+      if (picked.length >= 16) break;
+    }
+    picked.forEach((el, i) => el.animate(
+      [{ opacity: 0, transform: 'translateY(-14px) scale(.98)', filter: 'blur(4px)' }, { opacity: 1, transform: 'none', filter: 'blur(0px)' }],
+      { duration: 520, delay: i * 55, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'backwards' },
+    ));
+  }, [k]);
+  return <div key={k} ref={ref} className={className}>{children}</div>;
+};

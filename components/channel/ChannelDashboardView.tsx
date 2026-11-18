@@ -203,7 +203,9 @@ const ChannelDashboardView: React.FC<{
   stopSales?: StopSale[];
   userName?: string;
   onOpenModule?: (m: 'stopsale' | 'reservations' | 'keys') => void;
-}> = ({ aggregators, onOpenChannel, fleet, stopSales = [], userName, onOpenModule }) => {
+  /** The console's live status (live channels, unpublished rates…), shown as a strip under the greeting. */
+  status?: { label: string; value: React.ReactNode; dot: string; icon: React.FC<{ className?: string }>; pastel: string }[];
+}> = ({ aggregators, onOpenChannel, fleet, stopSales = [], userName, onOpenModule, status = [] }) => {
   const [hours, setHours] = useState(24 * 7);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [loadedAt, setLoadedAt] = useState<Date | null>(null);
@@ -340,6 +342,19 @@ const ChannelDashboardView: React.FC<{
             </button>
           </div>
         </div>
+        {status.length > 0 && (
+          <dl className="relative grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 border-t border-slate-100 bg-white/60 backdrop-blur-sm">
+            {status.map((c, i) => { const I = c.icon; return (
+              <div key={c.label} className={`ota-row px-4 py-3 flex items-center gap-2.5 min-w-0 ${i ? 'xl:border-l border-slate-100' : ''}`} style={{ animationDelay: `${200 + i * 60}ms` }}>
+                <span className={`w-8 h-8 rounded-lg inline-flex items-center justify-center shrink-0 ${c.pastel}`}><I className="w-4 h-4" /></span>
+                <div className="min-w-0">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 truncate" title={c.label}>{c.label}</dt>
+                  <dd className="flex items-center gap-1.5 text-[13px] font-semibold tabular-nums text-slate-900 truncate"><span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />{c.label === 'Last publish' ? c.value : <CountUp value={c.value} />}</dd>
+                </div>
+              </div>
+            ); })}
+          </dl>
+        )}
       </Card>
 
       {/* 2. Figures with trend */}

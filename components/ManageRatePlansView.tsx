@@ -11,6 +11,8 @@ import {
   nextVersion, todayIso, validateChannel,
 } from '../services/channelManager';
 import { displayStamp } from '../services/displayDate';
+import { CarRateCards, carGroups } from './channel/CarGroup';
+import { useSpotlight } from './channel/otaMotion';
 
 interface ManageRatePlansViewProps {
   aggregator: Aggregator;
@@ -60,6 +62,8 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
   const latest = (aggregator.ratePlanHistory || [])[0];
   const diff = useMemo(() => diffPlans(latest?.ratePlans || [], aggregator.currentRatePlans || []), [latest, aggregator.currentRatePlans]);
 
+  const cars = useMemo(() => carGroups(fleet, aggregator), [fleet, aggregator]);
+  const spot = useSpotlight<HTMLDivElement>();
   const handleUpdate = (newPlans: RatePlan[]) => onUpdateAggregator({ ...aggregator, currentRatePlans: newPlans });
 
   const handleAddPeriod = () => {
@@ -127,7 +131,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
   const issueCls = (level: string) => (level === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-amber-50 border-amber-200 text-amber-800');
 
   return (
-    <div className="space-y-4">
+    <div ref={spot} className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-900">Rate periods</h3>
@@ -152,6 +156,11 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
         {rateIssues.length > 0 && <span className="sm:ml-auto text-rose-700 font-semibold tabular-nums">{validation.errors} error{validation.errors === 1 ? '' : 's'} · {validation.warnings} warning{validation.warnings === 1 ? '' : 's'}</span>}
       </div>
 
+      {ratePlans.length > 0 && (
+        <CarRateCards groups={cars} plans={ratePlans} currency={currency} today={today}
+          onOpen={id => { const p = ratePlans.find(x => x.id === id); if (p) setEditingPlan(p); }} />
+      )}
+
       <Panel>
         {ratePlans.length > 0 && (
           <div className="flex items-center gap-1 px-4 pt-3" role="group" aria-label="Rates view">
@@ -171,7 +180,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
             </div>}
           />
         ) : view === 'grid' ? (
-          <RateGrid plans={ratePlans} currency={currency} today={today} />
+          <RateGrid plans={ratePlans} currency={currency} today={today} groups={cars} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {ratePlans.map(plan => {
@@ -194,7 +203,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                           <span className="tabular-nums">{plan.sippRates?.length ?? 0} vehicle group{plan.sippRates?.length === 1 ? '' : 's'}</span>
                           {priceSummary(plan).map(p => (
                             <span key={p.group} className="inline-flex items-baseline gap-1 px-1.5 py-px rounded bg-white ring-1 ring-inset ring-slate-200 text-[11px] tabular-nums">
-                              <span className="font-mono font-semibold text-slate-700">{p.group}</span>
+                              <span className="font-mono font-semibold text-slate-700" title={cars.get(p.group)?.model}>{p.group}</span>
                               <span className="text-slate-600">{p.text} {currency}/day</span>
                             </span>
                           ))}
@@ -222,7 +231,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                       {(plan.sippRates || []).length === 0 ? (
                         <p className="text-[13px] text-slate-500">No vehicle groups priced yet.</p>
                       ) : (
-                        <RateMatrixView plan={plan} currency={currency} />
+                        <RateMatrixView plan={plan} currency={currency} groups={cars} />
                       )}
                     </div>
                   )}
@@ -260,7 +269,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
       )}
 
       {editingPlan && (
-        <RatePeriodEditor plan={editingPlan} otherPlans={ratePlans} onSave={handleSavePlan} onClose={() => setEditingPlan(null)} fleet={fleet} currency={currency} />
+        <RatePeriodEditor plan={editingPlan} otherPlans={ratePlans} onSave={handleSavePlan} onClose={() => setEditingPlan(null)} fleet={fleet} currency={currency} groupsInfo={cars} />
       )}
 
       {publishOpen && createPortal(

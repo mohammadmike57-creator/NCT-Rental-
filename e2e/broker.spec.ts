@@ -86,6 +86,7 @@ test('a broker connects, searches, books, changes and cancels over OTA XML', asy
   // 3. API key made on the API keys screen; shown once, only a fingerprint is stored.
   await page.reload();
   await openScreen(page, 'OTA XML');
+  await page.getByRole('button', { name: /^Technical/ }).first().click();   // API keys live under Technical
   await page.getByRole('button', { name: /^API keys/ }).first().click();
   await page.getByRole('button', { name: /^Create/ }).first().click();
   await expect(page.getByText(/urd_[A-Za-z0-9_-]{20,}/).first()).toBeVisible();
@@ -129,7 +130,7 @@ test('a broker connects, searches, books, changes and cancels over OTA XML', asy
   // 7. The booking shows in the console's XML reservations.
   await page.reload();
   await openScreen(page, 'OTA XML');
-  await page.getByRole('button', { name: /^XML reservations/ }).first().click();
+  await page.getByRole('button', { name: /^Bookings/ }).first().click();   // XML reservations
   await expect(page.getByText('BRK-1').first()).toBeVisible();
 
   // 8. Change to 7 days: 30 × 7 = 210; then cancel (free, more than 48 hours ahead).

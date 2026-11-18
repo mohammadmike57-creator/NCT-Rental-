@@ -498,7 +498,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 /* OTA XML motion (components/channel/otaMotion.tsx): screens fade in, cards lift, buttons press. */
 @keyframes ota-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes ota-pop { from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes ota-pop { from { opacity: 0; transform: translateY(-14px) scale(.98); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes ota-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes ota-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .ota-enter { animation: ota-enter .45s cubic-bezier(.16,1,.3,1) backwards; }
@@ -552,3 +552,19 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .ota-aurora, .ota-pop .ota-row { animation: none !important; }
   .ota-spot::before, .ota-spot::after { display: none; }
 }
+
+/* The second menu row drops in. */
+@keyframes ota-sub { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.ota-sub > button { animation: ota-sub .45s cubic-bezier(.16,1,.3,1) backwards; }
+.ota-sub > button:nth-of-type(2) { animation-delay: .05s; }
+.ota-sub > button:nth-of-type(3) { animation-delay: .1s; }
+.ota-sub > button:nth-of-type(4) { animation-delay: .15s; }
+@media (prefers-reduced-motion: reduce) {
+  .ota-sub > button { animation: none !important; }
+}
+/* Rates: the car picture eases forward when its card is pointed at. */
+.ota-car-img { transition: transform .6s cubic-bezier(.16,1,.3,1); }
+.ota-car-card:hover .ota-car-img { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .ota-car-card:hover .ota-car-img { transform: none; } }
+
+

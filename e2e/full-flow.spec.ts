@@ -186,6 +186,7 @@ test('a whole working day: desk reservation, check-out, check-in, reports, broke
   await setSection(page, 'aggregators', aggs);
   await page.reload();
   await openScreen(page, 'OTA XML');
+  await page.getByRole('button', { name: /^Technical/ }).first().click();   // API keys live under Technical
   await page.getByRole('button', { name: /^API keys/ }).first().click();
   // The live key of this broker (its row; other brokers may be listed too).
   await page.getByRole('row').filter({ hasText: 'Flow Broker' }).getByRole('button', { name: 'Create', exact: true }).first().click();
@@ -216,11 +217,12 @@ test('a whole working day: desk reservation, check-out, check-in, reports, broke
   // ---- 6. The broker's booking and traffic in the console ----
   await page.reload();
   await openScreen(page, 'OTA XML');
-  await page.getByRole('button', { name: /^XML reservations/ }).first().click();
+  await page.getByRole('button', { name: /^Bookings/ }).first().click();   // XML reservations
   await expect(page.getByText('FLW-REF-1').first(), 'the broker booking is in XML reservations').toBeVisible();
   await snap(page, 'xml-reservations');
-  await page.getByRole('button', { name: /^Channels/ }).first().click();
+  await page.getByRole('button', { name: /^Technical/ }).first().click();   // traffic and connection are on the technical side
   await page.getByText('Flow Broker').first().click();
+  await page.getByRole('button', { name: /^Monitoring/ }).first().click();   // the technical menu shows one group at a time
   await page.getByRole('button', { name: 'Traffic', exact: true }).first().click();
   const sends = page.getByTestId('broker-protocols');
   await expect(sends, 'the new panel shows what the broker sends').toBeVisible({ timeout: 15_000 });

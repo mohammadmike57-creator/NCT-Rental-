@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { CarGroupInfo, CarGroupLabel } from './CarGroup';
 import { createPortal } from 'react-dom';
 import { Fleet, RatePlan } from '../../types';
 import { Badge, Button, Dialog, Field, inputCls, selectCls, table } from '../ui/Crm';
@@ -357,7 +358,7 @@ export const AdjustRatesDialog: React.FC<{
 const LENGTHS = [1, 3, 5, 7, 14, 30];
 
 /** Every group against every period for one rental length, so gaps and odd prices stand out. */
-export const RateGrid: React.FC<{ plans: RatePlan[]; currency: string; today: string }> = ({ plans, currency, today }) => {
+export const RateGrid: React.FC<{ plans: RatePlan[]; currency: string; today: string; groups?: Map<string, CarGroupInfo> }> = ({ plans, currency, today, groups }) => {
   const [days, setDays] = useState(7);
   const sorted = useMemo(() => [...plans].sort((a, b) => a.startDate.localeCompare(b.startDate)), [plans]);
   const codes = useMemo(() => [...new Set(sorted.flatMap(p => (p.sippRates || []).map(r => r.sippCode)))].sort(), [sorted]);
@@ -388,7 +389,7 @@ export const RateGrid: React.FC<{ plans: RatePlan[]; currency: string; today: st
           <tbody className={table.body}>
             {codes.map(code => (
               <tr key={code} className={table.row}>
-                <td className="px-3 py-2 pl-4 font-mono text-xs font-semibold text-slate-900">{code}</td>
+                <td className="px-3 py-2 pl-4">{groups ? <CarGroupLabel code={code} info={groups.get(code)} /> : <span className="font-mono text-xs font-semibold text-slate-900">{code}</span>}</td>
                 {sorted.map(p => {
                   const t = rentalTotal(p, code, days);
                   return (

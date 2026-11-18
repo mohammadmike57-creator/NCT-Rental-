@@ -4,6 +4,7 @@ import { Fleet, RatePlan } from '../../types';
 import { Button, Dialog, inputCls, selectCls } from '../ui/Crm';
 import { formatMoney, tierInversions } from '../../services/channelManager';
 import { Band, PriceMatrix, bandLabel, bandsOf, checkBands, matrixOf, roundPrice, withMatrix } from '../../services/rateBuilder';
+import { CarGroupInfo, CarGroupLabel, carGroups } from './CarGroup';
 
 const cellCls = 'w-full h-9 px-2 text-right tabular-nums text-[13px] border rounded-md outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500';
 const dayMs = 86400000;
@@ -35,8 +36,11 @@ const RatePeriodEditor: React.FC<{
   currency: string;
   onSave: (p: RatePlan) => void;
   onClose: () => void;
-}> = ({ plan, otherPlans = [], fleet, currency, onSave, onClose }) => {
+  /** Pictures and names of the groups (the broker's own pictures first); read from the fleet when not given. */
+  groupsInfo?: Map<string, CarGroupInfo>;
+}> = ({ plan, otherPlans = [], fleet, currency, onSave, onClose, groupsInfo }) => {
   const info = useMemo(() => groupInfo(fleet), [fleet]);
+  const cars = useMemo(() => groupsInfo || carGroups(fleet), [groupsInfo, fleet]);
   const [name, setName] = useState(plan.name);
   const [start, setStart] = useState(plan.startDate);
   const [end, setEnd] = useState(plan.endDate);
@@ -181,7 +185,7 @@ const RatePeriodEditor: React.FC<{
             <table className="w-full min-w-[760px] text-[13px] border-collapse">
               <thead>
                 <tr className="bg-slate-900 text-white">
-                  <th className="text-left px-3 py-2 font-semibold w-36 sm:w-56 sticky left-0 bg-slate-900">Car group</th>
+                  <th className="text-left px-3 py-2 font-semibold w-48 sm:w-72 sticky left-0 bg-slate-900">Car group</th>
                   {bands.map((b, i) => (
                     <th key={i} className="px-2 py-1.5 font-semibold min-w-[118px] border-l border-slate-700">
                       <div className="flex items-center justify-between gap-1">
@@ -206,9 +210,8 @@ const RatePeriodEditor: React.FC<{
                   const gi = info.get(g);
                   return (
                     <tr key={g} className="hover:bg-slate-50/70">
-                      <td className="px-3 py-1.5 sticky left-0 bg-white">
-                        <p className="font-mono text-[12px] font-bold text-slate-900">{g}</p>
-                        <p className="text-[11px] text-slate-500 truncate max-w-[8rem] sm:max-w-[13rem]">{gi ? `${gi.model}${gi.category ? ` · ${gi.category}` : ''} · ${gi.cars} car${gi.cars === 1 ? '' : 's'}` : 'No car in the fleet with this code'}</p>
+                      <td className="px-3 py-1.5 sticky left-0 bg-white max-w-[12rem] sm:max-w-[18rem]" title={gi ? `${gi.model}${gi.category ? ` · ${gi.category}` : ''}` : 'No car in the fleet with this code'}>
+                        <CarGroupLabel code={g} info={cars.get(g)} />
                       </td>
                       {bands.map((_, i) => (
                         <td key={i} className="px-1.5 py-1.5 border-l border-slate-100">
@@ -260,7 +263,7 @@ const RatePeriodEditor: React.FC<{
 };
 
 /** Read-only grid of one period: car groups down, rental bands across. */
-export const RateMatrixView: React.FC<{ plan: RatePlan; currency: string }> = ({ plan, currency }) => {
+export const RateMatrixView: React.FC<{ plan: RatePlan; currency: string; groups?: Map<string, CarGroupInfo> }> = ({ plan, currency, groups }) => {
   const bands = bandsOf(plan);
   const m = matrixOf(plan, bands);
   const rows = (plan.sippRates || []).map(r => r.sippCode);
@@ -276,7 +279,7 @@ export const RateMatrixView: React.FC<{ plan: RatePlan; currency: string }> = ({
         <tbody className="divide-y divide-slate-100">
           {rows.map(g => (
             <tr key={g}>
-              <td className="px-3 py-2 font-mono font-semibold text-slate-800">{g}</td>
+              <td className="px-3 py-2">{groups ? <CarGroupLabel code={g} info={groups.get(g)} /> : <span className="font-mono font-semibold text-slate-800">{g}</span>}</td>
               {bands.map((_, i) => <td key={i} className="px-3 py-2 text-right tabular-nums border-l border-slate-100 text-slate-800">{m[g]?.[i] != null ? formatMoney(m[g][i] as number, currency) : <span className="text-slate-300">—</span>}</td>)}
             </tr>
           ))}

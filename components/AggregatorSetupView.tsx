@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon,
-  ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon, PlayCircleIcon, ChevronRightIcon } from './icons';
+  ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon, PlayCircleIcon, ChevronRightIcon, ChevronDownIcon } from './icons';
 import RateRulesView from './channel/RateRulesView';
 import { useResponsiveTables } from '../services/responsiveTables';
 import BookingApiView from './channel/BookingApiView';
@@ -34,7 +34,7 @@ import OutboundView from './channel/OutboundView';
 import DeveloperView from './channel/DeveloperView';
 import VideoGuideView from './channel/VideoGuideView';
 import { showActionFeedback } from './ui/ActionFeedback';
-import { CountUp, SlidingPill, FadeIn, useSpotlight } from './channel/otaMotion';
+import { SlidingPill, Cascade, useSpotlight } from './channel/otaMotion';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../services/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -54,13 +54,22 @@ interface AggregatorSetupViewProps {
 
 export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'API v3' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Price rules' | 'Languages' | 'Outbound' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
 /** A channel's screens, grouped by job and in the order they are set up. */
-const TAB_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
+/** Business side (Brokers): what is sold and booked. Everyday work for reservations and revenue staff. */
+const BUSINESS_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
   { label: 'Overview', tabs: ['Overview', 'Go-live'] },
-  { label: 'Pricing', tabs: ['Rates', 'Price rules', 'Extras', 'Terms & Conditions'] },
-  { label: 'Connection', tabs: ['Connection', 'Booking API', 'Outbound', 'Languages', 'Security', 'API v3'] },
-  { label: 'Operations', tabs: ['Bookings', 'Traffic', 'Test console'] },
+  { label: 'Pricing', tabs: ['Rates', 'Price rules'] },
+  { label: 'Products', tabs: ['Extras', 'Terms & Conditions'] },
+  { label: 'Sales', tabs: ['Bookings'] },
+];
+/** Technical side: how the broker's system talks to ours. For IT and the broker's developers. */
+const TECH_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
+  { label: 'Connection', tabs: ['Connection', 'Booking API', 'Outbound', 'Languages'] },
+  { label: 'Security', tabs: ['Security', 'API v3'] },
+  { label: 'Monitoring', tabs: ['Traffic', 'Test console'] },
   { label: 'Publishing', tabs: ['Publish History', 'XML Feed'] },
 ];
+const TAB_GROUPS = [...BUSINESS_GROUPS, ...TECH_GROUPS];
+const TECH_TABS = new Set<ChannelTab>(TECH_GROUPS.flatMap(g => g.tabs));
 const TAB_LABEL: Partial<Record<ChannelTab, string>> = { 'Terms & Conditions': 'Terms', 'Publish History': 'Publish history', 'XML Feed': 'XML feed' };
 const groupOf = (t: ChannelTab) => TAB_GROUPS.find(g => g.tabs.includes(t)) || TAB_GROUPS[0];
 
@@ -94,6 +103,7 @@ const MODULE_INFO: Record<string, { icon: IconC; title: string; text: string }> 
   multi: { icon: PencilIcon, title: 'Bulk editor', text: 'Change rates, extras, terms and policies for several brokers at once.' },
   stopsale: { icon: StopIcon, title: 'Stop sales', text: 'Close a car or a car group for some dates, for every broker or chosen ones.' },
   developer: { icon: CodeBracketIcon, title: 'Developer', text: 'Addresses, formats and samples for the brokers\' developers.' },
+  tech: { icon: CloudIcon, title: 'Broker connections', text: 'Connection, booking API, security, traffic and tests for each broker.' },
   guide: { icon: PlayCircleIcon, title: 'Video guide', text: 'Short videos of every part of OTA XML: what it is and what it is used for.' },
 };
 const AVATAR = ['bg-indigo-600', 'bg-sky-600', 'bg-emerald-600', 'bg-amber-600', 'bg-rose-600', 'bg-violet-600', 'bg-teal-600', 'bg-fuchsia-600'];
@@ -251,8 +261,10 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       .then(r => live && setFailedUpdates(r.filter(x => x.count > 0)));
     return () => { live = false; };
   }, [hookChannels]);
-  const openChannel = (id: string, tab: ChannelTab) => { setSelectedAggregatorId(id); setActiveTab(tab); setMode('channels'); };
-  const [activeTab, setActiveTab] = useState<ChannelTab>('Overview');
+  const openChannel = (id: string, tab: ChannelTab) => { setSelectedAggregatorId(id); setActiveTab(tab); };
+  const [activeTab, setActiveTabRaw] = useState<ChannelTab>('Overview');
+  /** Opening a broker page also opens its side: business pages under Brokers, technical ones under Technical. */
+  const setActiveTab = (t: ChannelTab) => { setActiveTabRaw(t); setMode(TECH_TABS.has(t) ? 'tech' : 'channels'); };
   const [channelSearch, setChannelSearch] = useState('');
   // The side menu can shrink to icons (computers only); remembered on this computer.
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem('ota.rail') === '1'; } catch { return false; } });
@@ -267,10 +279,13 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
   // Phones: tables become labelled cards (index.css .rt-cards).
   useResponsiveTables('ota-console');
-  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates' | 'guide'>('channels');
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates' | 'guide' | 'tech'>('dashboard');
   /** Opens a section; on a phone also scrolls to it, so the content is not hidden below the header. */
   const openModule = (key: typeof mode) => {
     setMode(key);
+    // Each side keeps to its own broker pages.
+    if (key === 'tech' && !TECH_TABS.has(activeTab)) setActiveTabRaw('Connection');
+    if (key === 'channels' && TECH_TABS.has(activeTab)) setActiveTabRaw('Overview');
     if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches) {
       setTimeout(() => document.getElementById('ota-module-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     }
@@ -435,8 +450,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
 
   const selectChannel = (id: string) => {
     setSelectedAggregatorId(id);
-    setMode('channels');
-    setActiveTab('Overview');
+    setActiveTab(mode === 'tech' ? (TECH_TABS.has(activeTab) ? activeTab : 'Connection') : 'Overview');
   };
 
   const statusTone = (a: Aggregator) => {
@@ -464,16 +478,20 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   const filteredChannels = aggregators.filter(a => !channelSearch.trim()
     || `${a.name} ${a.channelCode || ''}`.toLowerCase().includes(channelSearch.trim().toLowerCase()));
   const failingUpdates = failedUpdates.reduce((n, f) => n + f.count, 0);
-  const MODULES = [
-    ['channels', 'Channels', ServerIcon, aggregators.length],
-    ['dashboard', 'Dashboard', ChartBarIcon, undefined],
-    ['reservations', 'XML reservations', InboxIcon, undefined],
-    ['rates', 'Rate rules', CurrencyDollarIcon, undefined],
-    ['keys', 'API keys', KeyIcon, undefined],
-    ['multi', 'Bulk editor', PencilIcon, undefined],
-    ['stopsale', 'Stop sales', StopIcon, activeStopSales || undefined],
-    ['developer', 'Developer', CodeBracketIcon, undefined],
-  ] as const;
+  type Mode = typeof mode;
+  /** The menu: five places. Pricing and Setup hold several pages, shown in a second row. */
+  const NAV: { key: string; label: string; short: string; icon: IconC; modes: Mode[]; sub?: Mode[]; count?: number; tech?: boolean }[] = [
+    { key: 'dashboard', label: 'Dashboard', short: 'Dashboard', icon: ChartBarIcon, modes: ['dashboard'] },
+    { key: 'channels', label: 'Brokers', short: 'Brokers', icon: ServerIcon, modes: ['channels'], count: aggregators.length },
+    { key: 'reservations', label: 'Bookings', short: 'Bookings', icon: InboxIcon, modes: ['reservations'] },
+    { key: 'pricing', label: 'Pricing', short: 'Pricing', icon: CurrencyDollarIcon, modes: ['rates', 'stopsale', 'multi'], sub: ['rates', 'stopsale', 'multi'], count: activeStopSales || undefined },
+    { key: 'technical', label: 'Technical', short: 'Technical', icon: CodeBracketIcon, modes: ['tech', 'keys', 'developer'], sub: ['tech', 'keys', 'developer'], tech: true },
+  ];
+  const navNow = NAV.find(n => n.modes.includes(mode));   // none for the video guide
+  const tech = mode === 'tech';
+  const groups = tech ? TECH_GROUPS : BUSINESS_GROUPS;
+  const openNav = (key: string) => { const n = NAV.find(x => x.key === key)!; if (n.key !== navNow?.key) openModule(n.modes[0]); };
+
   const statusCells: { label: string; value: React.ReactNode; tone: 'ok' | 'warn' | 'bad' | 'plain'; icon: IconC; pastel: string }[] = [
     { label: 'Broker updates', value: failingUpdates ? `${failingUpdates} failing` : 'Operational', tone: failingUpdates ? 'bad' : 'ok', icon: PaperAirplaneIcon, pastel: 'bg-sky-100 text-sky-600' },
     { label: 'Live channels', value: `${liveChannels} / ${aggregators.length}`, tone: liveChannels ? 'ok' : 'plain', icon: ServerIcon, pastel: 'bg-emerald-100 text-emerald-600' },
@@ -522,40 +540,47 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
             </button>
           </div>
         </div>
-        <dl className="px-4 sm:px-5 pb-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
-          {statusCells.map((c, i) => { const I = c.icon; return (
-            <div key={c.label} className="ota-card ota-spot ota-pop min-w-0 rounded-xl bg-white border border-slate-200/80 px-3 py-2.5 flex items-center gap-2.5" style={{ animationDelay: `${80 + i * 55}ms` }}>
-              <span className={`w-9 h-9 rounded-full inline-flex items-center justify-center shrink-0 ${c.pastel}`}><I className="w-[18px] h-[18px]" /></span>
-              <div className="min-w-0">
-                <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 truncate" title={c.label}>{c.label}</dt>
-                <dd className="mt-0.5 flex items-center gap-1.5 text-[13px] sm:text-[15px] font-semibold tabular-nums text-slate-900 truncate">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cellDot[c.tone]}`} />{c.label === 'Last publish' ? c.value : <CountUp value={c.value} />}
-                </dd>
-              </div>
-            </div>
-          ); })}
-        </dl>
-        {/* Phones: every section visible at once, no sideways scrolling */}
-        <nav className="md:hidden relative grid grid-cols-4 gap-1 p-2 border-t border-slate-100 bg-slate-50/70" aria-label="OTA XML sections (phone)">
-          <SlidingPill active={mode} className="rounded-lg bg-indigo-600 shadow-[0_6px_14px_-8px_rgba(79,70,229,0.9)]" />
-          {MODULES.map(([key, label, Icon, count]) => (
-            <button key={key} data-pill={key} type="button" onClick={() => openModule(key)} aria-current={mode === key ? 'page' : undefined}
-              className={`relative z-[1] flex flex-col items-center justify-center gap-1 h-14 rounded-lg px-1 text-[10.5px] font-medium leading-tight text-center transition-colors duration-300 ${mode === key ? 'text-white' : 'text-slate-600 hover:bg-white'}`}>
-              <Icon className="w-[18px] h-[18px]" /><span className="line-clamp-2">{label}</span>
-              {count !== undefined && <span className={`absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-4 tabular-nums ${key === 'stopsale' ? 'bg-rose-500 text-white' : mode === key ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'}`}>{count}</span>}
+        {/* Menu: five places; Pricing and Setup open a second row with their pages */}
+        <nav className="md:hidden relative grid grid-cols-5 gap-1 p-2 border-t border-slate-100 bg-slate-50/70" aria-label="OTA XML sections (phone)">
+          <SlidingPill active={navNow?.key || ''} className="rounded-lg bg-indigo-600 shadow-[0_6px_14px_-8px_rgba(79,70,229,0.9)]" />
+          {NAV.map(({ key, label, short, icon: Icon, count }) => (
+            <button key={key} data-pill={key} type="button" onClick={() => openNav(key)} aria-current={navNow?.key === key ? 'page' : undefined} aria-label={label}
+              className={`relative z-[1] flex flex-col items-center justify-center gap-1 h-14 rounded-lg px-1 text-[10.5px] font-medium leading-tight text-center transition-colors duration-300 ${navNow?.key === key ? 'text-white' : 'text-slate-600 hover:bg-white'}`}>
+              <Icon className="w-[18px] h-[18px]" /><span className="line-clamp-2">{short}</span>
+              {count ? <span className={`absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-4 tabular-nums ${navNow?.key === key ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'}`}>{count}</span> : null}
             </button>
           ))}
         </nav>
-        <nav className="hidden md:flex flex-wrap relative mx-3 mb-3 p-1 gap-0.5 rounded-xl bg-slate-100/80" aria-label="OTA XML sections">
-          <SlidingPill active={mode} className="rounded-lg bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_12px_-6px_rgba(15,23,42,0.18)] ring-1 ring-slate-200/70" />
-          {MODULES.map(([key, label, Icon, count]) => (
-            <button key={key} data-pill={key} type="button" onClick={() => openModule(key)} aria-current={mode === key ? 'page' : undefined}
-              className={`relative z-[1] h-9 px-3 rounded-lg inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap transition-colors duration-300 ${mode === key ? 'text-indigo-700 font-semibold' : 'text-slate-500 hover:text-slate-900'}`}>
-              <Icon className={`w-4 h-4 ${mode === key ? 'text-indigo-600' : ''}`} />{label}
-              {count !== undefined && <span className={`px-1.5 py-px rounded-full text-[10px] font-semibold tabular-nums ${key === 'stopsale' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200/80 text-slate-600'}`}>{count}</span>}
+        <nav className="hidden md:flex items-center relative mx-3 mb-3 p-1 gap-0.5 rounded-xl bg-slate-100/80" aria-label="OTA XML sections">
+          <SlidingPill active={navNow?.key || ''} className="rounded-lg bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_12px_-6px_rgba(15,23,42,0.18)] ring-1 ring-slate-200/70" />
+          {NAV.map(({ key, label, icon: Icon, count, sub }) => (
+            <button key={key} data-pill={key} type="button" onClick={() => openNav(key)} aria-current={navNow?.key === key ? 'page' : undefined}
+              className={`relative z-[1] h-9 px-3.5 rounded-lg inline-flex items-center gap-2 text-[13px] font-medium whitespace-nowrap transition-colors duration-300 ${navNow?.key === key ? 'text-indigo-700 font-semibold' : 'text-slate-500 hover:text-slate-900'}`}>
+              <Icon className={`w-4 h-4 ${navNow?.key === key ? 'text-indigo-600' : ''}`} />{label}
+              {count ? <span className={`px-1.5 py-px rounded-full text-[10px] font-semibold tabular-nums ${key === 'pricing' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200/80 text-slate-600'}`}>{count}</span> : null}
+              {sub && <ChevronDownIcon className={`w-3.5 h-3.5 -ml-0.5 transition-transform duration-300 ${navNow?.key === key ? 'rotate-180 text-indigo-500' : 'text-slate-400'}`} />}
             </button>
           ))}
         </nav>
+        {/* Second row: the pages of Pricing or Setup, sliding open */}
+        <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(.16,1,.3,1)] motion-reduce:transition-none ${navNow?.sub ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+          <div className="overflow-hidden">
+            {navNow?.sub && (
+              <nav key={navNow.key} className="ota-sub relative mx-3 mb-3 flex flex-wrap items-center gap-1" aria-label={`${navNow.label} pages`}>
+                {navNow.tech && <span className="z-[1] mr-1 inline-flex items-center gap-1.5 h-6 px-2 rounded-md bg-slate-900 text-white text-[10.5px] font-semibold uppercase tracking-wider"><CodeBracketIcon className="w-3 h-3" />For IT</span>}
+                <SlidingPill active={mode} className={`rounded-full ${navNow.tech ? 'bg-slate-100 ring-1 ring-inset ring-slate-300' : 'bg-indigo-50 ring-1 ring-inset ring-indigo-200'}`} />
+                {navNow.sub.map(m => { const I = MODULE_INFO[m].icon; return (
+                  <button key={m} data-pill={m} type="button" onClick={() => openModule(m)} aria-current={mode === m ? 'page' : undefined}
+                    className={`relative z-[1] h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 text-[12.5px] font-medium whitespace-nowrap transition-colors duration-300 ${mode === m ? (navNow.tech ? 'text-slate-900 font-semibold' : 'text-indigo-700 font-semibold') : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+                    <I className="w-3.5 h-3.5" />{MODULE_INFO[m].title}
+                    {m === 'stopsale' && activeStopSales ? <span className="px-1.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-semibold tabular-nums">{activeStopSales}</span> : null}
+                  </button>
+                ); })}
+                <span className="ml-auto hidden lg:block text-[12px] text-slate-500 pr-1">{MODULE_INFO[mode]?.text}</span>
+              </nav>
+            )}
+          </div>
+        </div>
       </header>
 
       {failedUpdates.length > 0 && mode !== 'dashboard' && (
@@ -569,7 +594,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       )}
 
       <div id="ota-module-top" className="scroll-mt-20" />
-      {mode !== 'channels' && mode !== 'rates' && mode !== 'dashboard' && MODULE_INFO[mode] && (() => { const m = MODULE_INFO[mode]; const I = m.icon; return (
+      {mode === 'reservations' && MODULE_INFO[mode] && (() => { const m = MODULE_INFO[mode]; const I = m.icon; return (
         <section className="flex items-center gap-2.5 px-1">
           <I className="w-5 h-5 text-indigo-600 shrink-0" />
           <h3 className="text-[16px] font-semibold text-slate-900">{m.title}</h3>
@@ -577,7 +602,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
         </section>
       ); })()}
 
-      <FadeIn k={mode}>
+      {/* Page change: the cards drop in one after another */}
+      <Cascade k={mode}>
       {mode === 'guide' ? (
         <VideoGuideView />
       ) : mode === 'developer' ? (
@@ -585,7 +611,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       ) : mode === 'rates' ? (
         <RateRulesView aggregators={aggregators} fleet={fleet} currentUserName={currentUserName} onUpdateAggregator={handleUpdateAggregator} showConfirmation={notify} onOpenRates={id => openChannel(id, 'Rates')} />
       ) : mode === 'dashboard' ? (
-        <ChannelDashboardView aggregators={aggregators} onOpenChannel={openChannel} fleet={fleet} stopSales={stopSales} userName={currentUserName} onOpenModule={openModule} />
+        <ChannelDashboardView aggregators={aggregators} onOpenChannel={openChannel} fleet={fleet} stopSales={stopSales} userName={currentUserName} onOpenModule={openModule} status={statusCells.map(c => ({ ...c, dot: cellDot[c.tone] }))} />
       ) : mode === 'reservations' ? (
         <XmlReservationsView aggregators={aggregators} />
       ) : mode === 'keys' ? (
@@ -664,16 +690,35 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
               <>
                 <nav className="hidden lg:block relative bg-white rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] py-2" aria-label="Channel sections">
                   <SlidingPill active={activeTab} deps={[rail, sel.id]} className="rounded-lg bg-indigo-50 ring-1 ring-inset ring-indigo-100" />
-                  {TAB_GROUPS.map(g => {
+                  {!rail && (
+                    <p className={`mx-2 mb-1.5 px-2 h-7 rounded-lg flex items-center gap-1.5 text-[11px] font-semibold ${tech ? 'bg-slate-900 text-white' : 'bg-indigo-50 text-indigo-700'}`}>
+                      {tech ? <CodeBracketIcon className="w-3.5 h-3.5" /> : <ServerIcon className="w-3.5 h-3.5" />}{tech ? 'Technical setup' : 'Business'}
+                      <span className={`ml-auto font-medium ${tech ? 'text-slate-300' : 'text-indigo-400'}`}>{tech ? 'for IT' : 'rates & sales'}</span>
+                    </p>
+                  )}
+                  {groups.map(g => {
                     const errors = g.label === 'Overview' ? health[sel.id]?.errors : undefined;
+                    const open = rail || !tech || groupOf(activeTab).label === g.label;
+                    const flags = g.tabs.map(t => sectionHint(sel, t)).filter(Boolean).length + (g.label === 'Overview' && errors ? 1 : 0) + (g.label === 'Pricing' && hasUnpublishedChanges(sel) ? 1 : 0);
                     return (
-                      <div key={g.label} className={`${rail ? 'px-1.5' : 'px-2'} pb-1.5`}>
-                        {rail ? <span className="block mx-2 my-1.5 border-t border-slate-100" /> : <p className="px-2 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">{g.label}</p>}
+                      <div key={g.label} className={`${rail ? 'px-1.5' : 'px-2'} pb-1`}>
+                        {rail ? <span className="block mx-2 my-1.5 border-t border-slate-100" /> : !tech ? (
+                          <p className="px-2 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">{g.label}</p>
+                        ) : (
+                          <button type="button" onClick={() => { if (!open) setActiveTab(g.tabs[0]); }} aria-expanded={open}
+                            className={`relative z-[1] w-full h-8 px-2 rounded-lg flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider transition-colors ${open ? 'text-slate-700' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'}`}>
+                            <ChevronRightIcon className={`w-3.5 h-3.5 transition-transform duration-300 ${open ? 'rotate-90 text-indigo-500' : ''}`} />
+                            <span className="whitespace-nowrap">{g.label}</span>
+                            <span className="ml-auto normal-case tracking-normal font-medium text-[10.5px] text-slate-400 tabular-nums">{!open && flags ? <span className="w-1.5 h-1.5 inline-block rounded-full bg-amber-400 mr-1.5 align-middle" /> : null}{g.tabs.length}</span>
+                          </button>
+                        )}
+                        <div className={`grid transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(.16,1,.3,1)] motion-reduce:transition-none ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                          <div className={`overflow-hidden ${open ? '' : 'invisible'}`} aria-hidden={!open}>
                         {g.tabs.map(t => {
                           const on = activeTab === t;
                           return (
-                            <button key={t} data-pill={t} type="button" onClick={() => setActiveTab(t)} aria-current={on ? 'page' : undefined} title={rail ? TAB_LABEL[t] || t : undefined} aria-label={rail ? TAB_LABEL[t] || t : undefined}
-                              className={`relative z-[1] w-full h-8 ${rail ? 'justify-center px-0' : 'px-2'} rounded-lg flex items-center gap-2 text-[13px] text-left whitespace-nowrap transition-colors duration-300 ${on ? 'text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                            <button key={t} data-pill={t} type="button" onClick={() => setActiveTab(t)} aria-current={on ? 'page' : undefined} title={rail ? TAB_LABEL[t] || t : undefined} aria-label={rail ? TAB_LABEL[t] || t : undefined} tabIndex={open ? undefined : -1}
+                              className={`relative z-[1] w-full h-8 ${rail ? 'justify-center px-0' : tech ? 'pl-7 pr-2' : 'px-2'} rounded-lg flex items-center gap-2 text-[13px] text-left whitespace-nowrap transition-colors duration-300 ${on ? 'text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
                               {(() => { const I = SECTION_INFO[t].icon; return <I className={`w-4 h-4 shrink-0 ${on ? 'text-indigo-600' : 'text-slate-400'}`} />; })()}
                               {!rail && <span className="truncate">{TAB_LABEL[t] || t}</span>}
                               {!rail && t === 'Overview' && errors ? <span className="ml-auto px-1.5 py-px rounded bg-rose-100 text-rose-700 text-[10px] font-semibold tabular-nums">{errors}</span> : null}
@@ -682,6 +727,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                             </button>
                           );
                         })}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -690,7 +737,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 <span className="block text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Section of {sel?.name || 'this channel'} · tap to change</span>
                 <select className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[14px] font-semibold text-slate-900" value={activeTab}
                   onChange={e => setActiveTab(e.target.value as ChannelTab)} aria-label="Channel section">
-                  {TAB_GROUPS.map(g => (
+                  {groups.map(g => (
                     <optgroup key={g.label} label={g.label}>
                       {g.tabs.map(t => <option key={t} value={t}>{TAB_LABEL[t] || t}</option>)}
                     </optgroup>
@@ -742,13 +789,13 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 <p className="text-[12.5px] text-slate-500">{SECTION_INFO[activeTab].text}</p>
               </div>
 
-              <FadeIn k={`${sel.id}-${activeTab}`} className="space-y-4">
+              <Cascade k={`${sel.id}-${activeTab}`} className="space-y-4">
                 {activeTab === 'Overview' && (
                   <BrokerVisibilityCheck aggregator={sel} fleet={fleet} stopSales={stopSalesFor(stopSales, sel.id)} onNavigate={setActiveTab} />
                 )}
                 {activeTab === 'Overview' && (
                   <ChannelReadiness aggregator={sel} fleet={fleet} validation={health[sel.id]}
-                    onNavigate={t => (t === 'API keys' ? setMode('keys') : setActiveTab(t))} />
+                    onNavigate={t => (t === 'API keys' ? openModule('keys') : setActiveTab(t))} />
                 )}
                 {activeTab === 'Overview' && (
                   <ChannelOverviewView
@@ -825,7 +872,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 {activeTab === 'XML Feed' && (
                   <XMLPreviewView aggregator={sel} fleet={fleet} stopSales={stopSalesFor(stopSales, sel.id)} />
                 )}
-              </FadeIn>
+              </Cascade>
             </div>
           ) : (
             <Panel>
@@ -839,7 +886,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
           )}
         </div>
       )}
-      </FadeIn>
+      </Cascade>
 
       <QuickJump open={jumpOpen} onClose={() => setJumpOpen(false)} items={jumpItems} />
 
