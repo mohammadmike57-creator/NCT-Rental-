@@ -33,8 +33,8 @@ const TECHNICAL: Tech[] = [
   { id: 'stations', label: 'Stations have phone, position and opening hours', auto: a => !!a.bookingRules?.locations?.length
     && a.bookingRules.locations.every(l => !!l.phone && l.latitude != null && l.longitude != null && !!l.openingHours && Object.keys(l.openingHours).length > 0) },
   { id: 'pictures', label: 'Every vehicle group has a picture', auto: (a, f) => {
-    const groups = Array.from(new Set(f.map(v => (v.sippCode || '').toUpperCase()).filter(Boolean)));
-    return groups.length > 0 && groups.every(g => !!a.bookingRules?.groupDetails?.[g]?.pictureUrl || f.some(v => (v.sippCode || '').toUpperCase() === g && !!v.imageUrl));
+    const groups = Array.from(new Set(f.map(v => (v.sippCode || '').trim().toUpperCase()).filter(Boolean)));
+    return groups.length > 0 && groups.every(g => !!a.bookingRules?.groupDetails?.[g]?.pictureUrl || f.some(v => (v.sippCode || '').trim().toUpperCase() === g && !!v.imageUrl));
   } },
   { id: 'covers', label: 'Tax, mileage and insurance covers set', auto: a => (a.bookingRules?.pricing?.coverages || []).length > 0 },
   // The server uses Pay at the counter and 48 h free cancellation when nothing else was chosen, so saved rules are enough.

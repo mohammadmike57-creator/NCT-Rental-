@@ -41,7 +41,7 @@ const RateRulesView: React.FC<{
 
   const groups = useMemo(() => {
     const set = new Set(fleetSippCodes(fleet));
-    aggregators.forEach(a => (a.ratePlanHistory?.[0]?.ratePlans || a.currentRatePlans || []).forEach(p => p.sippRates.forEach(r => r.sippCode && set.add(r.sippCode.toUpperCase()))));
+    aggregators.forEach(a => (a.ratePlanHistory?.[0]?.ratePlans || a.currentRatePlans || []).forEach(p => p.sippRates.forEach(r => r.sippCode && set.add(r.sippCode.trim().toUpperCase()))));
     return Array.from(set).sort();
   }, [fleet, aggregators]);
   /** Rental-length bands of the published rates (1–2, 3–6, 7+ days…), offered as last-minute columns. */

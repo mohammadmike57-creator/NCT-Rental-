@@ -40,6 +40,35 @@ const priceSummary = (plan: RatePlan) =>
     return { group: r.sippCode, text: prices.length === 0 ? '—' : first === last ? fmt(first) : `${fmt(first)} → ${fmt(last)}` };
   });
 
+/**
+ * A period's findings: things to fix listed in full; price checks ("3 days cost less than 2 days") folded into one
+ * line, since they never stop saving or publishing and a long list of them hides what matters.
+ */
+const PlanIssues: React.FC<{ issues: { level: string; message: string }[]; issueCls: (l: string) => string }> = ({ issues, issueCls }) => {
+  const [open, setOpen] = useState(false);
+  const fix = issues.filter(i => i.level === 'error');
+  const checks = issues.filter(i => i.level !== 'error');
+  const cheaper = checks.filter(i => /days cost .* less than/.test(i.message));
+  return (
+    <div className="space-y-1">
+      {fix.map((i, k) => <p key={`f${k}`} className={`text-xs px-3 py-1.5 rounded-md border ${issueCls('error')}`}>{i.message}</p>)}
+      {checks.length > 0 && (
+        <div className="text-xs rounded-md border bg-amber-50 border-amber-200 text-amber-900">
+          <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full text-left px-3 py-1.5 flex items-center gap-2">
+            <ChevronRightIcon className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+            <span className="flex-1">
+              <b>{checks.length} check{checks.length === 1 ? '' : 's'}</b> (saving and publishing still work).
+              {cheaper.length > 0 && <> {cheaper.length} where a longer rental costs less in total than a shorter one, e.g. {cheaper[0].message.replace(/^.*?\/ /, '').replace(/^Rates: /, '')} Check the prices if that is not intended.</>}
+            </span>
+            <span className="font-semibold">{open ? 'Hide' : 'Show all'}</span>
+          </button>
+          {open && <ul className="px-3 pb-2 space-y-0.5">{checks.map((i, k) => <li key={k}>{i.message}</li>)}</ul>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
   aggregator, onUpdateAggregator, fleet, stopSales = [], showConfirmation, currentUserName, onPublished,
 }) => {
@@ -64,7 +93,10 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
 
   const cars = useMemo(() => carGroups(fleet, aggregator), [fleet, aggregator]);
   const spot = useSpotlight<HTMLDivElement>();
-  const handleUpdate = (newPlans: RatePlan[]) => onUpdateAggregator({ ...aggregator, currentRatePlans: newPlans });
+  /** Saves the periods with clean SIPP codes ("idar " → "IDAR"), so a stray space never hides a car group. */
+  const handleUpdate = (newPlans: RatePlan[]) => onUpdateAggregator({ ...aggregator, currentRatePlans: newPlans.map(p => ({
+    ...p, sippRates: (p.sippRates || []).map(r => ({ ...r, sippCode: (r.sippCode || '').replace(/\s+/g, '').toUpperCase() })),
+  })) });
 
   const handleAddPeriod = () => {
     // Start the new period the day after the last one ends, so seasons stay contiguous.
@@ -207,7 +239,8 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                               <span className="text-slate-600">{p.text} {currency}/day</span>
                             </span>
                           ))}
-                          {planIssues.length > 0 && <span className="text-rose-600 font-semibold">{planIssues.length} issue{planIssues.length > 1 ? 's' : ''}</span>}
+                          {planIssues.some(i => i.level === 'error') && <span className="text-rose-600 font-semibold">{planIssues.filter(i => i.level === 'error').length} to fix</span>}
+                          {planIssues.some(i => i.level !== 'error') && <span className="text-amber-600 font-medium">{planIssues.filter(i => i.level !== 'error').length} price check{planIssues.filter(i => i.level !== 'error').length === 1 ? '' : 's'}</span>}
                         </div>
                       </div>
                     </button>
@@ -221,13 +254,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                   </div>
                   {isOpen && (
                     <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-3 space-y-3">
-                      {planIssues.length > 0 && (
-                        <ul className="space-y-1">
-                          {planIssues.map((i, k) => (
-                            <li key={k} className={`text-xs px-3 py-1.5 rounded-md border ${issueCls(i.level)}`}>{i.message}</li>
-                          ))}
-                        </ul>
-                      )}
+                      {planIssues.length > 0 && <PlanIssues issues={planIssues} issueCls={issueCls} />}
                       {(plan.sippRates || []).length === 0 ? (
                         <p className="text-[13px] text-slate-500">No vehicle groups priced yet.</p>
                       ) : (
@@ -308,13 +335,7 @@ const ManageRatePlansView: React.FC<ManageRatePlansViewProps> = ({
                 </p>
               )}
               {validation.issues.filter(i => i.level !== 'info').length > 0 && (
-                <ul className="space-y-1 text-xs">
-                  {validation.issues.filter(i => i.level !== 'info').map((i, k) => (
-                    <li key={k} className={`px-3 py-1.5 rounded-md border ${issueCls(i.level)}`}>
-                      <span className="font-semibold">{i.area}:</span> {i.message}
-                    </li>
-                  ))}
-                </ul>
+                <PlanIssues issueCls={issueCls} issues={validation.issues.filter(i => i.level !== 'info').map(i => ({ level: i.level, message: `${i.area}: ${i.message}` }))} />
               )}
               <Field label={<>Change note <span className="text-slate-400 font-normal">(optional)</span></>}>
                 <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={280} className={textareaCls} placeholder="e.g. Summer prices +8% for SUVs" />

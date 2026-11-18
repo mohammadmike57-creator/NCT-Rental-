@@ -93,7 +93,7 @@ const BrokerVisibilityCheck: React.FC<{ aggregator: Aggregator; fleet: Fleet; st
       }
     }
     // 3. Car groups: rates without cars, and prices
-    const groups = Array.from(new Set(published.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').toUpperCase())).filter(Boolean)));
+    const groups = Array.from(new Set(published.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').trim().toUpperCase())).filter(Boolean)));
     const noCars = groups.filter(g => !vehiclesForSipp(fleet, g).length);
     if (groups.length && noCars.length) {
       out.push({ tone: noCars.length === groups.length ? 'danger' : 'warning', title: noCars.length === groups.length ? 'No car in your fleet matches the car groups in your rates' : `${noCars.length} of ${groups.length} car groups in your rates have no car in the fleet`,
@@ -107,7 +107,7 @@ const BrokerVisibilityCheck: React.FC<{ aggregator: Aggregator; fleet: Fleet; st
     };
     const gaps = published.filter(p => p.endDate >= today).flatMap(p => (p.sippRates || []).map(r => {
       const missing = Array.from({ length: 30 }, (_, i) => i + 1).filter(d => { const t = findTier(r, d); return !t || !(Number(t.dailyPrice) > 0); });
-      return missing.length ? `${(r.sippCode || '').toUpperCase()} in ${p.name}: ${ranges(missing)}` : '';
+      return missing.length ? `${(r.sippCode || '').trim().toUpperCase()} in ${p.name}: ${ranges(missing)}` : '';
     })).filter(Boolean);
     if (gaps.length) out.push({ tone: 'danger', title: 'Some rental lengths have no price', detail: <>A broker searching for these lengths gets no car: {gaps.slice(0, 6).join(' · ')}{gaps.length > 6 ? ` and ${gaps.length - 6} more` : ''}. Fill in every rental-length band on the Rates tab, then publish.</>, tab: 'Rates', action: 'Open Rates' });
     // 4. Branches, key, status

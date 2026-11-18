@@ -34,7 +34,7 @@ const RateExcelDialog: React.FC<{
   const [result, setResult] = useState<(RateImport & { file: string }) | null>(null);
   const [mode, setMode] = useState<'merge' | 'replace'>('merge');
   const [readError, setReadError] = useState('');
-  const fleetGroups = [...new Set(fleet.map(v => (v.sippCode || '').toUpperCase()).filter(Boolean))].sort();
+  const fleetGroups = [...new Set(fleet.map(v => (v.sippCode || '').trim().toUpperCase()).filter(Boolean))].sort();
 
   const download = () => {
     const wb = XLSX.utils.book_new();

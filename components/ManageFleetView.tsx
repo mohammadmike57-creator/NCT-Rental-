@@ -88,7 +88,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
       category: formData.category || '',
       securityDeposit: formData.securityDeposit || 0,
       excess: formData.excess || 0,
-      sippCode: formData.sippCode || '',
+      sippCode: (formData.sippCode || '').replace(/\s+/g, '').toUpperCase(),   // "IDAR " with a space would match no rate
       transmission: (formData.transmission || '') as FleetVehicle['transmission'],
       ...(formData.imageUrl ? { imageUrl: formData.imageUrl } : {}),
     };
@@ -352,7 +352,7 @@ const ManageFleetView: React.FC<ManageFleetViewProps> = ({ fleet, onUpdate }) =>
             </select>
           </Field>
           <Field label="SIPP code">
-            <input type="text" value={formData.sippCode || ''} onChange={e => handleChange('sippCode', e.target.value)} className={inputCls} />
+            <input type="text" value={formData.sippCode || ''} onChange={e => handleChange('sippCode', e.target.value.replace(/\s+/g, '').toUpperCase())} maxLength={4} className={`${inputCls} font-mono`} />
           </Field>
           <Field label="Security deposit ($)">
             <input type="number" inputMode="decimal" value={formData.securityDeposit || 0} onChange={e => handleChange('securityDeposit', parseFloat(e.target.value) || 0)} className={`${inputCls} tabular-nums`} min="0" step="0.01" />

@@ -119,7 +119,7 @@ const PriceRulesView: React.FC<{
   const history = aggregator.commercialHistory || [];
   const version = published.version || 0;
 
-  const groups = useMemo(() => Array.from(new Set(fleet.map(v => (v.sippCode || '').toUpperCase()).filter(Boolean))).sort(), [fleet]);
+  const groups = useMemo(() => Array.from(new Set(fleet.map(v => (v.sippCode || '').trim().toUpperCase()).filter(Boolean))).sort(), [fleet]);
   const set = <K extends keyof Terms>(k: K, v: Terms[K]) => setT(p => ({ ...p, [k]: v }));
   const setGroup = (g: string, p: { markupPercent?: number; minDays?: number }) => setT(x => ({ ...x, groups: { ...(x.groups || {}), [g]: { ...(x.groups?.[g] || {}), ...p } } }));
   const draftSaved = aggregator.commercialDraft ? same(aggregator.commercialDraft, t) : same(published, t);

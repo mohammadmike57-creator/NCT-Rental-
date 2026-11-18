@@ -115,7 +115,7 @@ public class ChannelBookingService {
         Map<String, VehicleGroup> out = new LinkedHashMap<>();
         for (JsonNode plan : c.channel().publishedRatePlans()) {
             for (JsonNode rate : plan.path("sippRates")) {
-                String code = rate.path("sippCode").asText("").toUpperCase(Locale.ROOT);
+                String code = rate.path("sippCode").asText("").trim().toUpperCase(Locale.ROOT);
                 if (code.isBlank() || out.containsKey(code) || !c.rules().groupAllowed(code)) continue;
                 List<JsonNode> cars = OtaXml.vehiclesForSipp(c.channel().fleet(), code);
                 JsonNode car = cars.isEmpty() ? null : cars.get(0);
@@ -753,7 +753,7 @@ public class ChannelBookingService {
         JsonNode plan = OtaXml.findPlan(c.channel().publishedRatePlans(), date);
         if (plan != null) {
             for (JsonNode rate : plan.path("sippRates")) {
-                if (!sipp.equalsIgnoreCase(rate.path("sippCode").asText(""))) continue;
+                if (!sipp.equalsIgnoreCase(rate.path("sippCode").asText("").trim())) continue;
                 JsonNode tier = OtaXml.findTier(rate, days);
                 double v = tier == null ? 0 : tier.path("dailyPrice").asDouble(0);
                 if (v > 0) return v;
@@ -958,7 +958,7 @@ public class ChannelBookingService {
     }
 
     private static boolean inGroup(JsonNode r, String sipp, Set<String> plates, Set<String> models) {
-        String code = r.path("sippCode").asText("");
+        String code = r.path("sippCode").asText("").trim();
         if (!code.isBlank()) return code.equalsIgnoreCase(sipp);
         String plate = r.path("licensePlate").asText("").trim().toUpperCase(Locale.ROOT);
         if (!plate.isEmpty()) return plates.contains(plate);

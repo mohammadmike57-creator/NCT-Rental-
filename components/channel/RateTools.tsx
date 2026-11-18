@@ -22,7 +22,7 @@ const smCls = `${inputCls} !h-8 !px-2 tabular-nums`;
 const fleetGroups = (fleet: Fleet) => {
   const m = new Map<string, { model: string; cars: number }>();
   fleet.forEach(v => {
-    const c = (v.sippCode || '').toUpperCase();
+    const c = (v.sippCode || '').trim().toUpperCase();
     if (!c) return;
     const g = m.get(c);
     if (g) g.cars++; else m.set(c, { model: v.modelName || c, cars: 1 });

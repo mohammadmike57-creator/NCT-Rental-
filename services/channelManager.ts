@@ -56,10 +56,10 @@ const sippTransmission = (code: string): 'Automatic' | 'Manual' =>
 const sippAirCon = (code: string) => 'RDHECLAMVU'.includes(code.charAt(3));
 
 export const vehiclesForSipp = (fleet: Fleet, sippCode: string): Vehicle[] =>
-  (fleet || []).filter(v => (v.sippCode || '').toUpperCase() === sippCode.toUpperCase());
+  (fleet || []).filter(v => (v.sippCode || '').trim().toUpperCase() === sippCode.trim().toUpperCase());
 
 export const fleetSippCodes = (fleet: Fleet): string[] =>
-  Array.from(new Set((fleet || []).map(v => (v.sippCode || '').toUpperCase()).filter(Boolean))).sort();
+  Array.from(new Set((fleet || []).map(v => (v.sippCode || '').trim().toUpperCase()).filter(Boolean))).sort();
 
 // ---------------------------------------------------------------------------
 // Dates
@@ -198,7 +198,7 @@ export const validateChannel = (agg: Aggregator, fleet: Fleet, today: string = t
     if (!p.sippRates || p.sippRates.length === 0) push('warning', 'Rates', `${p.name}: no vehicle groups are priced.`);
     const seen = new Set<string>();
     (p.sippRates || []).forEach(r => {
-      const code = (r.sippCode || '').toUpperCase();
+      const code = (r.sippCode || '').trim().toUpperCase();
       if (!isValidSippFormat(code)) push('error', 'Rates', `${p.name}: "${r.sippCode || '(empty)'}" is not a 4-letter SIPP code.`);
       else if (!isAcrissCode(code)) push('warning', 'Rates', `${p.name}: ${code} is not a recognised ACRISS code.`);
       if (seen.has(code)) push('error', 'Rates', `${p.name}: ${code} is priced more than once.`);
@@ -229,15 +229,15 @@ export const validateChannel = (agg: Aggregator, fleet: Fleet, today: string = t
 
   // A group sold in some periods but not in others disappears from the broker's site for those dates
   const current = plans.filter(p => p.endDate >= today);
-  const soldIn = new Set(current.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').toUpperCase())));
+  const soldIn = new Set(current.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').trim().toUpperCase())));
   soldIn.forEach(code => current.forEach(p => {
-    if ((p.sippRates || []).length && !(p.sippRates || []).some(r => (r.sippCode || '').toUpperCase() === code)) {
+    if ((p.sippRates || []).length && !(p.sippRates || []).some(r => (r.sippCode || '').trim().toUpperCase() === code)) {
       push('warning', 'Rates', `${p.name}: ${code} is not priced, so it cannot be booked from ${p.startDate} to ${p.endDate}.`);
     }
   }));
 
   // Fleet coverage
-  const priced = new Set(plans.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').toUpperCase())));
+  const priced = new Set(plans.flatMap(p => (p.sippRates || []).map(r => (r.sippCode || '').trim().toUpperCase())));
   fleetSippCodes(fleet).forEach(code => {
     if (!priced.has(code)) push('info', 'Fleet', `Fleet group ${code} is not offered on this channel.`);
   });
@@ -329,7 +329,7 @@ export const buildQuote = (agg: Aggregator, fleet: Fleet, stopSales: StopSale[],
   const chosenExtras = (agg.extras || []).filter(e => (req.extraIds || []).includes(e.id));
 
   return (plan.sippRates || []).map(rate => {
-    const code = (rate.sippCode || '').toUpperCase();
+    const code = (rate.sippCode || '').trim().toUpperCase();
     const vehicles = vehiclesForSipp(fleet, code);
     const tier = findTier(rate, days);
     const dailyRate = Number(tier?.dailyPrice || 0);
@@ -413,7 +413,7 @@ export const generateRateSheetXml = (agg: Aggregator, stopSales: StopSale[], fle
   plans.forEach(plan => {
     out.push(`    <Season${attrs({ Code: plan.id, Name: plan.name, Start: plan.startDate, End: plan.endDate })}>`);
     (plan.sippRates || []).forEach(rate => {
-      const code = (rate.sippCode || '').toUpperCase();
+      const code = (rate.sippCode || '').trim().toUpperCase();
       const vehicle = vehiclesForSipp(fleet, code)[0];
       out.push(`      <VehicleGroup${attrs({
         SIPP: code,
@@ -449,7 +449,7 @@ export const generateRateSheetXml = (agg: Aggregator, stopSales: StopSale[], fle
   const activeStops = (stopSales || []).filter(s => s.endDate >= todayIso());
   out.push('  <StopSales>');
   activeStops.forEach(s => {
-    const target = s.type === 'vehicle' ? (fleet.find(v => v.id === s.target)?.sippCode || s.target) : s.target;
+    const target = (s.type === 'vehicle' ? (fleet.find(v => v.id === s.target)?.sippCode || s.target) : s.target).trim();
     out.push(`    <StopSale${attrs({ Type: s.type === 'vehicle' ? 'Vehicle' : 'Category', Target: target, Start: s.startDate, End: s.endDate, Reason: s.reason })}/>`);
   });
   out.push('  </StopSales>');
@@ -594,7 +594,7 @@ export const submissionVersion = (agg: Aggregator, index: number): number => {
 /** Counts SIPP/tier prices that changed between two snapshots. */
 export const diffPlans = (before: RatePlan[], after: RatePlan[]) => {
   const key = (p: RatePlan, r: SippRate, t: RateTier) =>
-    `${p.id}|${(r.sippCode || '').toUpperCase()}|${t.fromDay}-${isOpenEnded(t.toDay) ? 'inf' : t.toDay}`;
+    `${p.id}|${(r.sippCode || '').trim().toUpperCase()}|${t.fromDay}-${isOpenEnded(t.toDay) ? 'inf' : t.toDay}`;
   const index = (plans: RatePlan[]) => {
     const m = new Map<string, number>();
     (plans || []).forEach(p => (p.sippRates || []).forEach(r => (r.tiers || []).forEach(t => m.set(key(p, r, t), Number(t.dailyPrice || 0)))));
@@ -614,7 +614,7 @@ export const diffPlans = (before: RatePlan[], after: RatePlan[]) => {
 
 /** Lowest daily price for a SIPP code in a period (used for the rate matrix). */
 export const fromPrice = (plan: RatePlan, sippCode: string): number | null => {
-  const rate = (plan.sippRates || []).find(r => (r.sippCode || '').toUpperCase() === sippCode);
+  const rate = (plan.sippRates || []).find(r => (r.sippCode || '').trim().toUpperCase() === sippCode);
   if (!rate) return null;
   const prices = (rate.tiers || []).map(t => Number(t.dailyPrice)).filter(n => n > 0);
   return prices.length ? Math.min(...prices) : null;

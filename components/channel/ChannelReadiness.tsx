@@ -12,8 +12,8 @@ export function readinessSteps(a: Aggregator, fleet: Fleet, validation: Validati
   const r = a.bookingRules;
   const locs = r?.locations || [];
   const published = (a.ratePlanHistory || [])[0]?.ratePlans || [];
-  const groups = [...new Set(published.flatMap(p => (p.sippRates || []).map(s => s.sippCode.toUpperCase())))];
-  const pictured = groups.filter(g => r?.groupDetails?.[g]?.pictureUrl || fleet.some(v => (v.sippCode || '').toUpperCase() === g && (v as { imageUrl?: string }).imageUrl));
+  const groups = [...new Set(published.flatMap(p => (p.sippRates || []).map(s => (s.sippCode || '').trim().toUpperCase())))];
+  const pictured = groups.filter(g => r?.groupDetails?.[g]?.pictureUrl || fleet.some(v => (v.sippCode || '').trim().toUpperCase() === g && (v as { imageUrl?: string }).imageUrl));
   const cp = a.connectionProfile?.state || 'not_connected';
   const locDetail = locs.filter(l => l.phone && l.latitude != null && l.longitude != null);
   return [

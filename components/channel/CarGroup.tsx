@@ -51,7 +51,7 @@ export interface CarGroupInfo { code: string; model: string; models: string[]; c
 export const carGroups = (fleet: Fleet, aggregator?: Aggregator): Map<string, CarGroupInfo> => {
   const m = new Map<string, CarGroupInfo>();
   fleet.forEach(v => {
-    const c = (v.sippCode || '').toUpperCase();
+    const c = (v.sippCode || '').trim().toUpperCase();
     if (!c) return;
     const g = m.get(c) || { code: c, model: v.modelName || c, models: [], category: v.category || '', cars: 0 };
     g.cars++;

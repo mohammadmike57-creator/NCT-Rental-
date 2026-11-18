@@ -17,7 +17,7 @@ const LanguagesView: React.FC<{ aggregator: Aggregator; fleet: Fleet; onUpdate: 
     const [details, setDetails] = useState<Record<string, ChannelGroupDetail>>(rules.groupDetails || {});
     const [extras, setExtras] = useState(aggregator.extras || []);
     const [termsAr, setTermsAr] = useState(aggregator.termsAndConditionsAr || '');
-    const groups = useMemo(() => Array.from(new Set(fleet.map(v => (v.sippCode || '').toUpperCase()).filter(Boolean))).sort(), [fleet]);
+    const groups = useMemo(() => Array.from(new Set(fleet.map(v => (v.sippCode || '').trim().toUpperCase()).filter(Boolean))).sort(), [fleet]);
 
     const dirty = JSON.stringify([locs, details, extras, termsAr]) !== JSON.stringify([rules.locations || [], rules.groupDetails || {}, aggregator.extras || [], aggregator.termsAndConditionsAr || '']);
     const filled = [

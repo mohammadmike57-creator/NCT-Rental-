@@ -14,7 +14,7 @@ const days = (a: string, b: string) => (a && b ? Math.round((new Date(`${b}T00:0
 const groupInfo = (fleet: Fleet) => {
   const m = new Map<string, { model: string; category: string; cars: number }>();
   fleet.forEach(v => {
-    const c = (v.sippCode || '').toUpperCase();
+    const c = (v.sippCode || '').trim().toUpperCase();
     if (!c) return;
     const g = m.get(c);
     if (g) g.cars++; else m.set(c, { model: v.modelName || c, category: (v as { category?: string }).category || '', cars: 1 });

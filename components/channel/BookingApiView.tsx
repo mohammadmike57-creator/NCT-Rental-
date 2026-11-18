@@ -100,7 +100,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
   }, [aggregator.id]);
   useEffect(() => { loadHooks(); }, [loadHooks]);
 
-  const groups = useMemo(() => Array.from(new Set(fleet.map(v => (v.sippCode || '').toUpperCase()).filter(Boolean))).sort(), [fleet]);
+  const groups = useMemo(() => Array.from(new Set(fleet.map(v => (v.sippCode || '').trim().toUpperCase()).filter(Boolean))).sort(), [fleet]);
   const locations: ChannelBookingLocation[] = rules.locations && rules.locations.length
     ? rules.locations
     : [{ code: aggregator.locationCode || 'AMM', name: rentalLocations[0]?.name || '', pickup: true, dropOff: true }];
@@ -264,7 +264,7 @@ const BookingApiView: React.FC<Props> = ({ aggregator, fleet, rentalLocations, o
           <div className="flex flex-wrap gap-2">
             {groups.map(g => {
               const on = !(rules.allowedGroups && rules.allowedGroups.length) || rules.allowedGroups.includes(g);
-              const count = fleet.filter(v => (v.sippCode || '').toUpperCase() === g).length;
+              const count = fleet.filter(v => (v.sippCode || '').trim().toUpperCase() === g).length;
               return (
                 <button key={g} type="button" onClick={() => {
                   const cur = rules.allowedGroups && rules.allowedGroups.length ? rules.allowedGroups : groups;

@@ -60,7 +60,7 @@ const ChannelOverviewView: React.FC<ChannelOverviewViewProps> = ({ aggregator, f
   );
   const sippCodes = useMemo(() => {
     const codes = new Set<string>(fleetSippCodes(fleet));
-    plans.forEach(p => (p.sippRates || []).forEach(r => r.sippCode && codes.add(r.sippCode.toUpperCase())));
+    plans.forEach(p => (p.sippRates || []).forEach(r => r.sippCode && codes.add(r.sippCode.trim().toUpperCase())));
     return Array.from(codes).sort();
   }, [plans, fleet]);
   const latest = (aggregator.ratePlanHistory || [])[0];
@@ -168,7 +168,7 @@ const ChannelOverviewView: React.FC<ChannelOverviewViewProps> = ({ aggregator, f
               </thead>
               <tbody className={table.body}>
                 {sippCodes.map(code => {
-                  const model = fleet.find(v => (v.sippCode || '').toUpperCase() === code)?.modelName;
+                  const model = fleet.find(v => (v.sippCode || '').trim().toUpperCase() === code)?.modelName;
                   return (
                     <tr key={code} className={table.row}>
                       <td className={`${table.td} sticky left-0 bg-white`}>

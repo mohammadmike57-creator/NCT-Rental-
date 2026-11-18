@@ -89,7 +89,7 @@ const ConnectionProfileView: React.FC<Props> = ({ aggregator: a, fleet, currentU
   // What is mapped on our side (the codes the broker will use).
   const mapped: [string, boolean, string][] = [
     ['Locations', !!a.bookingRules?.locations?.length || !!a.locationCode, `${a.bookingRules?.locations?.length || (a.locationCode ? 1 : 0)} location code(s)`],
-    ['Vehicle groups', fleet.some(v => !!v.sippCode), `${new Set(fleet.map(v => (v.sippCode || '').toUpperCase()).filter(Boolean)).size} SIPP group(s)`],
+    ['Vehicle groups', fleet.some(v => !!v.sippCode), `${new Set(fleet.map(v => (v.sippCode || '').trim().toUpperCase()).filter(Boolean)).size} SIPP group(s)`],
     ['Extras', (a.extras || []).every(e => !!e.otaEquipType), `${(a.extras || []).filter(e => !!e.otaEquipType).length} of ${(a.extras || []).length} with codes`],
     ['Rates', (a.ratePlanHistory || []).length > 0, (a.ratePlanHistory || []).length ? `version ${(a.ratePlanHistory || []).length} published` : 'not published'],
   ];

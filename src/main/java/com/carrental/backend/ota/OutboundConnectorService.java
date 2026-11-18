@@ -190,7 +190,7 @@ public class OutboundConnectorService {
         StringBuilder csv = new StringBuilder("season,from,to,vehicle_group,min_days,max_days,daily_amount,currency\r\n");
         for (JsonNode plan : ch.publishedRatePlans()) {
             for (JsonNode rate : plan.path("sippRates")) {
-                String group = rate.path("sippCode").asText("").toUpperCase(Locale.ROOT);
+                String group = rate.path("sippCode").asText("").trim().toUpperCase(Locale.ROOT);
                 List<JsonNode> tiers = new ArrayList<>();
                 rate.path("tiers").forEach(tiers::add);
                 tiers.sort(Comparator.comparingInt(t -> t.path("fromDay").asInt(1)));

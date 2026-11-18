@@ -196,9 +196,9 @@ export const VehicleDetailsSection: React.FC<{ groups: string[]; fleet: Fleet; d
                 {groups.map(g => {
                   const d = details[g] || {};
                   const def = sippSpec(g);
-                  const car = fleet.find(v => (v.sippCode || '').toUpperCase() === g && v.imageUrl && !v.imageUrl.startsWith('data:'));
+                  const car = fleet.find(v => (v.sippCode || '').trim().toUpperCase() === g && v.imageUrl && !v.imageUrl.startsWith('data:'));
                   const pic = d.pictureUrl || car?.imageUrl;
-                  const model = fleet.find(v => (v.sippCode || '').toUpperCase() === g)?.modelName;
+                  const model = fleet.find(v => (v.sippCode || '').trim().toUpperCase() === g)?.modelName;
                   return (
                     <tr key={g}>
                       <td className="px-3 py-2"><p className="font-mono font-semibold text-slate-900">{g}</p><p className="text-[11px] text-slate-500">{model || '—'}</p></td>

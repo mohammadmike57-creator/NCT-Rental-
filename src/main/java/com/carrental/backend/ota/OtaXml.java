@@ -81,7 +81,7 @@ public final class OtaXml {
 
     static List<JsonNode> vehiclesForSipp(JsonNode fleet, String sipp) {
         List<JsonNode> out = new ArrayList<>();
-        for (JsonNode v : fleet) if (sipp.equalsIgnoreCase(v.path("sippCode").asText(""))) out.add(v);
+        for (JsonNode v : fleet) if (sipp.equalsIgnoreCase(v.path("sippCode").asText("").trim())) out.add(v);
         return out;
     }
 
@@ -182,7 +182,7 @@ public final class OtaXml {
         JsonNode rates = plan.get("sippRates");
         if (rates == null || !rates.isArray()) return lines;
         for (JsonNode rate : rates) {
-            String code = rate.path("sippCode").asText("").toUpperCase(Locale.ROOT);
+            String code = rate.path("sippCode").asText("").trim().toUpperCase(Locale.ROOT);
             List<JsonNode> vehicles = vehiclesForSipp(ch.fleet(), code);
             JsonNode vehicle = vehicles.isEmpty() ? null : vehicles.get(0);
             JsonNode tier = findTier(rate, days);
@@ -349,7 +349,7 @@ public final class OtaXml {
             JsonNode rates = plan.get("sippRates");
             if (rates != null && rates.isArray()) {
                 for (JsonNode rate : rates) {
-                    String code = rate.path("sippCode").asText("").toUpperCase(Locale.ROOT);
+                    String code = rate.path("sippCode").asText("").trim().toUpperCase(Locale.ROOT);
                     List<JsonNode> vs = vehiclesForSipp(ch.fleet(), code);
                     JsonNode v = vs.isEmpty() ? null : vs.get(0);
                     x.append("      <VehicleGroup").append(attrs("SIPP", code,
@@ -382,7 +382,7 @@ public final class OtaXml {
             String target = s.path("target").asText();
             if (vehicle) {
                 for (JsonNode v : ch.fleet()) {
-                    if (target.equals(v.path("id").asText()) && !v.path("sippCode").asText("").isBlank()) target = v.path("sippCode").asText();
+                    if (target.equals(v.path("id").asText()) && !v.path("sippCode").asText("").trim().isBlank()) target = v.path("sippCode").asText().trim();
                 }
             }
             x.append("    <StopSale").append(attrs("Type", vehicle ? "Vehicle" : "Category", "Target", target,
