@@ -495,3 +495,60 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   table.rt-cards td:empty { display: none; }
   .ota-console .overflow-x-auto:has(> table.rt-cards) { overflow-x: visible; }
 }
+
+/* OTA XML motion (components/channel/otaMotion.tsx): screens fade in, cards lift, buttons press. */
+@keyframes ota-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes ota-pop { from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes ota-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes ota-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.ota-enter { animation: ota-enter .45s cubic-bezier(.16,1,.3,1) backwards; }
+.ota-enter > * { animation: ota-enter .5s cubic-bezier(.16,1,.3,1) backwards; }
+.ota-enter > *:nth-child(2) { animation-delay: .04s; }
+.ota-enter > *:nth-child(3) { animation-delay: .08s; }
+.ota-enter > *:nth-child(n+4) { animation-delay: .12s; }
+.ota-rise { transform-origin: bottom; animation: ota-rise .8s cubic-bezier(.16,1,.3,1) both; }
+.ota-draw { stroke-dasharray: 1; animation: ota-draw .9s cubic-bezier(.4,0,.2,1) both; }
+.ota-card { transition: transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s cubic-bezier(.16,1,.3,1), border-color .2s ease; }
+.ota-card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -22px rgba(15,23,42,.35); border-color: #c7d2fe; }
+.ota-console button { transition-property: color, background-color, border-color, box-shadow, transform; }
+.ota-console button:active:not(:disabled) { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) {
+  .ota-enter, .ota-enter > *, .ota-rise, .ota-draw { animation: none !important; }
+  .ota-card, .ota-card:hover, .ota-console button:active { transform: none !important; transition: none !important; }
+}
+@keyframes ota-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.ota-reveal { animation: ota-reveal .9s cubic-bezier(.4,0,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .ota-reveal { animation: none !important; } }
+.ota-pop { animation: ota-pop .6s cubic-bezier(.16,1,.3,1) backwards; }
+@media (prefers-reduced-motion: reduce) { .ota-pop { animation: none !important; } }
+@keyframes ota-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.ota-shimmer { background: linear-gradient(90deg, #f1f5f9 25%, #e8eef6 37%, #f1f5f9 63%); background-size: 400% 100%; animation: ota-shimmer 1.4s ease infinite; }
+@media (prefers-reduced-motion: reduce) { .ota-shimmer { animation: none !important; } }
+
+/* OTA XML, modern layer: cards wait out of view, a light follows the mouse, a slow aurora behind the greeting. */
+.ota-pending { opacity: 0; }
+.ota-spot { position: relative; isolation: isolate; }
+.ota-spot::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+  background: radial-gradient(460px circle at var(--mx, 50%) var(--my, 50%), rgba(99,102,241,.07), transparent 42%);
+  opacity: 0; transition: opacity .45s ease;
+}
+.ota-spot::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; padding: 1px;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(99,102,241,.55), transparent 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0; transition: opacity .45s ease;
+}
+.ota-spot:hover::before, .ota-spot:hover::after { opacity: 1; }
+@keyframes ota-drift { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-40px, 24px) scale(1.12); } 100% { transform: translate(24px, -14px) scale(.94); } }
+.ota-aurora { animation: ota-drift 18s ease-in-out infinite alternate; will-change: transform; }
+.ota-aurora-2 { animation-duration: 23s; animation-delay: -6s; }
+.ota-aurora-3 { animation-duration: 27s; animation-delay: -12s; }
+@keyframes ota-row { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+.ota-pop .ota-row { animation: ota-row .55s cubic-bezier(.16,1,.3,1) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .ota-pending { opacity: 1; }
+  .ota-aurora, .ota-pop .ota-row { animation: none !important; }
+  .ota-spot::before, .ota-spot::after { display: none; }
+}
