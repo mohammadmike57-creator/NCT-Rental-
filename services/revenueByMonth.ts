@@ -1,4 +1,5 @@
 import { AppData, Reservation, TrafficTicket, VehicleDamage } from '../types';
+import { bookingKey } from './duplicates';
 import { MONTHS, USD_TO_JOD_RATE } from '../constants';
 import { amountOf, bookingRevenue, countsInSummary, indexRegisters } from './revenue';
 import { lateFeeOf } from './lateReturn';
@@ -98,8 +99,8 @@ export function revenueEvents(r: Reservation, bookingYear: number, bookingMonth:
   // ---- Damages and tickets from their registers, in the month they were added.
   const rc = r.returnCharges;
   const issued = rc?.issuedAt || r.dropOffDateTime;
-  const regDamages = idx.damages.get(r.bookingId) || [];
-  const regTickets = idx.tickets.get(r.bookingId) || [];
+  const regDamages = idx.damages.get(bookingKey(r)) || [];
+  const regTickets = idx.tickets.get(bookingKey(r)) || [];
   regDamages.forEach(d => { const iso = d.id.startsWith(`vd-${r.id}-`) ? issued : addedAt(d); add('damages', jodToUsd(d.amount), when(iso), d.details || 'Damage', `vd:${d.id}`, iso); });
   regTickets.forEach(t => { const iso = t.id.startsWith(`tt-${r.id}-`) ? issued : addedAt(t) || t.ticketDate; add('tickets', jodToUsd(t.amount), when(iso), t.details || 'Traffic ticket', `tt:${t.id}`, iso); });
 

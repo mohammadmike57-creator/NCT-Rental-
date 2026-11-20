@@ -1,4 +1,5 @@
 import { Reservation, ReservationStatus, TrafficTicket, VehicleDamage } from '../types';
+import { bookingKey } from './duplicates';
 import { USD_TO_JOD_RATE } from '../constants';
 import { lateFeeOf } from './lateReturn';
 
@@ -31,8 +32,10 @@ const round = (n: number) => Math.round(n * 100) / 100;
 export function indexRegisters({ trafficTickets = [], vehicleDamages = [] }: ChargeRegisters) {
   const tickets = new Map<string, TrafficTicket[]>();
   const damages = new Map<string, VehicleDamage[]>();
-  trafficTickets.forEach(t => { if (t.bookingId) tickets.set(t.bookingId, [...(tickets.get(t.bookingId) || []), t]); });
-  vehicleDamages.forEach(d => { if (d.bookingId) damages.set(d.bookingId, [...(damages.get(d.bookingId) || []), d]); });
+  // Keyed by the booking number without case or spaces ("cjt-226505123" = "CJT-226505123"), the same way the
+  // add-ons list matches them; an exact key left a ticket on the booking but out of its revenue and commission.
+  trafficTickets.forEach(t => { const k = bookingKey(t); if (k) tickets.set(k, [...(tickets.get(k) || []), t]); });
+  vehicleDamages.forEach(d => { const k = bookingKey(d); if (k) damages.set(k, [...(damages.get(k) || []), d]); });
   return { tickets, damages };
 }
 
@@ -45,8 +48,8 @@ export function bookingRevenue(r: Reservation, idx: ReturnType<typeof indexRegis
   const late = lateFeeOf(r)?.status === 'APPLIED' && !lateFeeOf(r)!.isWaived ? lateFeeOf(r)!.amount : 0;
   const rental = amountOf(r) + late;
 
-  const regDamages = idx.damages.get(r.bookingId) || [];
-  const regTickets = idx.tickets.get(r.bookingId) || [];
+  const regDamages = idx.damages.get(bookingKey(r)) || [];
+  const regTickets = idx.tickets.get(bookingKey(r)) || [];
   let damages = regDamages.reduce((s, d) => s + toUSD(d.amount, 'JOD'), 0);
   let tickets = regTickets.reduce((s, t) => s + toUSD(t.amount, 'JOD'), 0);
   let other = 0;
