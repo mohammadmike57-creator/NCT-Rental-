@@ -660,11 +660,49 @@ export interface AggregatorExtra {
     maxPerRental?: number; // Optional cap on the rental charge, 0 / undefined = no cap
 }
 
+/** One month billed to (or by) a broker, from its commission statement. */
+export interface BrokerInvoice {
+    id: string;
+    number: string;
+    month: string;            // YYYY-MM, pick-ups of that month
+    issuedAt: string;         // YYYY-MM-DD
+    dueDate: string;          // YYYY-MM-DD
+    /** broker_pays: the broker collected the money and owes us the net; we_pay: customers paid us, we owe the commission. */
+    direction: 'broker_pays' | 'we_pay';
+    amount: number;
+    currency: string;
+    bookings: number;
+    note?: string;
+    createdBy?: string;
+}
+export interface BrokerPayment {
+    id: string;
+    date: string;             // YYYY-MM-DD
+    amount: number;
+    currency: string;
+    invoiceId?: string;
+    reference?: string;
+    note?: string;
+    by?: string;
+}
+export interface BrokerAccounting {
+    invoices: BrokerInvoice[];
+    payments: BrokerPayment[];
+    /** Days the broker (or we) have to pay an invoice. */
+    termsDays?: number;
+    /** Who collects the rental money; read from Connection → Settlement when not set here. */
+    direction?: 'broker_pays' | 'we_pay';
+}
+
 export interface Aggregator {
     id: string;
     name: string;
     /** What OTA XML repaired on its own (newest first, last 30): see services/channelRepair.ts. */
     repairLog?: { at: string; text: string }[];
+    /** Who gets this broker's alert emails (comma-separated); empty = the server's ALERT_EMAIL. */
+    alertEmails?: string;
+    /** Money with this broker: invoices by month and payments (Brokers → Accounts). */
+    accounting?: BrokerAccounting;
     connectionDetails: AggregatorConnectionDetails;
     currentRatePlans: RatePlan[];
     ratePlanHistory: RatePlanSubmission[];

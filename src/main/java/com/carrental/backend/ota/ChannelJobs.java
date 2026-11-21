@@ -19,7 +19,8 @@ import java.util.concurrent.TimeUnit;
  *   - automatic no-shows (when the channel sets noShowAfterHours), and
  *   - inventory push: free cars per group per day for the next inventoryPushDays, sent as
  *     inventory.updated only when it differs from what the broker last received (checked at most
- *     every 15 minutes per channel, and re-sent once a day even when unchanged).
+ *     every 15 minutes per channel, and re-sent once a day even when unchanged), and
+ *   - broker alerts by email (see ChannelAlertService).
  * Channels in testing, paused channels and channels without a webhook are skipped.
  */
 @Component
@@ -39,12 +40,14 @@ public class ChannelJobs {
     private long lastRetention;
     private final ChannelRetentionService retention;
     private final OutboundConnectorService connectors;
+    private final ChannelAlertService alerts;
     private ScheduledExecutorService worker;
 
     public ChannelJobs(ChannelStateReader channels, ChannelBookingService core, ChannelWebhookService webhooks,
                        ChannelInventorySnapshotRepository snapshots, ChannelTrafficService traffic, ChannelRetentionService retention,
-                       OutboundConnectorService connectors, @Value("${channel.jobs.enabled:true}") boolean enabled) {
+                       OutboundConnectorService connectors, ChannelAlertService alerts, @Value("${channel.jobs.enabled:true}") boolean enabled) {
         this.connectors = connectors;
+        this.alerts = alerts;
         this.traffic = traffic;
         this.retention = retention;
         this.channels = channels;
@@ -78,6 +81,7 @@ public class ChannelJobs {
                 if ("paused".equalsIgnoreCase(ch.status()) || ch.urlCode().isBlank()) continue;
                 // Each channel's work runs as its own supplier, with that supplier's data only.
                 com.carrental.backend.tenant.TenantContext.run(ch.supplierId(), () -> {
+                    try { alerts.check(ch); } catch (Exception e) { log.warn("Broker alerts for {}: {}", ch.name(), e.getMessage()); }
                     try {
                         ChannelBookingService.Ctx c = core.context(ch, false);
                         if (c.sandbox()) return;

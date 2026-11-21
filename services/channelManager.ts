@@ -179,7 +179,7 @@ export const validateChannel = (agg: Aggregator, fleet: Fleet, today: string = t
   }
   if (!conn.username) push('warning', 'Connection', 'Username / channel ID is not set.');
   if (!conn.apiKey) push('warning', 'Connection', 'API key / secret is not set.');
-  if (!agg.vendorCode) push('info', 'Connection', 'Supplier (vendor) code not set — "NCT" will be used in XML.');
+  if (!agg.vendorCode) push('info', 'Connection', 'Supplier (vendor) code not set — "URD" will be used in XML.');
   if (!agg.vendorName?.trim()) push('info', 'Connection', 'Supplier name not set — brokers see your company name (UR-Drive Jordan) in every answer.');
   if (!agg.locationCode) push('info', 'Connection', 'Location code not set — "AMM" will be used in XML.');
   if (!agg.feedKeyHash) {

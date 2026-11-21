@@ -40,11 +40,14 @@ public class ChannelGatewayAdminController {
     private final ChannelSecurityGuard guard;
     private final com.carrental.backend.service.StateService state;
     private final com.carrental.backend.audit.ActivityService activity;
+    private final ChannelAlertService alerts;
 
     public ChannelGatewayAdminController(ChannelStateReader channels, ChannelBookingRepository bookings, ChannelWebhookService webhooks,
                                          ChannelWebhookRepository deliveries, ChannelCertificationService certification,
                                          ChannelBookingService core, ChannelJobs jobs, ChannelTrafficService traffic, ChannelSecurityGuard guard,
-                                         com.carrental.backend.service.StateService state, com.carrental.backend.audit.ActivityService activity) {
+                                         com.carrental.backend.service.StateService state, com.carrental.backend.audit.ActivityService activity,
+                                         ChannelAlertService alerts) {
+        this.alerts = alerts;
         this.state = state;
         this.activity = activity;
         this.guard = guard;
@@ -137,6 +140,26 @@ public class ChannelGatewayAdminController {
         d.setNextAttemptAt(Instant.now());
         d = deliveries.save(d);
         return ResponseEntity.ok(delivery(webhooks.attempt(d)));
+    }
+
+    /** Who gets this broker's alerts and what is wrong with it right now. */
+    @GetMapping("/alerts")
+    public ResponseEntity<?> alerts(@PathVariable String channelId, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        Optional<ChannelSnapshot> ch = channels.find(channelId);
+        if (ch.isEmpty()) return notFound();
+        return ResponseEntity.ok(Map.of("recipients", alerts.recipients(ch.get()), "problems", alerts.problems(ch.get())));
+    }
+
+    /** Sends a sample alert to this broker's alert addresses, so staff can see that the emails arrive. */
+    @PostMapping("/alerts/test")
+    public ResponseEntity<?> testAlert(@PathVariable String channelId, Authentication auth) {
+        if (!allowed(auth)) return forbidden();
+        Optional<ChannelSnapshot> ch = channels.find(channelId);
+        if (ch.isEmpty()) return notFound();
+        String result = alerts.send(ch.get(), List.of(new ChannelAlertService.Alert("test", "Many requests are failing",
+            "Example: 12 of 40 requests from " + ch.get().name() + " failed in the last hour. This is only a test.")), true);
+        return ResponseEntity.ok(Map.of("result", result, "sent", result.startsWith("Sent")));
     }
 
     @PostMapping("/webhooks/{deliveryId}/replay")

@@ -373,6 +373,14 @@ export const deleteChannelBooking = async (channelId: string, reservationNumber:
   try { await axios.delete(channelPath(channelId, `/bookings/${encodeURIComponent(reservationNumber)}`), { headers: authHeaders() }); }
   catch (e) { throw apiError(e, 'Could not delete the booking.'); }
 };
+/** Who gets a broker's alert emails and what is wrong with it right now (server checks every 5 minutes). */
+export interface ChannelAlertInfo { recipients: string[]; problems: { type: string; title: string; text: string }[] }
+export const fetchChannelAlerts = async (channelId: string): Promise<ChannelAlertInfo> =>
+  (await axios.get(channelPath(channelId, '/alerts'), { headers: authHeaders() })).data;
+export const sendTestAlert = async (channelId: string): Promise<{ result: string; sent: boolean }> => {
+  try { return (await axios.post(channelPath(channelId, '/alerts/test'), {}, { headers: authHeaders() })).data; }
+  catch (e) { throw apiError(e, 'Could not send the test alert.'); }
+};
 export const fetchChannelWebhooks = async (channelId: string): Promise<{ secretCreatedAt?: string; deliveries: ChannelWebhookRow[] }> =>
   (await axios.get(channelPath(channelId, '/webhooks'), { headers: authHeaders() })).data;
 export const rotateWebhookSecret = async (channelId: string): Promise<{ secret: string; createdAt: string }> => {

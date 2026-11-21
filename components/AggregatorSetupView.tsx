@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Aggregator, Fleet, StopSale, AvailableExtra, RentalLocation, CompanyDetails } from '../types';
 import { PlusIcon, TrashIcon, GlobeAltIcon, StopIcon, InboxIcon, KeyIcon, ChartBarIcon, PencilIcon, ServerIcon, CodeBracketIcon, CurrencyDollarIcon,
-  ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon, PlayCircleIcon, ChevronRightIcon, ChevronDownIcon } from './icons';
+  ChartPieIcon, BoltIcon, SearchIcon, PlusCircleIcon, DocumentTextIcon, CloudIcon, PaperAirplaneIcon, ShieldCheckIcon, CalendarCheckIcon, ArrowPathIcon, DesktopComputerIcon, ClockIcon, DocumentReportIcon, PlayCircleIcon, ChevronRightIcon, ChevronDownIcon, BellIcon, ReceiptIcon } from './icons';
 import RateRulesView from './channel/RateRulesView';
 import { useResponsiveTables } from '../services/responsiveTables';
 import BookingApiView from './channel/BookingApiView';
@@ -37,6 +37,8 @@ import { showActionFeedback } from './ui/ActionFeedback';
 import { SlidingPill, Cascade, useSpotlight } from './channel/otaMotion';
 import { autoRepair } from '../services/channelRepair';
 import AutoRepairPanel from './channel/AutoRepairPanel';
+import AlertsView from './channel/AlertsView';
+import AccountsView from './channel/AccountsView';
 import ConnectionProfileView, { connectionStateOf } from './channel/ConnectionProfileView';
 import { saveAllData, deliverChannelRates, recordActivity, fetchChannelWebhooks, fetchChannelTrafficStats, fetchChannelBookings } from '../services/api';
 import { channelStatus, hasUnpublishedChanges, submissionVersion, validateChannel, todayIso, stopSalesFor } from '../services/channelManager';
@@ -54,14 +56,14 @@ interface AggregatorSetupViewProps {
   companyDetails?: CompanyDetails;
 }
 
-export type ChannelTab = 'Overview' | 'Connection' | 'Security' | 'API v3' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Price rules' | 'Languages' | 'Outbound' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
+export type ChannelTab = 'Accounts' | 'Overview' | 'Connection' | 'Security' | 'API v3' | 'Rates' | 'Extras' | 'Terms & Conditions' | 'Publish History' | 'XML Feed' | 'Booking API' | 'Price rules' | 'Languages' | 'Outbound' | 'Bookings' | 'Traffic' | 'Test console' | 'Go-live';
 /** A channel's screens, grouped by job and in the order they are set up. */
 /** Business side (Brokers): what is sold and booked. Everyday work for reservations and revenue staff. */
 const BUSINESS_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
   { label: 'Overview', tabs: ['Overview', 'Go-live'] },
   { label: 'Pricing', tabs: ['Rates', 'Price rules'] },
   { label: 'Products', tabs: ['Extras', 'Terms & Conditions'] },
-  { label: 'Sales', tabs: ['Bookings'] },
+  { label: 'Sales', tabs: ['Bookings', 'Accounts'] },
 ];
 /** Technical side: how the broker's system talks to ours. For IT and the broker's developers. */
 const TECH_GROUPS: { label: string; tabs: ChannelTab[] }[] = [
@@ -91,6 +93,7 @@ const SECTION_INFO: Record<ChannelTab, { icon: IconC; text: string }> = {
   'Security': { icon: ShieldCheckIcon, text: 'Who is calling, failed sign-ins, IP limits and signed requests.' },
   'API v3': { icon: CodeBracketIcon, text: 'REST v3 clients with OAuth 2.0 and webhook subscriptions.' },
   'Bookings': { icon: CalendarCheckIcon, text: 'Every booking this broker made, live and sandbox.' },
+  'Accounts': { icon: ReceiptIcon, text: 'Invoices by month, payments and the balance with this broker.' },
   'Traffic': { icon: ArrowPathIcon, text: 'Every call with its request, answer and time taken.' },
   'Test console': { icon: DesktopComputerIcon, text: 'Send real test messages as the broker would.' },
   'Publish History': { icon: ClockIcon, text: 'Every published rate version and its delivery to the broker.' },
@@ -105,6 +108,7 @@ const MODULE_INFO: Record<string, { icon: IconC; title: string; text: string }> 
   multi: { icon: PencilIcon, title: 'Bulk editor', text: 'Change rates, extras, terms and policies for several brokers at once.' },
   stopsale: { icon: StopIcon, title: 'Stop sales', text: 'Close a car or a car group for some dates, for every broker or chosen ones.' },
   developer: { icon: CodeBracketIcon, title: 'Developer', text: 'Addresses, formats and samples for the brokers\' developers.' },
+  alerts: { icon: BellIcon, title: 'Alerts', text: 'Who is emailed when a broker has problems, and what is wrong right now.' },
   tech: { icon: CloudIcon, title: 'Broker connections', text: 'Connection, booking API, security, traffic and tests for each broker.' },
   guide: { icon: PlayCircleIcon, title: 'Video guide', text: 'Short videos of every part of OTA XML: what it is and what it is used for.' },
 };
@@ -281,7 +285,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
   // Which workspace is open: one channel, the global stop sales, the multi-channel editor, or the XML reservations of all brokers.
   // Phones: tables become labelled cards (index.css .rt-cards).
   useResponsiveTables('ota-console');
-  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates' | 'guide' | 'tech'>('dashboard');
+  const [mode, setMode] = useState<'channels' | 'stopsale' | 'multi' | 'reservations' | 'keys' | 'dashboard' | 'developer' | 'rates' | 'guide' | 'tech' | 'alerts'>('dashboard');
   /** Opens a section; on a phone also scrolls to it, so the content is not hidden below the header. */
   const openModule = (key: typeof mode) => {
     setMode(key);
@@ -497,7 +501,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
     { key: 'channels', label: 'Brokers', short: 'Brokers', icon: ServerIcon, modes: ['channels'], count: aggregators.length },
     { key: 'reservations', label: 'Bookings', short: 'Bookings', icon: InboxIcon, modes: ['reservations'] },
     { key: 'pricing', label: 'Pricing', short: 'Pricing', icon: CurrencyDollarIcon, modes: ['rates', 'stopsale', 'multi'], sub: ['rates', 'stopsale', 'multi'], count: activeStopSales || undefined },
-    { key: 'technical', label: 'Technical', short: 'Technical', icon: CodeBracketIcon, modes: ['tech', 'keys', 'developer'], sub: ['tech', 'keys', 'developer'], tech: true },
+    { key: 'technical', label: 'Technical', short: 'Technical', icon: CodeBracketIcon, modes: ['tech', 'keys', 'alerts', 'developer'], sub: ['tech', 'keys', 'alerts', 'developer'], tech: true },
   ];
   const navNow = NAV.find(n => n.modes.includes(mode));   // none for the video guide
   const tech = mode === 'tech';
@@ -618,6 +622,8 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
       <Cascade k={mode}>
       {mode === 'guide' ? (
         <VideoGuideView />
+      ) : mode === 'alerts' ? (
+        <AlertsView aggregators={aggregators} onUpdate={handleUpdateAggregator} onUpdateAll={list => onUpdateAggregators(list)} notify={notify} />
       ) : mode === 'developer' ? (
         <DeveloperView />
       ) : mode === 'rates' ? (
@@ -876,6 +882,7 @@ const AggregatorSetupView: React.FC<AggregatorSetupViewProps> = ({
                 {activeTab === 'API v3' && <ApiV3View aggregator={sel} showConfirmation={notify} />}
                 {activeTab === 'Security' && <ChannelSecurityView aggregator={sel} onUpdate={handleUpdateAggregator} showConfirmation={notify} />}
                 {activeTab === 'Bookings' && <ChannelBookingsView aggregator={sel} />}
+                {activeTab === 'Accounts' && <AccountsView key={sel.id} aggregator={sel} onUpdate={handleUpdateAggregator} company={companyDetails} currentUserName={currentUserName} notify={notify} />}
                 {activeTab === 'Traffic' && <TrafficView aggregator={sel} />}
                 {activeTab === 'Test console' && <ConsoleView aggregator={sel} fleet={fleet} />}
                 {activeTab === 'Go-live' && (

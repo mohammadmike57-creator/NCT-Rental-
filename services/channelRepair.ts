@@ -66,6 +66,16 @@ const AUTO = /^(swap|dup|ovl)-/;
 export function autoRepair(agg: Aggregator): { agg: Aggregator; fixes: string[] } {
   const fixes: string[] = [];
   let work: Aggregator = { ...agg, currentRatePlans: (agg.currentRatePlans || []).map(p => repairPlan(p, fixes)) };
+  // Brokers never see the system's own name: supplier code NCT becomes URD (the server still accepts NCT from
+  // brokers set up with it, so nothing breaks), and a supplier name with NCT in it falls back to the company name.
+  if ((agg.vendorCode || '').trim().toUpperCase() === 'NCT') {
+    work = { ...work, vendorCode: 'URD' };
+    fixes.push('Supplier code NCT changed to URD, so brokers never see the system name. NCT is still accepted from brokers set up with it.');
+  }
+  if (/\bnct\b/i.test(agg.vendorName || '')) {
+    work = { ...work, vendorName: 'UR-Drive Jordan' };
+    fixes.push(`Supplier name "${agg.vendorName}" changed to UR-Drive Jordan, so brokers never see the system name.`);
+  }
   // One error fix at a time, then look again (ending one period can settle the next overlap).
   for (let n = 0; n < 20; n++) {
     const f = suggestFixes(work).find(x => AUTO.test(x.id));
@@ -74,10 +84,9 @@ export function autoRepair(agg: Aggregator): { agg: Aggregator; fixes: string[] 
     fixes.push(`${f.problem} Fixed: ${f.action}.`);
   }
   if (!fixes.length) return { agg, fixes };
-  const plans = work.currentRatePlans;
   const at = new Date().toISOString();
   const repairLog = [...fixes.map(text => ({ at, text })), ...(agg.repairLog || [])].slice(0, 30);
-  return { agg: { ...agg, currentRatePlans: plans, repairLog }, fixes };
+  return { agg: { ...work, repairLog }, fixes };
 }
 
 export interface SuggestedFix { id: string; problem: string; action: string; apply: (a: Aggregator) => Aggregator }
